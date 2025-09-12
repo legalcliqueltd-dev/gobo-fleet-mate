@@ -2,17 +2,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, MapPin, Truck, Shield, BarChart3 } from "lucide-react";
 import heroImage from "@/assets/hero-image.jpg";
-
 const Hero = () => {
-  return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+  return <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Background Image with Overlay */}
       <div className="absolute inset-0 z-0">
-        <img 
-          src={heroImage} 
-          alt="Fleet tracking dashboard" 
-          className="w-full h-full object-cover"
-        />
+        <img src={heroImage} alt="Fleet tracking dashboard" className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-r from-background via-background/90 to-background/60" />
       </div>
 
@@ -27,7 +21,7 @@ const Hero = () => {
 
           {/* Main Heading */}
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
-            <span className="gradient-text">Gobo Fleet</span>
+            <span className="gradient-text">Fleet</span>
             <br />
             <span className="text-foreground">Track Mate</span>
           </h1>
@@ -73,8 +67,6 @@ const Hero = () => {
           <div className="w-1 h-3 bg-primary rounded-full mt-2 animate-pulse" />
         </div>
       </div>
-    </section>
-  );
+    </section>;
 };
-
 export default Hero;
