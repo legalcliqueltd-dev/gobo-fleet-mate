@@ -2,12 +2,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, Star } from "lucide-react";
+import { useState } from "react";
 
 const Pricing = () => {
+  const [isAnnual, setIsAnnual] = useState(false);
+  
   const plans = [
     {
       name: "Starter",
-      price: "29",
+      monthlyPrice: 15,
       description: "Perfect for small fleets and startups",
       vehicles: "Up to 5 vehicles",
       features: [
@@ -21,7 +24,7 @@ const Pricing = () => {
     },
     {
       name: "Professional",
-      price: "79",
+      monthlyPrice: 45,
       description: "Ideal for growing businesses",
       vehicles: "Up to 25 vehicles",
       features: [
@@ -38,7 +41,7 @@ const Pricing = () => {
     },
     {
       name: "Enterprise",
-      price: "199",
+      monthlyPrice: 99,
       description: "For large fleets and enterprises",
       vehicles: "Unlimited vehicles",
       features: [
@@ -55,6 +58,13 @@ const Pricing = () => {
     }
   ];
 
+  const getPrice = (monthlyPrice: number) => {
+    if (isAnnual) {
+      return Math.round(monthlyPrice * 0.9); // 10% discount for annual
+    }
+    return monthlyPrice;
+  };
+
   return (
     <section className="py-20 bg-muted/20">
       <div className="container mx-auto px-4">
@@ -69,6 +79,33 @@ const Pricing = () => {
             Choose the perfect plan for your fleet. All plans include free setup, 
             training, and 24/7 monitoring with no hidden fees.
           </p>
+          
+          {/* Billing Toggle */}
+          <div className="flex items-center justify-center gap-4 mt-8">
+            <span className={`text-sm ${!isAnnual ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+              Monthly
+            </span>
+            <button
+              onClick={() => setIsAnnual(!isAnnual)}
+              className={`relative w-14 h-7 rounded-full transition-colors ${
+                isAnnual ? 'bg-primary' : 'bg-muted'
+              }`}
+            >
+              <div
+                className={`absolute w-5 h-5 bg-white rounded-full top-1 transition-transform ${
+                  isAnnual ? 'translate-x-8' : 'translate-x-1'
+                }`}
+              />
+            </button>
+            <span className={`text-sm ${isAnnual ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+              Annual
+            </span>
+            {isAnnual && (
+              <Badge variant="secondary" className="ml-2 bg-success/20 text-success border-success/30">
+                Save 10%
+              </Badge>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
@@ -95,8 +132,13 @@ const Pricing = () => {
                 <CardDescription className="text-base">{plan.description}</CardDescription>
                 
                 <div className="mt-4">
-                  <span className="text-4xl font-bold">${plan.price}</span>
-                  <span className="text-muted-foreground">/month</span>
+                  <span className="text-4xl font-bold">${getPrice(plan.monthlyPrice)}</span>
+                  <span className="text-muted-foreground">/{isAnnual ? 'month' : 'month'}</span>
+                  {isAnnual && (
+                    <div className="text-sm text-muted-foreground mt-1">
+                      <span className="line-through">${plan.monthlyPrice}</span> monthly
+                    </div>
+                  )}
                 </div>
                 
                 <p className="text-sm text-muted-foreground mt-2">{plan.vehicles}</p>
