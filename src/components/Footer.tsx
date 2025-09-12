@@ -58,7 +58,7 @@ const Footer = () => {
                 <Truck className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-xl font-bold gradient-text">GFTM</h3>
+                <h3 className="text-xl font-bold gradient-text">FTM</h3>
                 <p className="text-sm text-muted-foreground -mt-1">Fleet Track Mate</p>
               </div>
             </div>
@@ -146,7 +146,7 @@ const Footer = () => {
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-4">
-              <p>© 2024 Gobo Fleet Track Mate. All rights reserved.</p>
+              <p>© 2024 Fleet Track Mate - FTM. All rights reserved.</p>
               <Badge variant="secondary" className="text-xs">
                 SOC 2 Compliant
               </Badge>

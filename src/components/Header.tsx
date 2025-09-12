@@ -23,7 +23,7 @@ const Header = () => {
               <Truck className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold gradient-text">GFTM</h1>
+              <h1 className="text-xl font-bold gradient-text">FTM</h1>
               <p className="text-xs text-muted-foreground -mt-1">Fleet Track Mate</p>
             </div>
           </div>
