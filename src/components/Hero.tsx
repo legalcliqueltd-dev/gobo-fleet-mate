@@ -33,13 +33,33 @@ const Hero = () => {
           </p>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
             <Button variant="hero" size="lg" className="group">
               Start Free Trial
               <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
             <Button variant="outline" size="lg">
               View Demo
+            </Button>
+          </div>
+
+          {/* Mobile App Download */}
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mb-12">
+            <Button variant="outline" size="lg" className="bg-black text-white hover:bg-gray-800 border-gray-700">
+              <div className="flex items-center gap-3">
+                <div className="text-left">
+                  <div className="text-xs text-gray-300">Download on the</div>
+                  <div className="text-sm font-semibold">App Store</div>
+                </div>
+              </div>
+            </Button>
+            <Button variant="outline" size="lg" className="bg-black text-white hover:bg-gray-800 border-gray-700">
+              <div className="flex items-center gap-3">
+                <div className="text-left">
+                  <div className="text-xs text-gray-300">Get it on</div>
+                  <div className="text-sm font-semibold">Google Play</div>
+                </div>
+              </div>
             </Button>
           </div>
 
