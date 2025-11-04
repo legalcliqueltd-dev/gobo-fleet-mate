@@ -65,12 +65,42 @@
 - ✅ Created floating alert widget on Dashboard with unacknowledged count
 - ✅ Added geofence activation/deactivation and delete functionality
 
+## Phase 9 (Trip Detection & History)
+- ✅ Created trips table with RLS policies and real-time subscription
+- ✅ Added detect_trips() trigger function for automatic trip detection
+- ✅ Trip start: device goes from idle (<5 km/h) to moving (≥5 km/h)
+- ✅ Trip end: device idle for 5+ minutes after movement
+- ✅ Automatic calculation of trip metrics: distance, duration, avg/max speed
+- ✅ Created useTrips hook for fetching and filtering trip history
+- ✅ Implemented Trips page at /trips with summary stats and filtering
+- ✅ Added trip list with device filtering and real-time updates
+- ✅ Added navigation links and updated documentation
+
+## Phase 7B (Push Notifications - FCM)
+- ✅ Created notification_tokens table with RLS policies for web/android/ios tokens
+- ✅ Added status_changed_at and last_notified_offline_at to devices table
+- ✅ Created trigger to track device status changes automatically
+- ✅ Integrated Firebase Messaging with web push support
+- ✅ Created Settings page at /settings to enable/disable notifications
+- ✅ Implemented service worker for background push notifications
+- ✅ Created notify-inactivity edge function to send FCM alerts for offline devices
+- ✅ Added deduplication logic to prevent spam (last_notified_offline_at)
+- ✅ Added Firebase config to environment variables
+- ✅ Updated navigation with Settings link (visible when logged in)
+- ✅ Created comprehensive documentation in docs/NOTIFICATIONS.md
+
 ## Next:
-- Phase 9 (optional): Trip detection, device sharing, push notifications, data export
+- Phase 10 (optional): Device sharing, data export, maintenance reminders
 
 ## Environment variables (Lovable settings)
 - Supabase credentials: Hardcoded in src/lib/supabaseClient.ts
 - Mapbox token: Configured in src/lib/mapboxConfig.ts
+- Firebase config (for push notifications):
+  - VITE_FIREBASE_API_KEY
+  - VITE_FIREBASE_PROJECT_ID
+  - VITE_FIREBASE_MESSAGING_SENDER_ID
+  - VITE_FIREBASE_APP_ID
+  - VITE_FIREBASE_VAPID_KEY
 
 ## Important notes:
 - Auth system uses email/password with proper validation

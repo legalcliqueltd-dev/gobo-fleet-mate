@@ -14,6 +14,7 @@ import DeviceDetails from './pages/devices/DeviceDetails';
 import FleetAnalytics from './pages/FleetAnalytics';
 import Geofences from './pages/Geofences';
 import Trips from './pages/Trips';
+import Settings from './pages/Settings';
 import Status from './pages/Status';
 import { ThemeProvider } from './contexts/ThemeContext';
 
@@ -83,6 +84,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <EditDevice />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <Settings />
                 </ProtectedRoute>
               }
             />

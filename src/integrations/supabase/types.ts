@@ -19,24 +19,33 @@ export type Database = {
           created_at: string | null
           id: string
           imei: string | null
+          last_notified_offline_at: string | null
           name: string | null
           status: string | null
+          status_changed_at: string | null
+          updated_at: string | null
           user_id: string
         }
         Insert: {
           created_at?: string | null
           id?: string
           imei?: string | null
+          last_notified_offline_at?: string | null
           name?: string | null
           status?: string | null
+          status_changed_at?: string | null
+          updated_at?: string | null
           user_id: string
         }
         Update: {
           created_at?: string | null
           id?: string
           imei?: string | null
+          last_notified_offline_at?: string | null
           name?: string | null
           status?: string | null
+          status_changed_at?: string | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
@@ -75,6 +84,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notification_tokens: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_seen_at: string | null
+          platform: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_seen_at?: string | null
+          platform: string
+          token: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_seen_at?: string | null
+          platform?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {

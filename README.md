@@ -7,6 +7,12 @@ Real-time fleet tracking application built with React, Supabase, and Mapbox.
 1. **Environment Variables**
    - Set `VITE_MAPBOX_TOKEN` in environment settings
    - Supabase credentials are configured in `src/lib/supabaseClient.ts`
+   - Firebase config (optional, for push notifications):
+     - `VITE_FIREBASE_API_KEY`
+     - `VITE_FIREBASE_PROJECT_ID`
+     - `VITE_FIREBASE_MESSAGING_SENDER_ID`
+     - `VITE_FIREBASE_APP_ID`
+     - `VITE_FIREBASE_VAPID_KEY`
 
 2. **Database Setup**
    - Run `docs/SQL/profiles.sql` in Supabase SQL editor (creates profiles table)
@@ -14,6 +20,7 @@ Real-time fleet tracking application built with React, Supabase, and Mapbox.
    - Run `docs/SQL/insights_status.sql` in Supabase SQL editor (creates status automation triggers and functions)
    - Run `docs/SQL/insights_stats.sql` in Supabase SQL editor (creates device insights RPC functions)
    - Run `docs/SQL/fleet_analytics.sql` in Supabase SQL editor (creates fleet analytics RPC functions)
+   - Notification tables are created via migrations (notification_tokens, device status tracking)
 
 3. **Supabase Auth Configuration**
    - Set Site URL to your Lovable preview URL (e.g., `https://yourproject.lovable.app`)
@@ -68,11 +75,28 @@ Real-time fleet tracking application built with React, Supabase, and Mapbox.
 - Event acknowledgement and history tracking
 - Visual geofence zones displayed on map
 
+### Trip Detection (Phase 9)
+- Automatic trip detection based on movement patterns (speed < 5 km/h = idle, ≥ 5 km/h = moving)
+- Trip history at `/trips` with start/end locations, duration, and distance
+- Real-time trip status updates via Supabase Realtime
+- Trip metrics: total distance, duration, average speed, max speed
+- Filter trips by device
+
+### Push Notifications (Phase 7B)
+- Web push notifications via Firebase Cloud Messaging (FCM)
+- Settings page at `/settings` to enable/disable notifications
+- Browser notification permission management
+- Edge function `notify-inactivity` to send alerts when devices go offline
+- Token storage with RLS for multi-device support
+- Requires HTTPS for web push
+
 ## Project Structure
 
 - `src/pages/Dashboard.tsx` - Main dashboard with map and device list
 - `src/pages/FleetAnalytics.tsx` - Fleet analytics dashboard with charts
 - `src/pages/Geofences.tsx` - Geofence management with map drawing tools
+- `src/pages/Trips.tsx` - Trip history with filtering and metrics
+- `src/pages/Settings.tsx` - User settings and notification preferences
 - `src/pages/devices/DeviceDetails.tsx` - Device details with insights panel
 - `src/components/map/MapView.tsx` - Mapbox map component
 - `src/components/GeofenceAlerts.tsx` - Floating alert widget
@@ -80,7 +104,11 @@ Real-time fleet tracking application built with React, Supabase, and Mapbox.
 - `src/hooks/useFleetAnalytics.ts` - Fleet-wide analytics hook
 - `src/hooks/useGeofences.ts` - Geofence management hook
 - `src/hooks/useGeofenceEvents.ts` - Geofence events and alerts hook
+- `src/hooks/useTrips.ts` - Trip detection and history hook
+- `src/lib/firebase.ts` - Firebase messaging configuration
+- `supabase/functions/notify-inactivity/` - Edge function for offline alerts
 - `docs/SQL/` - Database migration scripts and RPC functions
+- `docs/NOTIFICATIONS.md` - Push notification setup guide
 
 ## Testing Realtime
 
@@ -164,10 +192,9 @@ After the geofencing migration:
 
 ## Coming Soon
 
-- Trip detection and history
 - Device sharing
-- Push notifications
 - Data export (CSV/PDF)
+- Maintenance reminders
 
 ---
 
