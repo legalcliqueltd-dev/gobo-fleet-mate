@@ -3,8 +3,9 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import Map, { Layer, MapRef, NavigationControl, Source } from 'react-map-gl';
 import DeviceMarker from '../../components/map/DeviceMarker';
-import { Play, Pause, Pencil, Trash2, ChevronLeft } from 'lucide-react';
+import { Play, Pause, Pencil, Trash2, ChevronLeft, Gauge, Timer, Route as RouteIcon, AlertTriangle } from 'lucide-react';
 import { MAPBOX_TOKEN } from '../../lib/mapboxConfig';
+import { useDeviceInsights } from '../../hooks/useDeviceInsights';
 
 type DeviceRow = {
   id: string;
@@ -22,6 +23,18 @@ type Point = {
   timestamp: string;
 };
 
+function fmtKm(n: number) {
+  return `${(n || 0).toFixed(2)} km`;
+}
+function fmtSpeed(n: number) {
+  return `${Math.round(n || 0)} km/h`;
+}
+function minutesSince(iso?: string | null) {
+  if (!iso) return null;
+  const diff = (Date.now() - new Date(iso).getTime()) / 60000;
+  return Math.max(0, Math.round(diff));
+}
+
 export default function DeviceDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -33,6 +46,8 @@ export default function DeviceDetails() {
   const [err, setErr] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [idx, setIdx] = useState(0);
+
+  const { stats, loading: statsLoading, error: statsError } = useDeviceInsights(id, range);
 
   const mapRef = useRef<MapRef | null>(null);
 
@@ -82,6 +97,9 @@ export default function DeviceDetails() {
   }, [playing, points.length]);
 
   const current = points[idx] ?? null;
+  const lastUpdateIso = points.length ? points[points.length - 1].timestamp : null;
+  const lastUpdateMin = minutesSince(lastUpdateIso);
+
   const path = useMemo(() => {
     if (points.length === 0) return null;
     return {
@@ -141,8 +159,10 @@ export default function DeviceDetails() {
         </div>
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
+      {/* Insights panel */}
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 backdrop-blur p-4">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold">Insights ({range})</h3>
           <div className="inline-flex items-center gap-2">
             <button
               onClick={() => setRange('24h')}
@@ -157,6 +177,38 @@ export default function DeviceDetails() {
               Last 7d
             </button>
           </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
+            <div className="flex items-center gap-2"><RouteIcon className="h-4 w-4" /><span>Distance</span></div>
+            <div className="mt-1 text-lg font-semibold">{statsLoading ? '—' : fmtKm(stats?.distance_km ?? 0)}</div>
+          </div>
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
+            <div className="flex items-center gap-2"><Gauge className="h-4 w-4" /><span>Avg speed</span></div>
+            <div className="mt-1 text-lg font-semibold">{statsLoading ? '—' : fmtSpeed(stats?.avg_speed_kmh ?? 0)}</div>
+          </div>
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
+            <div className="flex items-center gap-2"><Gauge className="h-4 w-4" /><span>Max speed</span></div>
+            <div className="mt-1 text-lg font-semibold">{statsLoading ? '—' : fmtSpeed(stats?.max_speed_kmh ?? 0)}</div>
+          </div>
+          <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
+            <div className="flex items-center gap-2"><Timer className="h-4 w-4" /><span>Idle time</span></div>
+            <div className="mt-1 text-lg font-semibold">{statsLoading ? '—' : `${stats?.idle_minutes ?? 0} min`}</div>
+          </div>
+        </div>
+        {statsError && <div className="text-sm text-red-600 mt-2">{statsError}</div>}
+
+        {lastUpdateMin !== null && lastUpdateMin > 10 && (
+          <div className="mt-3 inline-flex items-center gap-2 rounded-md border border-amber-300 bg-amber-100/60 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 px-3 py-2 text-xs">
+            <AlertTriangle className="h-4 w-4" />
+            Inactivity alert: last update {lastUpdateMin} min ago. Device may be idle/offline.
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-medium">Location History</div>
           <div className="inline-flex items-center gap-2">
             <button
               onClick={() => setPlaying((p) => !p)}
