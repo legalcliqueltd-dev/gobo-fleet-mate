@@ -3,7 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Fleet Track Mate - FTM | Advanced Cloud Fleet Management</title>
+    <title>FleetTrackMate | Advanced Cloud Fleet Management</title>
+    <script>
+      (function() {
+        try {
+          var key = 'ftm-theme';
+          var persisted = localStorage.getItem(key);
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var t = persisted || 'system';
+          var isDark = t === 'dark' || (t === 'system' && prefersDark);
+          if (isDark) document.documentElement.classList.add('dark');
+        } catch (e) {}
+      })();
+    </script>
     <meta name="description" content="Professional cloud-based fleet tracking and management solution. Real-time GPS tracking, route optimization, driver management, and advanced analytics for fleets of all sizes." />
     <meta name="author" content="Fleet Track Mate - FTM" />
 

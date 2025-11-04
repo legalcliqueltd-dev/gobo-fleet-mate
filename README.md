@@ -30,6 +30,19 @@ Real-time fleet tracking application built with React, Supabase, and Mapbox.
 - Device status indicators (active/idle/offline)
 - Auto-fit bounds to visible markers
 
+### Device Management & History (Phase 4)
+- Create, edit, and delete devices
+- Device details page with location history
+- History playback with 24h/7d time range
+- Animated route visualization
+
+### UI & Theming (Phase 5)
+- Theme toggle in header (Light/Dark/System) with localStorage persistence
+- Glass-morphism utilities: `glass-card`, `soft-shadow`, `bg-radial`
+- Enhanced map markers with pulse animation for active devices
+- Floating "Add Device" button on mobile
+- No FOUC (Flash of Unstyled Content) with early theme script
+
 ## Testing Realtime
 
 To test realtime functionality, run these SQL commands in Supabase:
@@ -71,9 +84,19 @@ where device_id = (select id from public.devices where imei = '123456789012345')
 
 ## Coming Soon
 
-- Device CRUD operations (Phase 4)
-- Location history playback
-- Device details page
+- Advanced analytics and reporting
+- Geofencing and alerts
+- Driver management
+
+---
+
+## Acceptance Checklist (Phase 5)
+
+- ✅ Header shows theme toggle; switching Light/Dark/System persists after refresh
+- ✅ Landing hero, Dashboard sidebar, and Map container use glass effect with rounded corners and soft glow
+- ✅ Active device markers pulse; marker labels show name and speed
+- ✅ On mobile, the floating "Add Device" button navigates to /devices/new
+- ✅ No TypeScript or build errors; existing functionality remains
 
 ---
 

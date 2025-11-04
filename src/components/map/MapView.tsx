@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import Map, { Marker, NavigationControl, ScaleControl, MapRef } from 'react-map-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
-import { Car } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import Map, { MapRef, NavigationControl, GeolocateControl } from 'react-map-gl';
+import DeviceMarker from './DeviceMarker';
+import Button from '../ui/Button';
+import { Layers, Scan } from 'lucide-react';
 import { MAPBOX_TOKEN } from '../../lib/mapboxConfig';
 
 type MarkerItem = {
@@ -11,84 +12,91 @@ type MarkerItem = {
   latitude: number;
   longitude: number;
   speed: number | null;
-  timestamp: string;
+  timestamp: string | null;
 };
-
 type Props = {
   items: MarkerItem[];
   onMarkerClick?: (deviceId: string) => void;
 };
 
+const STYLES = {
+  streets: 'mapbox://styles/mapbox/streets-v12',
+  satellite: 'mapbox://styles/mapbox/satellite-streets-v12',
+};
+
 export default function MapView({ items, onMarkerClick }: Props) {
-  const [mapStyle, setMapStyle] = useState<'streets' | 'satellite'>('streets');
   const mapRef = useRef<MapRef | null>(null);
+  const [styleId, setStyleId] = useState<keyof typeof STYLES>('streets');
 
-  const styleUrl = mapStyle === 'satellite'
-    ? 'mapbox://styles/mapbox/satellite-streets-v12'
-    : 'mapbox://styles/mapbox/streets-v12';
-
-  const bounds = useMemo(() => {
-    if (!items.length) return null;
-    let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
-    for (const m of items) {
-      minLng = Math.min(minLng, m.longitude);
-      minLat = Math.min(minLat, m.latitude);
-      maxLng = Math.max(maxLng, m.longitude);
-      maxLat = Math.max(maxLat, m.latitude);
-    }
-    return [[minLng, minLat], [maxLng, maxLat]] as [[number, number], [number, number]];
+  const initial = useMemo(() => {
+    if (items.length === 0) return { longitude: 0, latitude: 20, zoom: 1.5 };
+    const [lon, lat] = [items[0].longitude, items[0].latitude];
+    return { longitude: lon, latitude: lat, zoom: 10 };
   }, [items]);
 
-  useEffect(() => {
-    if (mapRef.current && bounds) {
-      try {
-        mapRef.current.fitBounds(bounds, { padding: 60, duration: 700 });
-      } catch {}
-    }
-  }, [JSON.stringify(bounds)]);
+  const fitToAll = () => {
+    if (!mapRef.current || items.length === 0) return;
+    const lats = items.map(i => i.latitude);
+    const lons = items.map(i => i.longitude);
+    const bounds: [[number, number], [number, number]] = [
+      [Math.min(...lons), Math.min(...lats)],
+      [Math.max(...lons), Math.max(...lats)],
+    ];
+    mapRef.current.fitBounds(bounds, { padding: 60, duration: 800 });
+  };
 
-  const statusColor = (s?: 'active'|'idle'|'offline') =>
-    s === 'active' ? 'bg-emerald-500' : s === 'idle' ? 'bg-amber-500' : 'bg-slate-400';
+  const flyTo = (lon: number, lat: number) => {
+    mapRef.current?.flyTo({ center: [lon, lat], zoom: 14, duration: 900 });
+  };
+
+  if (!MAPBOX_TOKEN) {
+    return (
+      <div className="h-[70vh] rounded-lg border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 backdrop-blur flex items-center justify-center">
+        <div className="text-sm text-slate-600 dark:text-slate-300">Set VITE_MAPBOX_TOKEN to see the map.</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="relative">
-      <div className="absolute z-10 top-2 left-2 flex gap-2">
-        <button
-          onClick={() => setMapStyle('streets')}
-          className={`rounded-md px-3 py-1 text-sm border ${mapStyle==='streets' ? 'bg-white/80 dark:bg-slate-900/80' : 'bg-white/50 dark:bg-slate-800/50'} backdrop-blur`}
-        >
-          Map
-        </button>
-        <button
-          onClick={() => setMapStyle('satellite')}
-          className={`rounded-md px-3 py-1 text-sm border ${mapStyle==='satellite' ? 'bg-white/80 dark:bg-slate-900/80' : 'bg-white/50 dark:bg-slate-800/50'} backdrop-blur`}
-        >
-          Satellite
-        </button>
-      </div>
-
+    <div className="relative h-[70vh] rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 glass-card">
       <Map
         ref={mapRef}
         mapboxAccessToken={MAPBOX_TOKEN}
-        mapStyle={styleUrl}
-        initialViewState={{ longitude: 0, latitude: 20, zoom: 2 }}
-        style={{ width: '100%', height: '60vh', borderRadius: '0.75rem' }}
+        initialViewState={initial}
+        mapStyle={STYLES[styleId]}
+        style={{ width: '100%', height: '100%' }}
       >
-        <NavigationControl position="top-right" />
-        <ScaleControl />
+        <div className="absolute top-2 left-2 z-10 flex gap-2">
+          <Button variant="outline" size="sm" onClick={fitToAll} className="bg-white/90 dark:bg-slate-900/80">
+            <Scan className="h-4 w-4 mr-1" /> Fit
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setStyleId(styleId === 'streets' ? 'satellite' : 'streets')}
+            className="bg-white/90 dark:bg-slate-900/80"
+          >
+            <Layers className="h-4 w-4 mr-1" />
+            {styleId === 'streets' ? 'Satellite' : 'Streets'}
+          </Button>
+        </div>
 
-        {items.map((m) => (
-          <Marker key={m.device_id} longitude={m.longitude} latitude={m.latitude} anchor="bottom">
-            <button
-              onClick={() => onMarkerClick?.(m.device_id)}
-              className="relative -translate-y-1 cursor-pointer"
-            >
-              <div className={`h-3 w-3 rounded-full ring-2 ring-white/80 dark:ring-black/40 ${statusColor(m.status)} absolute -top-1 -right-1`}></div>
-              <div className="grid place-items-center h-7 w-7 rounded-full bg-white/90 dark:bg-slate-900/90 shadow">
-                <Car className="h-4 w-4 text-cyan-600" />
-              </div>
-            </button>
-          </Marker>
+        <NavigationControl position="bottom-right" />
+        <GeolocateControl position="bottom-right" />
+
+        {items.map(i => (
+          <DeviceMarker
+            key={i.device_id}
+            latitude={i.latitude}
+            longitude={i.longitude}
+            name={i.name}
+            speed={i.speed ?? null}
+            status={i.status}
+            onClick={() => {
+              flyTo(i.longitude, i.latitude);
+              onMarkerClick?.(i.device_id);
+            }}
+          />
         ))}
       </Map>
     </div>

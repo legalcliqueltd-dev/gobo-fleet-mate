@@ -26,8 +26,15 @@
 - ✅ Device details page shows last known location, stats, and history playback (24h/7d) with animated marker and route line
 - ✅ Realtime: devices changes reload list; locations INSERTs update latest position
 
+## Phase 5 (UI polish + branding)
+- ✅ Added ThemeProvider and ThemeToggle (light/dark/system) with persisted preference and no-FOUC script
+- ✅ Introduced UI primitives (Button, Card) and global CSS utilities for glass/glow
+- ✅ Polished header, Landing hero, Dashboard sidebar, and Map controls with glass-morphism and rounded corners
+- ✅ Enhanced markers with glow/pulse for active status and soft label bubble
+- ✅ Added floating "Add Device" button on mobile
+
 ## Next:
-- Phase 5: UI polish (glass-morphism refinements, dark/light toggle controls, icons/markers), responsiveness, and branding
+- Phase 6: Deployment (Vercel + mobile packaging via Capacitor/Expo)
 
 ## Environment variables (Lovable settings)
 - Supabase credentials: Hardcoded in src/lib/supabaseClient.ts

@@ -11,53 +11,56 @@ import UpdatePassword from './pages/auth/UpdatePassword';
 import AddDevice from './pages/devices/AddDevice';
 import EditDevice from './pages/devices/EditDevice';
 import DeviceDetails from './pages/devices/DeviceDetails';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppLayout>
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/auth" element={<Navigate to="/auth/login" replace />} />
-          <Route path="/auth/login" element={<Login />} />
-          <Route path="/auth/signup" element={<Signup />} />
-          <Route path="/auth/forgot" element={<ForgotPassword />} />
-          <Route path="/auth/update-password" element={<UpdatePassword />} />
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/devices/new"
-            element={
-              <ProtectedRoute>
-                <AddDevice />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/devices/:id"
-            element={
-              <ProtectedRoute>
-                <DeviceDetails />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/devices/:id/edit"
-            element={
-              <ProtectedRoute>
-                <EditDevice />
-              </ProtectedRoute>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AppLayout>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppLayout>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route path="/auth" element={<Navigate to="/auth/login" replace />} />
+            <Route path="/auth/login" element={<Login />} />
+            <Route path="/auth/signup" element={<Signup />} />
+            <Route path="/auth/forgot" element={<ForgotPassword />} />
+            <Route path="/auth/update-password" element={<UpdatePassword />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/devices/new"
+              element={
+                <ProtectedRoute>
+                  <AddDevice />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/devices/:id"
+              element={
+                <ProtectedRoute>
+                  <DeviceDetails />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/devices/:id/edit"
+              element={
+                <ProtectedRoute>
+                  <EditDevice />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </AppLayout>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
