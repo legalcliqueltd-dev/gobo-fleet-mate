@@ -34,13 +34,17 @@ const Hero = () => {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-            <Button variant="hero" size="lg" className="group">
-              Start Free Trial
-              <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-            </Button>
-            <Button variant="outline" size="lg">
-              View Demo
-            </Button>
+            <a href="/app/auth/signup">
+              <Button variant="hero" size="lg" className="group">
+                Start Free Trial
+                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </a>
+            <a href="/app/demo">
+              <Button variant="outline" size="lg">
+                View Demo
+              </Button>
+            </a>
           </div>
 
           {/* Mobile App Download */}

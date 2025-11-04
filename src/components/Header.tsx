@@ -43,12 +43,16 @@ const Header = () => {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center space-x-4">
-            <Button variant="ghost" size="sm">
-              Sign In
-            </Button>
-            <Button variant="hero" size="sm">
-              Start Free Trial
-            </Button>
+            <a href="/app/auth/login">
+              <Button variant="ghost" size="sm">
+                Sign In
+              </Button>
+            </a>
+            <a href="/app/auth/signup">
+              <Button variant="hero" size="sm">
+                Get Started
+              </Button>
+            </a>
           </div>
 
           {/* Mobile menu button */}
@@ -79,12 +83,16 @@ const Header = () => {
                 </a>
               ))}
               <div className="pt-4 space-y-2">
-                <Button variant="ghost" size="sm" className="w-full">
-                  Sign In
-                </Button>
-                <Button variant="hero" size="sm" className="w-full">
-                  Start Free Trial
-                </Button>
+                <a href="/app/auth/login" className="block">
+                  <Button variant="ghost" size="sm" className="w-full">
+                    Sign In
+                  </Button>
+                </a>
+                <a href="/app/auth/signup" className="block">
+                  <Button variant="hero" size="sm" className="w-full">
+                    Get Started
+                  </Button>
+                </a>
               </div>
             </div>
           </div>

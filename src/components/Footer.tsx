@@ -1,8 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Truck, Mail, Phone, MapPin, Twitter, Linkedin, Facebook } from "lucide-react";
+import HealthCheck from "@/components/HealthCheck";
+import { useLocation } from "react-router-dom";
 
 const Footer = () => {
+  const location = useLocation();
+  const isLandingPage = location.pathname === '/';
+  
   const footerSections = [
     {
       title: "Product",
@@ -160,6 +165,9 @@ const Footer = () => {
           </div>
         </div>
       </div>
+      
+      {/* Health Check - Only on landing page */}
+      {isLandingPage && <HealthCheck />}
     </footer>
   );
 };

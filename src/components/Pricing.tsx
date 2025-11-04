@@ -14,11 +14,12 @@ const Pricing = () => {
       description: "Perfect for small fleets and startups",
       vehicles: "Up to 5 vehicles",
       features: [
-        "Real-time GPS tracking",
-        "Basic reporting",
-        "Mobile app access",
+        "Up to 5 vehicles",
+        "Real-time tracking",
+        "Basic analytics",
         "Email support",
-        "Route history (30 days)"
+        "Mobile app access",
+        "Single user account"
       ],
       popular: false
     },
@@ -28,14 +29,13 @@ const Pricing = () => {
       description: "Ideal for growing businesses",
       vehicles: "Up to 25 vehicles",
       features: [
-        "Everything in Starter",
+        "Up to 50 vehicles",
         "Advanced analytics",
-        "Route optimization",
-        "Fuel management",
-        "Driver behavior monitoring",
-        "Maintenance alerts",
         "Priority support",
-        "Route history (1 year)"
+        "Route optimization",
+        "Maintenance tracking",
+        "Custom reports",
+        "Multi-user roles"
       ],
       popular: true
     },
@@ -45,14 +45,13 @@ const Pricing = () => {
       description: "For large fleets and enterprises",
       vehicles: "Unlimited vehicles",
       features: [
-        "Everything in Professional",
+        "Unlimited vehicles",
+        "Dedicated support",
         "Custom integrations",
-        "Advanced security features",
+        "Advanced reporting",
+        "API access",
         "White-label options",
-        "24/7 phone support",
-        "Dedicated account manager",
-        "Custom reporting",
-        "Unlimited history"
+        "Admin, Manager, Driver roles"
       ],
       popular: false
     }
@@ -156,13 +155,15 @@ const Pricing = () => {
                   ))}
                 </ul>
                 
-                <Button 
-                  variant={plan.popular ? "hero" : "outline"} 
-                  size="lg" 
-                  className="w-full"
-                >
-                  {plan.name === "Enterprise" ? "Contact Sales" : "Start Free Trial"}
-                </Button>
+                <a href="/app/auth/signup" className="block">
+                  <Button 
+                    variant={plan.popular ? "hero" : "outline"} 
+                    size="lg" 
+                    className="w-full"
+                  >
+                    Get Started
+                  </Button>
+                </a>
               </CardContent>
             </Card>
           ))}

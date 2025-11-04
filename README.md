@@ -1,6 +1,76 @@
-# Welcome to your Lovable project
+# FleetTrackMate
 
-## Project info
+**Real-time fleet management and vehicle tracking platform**
+
+## Project Overview
+
+FleetTrackMate is a comprehensive fleet management solution built with React, TypeScript, and Supabase. The platform supports multi-role user management (Admin, Fleet Manager, Driver) with real-time vehicle tracking, analytics, and route optimization.
+
+### Key Features (Planned)
+- 🚚 Real-time vehicle tracking with Mapbox
+- 👥 Multi-role user management (Admin, Fleet Manager, Driver)
+- 📊 Advanced analytics and reporting
+- 🗺️ Route optimization
+- 📱 Mobile app (iOS/Android) via Capacitor
+- 🔔 Real-time notifications and alerts
+- 🛠️ Maintenance tracking and scheduling
+
+## Phase Progress
+
+- [x] **Phase 1**: Setup & Integration (Current)
+  - Route structure (`/` and `/app/*`)
+  - Supabase connection
+  - Mapbox environment setup
+  - Landing page updates
+  - Testing infrastructure
+
+- [ ] **Phase 2**: Authentication & User Management
+- [ ] **Phase 3**: Dashboard & Fleet Tracking
+- [ ] **Phase 4**: Advanced Features
+- [ ] **Phase 5**: Analytics & Reporting
+- [ ] **Phase 6**: Mobile App (Capacitor)
+- [ ] **Phase 7**: Notifications & Real-time Updates
+- [ ] **Phase 8**: Testing & Deployment
+
+## Quick Start
+
+### Prerequisites
+- Node.js 18+ and npm
+- Supabase account
+- Mapbox account
+
+### Installation
+
+1. Clone and install dependencies:
+```bash
+npm install
+```
+
+2. Set up environment variables (see `.env.example`):
+```bash
+cp .env.example .env
+# Edit .env with your credentials
+```
+
+3. Start development server:
+```bash
+npm run dev
+```
+
+4. Open http://localhost:8080
+
+### Testing
+- Visit `/app/test` for connection diagnostics
+- See `docs/testing/PHASE_1_CHECKLIST.md` for full testing guide
+
+## Documentation
+
+- [Phase 1 Setup Guide](docs/PHASE_1_SETUP.md)
+- [Testing Checklist](docs/testing/PHASE_1_CHECKLIST.md)
+
+---
+
+## Lovable Project Info
 
 **URL**: https://lovable.dev/projects/d78756af-7da0-400e-bb46-4b099b10699b
 
