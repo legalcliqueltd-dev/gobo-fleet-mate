@@ -13,6 +13,7 @@ import EditDevice from './pages/devices/EditDevice';
 import DeviceDetails from './pages/devices/DeviceDetails';
 import FleetAnalytics from './pages/FleetAnalytics';
 import Geofences from './pages/Geofences';
+import Trips from './pages/Trips';
 import Status from './pages/Status';
 import { ThemeProvider } from './contexts/ThemeContext';
 
@@ -50,6 +51,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <Geofences />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/trips"
+              element={
+                <ProtectedRoute>
+                  <Trips />
                 </ProtectedRoute>
               }
             />

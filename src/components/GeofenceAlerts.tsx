@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGeofenceEvents } from '../hooks/useGeofenceEvents';
 import { Bell, X, Check } from 'lucide-react';
 import { toast } from 'sonner';
@@ -6,8 +6,27 @@ import { toast } from 'sonner';
 export default function GeofenceAlerts() {
   const { events, unacknowledgedCount, acknowledgeEvent } = useGeofenceEvents(5);
   const [isOpen, setIsOpen] = useState(false);
+  const prevCountRef = useRef(unacknowledgedCount);
 
   const unacknowledgedEvents = events.filter((e) => !e.acknowledged);
+
+  // Show toast notification for new geofence events
+  useEffect(() => {
+    if (unacknowledgedCount > prevCountRef.current && unacknowledgedEvents.length > 0) {
+      const latestEvent = unacknowledgedEvents[0];
+      toast.warning(
+        `${latestEvent.device_name} ${latestEvent.event_type === 'enter' ? 'entered' : 'exited'} ${latestEvent.geofence_name}`,
+        {
+          duration: 5000,
+          action: {
+            label: 'View',
+            onClick: () => setIsOpen(true),
+          },
+        }
+      );
+    }
+    prevCountRef.current = unacknowledgedCount;
+  }, [unacknowledgedCount, unacknowledgedEvents]);
 
   const handleAcknowledge = async (id: string) => {
     try {
