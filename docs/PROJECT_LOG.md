@@ -14,8 +14,14 @@
 - ✅ Added profiles table with RLS policies
 - ✅ Updated AppLayout to show user status and sign out button
 
+## Phase 3 (Dashboard & Map + Realtime)
+- ✅ Added devices and locations tables SQL with RLS; enabled realtime on locations
+- ✅ Integrated Mapbox map with streets/satellite toggle
+- ✅ Fetched user devices and subscribed to realtime locations; latest location per device shown as markers
+- ✅ Sidebar lists devices with status (active/idle/offline) based on last timestamp
+
 ## Next:
-- Phase 3: Real-time map with Mapbox and location tracking
+- Phase 4: Device management (CRUD), device details page, and history playback (timeline scrub)
 
 ## Environment variables (Lovable settings)
 - Supabase credentials: Hardcoded in src/lib/supabaseClient.ts

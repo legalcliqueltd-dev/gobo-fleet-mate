@@ -1,72 +1,79 @@
 # FleetTrackMate
 
-**Real-time fleet management and vehicle tracking platform**
+Real-time fleet tracking application built with React, Supabase, and Mapbox.
 
-## Project Overview
+## Setup
 
-FleetTrackMate is a comprehensive fleet management solution built with React, TypeScript, and Supabase. The platform supports multi-role user management (Admin, Fleet Manager, Driver) with real-time vehicle tracking, analytics, and route optimization.
+1. **Environment Variables**
+   - Set `VITE_MAPBOX_TOKEN` in environment settings
+   - Supabase credentials are configured in `src/lib/supabaseClient.ts`
 
-### Key Features (Planned)
-- 🚚 Real-time vehicle tracking with Mapbox
-- 👥 Multi-role user management (Admin, Fleet Manager, Driver)
-- 📊 Advanced analytics and reporting
-- 🗺️ Route optimization
-- 📱 Mobile app (iOS/Android) via Capacitor
-- 🔔 Real-time notifications and alerts
-- 🛠️ Maintenance tracking and scheduling
+2. **Database Setup**
+   - Run `docs/SQL/profiles.sql` in Supabase SQL editor (creates profiles table)
+   - Run `docs/SQL/devices_locations.sql` in Supabase SQL editor (creates devices and locations tables)
 
-## Phase Progress
+3. **Supabase Auth Configuration**
+   - Set Site URL to your Lovable preview URL (e.g., `https://yourproject.lovable.app`)
+   - Add redirect URL: `https://yourproject.lovable.app/**`
 
-- [x] **Phase 1**: Setup & Integration (Current)
-  - Route structure (`/` and `/app/*`)
-  - Supabase connection
-  - Mapbox environment setup
-  - Landing page updates
-  - Testing infrastructure
+## Features
 
-- [ ] **Phase 2**: Authentication & User Management
-- [ ] **Phase 3**: Dashboard & Fleet Tracking
-- [ ] **Phase 4**: Advanced Features
-- [ ] **Phase 5**: Analytics & Reporting
-- [ ] **Phase 6**: Mobile App (Capacitor)
-- [ ] **Phase 7**: Notifications & Real-time Updates
-- [ ] **Phase 8**: Testing & Deployment
+### Authentication (Phase 2)
+- Email/password authentication with Supabase Auth
+- Protected routes with redirect support
+- User profile management
+- Password reset flow
 
-## Quick Start
+### Map & Realtime (Phase 3)
+- Interactive Mapbox map with street/satellite views
+- Real-time location tracking via Supabase Realtime
+- Device status indicators (active/idle/offline)
+- Auto-fit bounds to visible markers
 
-### Prerequisites
-- Node.js 18+ and npm
-- Supabase account
-- Mapbox account
+## Testing Realtime
 
-### Installation
+To test realtime functionality, run these SQL commands in Supabase:
 
-1. Clone and install dependencies:
-```bash
-npm install
+```sql
+-- Create a device (replace user_id with your UUID from auth.users):
+insert into public.devices (user_id, name, imei) 
+values ('YOUR_USER_ID', 'Truck 12', '123456789012345');
+
+-- Create a location:
+insert into public.locations (device_id, latitude, longitude, speed)
+values (
+  (select id from public.devices where imei = '123456789012345'), 
+  37.7749, 
+  -122.4194, 
+  45
+);
+
+-- Update location to test realtime updates:
+update public.locations 
+set latitude = 37.7849, longitude = -122.4094 
+where device_id = (select id from public.devices where imei = '123456789012345');
 ```
 
-2. Set up environment variables (see `.env.example`):
-```bash
-cp .env.example .env
-# Edit .env with your credentials
-```
+## Project Structure
 
-3. Start development server:
-```bash
-npm run dev
-```
+- `src/pages/Dashboard.tsx` - Main dashboard with map and device list
+- `src/components/map/MapView.tsx` - Mapbox map component
+- `src/components/dashboard/DeviceSidebar.tsx` - Device list sidebar
+- `src/hooks/useRealtimeLocations.ts` - Real-time location subscription hook
+- `src/types.ts` - TypeScript type definitions
+- `docs/SQL/` - Database migration scripts
 
-4. Open http://localhost:8080
+## Status Logic
 
-### Testing
-- Visit `/app/test` for connection diagnostics
-- See `docs/testing/PHASE_1_CHECKLIST.md` for full testing guide
+- **Active**: Location updated within last 2 minutes
+- **Idle**: Location updated within last 10 minutes
+- **Offline**: No location update in over 10 minutes
 
-## Documentation
+## Coming Soon
 
-- [Phase 1 Setup Guide](docs/PHASE_1_SETUP.md)
-- [Testing Checklist](docs/testing/PHASE_1_CHECKLIST.md)
+- Device CRUD operations (Phase 4)
+- Location history playback
+- Device details page
 
 ---
 
