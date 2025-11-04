@@ -39,8 +39,24 @@
 - ✅ Added Capacitor config and scripts for Android packaging
 - ✅ Wrote deployment docs for Hostinger and mobile build
 
+## Phase 7A (AI Insights + Auto Status)
+- ✅ Added trigger to set devices.status to active/idle on location inserts; scheduled offline checker (pg_cron) with 15 min threshold
+- ✅ Added device_stats RPC to compute distance, avg/max speed, and idle minutes for 24h/7d
+- ✅ Added useDeviceInsights hook and Insights panel on Device Details
+- ✅ Inactivity hint shows if last update > 10 minutes
+
+## Phase 7B (Fleet Analytics Dashboard)
+- ✅ Created fleet analytics dashboard at /analytics route
+- ✅ Added fleet_stats RPC to compute aggregated metrics across all user devices
+- ✅ Added fleet_utilization_daily RPC to track daily utilization percentages
+- ✅ Created useFleetAnalytics hook for fetching fleet-wide data
+- ✅ Implemented summary cards: total devices, distance, avg speed, idle time
+- ✅ Added pie chart for device status breakdown (active/idle/offline)
+- ✅ Added bar chart for daily fleet utilization trends
+- ✅ Added navigation links from Dashboard and AppLayout
+
 ## Next:
-- Phase 7 (optional): Push notifications, AI insights, geofencing
+- Phase 8 (optional): Push notifications, geofencing, trip detection, device sharing
 
 ## Environment variables (Lovable settings)
 - Supabase credentials: Hardcoded in src/lib/supabaseClient.ts

@@ -11,6 +11,7 @@ import UpdatePassword from './pages/auth/UpdatePassword';
 import AddDevice from './pages/devices/AddDevice';
 import EditDevice from './pages/devices/EditDevice';
 import DeviceDetails from './pages/devices/DeviceDetails';
+import FleetAnalytics from './pages/FleetAnalytics';
 import Status from './pages/Status';
 import { ThemeProvider } from './contexts/ThemeContext';
 
@@ -32,6 +33,14 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/analytics"
+              element={
+                <ProtectedRoute>
+                  <FleetAnalytics />
                 </ProtectedRoute>
               }
             />

@@ -19,6 +19,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
           </Link>
           <nav className="flex items-center gap-3 text-sm">
             <Link to="/dashboard" className="hover:underline">Dashboard</Link>
+            <Link to="/analytics" className="hover:underline">Analytics</Link>
             <ThemeToggle />
             {!loading && (user ? (
               <>

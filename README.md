@@ -11,6 +11,9 @@ Real-time fleet tracking application built with React, Supabase, and Mapbox.
 2. **Database Setup**
    - Run `docs/SQL/profiles.sql` in Supabase SQL editor (creates profiles table)
    - Run `docs/SQL/devices_locations.sql` in Supabase SQL editor (creates devices and locations tables)
+   - Run `docs/SQL/insights_status.sql` in Supabase SQL editor (creates status automation triggers and functions)
+   - Run `docs/SQL/insights_stats.sql` in Supabase SQL editor (creates device insights RPC functions)
+   - Run `docs/SQL/fleet_analytics.sql` in Supabase SQL editor (creates fleet analytics RPC functions)
 
 3. **Supabase Auth Configuration**
    - Set Site URL to your Lovable preview URL (e.g., `https://yourproject.lovable.app`)
@@ -43,6 +46,30 @@ Real-time fleet tracking application built with React, Supabase, and Mapbox.
 - Floating "Add Device" button on mobile
 - No FOUC (Flash of Unstyled Content) with early theme script
 
+### Insights & Status (Phase 7A)
+- Automatic device status updates based on speed (active ≥ 3 km/h, idle < 3 km/h)
+- Scheduled offline checker (marks devices offline after 15 min of inactivity)
+- Device-level insights: distance traveled, avg/max speed, idle time
+- Inactivity alerts for devices without recent updates
+- Time range selection: 24h or 7 days
+
+### Fleet Analytics (Phase 7B)
+- Fleet-wide analytics dashboard at `/analytics`
+- Aggregated metrics: total distance, avg speed, idle time across all devices
+- Device status breakdown with pie chart visualization
+- Daily fleet utilization trends with bar charts
+- Utilization percentage showing active time vs total potential time
+
+## Project Structure
+
+- `src/pages/Dashboard.tsx` - Main dashboard with map and device list
+- `src/pages/FleetAnalytics.tsx` - Fleet analytics dashboard with charts
+- `src/pages/devices/DeviceDetails.tsx` - Device details with insights panel
+- `src/components/map/MapView.tsx` - Mapbox map component
+- `src/hooks/useDeviceInsights.ts` - Device-level insights hook
+- `src/hooks/useFleetAnalytics.ts` - Fleet-wide analytics hook
+- `docs/SQL/` - Database migration scripts and RPC functions
+
 ## Testing Realtime
 
 To test realtime functionality, run these SQL commands in Supabase:
@@ -67,36 +94,53 @@ set latitude = 37.7849, longitude = -122.4094
 where device_id = (select id from public.devices where imei = '123456789012345');
 ```
 
-## Project Structure
-
-- `src/pages/Dashboard.tsx` - Main dashboard with map and device list
-- `src/components/map/MapView.tsx` - Mapbox map component
-- `src/components/dashboard/DeviceSidebar.tsx` - Device list sidebar
-- `src/hooks/useRealtimeLocations.ts` - Real-time location subscription hook
-- `src/types.ts` - TypeScript type definitions
-- `docs/SQL/` - Database migration scripts
-
 ## Status Logic
 
-- **Active**: Location updated within last 2 minutes
-- **Idle**: Location updated within last 10 minutes
-- **Offline**: No location update in over 10 minutes
+Device status is automatically updated:
+- **Active**: Speed ≥ 3 km/h when location is inserted
+- **Idle**: Speed < 3 km/h when location is inserted
+- **Offline**: No location update for 15+ minutes (checked every 5 minutes via pg_cron)
+
+To manually trigger offline status check:
+```sql
+select public.ftm_run_offline_status_check(15);
+```
+
+## Testing Insights & Analytics
+
+After running `docs/SQL/insights_status.sql`, `docs/SQL/insights_stats.sql`, and `docs/SQL/fleet_analytics.sql`:
+
+```sql
+-- Test device insights (view in Device Details page)
+select * from public.device_stats(
+  'YOUR_DEVICE_ID'::uuid,
+  now() - interval '7 days'
+);
+
+-- Test fleet analytics (view in Fleet Analytics page)
+select * from public.fleet_stats(now() - interval '7 days');
+select * from public.fleet_utilization_daily(7);
+```
 
 ## Coming Soon
 
-- Advanced analytics and reporting
 - Geofencing and alerts
-- Driver management
+- Trip detection and history
+- Device sharing
+- Push notifications
 
 ---
 
-## Acceptance Checklist (Phase 5)
+## Acceptance Checklist (Phase 7B)
 
-- ✅ Header shows theme toggle; switching Light/Dark/System persists after refresh
-- ✅ Landing hero, Dashboard sidebar, and Map container use glass effect with rounded corners and soft glow
-- ✅ Active device markers pulse; marker labels show name and speed
-- ✅ On mobile, the floating "Add Device" button navigates to /devices/new
-- ✅ No TypeScript or build errors; existing functionality remains
+- ✅ Fleet Analytics page accessible at `/analytics` with navigation links
+- ✅ Summary cards show total devices, distance, avg speed, and idle time
+- ✅ Pie chart displays device status breakdown (active/idle/offline)
+- ✅ Bar chart shows daily fleet utilization trends
+- ✅ Time range toggle (7d/30d) updates all metrics
+- ✅ Device Details page shows insights panel with distance, speeds, and idle time
+- ✅ Inactivity alert appears when device hasn't updated in 10+ minutes
+- ✅ No TypeScript or build errors; RLS policies enforced
 
 ---
 

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useDeviceLocations } from '../hooks/useDeviceLocations';
 import MapView from '../components/map/MapView';
-import { Clock, Plus, ExternalLink } from 'lucide-react';
+import { Clock, Plus, ExternalLink, TrendingUp } from 'lucide-react';
 import clsx from 'clsx';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
@@ -18,7 +18,29 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4">
+    <div className="space-y-4">
+      {/* Analytics Banner */}
+      <Link
+        to="/analytics"
+        className="block rounded-xl border border-cyan-200 dark:border-cyan-800 bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/30 dark:to-blue-950/30 p-4 hover:shadow-md transition-shadow"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-cyan-600 text-white p-2">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-cyan-900 dark:text-cyan-100">Fleet Analytics</h3>
+              <p className="text-sm text-cyan-700 dark:text-cyan-300">
+                View aggregated metrics, status breakdown, and utilization trends
+              </p>
+            </div>
+          </div>
+          <ExternalLink className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+        </div>
+      </Link>
+
+      <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4">
       <Card>
         <CardHeader className="flex items-center justify-between">
           <h3 className="font-semibold">Your devices</h3>
@@ -88,6 +110,7 @@ export default function Dashboard() {
         </Link>
         <div className="mt-2 text-xs text-slate-500">Toggle map style (Streets/Satellite) in the map controls.</div>
       </section>
+    </div>
     </div>
   );
 }
