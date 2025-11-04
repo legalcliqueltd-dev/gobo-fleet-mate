@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useDeviceLocations } from '../hooks/useDeviceLocations';
 import MapView from '../components/map/MapView';
+import GeofenceAlerts from '../components/GeofenceAlerts';
 import { Clock, Plus, ExternalLink, TrendingUp } from 'lucide-react';
 import clsx from 'clsx';
 import { Link, useNavigate } from 'react-router-dom';
@@ -111,6 +112,8 @@ export default function Dashboard() {
         <div className="mt-2 text-xs text-slate-500">Toggle map style (Streets/Satellite) in the map controls.</div>
       </section>
     </div>
+    
+    <GeofenceAlerts />
     </div>
   );
 }

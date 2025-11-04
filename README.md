@@ -60,14 +60,26 @@ Real-time fleet tracking application built with React, Supabase, and Mapbox.
 - Daily fleet utilization trends with bar charts
 - Utilization percentage showing active time vs total potential time
 
+### Geofencing Alerts (Phase 8)
+- Create circle and polygon geofences on the map at `/geofences`
+- Automatic detection of device entry/exit events via SQL trigger
+- Real-time alerts with floating notification widget on Dashboard
+- Geofence activation/deactivation and management
+- Event acknowledgement and history tracking
+- Visual geofence zones displayed on map
+
 ## Project Structure
 
 - `src/pages/Dashboard.tsx` - Main dashboard with map and device list
 - `src/pages/FleetAnalytics.tsx` - Fleet analytics dashboard with charts
+- `src/pages/Geofences.tsx` - Geofence management with map drawing tools
 - `src/pages/devices/DeviceDetails.tsx` - Device details with insights panel
 - `src/components/map/MapView.tsx` - Mapbox map component
+- `src/components/GeofenceAlerts.tsx` - Floating alert widget
 - `src/hooks/useDeviceInsights.ts` - Device-level insights hook
 - `src/hooks/useFleetAnalytics.ts` - Fleet-wide analytics hook
+- `src/hooks/useGeofences.ts` - Geofence management hook
+- `src/hooks/useGeofenceEvents.ts` - Geofence events and alerts hook
 - `docs/SQL/` - Database migration scripts and RPC functions
 
 ## Testing Realtime
@@ -122,12 +134,40 @@ select * from public.fleet_stats(now() - interval '7 days');
 select * from public.fleet_utilization_daily(7);
 ```
 
+## Testing Geofencing
+
+After the geofencing migration:
+
+1. **Create a geofence:**
+   - Go to `/geofences`
+   - Click "Draw Circle" or "Draw Polygon"
+   - Click on the map to set center (circle) or add points (polygon)
+   - Save with a name
+
+2. **Test entry/exit events:**
+   - Insert a location inside a geofence:
+   ```sql
+   insert into public.locations (device_id, latitude, longitude, speed)
+   values (
+     'YOUR_DEVICE_ID',
+     YOUR_GEOFENCE_CENTER_LAT,
+     YOUR_GEOFENCE_CENTER_LNG,
+     5
+   );
+   ```
+   - Check for "enter" event in `/geofences` alerts
+   - Insert a location outside the geofence to trigger "exit" event
+
+3. **View alerts:**
+   - Unacknowledged events appear as floating notifications on Dashboard
+   - Click bell icon on Dashboard or in Geofences page to view and acknowledge
+
 ## Coming Soon
 
-- Geofencing and alerts
 - Trip detection and history
 - Device sharing
 - Push notifications
+- Data export (CSV/PDF)
 
 ---
 

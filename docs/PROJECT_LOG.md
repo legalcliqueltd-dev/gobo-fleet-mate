@@ -55,8 +55,18 @@
 - ✅ Added bar chart for daily fleet utilization trends
 - ✅ Added navigation links from Dashboard and AppLayout
 
+## Phase 8 (Geofencing Alerts)
+- ✅ Created geofences and geofence_events tables with RLS policies
+- ✅ Added SQL trigger to automatically detect device entry/exit events
+- ✅ Implemented point-in-circle and point-in-polygon detection functions
+- ✅ Created geofence management page at /geofences with map drawing tools
+- ✅ Added circle and polygon drawing modes on interactive map
+- ✅ Implemented real-time geofence event notifications
+- ✅ Created floating alert widget on Dashboard with unacknowledged count
+- ✅ Added geofence activation/deactivation and delete functionality
+
 ## Next:
-- Phase 8 (optional): Push notifications, geofencing, trip detection, device sharing
+- Phase 9 (optional): Trip detection, device sharing, push notifications, data export
 
 ## Environment variables (Lovable settings)
 - Supabase credentials: Hardcoded in src/lib/supabaseClient.ts
