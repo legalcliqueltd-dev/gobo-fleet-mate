@@ -1,17 +1,11 @@
 import { PropsWithChildren } from 'react';
-import { Car, LogOut } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Car } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function AppLayout({ children }: PropsWithChildren) {
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/auth/login');
-  };
+  const { user, signOut, loading } = useAuth();
 
   return (
     <div className={clsx('min-h-screen bg-gradient-to-br from-cyan-500/10 to-indigo-800/10 dark:from-[#0b1220] dark:to-[#0f172a]')}>
@@ -22,25 +16,18 @@ export default function AppLayout({ children }: PropsWithChildren) {
             <span>FleetTrackMate</span>
           </Link>
           <nav className="flex items-center gap-4 text-sm">
-            {user ? (
+            <Link to="/dashboard" className="hover:underline">Dashboard</Link>
+            {!loading && (user ? (
               <>
-                <Link to="/dashboard" className="hover:underline">Dashboard</Link>
-                <button
-                  onClick={handleSignOut}
-                  className="flex items-center gap-1.5 hover:underline"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Sign out
-                </button>
+                <span className="text-slate-600 dark:text-slate-300">{user.email}</span>
+                <button onClick={signOut} className="rounded-md border px-3 py-1 hover:bg-slate-100 dark:hover:bg-slate-800">Sign out</button>
               </>
             ) : (
               <>
-                <Link to="/auth/login" className="hover:underline">Sign in</Link>
-                <Link to="/auth/signup" className="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white">
-                  Sign up
-                </Link>
+                <Link to="/auth/login" className="hover:underline">Log in</Link>
+                <Link to="/auth/signup" className="hover:underline">Sign up</Link>
               </>
-            )}
+            ))}
           </nav>
         </div>
       </header>
