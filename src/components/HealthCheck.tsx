@@ -4,15 +4,9 @@ import { CheckCircle2, AlertCircle } from 'lucide-react';
 
 export default function HealthCheck() {
   const [status, setStatus] = useState<'ok' | 'warn'>('warn');
-  const url = import.meta.env.VITE_SUPABASE_URL;
-  const anon = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   useEffect(() => {
     const run = async () => {
-      if (!url || !anon) {
-        setStatus('warn');
-        return;
-      }
       try {
         const { error } = await supabase.auth.getSession();
         if (error) setStatus('warn');
@@ -34,7 +28,7 @@ export default function HealthCheck() {
       ) : (
         <>
           <AlertCircle className="h-4 w-4 text-amber-500" />
-          <span className="text-sm">Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY</span>
+          <span className="text-sm">Supabase connection issue</span>
         </>
       )}
     </div>
