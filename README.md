@@ -7,12 +7,6 @@ Real-time fleet tracking application built with React, Supabase, and Mapbox.
 1. **Environment Variables**
    - Set `VITE_MAPBOX_TOKEN` in environment settings
    - Supabase credentials are configured in `src/lib/supabaseClient.ts`
-   - Firebase config (optional, for push notifications):
-     - `VITE_FIREBASE_API_KEY`
-     - `VITE_FIREBASE_PROJECT_ID`
-     - `VITE_FIREBASE_MESSAGING_SENDER_ID`
-     - `VITE_FIREBASE_APP_ID`
-     - `VITE_FIREBASE_VAPID_KEY`
 
 2. **Database Setup**
    - Run `docs/SQL/profiles.sql` in Supabase SQL editor (creates profiles table)
@@ -83,12 +77,12 @@ Real-time fleet tracking application built with React, Supabase, and Mapbox.
 - Filter trips by device
 
 ### Push Notifications (Phase 7B)
-- Web push notifications via Firebase Cloud Messaging (FCM)
-- Settings page at `/settings` to enable/disable notifications
-- Browser notification permission management
-- Edge function `notify-inactivity` to send alerts when devices go offline
-- Token storage with RLS for multi-device support
-- Requires HTTPS for web push
+- In-app notifications via Supabase Realtime for geofence events
+- Settings page at `/settings` for notification preferences
+- Toast notifications using `sonner` library
+- Edge function `notify-inactivity` available for custom notification logic
+- Notification tokens table ready for future push notification expansion
+- No external dependencies (Firebase removed to avoid conflicts)
 
 ## Project Structure
 
@@ -105,10 +99,9 @@ Real-time fleet tracking application built with React, Supabase, and Mapbox.
 - `src/hooks/useGeofences.ts` - Geofence management hook
 - `src/hooks/useGeofenceEvents.ts` - Geofence events and alerts hook
 - `src/hooks/useTrips.ts` - Trip detection and history hook
-- `src/lib/firebase.ts` - Firebase messaging configuration
 - `supabase/functions/notify-inactivity/` - Edge function for offline alerts
 - `docs/SQL/` - Database migration scripts and RPC functions
-- `docs/NOTIFICATIONS.md` - Push notification setup guide
+- `docs/NOTIFICATIONS.md` - In-app notification documentation
 
 ## Testing Realtime
 

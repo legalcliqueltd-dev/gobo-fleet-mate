@@ -1,89 +1,120 @@
-# Push Notifications (Web) — FCM + Supabase Edge Function
+# In-App Notifications (Supabase Realtime)
 
-## Prerequisites
+## Current Implementation
 
-1. **Firebase project**: https://console.firebase.google.com
-   - Create a Web App in Firebase → copy config values
-   - Generate Web Push certificates (VAPID) in Firebase Cloud Messaging → copy VAPID key
-2. **Supabase CLI** installed for Edge Functions
+The app uses **Supabase Realtime** for in-app notifications without requiring external services.
 
-## Environment Variables
+### Features
 
-Add these to your deployment environment (Vercel/Lovable):
+1. **Geofence Alerts**: Real-time notifications when devices enter/exit geofences
+2. **In-App Toast**: Browser toast notifications using `sonner` library
+3. **Notification Widget**: Floating bell icon with unacknowledged event count
+4. **No External Dependencies**: Works entirely through Supabase
 
-```
-VITE_FIREBASE_API_KEY=
-VITE_FIREBASE_PROJECT_ID=
-VITE_FIREBASE_MESSAGING_SENDER_ID=
-VITE_FIREBASE_APP_ID=
-VITE_FIREBASE_VAPID_KEY=
-```
+### How It Works
 
-## Service Worker
+1. **GeofenceAlerts Component** (`src/components/GeofenceAlerts.tsx`):
+   - Subscribes to `geofence_events` table via Supabase Realtime
+   - Shows toast notification when new events occur
+   - Displays floating bell icon with event count
+   - Allows users to acknowledge events
 
-The app automatically registers `/firebase-messaging-sw.js`.
-Web push requires HTTPS (use Vercel preview/production).
-
-## Edge Function Setup
-
-### 1. Create and deploy function
-
-The edge function is located at: `supabase/functions/notify-inactivity/index.ts`
-
-### 2. Set secrets
-
-```bash
-supabase secrets set FCM_SERVER_KEY=<your_firebase_server_key>
-```
-
-Note: `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are already configured by Lovable.
-
-### 3. Deploy
-
-```bash
-supabase functions deploy notify-inactivity
-```
-
-### 4. Schedule (optional)
-
-If you have Supabase Scheduled Functions enabled:
-
-1. Go to Supabase Dashboard → Edge Functions → Schedules → New schedule
-2. Name: `notify-inactivity`
-3. Cron: `*/5 * * * *` (every 5 minutes)
-4. Function: `notify-inactivity`
-
-Or run manually:
-```bash
-curl -X POST https://invbnyxieoyohahqhbir.supabase.co/functions/v1/notify-inactivity
-```
-
-## Testing
-
-1. In app, go to **Settings** → **Enable notifications**
-2. Grant browser permission when prompted
-3. Force offline status by running in SQL editor:
-   ```sql
-   UPDATE devices SET status = 'offline' WHERE id = '<device_id>';
+2. **Real-time Subscription**:
+   ```typescript
+   const channel = supabase
+     .channel('geofence-events')
+     .on('postgres_changes', {
+       event: 'INSERT',
+       schema: 'public',
+       table: 'geofence_events',
+     }, () => {
+       // Show toast notification
+       toast.warning(`Device entered/exited geofence`);
+     })
+     .subscribe();
    ```
-4. Call the function:
-   ```bash
-   curl -X POST https://invbnyxieoyohahqhbir.supabase.co/functions/v1/notify-inactivity
-   ```
-5. You should receive a push notification: "Device offline"
 
-## How It Works
+3. **Notification Tokens Table**:
+   - Table exists for future push notification integration
+   - Currently unused but ready for expansion
 
-1. **Token Storage**: `notification_tokens` table stores FCM tokens with RLS (users manage only their own tokens)
-2. **Status Tracking**: `devices.status_changed_at` tracks when status last changed
-3. **Deduplication**: `devices.last_notified_offline_at` ensures one notification per offline event
-4. **Edge Function**: Scans for newly offline devices and sends FCM notifications
-5. **Mobile**: For Capacitor apps, use platform `android`/`ios` with native FCM plugin; store tokens in the same table
+## Future Push Notification Options
+
+### Option 1: Supabase Edge Function + Third-Party Service
+
+Use the existing `notify-inactivity` edge function with:
+- **SendGrid** for email notifications
+- **Twilio** for SMS notifications
+- **OneSignal** for web/mobile push (no Firebase needed)
+
+### Option 2: Native Web Push API
+
+Implement browser push notifications without Firebase:
+1. Generate VAPID keys server-side
+2. Store push subscriptions in `notification_tokens` table
+3. Use Web Push Protocol directly from edge function
+4. Library: `web-push` (Deno compatible)
+
+### Option 3: Mobile-Only Push
+
+For Capacitor mobile apps:
+- Use native push notification plugins
+- Platform-specific: FCM for Android, APNs for iOS
+- Store tokens in `notification_tokens` table
+- Send via Supabase edge function
+
+## Edge Function (notify-inactivity)
+
+The edge function is ready but not actively used:
+- Location: `supabase/functions/notify-inactivity/index.ts`
+- Purpose: Send notifications when devices go offline
+- Can be adapted for email/SMS instead of FCM
+
+### To Enable Email Notifications:
+
+```typescript
+// In notify-inactivity/index.ts
+const sendEmail = await fetch('https://api.sendgrid.com/v3/mail/send', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${Deno.env.get('SENDGRID_API_KEY')}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    personalizations: [{ to: [{ email: userEmail }] }],
+    from: { email: 'alerts@fleettrackmate.com' },
+    subject: 'Device Offline Alert',
+    content: [{ type: 'text/plain', value: `${deviceName} is offline.` }],
+  }),
+});
+```
+
+## Testing In-App Notifications
+
+1. Go to `/geofences` and create a geofence
+2. Insert a location that triggers entry/exit
+3. Watch Dashboard for toast notification
+4. Click bell icon to see event list
+
+```sql
+-- Trigger a test event
+INSERT INTO public.locations (device_id, latitude, longitude, speed)
+VALUES ('YOUR_DEVICE_ID', LAT_INSIDE_GEOFENCE, LNG_INSIDE_GEOFENCE, 5);
+```
+
+## Benefits of Current Approach
+
+✅ No external dependencies (Firebase, etc.)  
+✅ Works immediately without configuration  
+✅ Real-time updates via Supabase  
+✅ No VAPID key management  
+✅ No browser permission prompts  
+✅ Works on all devices (desktop/mobile)  
+✅ No version conflicts or bundle size issues  
 
 ## Notes
 
-- Tokens are automatically removed when user disables notifications
-- Multiple tokens per user are supported (web + mobile)
-- Notifications only sent when device status changes to offline
-- Browser must grant notification permission
-- HTTPS required for web push
+- Firebase was removed due to React version conflicts
+- In-app notifications work when app is open
+- For background push, implement Option 2 or 3 above
+- Edge function remains available for custom notification logic

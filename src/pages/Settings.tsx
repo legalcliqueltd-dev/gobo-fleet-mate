@@ -1,17 +1,13 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
-import { getFcmMessaging } from '../lib/firebase';
 import Button from '../components/ui/Button';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
-import { Bell } from 'lucide-react';
+import { Bell, Info } from 'lucide-react';
 
 export default function Settings() {
   const { user } = useAuth();
-  const [status, setStatus] = useState<'idle' | 'enabled' | 'disabled' | 'unsupported'>('idle');
-  const [error, setError] = useState<string | null>(null);
   const [tokens, setTokens] = useState<{ id: string; token: string; platform: string; created_at: string }[]>([]);
-  const vapid = import.meta.env.VITE_FIREBASE_VAPID_KEY as string | undefined;
 
   const loadTokens = async () => {
     if (!user) return;
@@ -26,74 +22,6 @@ export default function Settings() {
   useEffect(() => {
     loadTokens();
   }, [user]);
-
-  const enablePush = async () => {
-    setError(null);
-    if (!user) return;
-    try {
-      const messaging = await getFcmMessaging();
-      if (!messaging || !vapid) {
-        setStatus('unsupported');
-        setError('Push notifications not supported in this browser or Firebase not configured');
-        return;
-      }
-
-      // Lazy load Firebase messaging functions
-      const { getToken } = await import('firebase/messaging');
-
-      const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-      const token = await getToken(messaging, { vapidKey: vapid, serviceWorkerRegistration: reg });
-
-      if (!token) throw new Error('No FCM token returned');
-
-      // Save token (dedupe by unique constraint)
-      const { error } = await supabase.from('notification_tokens').upsert(
-        {
-          user_id: user.id,
-          token,
-          platform: 'web',
-        },
-        { onConflict: 'token' }
-      );
-
-      if (error) throw error;
-      setStatus('enabled');
-      await loadTokens();
-    } catch (e: any) {
-      setError(e?.message ?? 'Failed to enable push');
-    }
-  };
-
-  const disablePush = async () => {
-    setError(null);
-    if (!user) return;
-    try {
-      // delete token from browser and DB
-      const messaging = await getFcmMessaging();
-      if (messaging) {
-        // Lazy load Firebase messaging functions
-        const { deleteToken } = await import('firebase/messaging');
-        
-        const reg = await navigator.serviceWorker.getRegistration();
-        const currentToken = tokens[0]?.token;
-        if (currentToken) await deleteToken(messaging);
-        if (reg) await reg.unregister();
-      }
-      if (tokens.length) {
-        await supabase
-          .from('notification_tokens')
-          .delete()
-          .in(
-            'token',
-            tokens.map((t) => t.token)
-          );
-      }
-      setStatus('disabled');
-      await loadTokens();
-    } catch (e: any) {
-      setError(e?.message ?? 'Failed to disable push');
-    }
-  };
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -110,22 +38,28 @@ export default function Settings() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Enable push notifications to get alerts when a device goes offline.
-            Requires HTTPS and browser permission.
-          </p>
-          <div className="flex gap-2">
-            <Button onClick={enablePush}>Enable notifications</Button>
-            <Button variant="outline" onClick={disablePush}>
-              Disable
-            </Button>
+          <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20 p-4">
+            <div className="flex gap-3">
+              <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                  In-App Notifications Enabled
+                </p>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  You're currently receiving real-time in-app notifications for geofence events.
+                  Browser push notifications have been disabled to avoid dependency conflicts.
+                </p>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  To add push notifications, you can use the Supabase edge function approach
+                  without Firebase, or implement a webhook-based notification system.
+                </p>
+              </div>
+            </div>
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <div className="mt-4">
-            <div className="text-xs font-medium text-muted-foreground mb-2">Saved tokens</div>
-            {tokens.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No tokens saved</p>
-            ) : (
+
+          {tokens.length > 0 && (
+            <div className="mt-4">
+              <div className="text-xs font-medium text-muted-foreground mb-2">Previous tokens</div>
               <ul className="text-sm space-y-2">
                 {tokens.map((t) => (
                   <li key={t.id} className="flex items-center gap-2 text-muted-foreground">
@@ -135,8 +69,8 @@ export default function Settings() {
                   </li>
                 ))}
               </ul>
-            )}
-          </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
