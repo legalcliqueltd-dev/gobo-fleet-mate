@@ -20,8 +20,14 @@
 - ✅ Fetched user devices and subscribed to realtime locations; latest location per device shown as markers
 - ✅ Sidebar lists devices with status (active/idle/offline) based on last timestamp
 
+## Phase 4 (Device management + Details + History)
+- ✅ Implemented Device CRUD: add, edit, delete with RLS
+- ✅ Dashboard sidebar links to details; "Add Device" button added
+- ✅ Device details page shows last known location, stats, and history playback (24h/7d) with animated marker and route line
+- ✅ Realtime: devices changes reload list; locations INSERTs update latest position
+
 ## Next:
-- Phase 4: Device management (CRUD), device details page, and history playback (timeline scrub)
+- Phase 5: UI polish (glass-morphism refinements, dark/light toggle controls, icons/markers), responsiveness, and branding
 
 ## Environment variables (Lovable settings)
 - Supabase credentials: Hardcoded in src/lib/supabaseClient.ts

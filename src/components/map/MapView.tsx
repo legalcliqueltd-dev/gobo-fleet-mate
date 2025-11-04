@@ -1,17 +1,26 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Map, { Marker, NavigationControl, ScaleControl, MapRef } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import type { MarkerData } from '../../types';
 import { Car } from 'lucide-react';
 import { MAPBOX_TOKEN } from '../../lib/mapboxConfig';
 
-type Props = {
-  markers: MarkerData[];
-  mapStyle: 'streets' | 'satellite';
-  onMapStyleChange: (style: 'streets' | 'satellite') => void;
+type MarkerItem = {
+  device_id: string;
+  name: string | null;
+  status: 'active' | 'idle' | 'offline' | null;
+  latitude: number;
+  longitude: number;
+  speed: number | null;
+  timestamp: string;
 };
 
-export default function MapView({ markers, mapStyle, onMapStyleChange }: Props) {
+type Props = {
+  items: MarkerItem[];
+  onMarkerClick?: (deviceId: string) => void;
+};
+
+export default function MapView({ items, onMarkerClick }: Props) {
+  const [mapStyle, setMapStyle] = useState<'streets' | 'satellite'>('streets');
   const mapRef = useRef<MapRef | null>(null);
 
   const styleUrl = mapStyle === 'satellite'
@@ -19,16 +28,16 @@ export default function MapView({ markers, mapStyle, onMapStyleChange }: Props) 
     : 'mapbox://styles/mapbox/streets-v12';
 
   const bounds = useMemo(() => {
-    if (!markers.length) return null;
+    if (!items.length) return null;
     let minLng = 180, minLat = 90, maxLng = -180, maxLat = -90;
-    for (const m of markers) {
+    for (const m of items) {
       minLng = Math.min(minLng, m.longitude);
       minLat = Math.min(minLat, m.latitude);
       maxLng = Math.max(maxLng, m.longitude);
       maxLat = Math.max(maxLat, m.latitude);
     }
     return [[minLng, minLat], [maxLng, maxLat]] as [[number, number], [number, number]];
-  }, [markers]);
+  }, [items]);
 
   useEffect(() => {
     if (mapRef.current && bounds) {
@@ -45,13 +54,13 @@ export default function MapView({ markers, mapStyle, onMapStyleChange }: Props) 
     <div className="relative">
       <div className="absolute z-10 top-2 left-2 flex gap-2">
         <button
-          onClick={() => onMapStyleChange('streets')}
+          onClick={() => setMapStyle('streets')}
           className={`rounded-md px-3 py-1 text-sm border ${mapStyle==='streets' ? 'bg-white/80 dark:bg-slate-900/80' : 'bg-white/50 dark:bg-slate-800/50'} backdrop-blur`}
         >
           Map
         </button>
         <button
-          onClick={() => onMapStyleChange('satellite')}
+          onClick={() => setMapStyle('satellite')}
           className={`rounded-md px-3 py-1 text-sm border ${mapStyle==='satellite' ? 'bg-white/80 dark:bg-slate-900/80' : 'bg-white/50 dark:bg-slate-800/50'} backdrop-blur`}
         >
           Satellite
@@ -68,14 +77,17 @@ export default function MapView({ markers, mapStyle, onMapStyleChange }: Props) 
         <NavigationControl position="top-right" />
         <ScaleControl />
 
-        {markers.map((m) => (
-          <Marker key={m.id} longitude={m.longitude} latitude={m.latitude} anchor="bottom">
-            <div className="relative -translate-y-1">
+        {items.map((m) => (
+          <Marker key={m.device_id} longitude={m.longitude} latitude={m.latitude} anchor="bottom">
+            <button
+              onClick={() => onMarkerClick?.(m.device_id)}
+              className="relative -translate-y-1 cursor-pointer"
+            >
               <div className={`h-3 w-3 rounded-full ring-2 ring-white/80 dark:ring-black/40 ${statusColor(m.status)} absolute -top-1 -right-1`}></div>
               <div className="grid place-items-center h-7 w-7 rounded-full bg-white/90 dark:bg-slate-900/90 shadow">
                 <Car className="h-4 w-4 text-cyan-600" />
               </div>
-            </div>
+            </button>
           </Marker>
         ))}
       </Map>

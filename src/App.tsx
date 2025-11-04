@@ -8,6 +8,9 @@ import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import UpdatePassword from './pages/auth/UpdatePassword';
+import AddDevice from './pages/devices/AddDevice';
+import EditDevice from './pages/devices/EditDevice';
+import DeviceDetails from './pages/devices/DeviceDetails';
 
 export default function App() {
   return (
@@ -25,6 +28,30 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/devices/new"
+            element={
+              <ProtectedRoute>
+                <AddDevice />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/devices/:id"
+            element={
+              <ProtectedRoute>
+                <DeviceDetails />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/devices/:id/edit"
+            element={
+              <ProtectedRoute>
+                <EditDevice />
               </ProtectedRoute>
             }
           />
