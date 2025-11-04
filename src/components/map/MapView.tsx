@@ -3,6 +3,7 @@ import Map, { Marker, NavigationControl, ScaleControl, MapRef } from 'react-map-
 import 'mapbox-gl/dist/mapbox-gl.css';
 import type { MarkerData } from '../../types';
 import { Car } from 'lucide-react';
+import { MAPBOX_TOKEN } from '../../lib/mapboxConfig';
 
 type Props = {
   markers: MarkerData[];
@@ -11,7 +12,6 @@ type Props = {
 };
 
 export default function MapView({ markers, mapStyle, onMapStyleChange }: Props) {
-  const token = import.meta.env.VITE_MAPBOX_TOKEN as string | undefined;
   const mapRef = useRef<MapRef | null>(null);
 
   const styleUrl = mapStyle === 'satellite'
@@ -38,17 +38,6 @@ export default function MapView({ markers, mapStyle, onMapStyleChange }: Props) 
     }
   }, [JSON.stringify(bounds)]);
 
-  if (!token) {
-    return (
-      <div className="h-[60vh] w-full grid place-items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 backdrop-blur">
-        <div className="text-center space-y-2">
-          <p className="font-semibold">Mapbox token missing</p>
-          <p className="text-sm text-slate-600 dark:text-slate-400">Set VITE_MAPBOX_TOKEN in environment settings.</p>
-        </div>
-      </div>
-    );
-  }
-
   const statusColor = (s?: 'active'|'idle'|'offline') =>
     s === 'active' ? 'bg-emerald-500' : s === 'idle' ? 'bg-amber-500' : 'bg-slate-400';
 
@@ -71,7 +60,7 @@ export default function MapView({ markers, mapStyle, onMapStyleChange }: Props) 
 
       <Map
         ref={mapRef}
-        mapboxAccessToken={token}
+        mapboxAccessToken={MAPBOX_TOKEN}
         mapStyle={styleUrl}
         initialViewState={{ longitude: 0, latitude: 20, zoom: 2 }}
         style={{ width: '100%', height: '60vh', borderRadius: '0.75rem' }}

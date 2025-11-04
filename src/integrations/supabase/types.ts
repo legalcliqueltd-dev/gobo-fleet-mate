@@ -14,6 +14,68 @@ export type Database = {
   }
   public: {
     Tables: {
+      devices: {
+        Row: {
+          created_at: string | null
+          id: string
+          imei: string | null
+          name: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          imei?: string | null
+          name?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          imei?: string | null
+          name?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      locations: {
+        Row: {
+          device_id: string
+          id: number
+          latitude: number
+          longitude: number
+          speed: number | null
+          timestamp: string
+        }
+        Insert: {
+          device_id: string
+          id?: number
+          latitude: number
+          longitude: number
+          speed?: number | null
+          timestamp?: string
+        }
+        Update: {
+          device_id?: string
+          id?: number
+          latitude?: number
+          longitude?: number
+          speed?: number | null
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "locations_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
