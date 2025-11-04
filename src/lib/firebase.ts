@@ -1,5 +1,7 @@
-import { initializeApp } from 'firebase/app';
-import { getMessaging, isSupported } from 'firebase/messaging';
+// Lazy load Firebase to avoid React version conflicts
+let firebasePromise: Promise<any> | null = null;
+let messagingPromise: Promise<any> | null = null;
+let appInstance: any = null;
 
 const config = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -8,13 +10,32 @@ const config = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-let app: ReturnType<typeof initializeApp> | null = null;
-let messagingPromise: Promise<import('firebase/messaging').Messaging | null> | null = null;
-
 export async function getFcmMessaging() {
-  if (!app) app = initializeApp(config);
-  if (!messagingPromise) {
-    messagingPromise = (await isSupported()) ? Promise.resolve(getMessaging(app)) : Promise.resolve(null);
+  try {
+    // Lazy load Firebase modules
+    if (!firebasePromise) {
+      firebasePromise = Promise.all([
+        import('firebase/app'),
+        import('firebase/messaging')
+      ]);
+    }
+    
+    const [{ initializeApp, getApps }, { getMessaging, isSupported }] = await firebasePromise;
+    
+    // Initialize app only once
+    if (!appInstance) {
+      const apps = getApps();
+      appInstance = apps.length > 0 ? apps[0] : initializeApp(config);
+    }
+    
+    if (!messagingPromise) {
+      const supported = await isSupported();
+      messagingPromise = supported ? Promise.resolve(getMessaging(appInstance)) : Promise.resolve(null);
+    }
+    
+    return messagingPromise;
+  } catch (error) {
+    console.error('Firebase initialization error:', error);
+    return null;
   }
-  return messagingPromise;
 }

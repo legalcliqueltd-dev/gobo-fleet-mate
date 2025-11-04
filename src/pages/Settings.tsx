@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import { getFcmMessaging } from '../lib/firebase';
-import { getToken, deleteToken } from 'firebase/messaging';
 import Button from '../components/ui/Button';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Bell } from 'lucide-react';
@@ -39,6 +38,9 @@ export default function Settings() {
         return;
       }
 
+      // Lazy load Firebase messaging functions
+      const { getToken } = await import('firebase/messaging');
+
       const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
       const token = await getToken(messaging, { vapidKey: vapid, serviceWorkerRegistration: reg });
 
@@ -69,6 +71,9 @@ export default function Settings() {
       // delete token from browser and DB
       const messaging = await getFcmMessaging();
       if (messaging) {
+        // Lazy load Firebase messaging functions
+        const { deleteToken } = await import('firebase/messaging');
+        
         const reg = await navigator.serviceWorker.getRegistration();
         const currentToken = tokens[0]?.token;
         if (currentToken) await deleteToken(messaging);
