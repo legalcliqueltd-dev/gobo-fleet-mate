@@ -100,6 +100,95 @@ export type Database = {
         }
         Relationships: []
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      trips: {
+        Row: {
+          avg_speed_kmh: number | null
+          created_at: string
+          device_id: string
+          distance_km: number | null
+          duration_minutes: number | null
+          end_latitude: number | null
+          end_longitude: number | null
+          end_time: string | null
+          id: string
+          max_speed_kmh: number | null
+          start_latitude: number
+          start_longitude: number
+          start_time: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          avg_speed_kmh?: number | null
+          created_at?: string
+          device_id: string
+          distance_km?: number | null
+          duration_minutes?: number | null
+          end_latitude?: number | null
+          end_longitude?: number | null
+          end_time?: string | null
+          id?: string
+          max_speed_kmh?: number | null
+          start_latitude: number
+          start_longitude: number
+          start_time: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          avg_speed_kmh?: number | null
+          created_at?: string
+          device_id?: string
+          distance_km?: number | null
+          duration_minutes?: number | null
+          end_latitude?: number | null
+          end_longitude?: number | null
+          end_time?: string | null
+          id?: string
+          max_speed_kmh?: number | null
+          start_latitude?: number
+          start_longitude?: number
+          start_time?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trips_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
