@@ -11,6 +11,7 @@ import UpdatePassword from './pages/auth/UpdatePassword';
 import AddDevice from './pages/devices/AddDevice';
 import EditDevice from './pages/devices/EditDevice';
 import DeviceDetails from './pages/devices/DeviceDetails';
+import Status from './pages/Status';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 export default function App() {
@@ -25,6 +26,7 @@ export default function App() {
             <Route path="/auth/signup" element={<Signup />} />
             <Route path="/auth/forgot" element={<ForgotPassword />} />
             <Route path="/auth/update-password" element={<UpdatePassword />} />
+            <Route path="/status" element={<Status />} />
             <Route
               path="/dashboard"
               element={

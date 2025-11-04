@@ -33,8 +33,14 @@
 - ✅ Enhanced markers with glow/pulse for active status and soft label bubble
 - ✅ Added floating "Add Device" button on mobile
 
+## Phase 6 (Deployment)
+- ✅ Added .htaccess for Apache SPA routing (Hostinger)
+- ✅ Added /status page to verify Supabase + Mapbox
+- ✅ Added Capacitor config and scripts for Android packaging
+- ✅ Wrote deployment docs for Hostinger and mobile build
+
 ## Next:
-- Phase 6: Deployment (Vercel + mobile packaging via Capacitor/Expo)
+- Phase 7 (optional): Push notifications, AI insights, geofencing
 
 ## Environment variables (Lovable settings)
 - Supabase credentials: Hardcoded in src/lib/supabaseClient.ts
