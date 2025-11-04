@@ -31,22 +31,20 @@ export default function Signup() {
     defaultValues: { email: '', password: '', confirm: '' },
   });
 
-  const ensureProfile = async (userId: string) => {
-    await supabase.from('profiles').upsert({ id: userId }, { onConflict: 'id' });
-  };
-
   const onSubmit = async (values: FormValues) => {
     setInfoMsg(null); setErrorMsg(null);
     const { data, error } = await supabase.auth.signUp({
       email: values.email,
       password: values.password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/dashboard`,
+      },
     });
     if (error) {
       setErrorMsg(error.message);
       return;
     }
     if (data.user && data.session) {
-      await ensureProfile(data.user.id);
       navigate('/dashboard', { replace: true });
       return;
     }
