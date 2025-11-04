@@ -1,56 +1,27 @@
+import { PropsWithChildren } from 'react';
+import { Car } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Truck, LayoutDashboard, MapPin, Users, Settings, LogOut } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import clsx from 'clsx';
 
-interface AppLayoutProps {
-  children: React.ReactNode;
-}
-
-const AppLayout = ({ children }: AppLayoutProps) => {
+export default function AppLayout({ children }: PropsWithChildren) {
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40">
-        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/app/dashboard" className="flex items-center gap-2">
-            <Truck className="w-6 h-6 text-primary" />
-            <span className="font-bold text-xl">FleetTrackMate</span>
+    <div className={clsx('min-h-screen bg-gradient-to-br from-cyan-500/10 to-indigo-800/10 dark:from-[#0b1220] dark:to-[#0f172a]')}>
+      <header className="backdrop-blur-md bg-white/50 dark:bg-slate-900/50 border-b border-white/20 dark:border-slate-800 sticky top-0 z-30">
+        <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
+            <Car className="h-5 w-5 text-cyan-500" />
+            <span>FleetTrackMate</span>
           </Link>
-          
-          <nav className="hidden md:flex items-center gap-6">
-            <Link to="/app/dashboard" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <LayoutDashboard className="w-4 h-4" />
-              Dashboard
-            </Link>
-            <Link to="/app/fleet" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <MapPin className="w-4 h-4" />
-              Fleet
-            </Link>
-            <Link to="/app/drivers" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <Users className="w-4 h-4" />
-              Drivers
-            </Link>
-            <Link to="/app/settings" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <Settings className="w-4 h-4" />
-              Settings
-            </Link>
+          <nav className="flex items-center gap-4 text-sm">
+            <Link to="/auth" className="hover:underline">Auth</Link>
+            <Link to="/dashboard" className="hover:underline">Dashboard</Link>
           </nav>
-
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm">
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
-          </div>
         </div>
       </header>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        {children}
-      </main>
+      <main className="mx-auto max-w-7xl px-4 py-8">{children}</main>
+      <footer className="mx-auto max-w-7xl px-4 py-8 text-xs text-slate-500">
+        © {new Date().getFullYear()} FleetTrackMate
+      </footer>
     </div>
   );
-};
-
-export default AppLayout;
+}

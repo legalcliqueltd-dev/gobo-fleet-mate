@@ -1,46 +1,42 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
+import { CheckCircle2, AlertCircle } from 'lucide-react';
 
-const HealthCheck = () => {
-  const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'connected' | 'error'>('checking');
-  const [mapboxStatus, setMapboxStatus] = useState<'present' | 'missing'>('missing');
+export default function HealthCheck() {
+  const [status, setStatus] = useState<'ok' | 'warn'>('warn');
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  const anon = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   useEffect(() => {
-    const checkSupabase = async () => {
+    const run = async () => {
+      if (!url || !anon) {
+        setStatus('warn');
+        return;
+      }
       try {
-        // Simple connection test - just check if we can reach Supabase
-        const { data, error } = await supabase.auth.getSession();
-        setSupabaseStatus(!error ? 'connected' : 'error');
+        const { error } = await supabase.auth.getSession();
+        if (error) setStatus('warn');
+        else setStatus('ok');
       } catch {
-        setSupabaseStatus('error');
+        setStatus('warn');
       }
     };
-
-    const checkMapbox = () => {
-      setMapboxStatus(import.meta.env.VITE_MAPBOX_TOKEN ? 'present' : 'missing');
-    };
-
-    checkSupabase();
-    checkMapbox();
+    run();
   }, []);
 
   return (
-    <div className="fixed bottom-4 right-4 bg-card/80 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg text-xs z-50">
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          {supabaseStatus === 'checking' && <AlertCircle className="w-3 h-3 text-muted-foreground animate-pulse" />}
-          {supabaseStatus === 'connected' && <CheckCircle className="w-3 h-3 text-green-500" />}
-          {supabaseStatus === 'error' && <XCircle className="w-3 h-3 text-destructive" />}
-          <span className="text-muted-foreground">Supabase: <span className="text-foreground font-medium">{supabaseStatus}</span></span>
-        </div>
-        <div className="flex items-center gap-2">
-          {mapboxStatus === 'present' ? <CheckCircle className="w-3 h-3 text-green-500" /> : <XCircle className="w-3 h-3 text-destructive" />}
-          <span className="text-muted-foreground">Mapbox: <span className="text-foreground font-medium">{mapboxStatus}</span></span>
-        </div>
-      </div>
+    <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 px-3 py-2 backdrop-blur">
+      {status === 'ok' ? (
+        <>
+          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+          <span className="text-sm">Supabase connected</span>
+        </>
+      ) : (
+        <>
+          <AlertCircle className="h-4 w-4 text-amber-500" />
+          <span className="text-sm">Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY</span>
+        </>
+      )}
     </div>
   );
-};
-
-export default HealthCheck;
+}
