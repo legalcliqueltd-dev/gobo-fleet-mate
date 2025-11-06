@@ -22,7 +22,13 @@ export default function AppLayout({ children }: PropsWithChildren) {
             <Link to="/analytics" className="hover:underline">Analytics</Link>
             <Link to="/geofences" className="hover:underline">Geofences</Link>
             <Link to="/trips" className="hover:underline">Trips</Link>
-            {user && <Link to="/settings" className="hover:underline">Settings</Link>}
+            {user && (
+              <>
+                <Link to="/driver" className="hover:underline text-red-600 dark:text-red-400 font-semibold">Driver</Link>
+                <Link to="/ops/incidents" className="hover:underline">Incidents</Link>
+                <Link to="/settings" className="hover:underline">Settings</Link>
+              </>
+            )}
             <ThemeToggle />
             {!loading && (user ? (
               <>

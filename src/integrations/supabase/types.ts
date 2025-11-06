@@ -163,6 +163,100 @@ export type Database = {
         }
         Relationships: []
       }
+      sos_events: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          created_at: string | null
+          device_id: string | null
+          hazard: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          message: string | null
+          photo_url: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          resolved_note: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string | null
+          device_id?: string | null
+          hazard?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          message?: string | null
+          photo_url?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_note?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          created_at?: string | null
+          device_id?: string | null
+          hazard?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          message?: string | null
+          photo_url?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          resolved_note?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sos_events_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sos_position_updates: {
+        Row: {
+          id: string
+          latitude: number
+          longitude: number
+          sos_event_id: string
+          timestamp: string | null
+        }
+        Insert: {
+          id?: string
+          latitude: number
+          longitude: number
+          sos_event_id: string
+          timestamp?: string | null
+        }
+        Update: {
+          id?: string
+          latitude?: number
+          longitude?: number
+          sos_event_id?: string
+          timestamp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sos_position_updates_sos_event_id_fkey"
+            columns: ["sos_event_id"]
+            isOneToOne: false
+            referencedRelation: "sos_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trips: {
         Row: {
           avg_speed_kmh: number | null
@@ -225,15 +319,42 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "driver" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -360,6 +481,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "driver", "user"],
+    },
   },
 } as const

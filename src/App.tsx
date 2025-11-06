@@ -16,6 +16,8 @@ import Geofences from './pages/Geofences';
 import Trips from './pages/Trips';
 import Settings from './pages/Settings';
 import Status from './pages/Status';
+import Driver from './pages/Driver';
+import Incidents from './pages/ops/Incidents';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 export default function App() {
@@ -92,6 +94,22 @@ export default function App() {
               element={
                 <ProtectedRoute>
                   <Settings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/driver"
+              element={
+                <ProtectedRoute>
+                  <Driver />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ops/incidents"
+              element={
+                <ProtectedRoute>
+                  <Incidents />
                 </ProtectedRoute>
               }
             />
