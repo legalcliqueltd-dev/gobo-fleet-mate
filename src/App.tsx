@@ -17,7 +17,10 @@ import Trips from './pages/Trips';
 import Settings from './pages/Settings';
 import Status from './pages/Status';
 import Driver from './pages/Driver';
+import DriverTasks from './pages/driver/DriverTasks';
+import CompleteTask from './pages/driver/CompleteTask';
 import Incidents from './pages/ops/Incidents';
+import OpsTasks from './pages/ops/OpsTasks';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 export default function App() {
@@ -106,10 +109,34 @@ export default function App() {
               }
             />
             <Route
+              path="/driver/tasks"
+              element={
+                <ProtectedRoute>
+                  <DriverTasks />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tasks/:taskId/complete"
+              element={
+                <ProtectedRoute>
+                  <CompleteTask />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/ops/incidents"
               element={
                 <ProtectedRoute>
                   <Incidents />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ops/tasks"
+              element={
+                <ProtectedRoute>
+                  <OpsTasks />
                 </ProtectedRoute>
               }
             />

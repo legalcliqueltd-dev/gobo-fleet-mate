@@ -24,8 +24,9 @@ export default function AppLayout({ children }: PropsWithChildren) {
             <Link to="/trips" className="hover:underline">Trips</Link>
             {user && (
               <>
-                <Link to="/driver" className="hover:underline text-red-600 dark:text-red-400 font-semibold">Driver</Link>
-                <Link to="/ops/incidents" className="hover:underline">Incidents</Link>
+                <Link to="/driver/tasks" className="hover:underline">Tasks</Link>
+                <Link to="/driver" className="hover:underline text-red-600 dark:text-red-400 font-semibold">SOS</Link>
+                <Link to="/ops/tasks" className="hover:underline">Ops</Link>
                 <Link to="/settings" className="hover:underline">Settings</Link>
               </>
             )}

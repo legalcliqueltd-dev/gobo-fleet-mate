@@ -257,6 +257,139 @@ export type Database = {
           },
         ]
       }
+      task_reports: {
+        Row: {
+          created_at: string | null
+          delivered: boolean
+          distance_to_dropoff_m: number | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          note: string | null
+          otp_verified_at: string | null
+          photos: Json | null
+          receiver_name: string | null
+          receiver_phone: string | null
+          reporter_user_id: string
+          signature_url: string | null
+          task_id: string
+          verified_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          delivered: boolean
+          distance_to_dropoff_m?: number | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          note?: string | null
+          otp_verified_at?: string | null
+          photos?: Json | null
+          receiver_name?: string | null
+          receiver_phone?: string | null
+          reporter_user_id: string
+          signature_url?: string | null
+          task_id: string
+          verified_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          delivered?: boolean
+          distance_to_dropoff_m?: number | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          note?: string | null
+          otp_verified_at?: string | null
+          photos?: Json | null
+          receiver_name?: string | null
+          receiver_phone?: string | null
+          reporter_user_id?: string
+          signature_url?: string | null
+          task_id?: string
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_reports_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          assigned_user_id: string
+          created_at: string | null
+          created_by: string
+          description: string | null
+          device_id: string | null
+          dropoff_lat: number | null
+          dropoff_lng: number | null
+          dropoff_radius_m: number | null
+          due_at: string | null
+          id: string
+          otp_expires_at: string | null
+          otp_hash: string | null
+          pickup_lat: number | null
+          pickup_lng: number | null
+          qr_secret: string | null
+          status: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_user_id: string
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          device_id?: string | null
+          dropoff_lat?: number | null
+          dropoff_lng?: number | null
+          dropoff_radius_m?: number | null
+          due_at?: string | null
+          id?: string
+          otp_expires_at?: string | null
+          otp_hash?: string | null
+          pickup_lat?: number | null
+          pickup_lng?: number | null
+          qr_secret?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_user_id?: string
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          device_id?: string | null
+          dropoff_lat?: number | null
+          dropoff_lng?: number | null
+          dropoff_radius_m?: number | null
+          due_at?: string | null
+          id?: string
+          otp_expires_at?: string | null
+          otp_hash?: string | null
+          pickup_lat?: number | null
+          pickup_lng?: number | null
+          qr_secret?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trips: {
         Row: {
           avg_speed_kmh: number | null
