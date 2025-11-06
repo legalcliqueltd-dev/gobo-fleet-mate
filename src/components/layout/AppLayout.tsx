@@ -25,15 +25,15 @@ export default function AppLayout({ children }: PropsWithChildren) {
             </Link>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center gap-3 text-sm">
-              <Link to="/dashboard" className="hover:underline">Dashboard</Link>
-              <Link to="/analytics" className="hover:underline">Analytics</Link>
-              <Link to="/trips" className="hover:underline">Trips</Link>
+            <nav className="hidden md:flex items-center gap-4 text-sm">
+              <Link to="/dashboard" className="py-2 hover:underline">Dashboard</Link>
+              <Link to="/analytics" className="py-2 hover:underline">Analytics</Link>
+              <Link to="/trips" className="py-2 hover:underline">Trips</Link>
               {user && (
                 <>
                   <Link 
                     to="/driver" 
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-all hover:shadow-lg"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-all hover:shadow-lg"
                   >
                     <AlertTriangle className="h-4 w-4" />
                     SOS
@@ -41,7 +41,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
                   <div className="relative">
                     <button
                       onClick={() => setMoreMenuOpen(!moreMenuOpen)}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                     >
                       <MoreHorizontal className="h-4 w-4" />
                       More
@@ -89,13 +89,13 @@ export default function AppLayout({ children }: PropsWithChildren) {
               )}
               {!loading && (user ? (
                 <>
-                  <span className="hidden lg:inline text-slate-600 dark:text-slate-300 text-xs">{user.email}</span>
+                  <span className="hidden lg:inline text-slate-600 dark:text-slate-300 text-xs py-2">{user.email}</span>
                   <Button variant="outline" size="sm" onClick={signOut}>Sign out</Button>
                 </>
               ) : (
                 <>
-                  <Link to="/auth/login" className="hover:underline">Log in</Link>
-                  <Link to="/auth/signup" className="hover:underline">Sign up</Link>
+                  <Link to="/auth/login" className="py-2 hover:underline">Log in</Link>
+                  <Link to="/auth/signup" className="py-2 hover:underline">Sign up</Link>
                 </>
               ))}
             </nav>
