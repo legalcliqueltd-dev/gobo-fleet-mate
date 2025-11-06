@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/button';
+import LocationPermissionPrompt from '../LocationPermissionPrompt';
 
 export default function AppLayout({ children }: PropsWithChildren) {
   const { user, signOut, loading } = useAuth();
@@ -14,6 +15,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
 
   return (
     <div className={clsx('min-h-screen bg-gradient-to-br from-cyan-500/10 to-indigo-800/10 dark:from-[#0b1220] dark:to-[#0f172a] bg-radial')}>
+      {user && <LocationPermissionPrompt />}
       <header className="glass-card sticky top-0 z-30">
         <div className="mx-auto max-w-7xl px-3 xs:px-4 py-3">
           <div className="flex items-center justify-between">
