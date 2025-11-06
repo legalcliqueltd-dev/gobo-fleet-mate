@@ -5,11 +5,18 @@ import clsx from 'clsx';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/button';
 import LocationPermissionPrompt from '../LocationPermissionPrompt';
+import { useBackgroundLocationTracking } from '@/hooks/useBackgroundLocationTracking';
 
 export default function AppLayout({ children }: PropsWithChildren) {
   const { user, signOut, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+
+  // Enable background location tracking for authenticated users
+  useBackgroundLocationTracking(!!user, {
+    updateIntervalMs: 30000, // Update every 30 seconds
+    enableHighAccuracy: true,
+  });
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
