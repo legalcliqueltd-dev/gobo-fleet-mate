@@ -61,7 +61,7 @@ export default function Driver() {
 
   const handleMouseDown = () => {
     setHolding(true);
-    setCountdown(3);
+    setCountdown(2);
     
     countdownTimerRef.current = window.setInterval(() => {
       setCountdown((prev) => {
@@ -79,7 +79,7 @@ export default function Driver() {
   const handleMouseUp = () => {
     if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
     setHolding(false);
-    setCountdown(3);
+    setCountdown(2);
   };
 
   const submitSOS = async () => {
@@ -169,10 +169,10 @@ export default function Driver() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Driver Emergency</h1>
+      <h1 className="font-heading text-3xl font-bold mb-6">Driver Emergency</h1>
 
       {recentSOS && recentSOS.status !== 'resolved' && recentSOS.status !== 'cancelled' && (
-        <div className="glass-card rounded-xl p-4 mb-6 border-2 border-red-500">
+        <div className="nb-card p-4 mb-6 border-red-500">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-lg">Active SOS</h3>
             <span className={`px-3 py-1 rounded-full text-white text-sm ${statusColor[recentSOS.status as keyof typeof statusColor]}`}>
@@ -212,12 +212,12 @@ export default function Driver() {
             )}
           </button>
           <p className="mt-6 text-muted-foreground text-center max-w-md">
-            Hold the button for 3 seconds to trigger an emergency alert. Your location will be sent to operations.
+            Hold the button for 2 seconds to trigger an emergency alert. Your location will be sent to operations.
           </p>
         </div>
       ) : (
-        <div className="glass-card rounded-xl p-6">
-          <h2 className="text-xl font-semibold mb-4">Emergency Details</h2>
+        <div className="nb-card p-6">
+          <h2 className="font-heading text-xl font-semibold mb-4">Emergency Details</h2>
           
           <div className="mb-4">
             <label className="block text-sm font-medium mb-2">Hazard Type</label>

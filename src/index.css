@@ -5,12 +5,30 @@
 :root { color-scheme: light dark; }
 html, body, #root { height: 100%; }
 
-/* Neobrutalist utilities */
-.nb-card { @apply bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-white rounded-xl; box-shadow: 6px 6px 0 0 rgba(15,23,42,0.8); }
+/* Neobrutalist utilities — minimal, balanced */
+.nb-card { 
+  @apply bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-white rounded-xl; 
+  box-shadow: 6px 6px 0 0 rgba(15,23,42,0.8); 
+}
 .nb-shadow { box-shadow: 6px 6px 0 0 rgba(15,23,42,0.8); }
 .nb-border { @apply border-2 border-slate-900 dark:border-white; }
-.nb-button { @apply inline-flex items-center justify-center rounded-lg px-4 py-2 font-semibold nb-border bg-white dark:bg-slate-900; }
-.nb-button:hover { transform: translateY(-2px); }
+.nb-button { 
+  @apply inline-flex items-center justify-center rounded-lg px-4 py-2 font-semibold nb-border bg-white dark:bg-slate-900 transition-all; 
+}
+.nb-button:hover { 
+  @apply -translate-y-0.5; 
+  box-shadow: 8px 8px 0 0 rgba(15,23,42,0.8); 
+}
+.nb-button:active {
+  transform: translateY(0px);
+  box-shadow: 4px 4px 0 0 rgba(15,23,42,0.8);
+}
+.nb-muted { @apply border-slate-300 dark:border-slate-700; }
+
+/* Enhanced input styles */
+input:focus, select:focus, textarea:focus {
+  @apply outline-none ring-2 ring-cyan-500 ring-offset-2;
+}
 
 /* Typography */
 .h1 { font-family: Sora, Inter, ui-sans-serif, system-ui, sans-serif; font-weight: 700; }

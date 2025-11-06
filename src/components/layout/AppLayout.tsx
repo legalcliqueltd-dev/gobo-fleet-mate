@@ -1,14 +1,14 @@
 import { PropsWithChildren, useState } from 'react';
-import { Car, Menu, X } from 'lucide-react';
+import { Car, Menu, X, MoreHorizontal, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import clsx from 'clsx';
 import { useAuth } from '../../contexts/AuthContext';
-import ThemeToggle from '../ThemeToggle';
 import { Button } from '../ui/button';
 
 export default function AppLayout({ children }: PropsWithChildren) {
   const { user, signOut, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
@@ -28,17 +28,65 @@ export default function AppLayout({ children }: PropsWithChildren) {
             <nav className="hidden md:flex items-center gap-3 text-sm">
               <Link to="/dashboard" className="hover:underline">Dashboard</Link>
               <Link to="/analytics" className="hover:underline">Analytics</Link>
-              <Link to="/geofences" className="hover:underline">Geofences</Link>
               <Link to="/trips" className="hover:underline">Trips</Link>
               {user && (
                 <>
-                  <Link to="/driver/tasks" className="hover:underline">Tasks</Link>
-                  <Link to="/driver" className="hover:underline text-red-600 dark:text-red-400 font-semibold">SOS</Link>
-                  <Link to="/ops/tasks" className="hover:underline">Ops</Link>
-                  <Link to="/settings" className="hover:underline">Settings</Link>
+                  <Link 
+                    to="/driver" 
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-all hover:shadow-lg"
+                  >
+                    <AlertTriangle className="h-4 w-4" />
+                    SOS
+                  </Link>
+                  <div className="relative">
+                    <button
+                      onClick={() => setMoreMenuOpen(!moreMenuOpen)}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                      More
+                    </button>
+                    {moreMenuOpen && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-10" 
+                          onClick={() => setMoreMenuOpen(false)}
+                        />
+                        <div className="absolute right-0 mt-2 w-48 nb-card z-20 py-2">
+                          <Link 
+                            to="/geofences" 
+                            className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            onClick={() => setMoreMenuOpen(false)}
+                          >
+                            Geofences
+                          </Link>
+                          <Link 
+                            to="/driver/tasks" 
+                            className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            onClick={() => setMoreMenuOpen(false)}
+                          >
+                            Tasks
+                          </Link>
+                          <Link 
+                            to="/ops/tasks" 
+                            className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            onClick={() => setMoreMenuOpen(false)}
+                          >
+                            Ops
+                          </Link>
+                          <Link 
+                            to="/settings" 
+                            className="block px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            onClick={() => setMoreMenuOpen(false)}
+                          >
+                            Settings
+                          </Link>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </>
               )}
-              <ThemeToggle />
               {!loading && (user ? (
                 <>
                   <span className="hidden lg:inline text-slate-600 dark:text-slate-300 text-xs">{user.email}</span>
@@ -54,7 +102,15 @@ export default function AppLayout({ children }: PropsWithChildren) {
 
             {/* Mobile Menu Button */}
             <div className="flex items-center gap-2 md:hidden">
-              <ThemeToggle />
+              {user && (
+                <Link 
+                  to="/driver"
+                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold"
+                >
+                  <AlertTriangle className="h-3 w-3" />
+                  SOS
+                </Link>
+              )}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition"
@@ -84,18 +140,18 @@ export default function AppLayout({ children }: PropsWithChildren) {
                   Analytics
                 </Link>
                 <Link 
-                  to="/geofences" 
-                  className="px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition"
-                  onClick={closeMobileMenu}
-                >
-                  Geofences
-                </Link>
-                <Link 
                   to="/trips" 
                   className="px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition"
                   onClick={closeMobileMenu}
                 >
                   Trips
+                </Link>
+                <Link 
+                  to="/geofences" 
+                  className="px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition"
+                  onClick={closeMobileMenu}
+                >
+                  Geofences
                 </Link>
                 {user && (
                   <>
@@ -105,13 +161,6 @@ export default function AppLayout({ children }: PropsWithChildren) {
                       onClick={closeMobileMenu}
                     >
                       My Tasks
-                    </Link>
-                    <Link 
-                      to="/driver" 
-                      className="px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-red-600 dark:text-red-400 font-semibold transition"
-                      onClick={closeMobileMenu}
-                    >
-                      🚨 SOS Emergency
                     </Link>
                     <Link 
                       to="/ops/tasks" 

@@ -3,7 +3,8 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
-import { Bell, Info } from 'lucide-react';
+import { Bell, Info, Palette } from 'lucide-react';
+import ThemeToggle from '../components/ThemeToggle';
 
 export default function Settings() {
   const { user } = useAuth();
@@ -26,15 +27,33 @@ export default function Settings() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Settings</h1>
+        <h1 className="font-heading text-3xl font-bold">Settings</h1>
         <p className="text-muted-foreground mt-1">Manage your account and notification preferences</p>
       </div>
 
-      <Card>
+      <Card variant="brutal">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Palette className="h-5 w-5 text-primary" />
+            <h3 className="font-heading font-semibold text-lg">Appearance</h3>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Theme</p>
+              <p className="text-sm text-muted-foreground">Choose your preferred color scheme</p>
+            </div>
+            <ThemeToggle />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card variant="brutal">
         <CardHeader>
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" />
-            <h3 className="font-semibold text-lg">Notifications</h3>
+            <h3 className="font-heading font-semibold text-lg">Notifications</h3>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -74,9 +93,9 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card variant="brutal">
         <CardHeader>
-          <h3 className="font-semibold text-lg">Account</h3>
+          <h3 className="font-heading font-semibold text-lg">Account</h3>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">

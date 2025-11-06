@@ -39,20 +39,30 @@ export default function AddDevice() {
 
   return (
     <div className="max-w-md mx-auto">
-      <h2 className="text-2xl font-semibold mb-4">Add Device</h2>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 bg-white/60 dark:bg-slate-900/50 backdrop-blur rounded-lg p-4 border border-slate-200 dark:border-slate-800">
+      <h2 className="font-heading text-2xl font-semibold mb-4">Add Device</h2>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 nb-card p-6">
         <div>
-          <label className="block text-sm font-medium mb-1">Name</label>
-          <input className="w-full rounded-md border px-3 py-2 bg-white/70 dark:bg-slate-800" {...register('name')} />
+          <label className="block text-sm font-medium mb-2">Name</label>
+          <input 
+            className="w-full rounded-lg border-2 border-slate-300 dark:border-slate-700 px-3 py-2 bg-white dark:bg-slate-900 focus:border-cyan-500 dark:focus:border-cyan-500 transition" 
+            {...register('name')} 
+          />
           {errors.name && <p className="text-sm text-red-600 mt-1">{errors.name.message}</p>}
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">IMEI (optional)</label>
-          <input className="w-full rounded-md border px-3 py-2 bg-white/70 dark:bg-slate-800" {...register('imei')} />
+          <label className="block text-sm font-medium mb-2">IMEI (optional)</label>
+          <input 
+            className="w-full rounded-lg border-2 border-slate-300 dark:border-slate-700 px-3 py-2 bg-white dark:bg-slate-900 focus:border-cyan-500 dark:focus:border-cyan-500 transition" 
+            {...register('imei')} 
+          />
         </div>
         {errorMsg && <p className="text-sm text-red-600">{errorMsg}</p>}
         <div className="flex items-center gap-2">
-          <button type="submit" disabled={isSubmitting} className="rounded-md bg-cyan-600 text-white px-4 py-2 hover:bg-cyan-700 disabled:opacity-50">
+          <button 
+            type="submit" 
+            disabled={isSubmitting} 
+            className="nb-button hover:shadow-brutal disabled:opacity-50 transition-all"
+          >
             {isSubmitting ? 'Saving…' : 'Create device'}
           </button>
         </div>

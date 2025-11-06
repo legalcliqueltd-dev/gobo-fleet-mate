@@ -139,80 +139,88 @@ export default function DeviceDetails() {
           <Link to="/dashboard" className="inline-flex items-center gap-1 text-sm hover:underline">
             <ChevronLeft className="h-4 w-4" /> Back
           </Link>
-          <h2 className="text-2xl font-semibold">{device.name ?? 'Unnamed device'}</h2>
+          <h2 className="font-heading text-2xl font-semibold">{device.name ?? 'Unnamed device'}</h2>
         </div>
         <div className="flex items-center gap-2">
-          <Link to={`/devices/${device.id}/edit`} className="rounded-md border px-3 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center gap-1">
+          <Link to={`/devices/${device.id}/edit`} className="rounded-lg border-2 border-slate-300 dark:border-slate-700 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center gap-1 transition">
             <Pencil className="h-4 w-4" /> Edit
           </Link>
-          <button onClick={onDelete} className="rounded-md border px-3 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center gap-1 text-red-600">
+          <button onClick={onDelete} className="rounded-lg border-2 border-red-300 dark:border-red-700 px-3 py-1.5 hover:bg-red-50 dark:hover:bg-red-950 inline-flex items-center gap-1 text-red-600 transition">
             <Trash2 className="h-4 w-4" /> Delete
           </button>
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 backdrop-blur p-4">
+      <div className="nb-card p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-          <div><span className="text-slate-500">IMEI:</span> {device.imei ?? '—'}</div>
-          <div><span className="text-slate-500">Status:</span> {device.status ?? '—'}</div>
-          <div><span className="text-slate-500">Created:</span> {new Date(device.created_at).toLocaleString()}</div>
+          <div><span className="text-slate-500">IMEI:</span> <strong>{device.imei ?? '—'}</strong></div>
+          <div><span className="text-slate-500">Status:</span> <strong>{device.status ?? '—'}</strong></div>
+          <div><span className="text-slate-500">Created:</span> <strong>{new Date(device.created_at).toLocaleString()}</strong></div>
         </div>
       </div>
 
       {/* Insights panel */}
-      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 backdrop-blur p-4">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold">Insights ({range})</h3>
+      <div className="nb-card p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-heading font-semibold">Insights ({range})</h3>
           <div className="inline-flex items-center gap-2">
             <button
               onClick={() => setRange('24h')}
-              className={`text-xs rounded-md border px-2 py-1 ${range === '24h' ? 'bg-cyan-600 text-white border-cyan-600' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              className={`text-xs rounded-lg px-3 py-1.5 font-medium transition ${
+                range === '24h' 
+                  ? 'nb-button' 
+                  : 'border-2 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
             >
               Last 24h
             </button>
             <button
               onClick={() => setRange('7d')}
-              className={`text-xs rounded-md border px-2 py-1 ${range === '7d' ? 'bg-cyan-600 text-white border-cyan-600' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              className={`text-xs rounded-lg px-3 py-1.5 font-medium transition ${
+                range === '7d' 
+                  ? 'nb-button' 
+                  : 'border-2 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
             >
               Last 7d
             </button>
           </div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-          <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
-            <div className="flex items-center gap-2"><RouteIcon className="h-4 w-4" /><span>Distance</span></div>
-            <div className="mt-1 text-lg font-semibold">{statsLoading ? '—' : fmtKm(stats?.distance_km ?? 0)}</div>
+          <div className="rounded-lg border-2 border-slate-300 dark:border-slate-700 p-3 bg-white dark:bg-slate-900">
+            <div className="flex items-center gap-2 text-muted-foreground"><RouteIcon className="h-4 w-4" /><span>Distance</span></div>
+            <div className="mt-2 text-xl font-bold font-heading">{statsLoading ? '—' : fmtKm(stats?.distance_km ?? 0)}</div>
           </div>
-          <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
-            <div className="flex items-center gap-2"><Gauge className="h-4 w-4" /><span>Avg speed</span></div>
-            <div className="mt-1 text-lg font-semibold">{statsLoading ? '—' : fmtSpeed(stats?.avg_speed_kmh ?? 0)}</div>
+          <div className="rounded-lg border-2 border-slate-300 dark:border-slate-700 p-3 bg-white dark:bg-slate-900">
+            <div className="flex items-center gap-2 text-muted-foreground"><Gauge className="h-4 w-4" /><span>Avg speed</span></div>
+            <div className="mt-2 text-xl font-bold font-heading">{statsLoading ? '—' : fmtSpeed(stats?.avg_speed_kmh ?? 0)}</div>
           </div>
-          <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
-            <div className="flex items-center gap-2"><Gauge className="h-4 w-4" /><span>Max speed</span></div>
-            <div className="mt-1 text-lg font-semibold">{statsLoading ? '—' : fmtSpeed(stats?.max_speed_kmh ?? 0)}</div>
+          <div className="rounded-lg border-2 border-slate-300 dark:border-slate-700 p-3 bg-white dark:bg-slate-900">
+            <div className="flex items-center gap-2 text-muted-foreground"><Gauge className="h-4 w-4" /><span>Max speed</span></div>
+            <div className="mt-2 text-xl font-bold font-heading">{statsLoading ? '—' : fmtSpeed(stats?.max_speed_kmh ?? 0)}</div>
           </div>
-          <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
-            <div className="flex items-center gap-2"><Timer className="h-4 w-4" /><span>Idle time</span></div>
-            <div className="mt-1 text-lg font-semibold">{statsLoading ? '—' : `${stats?.idle_minutes ?? 0} min`}</div>
+          <div className="rounded-lg border-2 border-slate-300 dark:border-slate-700 p-3 bg-white dark:bg-slate-900">
+            <div className="flex items-center gap-2 text-muted-foreground"><Timer className="h-4 w-4" /><span>Idle time</span></div>
+            <div className="mt-2 text-xl font-bold font-heading">{statsLoading ? '—' : `${stats?.idle_minutes ?? 0} min`}</div>
           </div>
         </div>
         {statsError && <div className="text-sm text-red-600 mt-2">{statsError}</div>}
 
         {lastUpdateMin !== null && lastUpdateMin > 10 && (
-          <div className="mt-3 inline-flex items-center gap-2 rounded-md border border-amber-300 bg-amber-100/60 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 px-3 py-2 text-xs">
-            <AlertTriangle className="h-4 w-4" />
+          <div className="mt-4 inline-flex items-center gap-2 rounded-lg border-2 border-amber-300 dark:border-amber-700 bg-amber-100/80 dark:bg-amber-900/30 text-amber-900 dark:text-amber-100 px-3 py-2 text-sm font-medium">
+            <AlertTriangle className="h-5 w-5" />
             Inactivity alert: last update {lastUpdateMin} min ago. Device may be idle/offline.
           </div>
         )}
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <div className="text-sm font-medium">Location History</div>
+          <div className="font-heading font-semibold">Location History</div>
           <div className="inline-flex items-center gap-2">
             <button
               onClick={() => setPlaying((p) => !p)}
-              className="rounded-md border px-3 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center gap-1"
+              className="rounded-lg border-2 border-slate-300 dark:border-slate-700 px-3 py-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center gap-1 font-medium transition disabled:opacity-50"
               disabled={points.length < 2}
             >
               {playing ? <><Pause className="h-4 w-4" /> Pause</> : <><Play className="h-4 w-4" /> Play</>}
@@ -228,7 +236,7 @@ export default function DeviceDetails() {
           </div>
         </div>
 
-        <div className="relative h-[70vh] rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800">
+        <div className="relative map-shell rounded-xl overflow-hidden border-2 border-slate-900 dark:border-white shadow-brutal">
           <Map
             ref={mapRef}
             mapboxAccessToken={MAPBOX_TOKEN}
