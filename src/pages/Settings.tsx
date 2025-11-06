@@ -3,12 +3,27 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import Button from '../components/ui/Button';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
-import { Bell, Info, Palette } from 'lucide-react';
+import { Bell, Info, Palette, MapPin, Battery } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
+import { Label } from '../components/ui/label';
+import { Switch } from '../components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { toast } from 'sonner';
 
 export default function Settings() {
   const { user } = useAuth();
   const [tokens, setTokens] = useState<{ id: string; token: string; platform: string; created_at: string }[]>([]);
+  
+  // Location tracking settings
+  const [locationTrackingEnabled, setLocationTrackingEnabled] = useState(() => {
+    return localStorage.getItem('locationTrackingEnabled') !== 'false';
+  });
+  const [updateInterval, setUpdateInterval] = useState(() => {
+    return localStorage.getItem('locationUpdateInterval') || '30000';
+  });
+  const [batterySavingMode, setBatterySavingMode] = useState(() => {
+    return localStorage.getItem('batterySavingMode') === 'true';
+  });
 
   const loadTokens = async () => {
     if (!user) return;
@@ -24,12 +39,107 @@ export default function Settings() {
     loadTokens();
   }, [user]);
 
+  const handleLocationTrackingToggle = (enabled: boolean) => {
+    setLocationTrackingEnabled(enabled);
+    localStorage.setItem('locationTrackingEnabled', String(enabled));
+    toast.success(enabled ? 'Location tracking enabled' : 'Location tracking disabled');
+    // Trigger page reload to apply changes
+    setTimeout(() => window.location.reload(), 500);
+  };
+
+  const handleUpdateIntervalChange = (value: string) => {
+    setUpdateInterval(value);
+    localStorage.setItem('locationUpdateInterval', value);
+    toast.success('Update interval changed. Reload to apply.');
+  };
+
+  const handleBatterySavingToggle = (enabled: boolean) => {
+    setBatterySavingMode(enabled);
+    localStorage.setItem('batterySavingMode', String(enabled));
+    toast.success(enabled ? 'Battery saving mode enabled' : 'Battery saving mode disabled');
+    // Trigger page reload to apply changes
+    setTimeout(() => window.location.reload(), 500);
+  };
+
+  const getIntervalLabel = (ms: string) => {
+    switch (ms) {
+      case '10000': return '10 seconds';
+      case '30000': return '30 seconds';
+      case '60000': return '1 minute';
+      case '300000': return '5 minutes';
+      default: return '30 seconds';
+    }
+  };
+
   return (
     <div className="max-w-2xl space-y-6">
       <div>
         <h1 className="font-heading text-3xl font-bold">Settings</h1>
         <p className="text-muted-foreground mt-1">Manage your account and notification preferences</p>
       </div>
+
+      <Card variant="brutal">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <MapPin className="h-5 w-5 text-primary" />
+            <h3 className="font-heading font-semibold text-lg">Location Tracking</h3>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="location-tracking" className="font-medium">Enable Location Tracking</Label>
+              <p className="text-sm text-muted-foreground">
+                Continuously track your location for fleet monitoring
+              </p>
+            </div>
+            <Switch
+              id="location-tracking"
+              checked={locationTrackingEnabled}
+              onCheckedChange={handleLocationTrackingToggle}
+            />
+          </div>
+
+          {locationTrackingEnabled && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="update-interval" className="font-medium">Update Frequency</Label>
+                <Select value={updateInterval} onValueChange={handleUpdateIntervalChange}>
+                  <SelectTrigger id="update-interval">
+                    <SelectValue placeholder="Select frequency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10000">Every 10 seconds</SelectItem>
+                    <SelectItem value="30000">Every 30 seconds</SelectItem>
+                    <SelectItem value="60000">Every 1 minute</SelectItem>
+                    <SelectItem value="300000">Every 5 minutes</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">
+                  Current: {getIntervalLabel(updateInterval)}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Battery className="h-4 w-4 text-primary" />
+                    <Label htmlFor="battery-saving" className="font-medium">Battery Saving Mode</Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Reduces tracking frequency when battery is low (2x at 50%, 3x at 20%)
+                  </p>
+                </div>
+                <Switch
+                  id="battery-saving"
+                  checked={batterySavingMode}
+                  onCheckedChange={handleBatterySavingToggle}
+                />
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       <Card variant="brutal">
         <CardHeader>

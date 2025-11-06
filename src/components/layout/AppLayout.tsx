@@ -12,10 +12,15 @@ export default function AppLayout({ children }: PropsWithChildren) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
-  // Enable background location tracking for authenticated users
-  useBackgroundLocationTracking(!!user, {
-    updateIntervalMs: 30000, // Update every 30 seconds
+  // Background location tracking with user preferences
+  const locationEnabled = localStorage.getItem('locationTrackingEnabled') !== 'false';
+  const updateInterval = parseInt(localStorage.getItem('locationUpdateInterval') || '30000');
+  const batterySaving = localStorage.getItem('batterySavingMode') === 'true';
+
+  const { isTracking, batteryLevel } = useBackgroundLocationTracking(!!user && locationEnabled, {
+    updateIntervalMs: updateInterval,
     enableHighAccuracy: true,
+    batterySavingMode: batterySaving,
   });
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
