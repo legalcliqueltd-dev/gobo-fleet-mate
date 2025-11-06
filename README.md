@@ -275,3 +275,15 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## UI Refresh (Phase 11)
+
+- **Fonts**: Sora (headings) + Inter (body). Configured via `tailwind.config.ts` (`fontFamily.heading` / `fontFamily.sans`).
+- **Responsive**:
+  - Map container uses `65dvh` on mobile and fills more on desktop (`map-shell` class).
+  - Dashboard stacks to 1 column on mobile for better usability.
+  - Enhanced tap targets (44px minimum) and focus states for accessibility.
+- **Neobrutalist accents**:
+  - Added `.nb-card`, `.nb-border`, `.nb-button` utilities in `src/index.css`.
+  - Button and Card components support `variant="brutal"` for bold borders + offset shadow.
+  - Applied brutal variant to primary CTAs (Landing "Get Started", Dashboard FAB) while keeping glass-morphism for large surfaces like maps.

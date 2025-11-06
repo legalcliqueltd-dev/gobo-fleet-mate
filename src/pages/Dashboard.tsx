@@ -42,9 +42,9 @@ export default function Dashboard() {
       </Link>
 
       <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4">
-      <Card>
+      <Card variant="brutal">
         <CardHeader className="flex items-center justify-between">
-          <h3 className="font-semibold">Your devices</h3>
+          <h3 className="font-heading font-semibold">Your devices</h3>
           <Link to="/devices/new" className="inline-flex">
             <Button variant="outline" size="sm"><Plus className="h-3 w-3 mr-1" /> Add Device</Button>
           </Link>
@@ -103,10 +103,10 @@ export default function Dashboard() {
             navigate(`/devices/${id}`);
           }}
         />
-        {/* Floating FAB for small screens */}
-        <Link to="/devices/new" className="md:hidden fixed bottom-6 right-6 z-20">
-          <Button size="icon" className="rounded-full h-12 w-12 shadow-lg">
-            <Plus className="h-5 w-5" />
+        {/* Floating brutal FAB for small screens */}
+        <Link to="/devices/new" className="md:hidden fixed bottom-6 right-6 z-20 safe-bottom">
+          <Button variant="brutal" size="icon" className="rounded-xl h-14 w-14">
+            <Plus className="h-6 w-6" />
           </Button>
         </Link>
         <div className="mt-2 text-xs text-slate-500">Toggle map style (Streets/Satellite) in the map controls.</div>

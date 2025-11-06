@@ -12,10 +12,12 @@ export default function AppLayout({ children }: PropsWithChildren) {
   return (
     <div className={clsx('min-h-screen bg-gradient-to-br from-cyan-500/10 to-indigo-800/10 dark:from-[#0b1220] dark:to-[#0f172a] bg-radial')}>
       <header className="glass-card sticky top-0 z-30">
-        <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
-            <span className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-cyan-600 text-white"><Car className="h-4 w-4" /></span>
-            <span>FleetTrackMate</span>
+        <div className="mx-auto max-w-7xl px-3 xs:px-4 py-3 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2 font-heading font-semibold tracking-tight">
+            <span className="inline-flex items-center justify-center h-9 w-9 rounded-lg nb-border bg-white dark:bg-slate-900 text-cyan-700 dark:text-cyan-300">
+              <Car className="h-4 w-4" />
+            </span>
+            <span className="text-lg">FleetTrackMate</span>
           </Link>
           <nav className="flex items-center gap-3 text-sm">
             <Link to="/dashboard" className="hover:underline">Dashboard</Link>
@@ -45,8 +47,8 @@ export default function AppLayout({ children }: PropsWithChildren) {
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-4 py-8">{children}</main>
-      <footer className="mx-auto max-w-7xl px-4 py-8 text-xs text-slate-500">
+      <main className="mx-auto max-w-7xl px-3 xs:px-4 py-6 md:py-8">{children}</main>
+      <footer className="mx-auto max-w-7xl px-3 xs:px-4 py-8 text-xs text-slate-500">
         © {new Date().getFullYear()} FleetTrackMate
       </footer>
     </div>

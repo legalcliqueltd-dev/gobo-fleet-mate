@@ -13,7 +13,15 @@ export default {
       },
     },
     extend: {
+      screens: {
+        xs: '375px',
+      },
+      fontFamily: {
+        heading: ['Sora', 'Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
       colors: {
+        brand: { 50: '#ecfeff', 500: '#06b6d4', 600: '#0891b2' },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -79,6 +87,13 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      boxShadow: {
+        brutal: '6px 6px 0 0 rgba(15,23,42,0.8)',
+        brutalLight: '4px 4px 0 0 rgba(15,23,42,0.5)',
+      },
+      borderWidth: {
+        '1.5': '1.5px',
       },
       keyframes: {
         "accordion-down": {

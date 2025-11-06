@@ -89,6 +89,13 @@
 - ✅ Created comprehensive documentation in docs/NOTIFICATIONS.md
 - ✅ In-app notifications work without external dependencies
 
+## Phase 11 (Responsive + Fonts + Neobrutalist Accents)
+- ✅ Switched headings to Sora, body to Inter via Google Fonts; added `xs` breakpoint (375px) and updated container paddings
+- ✅ Responsive polish for Landing, Dashboard, Device Details; map height is `65dvh` on mobile, expands on desktop
+- ✅ Added neobrutalist utilities (`.nb-card`, `.nb-shadow`, `.nb-border`, `.nb-button`) and brutal variants on Button/Card components
+- ✅ Applied brutal variant to primary CTAs (Landing CTA, Dashboard FAB) while keeping glass for map surfaces
+- ✅ Improved accessibility: minimum tap targets 44px, enhanced focus rings, respects `prefers-reduced-motion`
+
 ## Next:
 - Phase 10 (optional): Device sharing, data export, maintenance reminders
 

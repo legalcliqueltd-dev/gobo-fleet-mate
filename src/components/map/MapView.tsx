@@ -51,14 +51,14 @@ export default function MapView({ items, onMarkerClick }: Props) {
 
   if (!MAPBOX_TOKEN) {
     return (
-      <div className="h-[70vh] rounded-lg border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 backdrop-blur flex items-center justify-center">
+      <div className="map-shell rounded-lg border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/50 backdrop-blur flex items-center justify-center">
         <div className="text-sm text-slate-600 dark:text-slate-300">Set VITE_MAPBOX_TOKEN to see the map.</div>
       </div>
     );
   }
 
   return (
-    <div className="relative h-[70vh] rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 glass-card">
+    <div className="relative map-shell rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 glass-card">
       <Map
         ref={mapRef}
         mapboxAccessToken={MAPBOX_TOKEN}
