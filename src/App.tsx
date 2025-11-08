@@ -28,123 +28,130 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppLayout>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/auth" element={<Navigate to="/auth/login" replace />} />
-            <Route path="/auth/login" element={<Login />} />
-            <Route path="/auth/signup" element={<Signup />} />
-            <Route path="/auth/forgot" element={<ForgotPassword />} />
-            <Route path="/auth/update-password" element={<UpdatePassword />} />
-            <Route path="/status" element={<Status />} />
-            <Route path="/share/:token" element={<TempShare />} />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/analytics"
-              element={
-                <ProtectedRoute>
-                  <FleetAnalytics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/geofences"
-              element={
-                <ProtectedRoute>
-                  <Geofences />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/trips"
-              element={
-                <ProtectedRoute>
-                  <Trips />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/devices/new"
-              element={
-                <ProtectedRoute>
-                  <AddDevice />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/devices/:id"
-              element={
-                <ProtectedRoute>
-                  <DeviceDetails />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/devices/:id/edit"
-              element={
-                <ProtectedRoute>
-                  <EditDevice />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <Settings />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/driver"
-              element={
-                <ProtectedRoute>
-                  <Driver />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/driver/tasks"
-              element={
-                <ProtectedRoute>
-                  <DriverTasks />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/tasks/:taskId/complete"
-              element={
-                <ProtectedRoute>
-                  <CompleteTask />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/ops/incidents"
-              element={
-                <ProtectedRoute>
-                  <Incidents />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/ops/tasks"
-              element={
-                <ProtectedRoute>
-                  <OpsTasks />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AppLayout>
+        <Routes>
+          {/* Public share route without layout */}
+          <Route path="/share/:token" element={<TempShare />} />
+          
+          {/* All other routes with AppLayout */}
+          <Route path="/*" element={
+            <AppLayout>
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/auth" element={<Navigate to="/auth/login" replace />} />
+                <Route path="/auth/login" element={<Login />} />
+                <Route path="/auth/signup" element={<Signup />} />
+                <Route path="/auth/forgot" element={<ForgotPassword />} />
+                <Route path="/auth/update-password" element={<UpdatePassword />} />
+                <Route path="/status" element={<Status />} />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/analytics"
+                  element={
+                    <ProtectedRoute>
+                      <FleetAnalytics />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/geofences"
+                  element={
+                    <ProtectedRoute>
+                      <Geofences />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/trips"
+                  element={
+                    <ProtectedRoute>
+                      <Trips />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/devices/new"
+                  element={
+                    <ProtectedRoute>
+                      <AddDevice />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/devices/:id"
+                  element={
+                    <ProtectedRoute>
+                      <DeviceDetails />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/devices/:id/edit"
+                  element={
+                    <ProtectedRoute>
+                      <EditDevice />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <Settings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/driver"
+                  element={
+                    <ProtectedRoute>
+                      <Driver />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/driver/tasks"
+                  element={
+                    <ProtectedRoute>
+                      <DriverTasks />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/tasks/:taskId/complete"
+                  element={
+                    <ProtectedRoute>
+                      <CompleteTask />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/ops/incidents"
+                  element={
+                    <ProtectedRoute>
+                      <Incidents />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/ops/tasks"
+                  element={
+                    <ProtectedRoute>
+                      <OpsTasks />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </AppLayout>
+          } />
+        </Routes>
       </AuthProvider>
     </ThemeProvider>
   );

@@ -108,8 +108,8 @@ export default function TempShare() {
 
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="max-w-md w-full p-6 text-center">
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-cyan-500/10 to-indigo-800/10 dark:from-[#0b1220] dark:to-[#0f172a]">
+        <Card className="max-w-md w-full p-6 text-center shadow-lg">
           <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
           <h1 className="text-2xl font-semibold mb-2">Invalid Link</h1>
           <p className="text-muted-foreground mb-4">
@@ -124,8 +124,18 @@ export default function TempShare() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="max-w-md w-full p-6">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-cyan-500/10 to-indigo-800/10 dark:from-[#0b1220] dark:to-[#0f172a]">
+      {/* Minimal header for guest */}
+      <div className="w-full max-w-md mb-6 text-center">
+        <div className="inline-flex items-center gap-2 font-heading font-semibold tracking-tight text-xl">
+          <span className="inline-flex items-center justify-center h-10 w-10 rounded-lg bg-white dark:bg-slate-900 text-cyan-700 dark:text-cyan-300 border-2 border-slate-200 dark:border-slate-800">
+            <MapPin className="h-5 w-5" />
+          </span>
+          <span>FleetTrackMate</span>
+        </div>
+      </div>
+
+      <Card className="max-w-md w-full p-6 shadow-lg">
         <div className="text-center mb-6">
           <MapPin className="w-12 h-12 text-primary mx-auto mb-4" />
           <h1 className="text-2xl font-semibold mb-2">Share Your Location</h1>
