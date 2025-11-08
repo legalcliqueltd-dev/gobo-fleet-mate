@@ -21,6 +21,7 @@ import DriverTasks from './pages/driver/DriverTasks';
 import CompleteTask from './pages/driver/CompleteTask';
 import Incidents from './pages/ops/Incidents';
 import OpsTasks from './pages/ops/OpsTasks';
+import TempShare from './pages/TempShare';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 export default function App() {
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="/auth/forgot" element={<ForgotPassword />} />
             <Route path="/auth/update-password" element={<UpdatePassword />} />
             <Route path="/status" element={<Status />} />
+            <Route path="/share/:token" element={<TempShare />} />
             <Route
               path="/dashboard"
               element={

@@ -19,6 +19,7 @@ export type Database = {
           created_at: string | null
           id: string
           imei: string | null
+          is_temporary: boolean | null
           last_notified_offline_at: string | null
           name: string | null
           status: string | null
@@ -30,6 +31,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           imei?: string | null
+          is_temporary?: boolean | null
           last_notified_offline_at?: string | null
           name?: string | null
           status?: string | null
@@ -41,6 +43,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           imei?: string | null
+          is_temporary?: boolean | null
           last_notified_offline_at?: string | null
           name?: string | null
           status?: string | null
@@ -383,6 +386,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "tasks_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      temp_track_sessions: {
+        Row: {
+          claimed_at: string | null
+          created_at: string | null
+          device_id: string | null
+          expires_at: string
+          guest_nickname: string | null
+          id: string
+          label: string | null
+          last_seen_at: string | null
+          owner_user_id: string
+          status: string | null
+          token: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          created_at?: string | null
+          device_id?: string | null
+          expires_at: string
+          guest_nickname?: string | null
+          id?: string
+          label?: string | null
+          last_seen_at?: string | null
+          owner_user_id: string
+          status?: string | null
+          token: string
+        }
+        Update: {
+          claimed_at?: string | null
+          created_at?: string | null
+          device_id?: string | null
+          expires_at?: string
+          guest_nickname?: string | null
+          id?: string
+          label?: string | null
+          last_seen_at?: string | null
+          owner_user_id?: string
+          status?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "temp_track_sessions_device_id_fkey"
             columns: ["device_id"]
             isOneToOne: false
             referencedRelation: "devices"
