@@ -34,6 +34,11 @@ export default function Incidents() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+  });
+
   useEffect(() => {
     checkAdmin();
     loadEvents();
@@ -205,41 +210,40 @@ export default function Incidents() {
 
         {/* Map */}
         <div className="lg:col-span-2 glass-card rounded-xl overflow-hidden relative">
-          {MAPBOX_TOKEN ? (
-            <Map
-              mapboxAccessToken={MAPBOX_TOKEN}
-              initialViewState={centerLocation}
-              style={{ width: '100%', height: '100%' }}
-              mapStyle="mapbox://styles/mapbox/streets-v12"
+          {!isLoaded ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-muted-foreground">Loading map...</p>
+            </div>
+          ) : (
+            <GoogleMap
+              mapContainerStyle={{ width: '100%', height: '100%' }}
+              center={{ lat: centerLocation.latitude, lng: centerLocation.longitude }}
+              zoom={centerLocation.zoom}
+              options={{
+                zoomControl: true,
+                streetViewControl: false,
+                mapTypeControl: false,
+                fullscreenControl: true,
+              }}
             >
-              <NavigationControl position="top-right" />
               {events
                 .filter((e) => e.latitude && e.longitude)
                 .map((evt) => (
                   <Marker
                     key={evt.id}
-                    latitude={evt.latitude!}
-                    longitude={evt.longitude!}
+                    position={{ lat: evt.latitude!, lng: evt.longitude! }}
                     onClick={() => setSelectedEvent(evt)}
-                  >
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer shadow-lg ${
-                        evt.status === 'open'
-                          ? 'bg-red-500 animate-pulse'
-                          : evt.status === 'acknowledged'
-                          ? 'bg-yellow-500'
-                          : 'bg-green-500'
-                      }`}
-                    >
-                      <AlertTriangle className="h-5 w-5 text-white" />
-                    </div>
-                  </Marker>
+                    icon={{
+                      path: window.google.maps.SymbolPath.CIRCLE,
+                      scale: 16,
+                      fillColor: evt.status === 'open' ? '#ef4444' : evt.status === 'acknowledged' ? '#eab308' : '#22c55e',
+                      fillOpacity: 1,
+                      strokeColor: '#ffffff',
+                      strokeWeight: 2,
+                    }}
+                  />
                 ))}
-            </Map>
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-muted-foreground">MAPBOX_TOKEN not configured</p>
-            </div>
+            </GoogleMap>
           )}
 
           {/* Selected Event Details */}

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useGeofences } from '../hooks/useGeofences';
 import { useGeofenceEvents } from '../hooks/useGeofenceEvents';
-import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
+import { GoogleMap, Polygon, Polyline, Circle as GoogleCircle, useJsApiLoader } from '@react-google-maps/api';
 import { GOOGLE_MAPS_API_KEY } from '../lib/googleMapsConfig';
 import { Plus, MapPin, Circle, Trash2, Eye, EyeOff, Bell, Check } from 'lucide-react';
 import { Button } from '../components/ui/button';
@@ -19,13 +19,22 @@ export default function Geofences() {
   const [polygonPoints, setPolygonPoints] = useState<[number, number][]>([]);
   const [showEvents, setShowEvents] = useState(false);
   
-  const mapRef = useRef<MapRef | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+  });
 
-  const handleMapClick = (e: any) => {
+  const handleMapClick = (e: google.maps.MapMouseEvent) => {
+    if (!e.latLng) return;
+    const lat = e.latLng.lat();
+    const lng = e.latLng.lng();
+    
     if (drawMode === 'circle') {
-      setCircleCenter([e.lngLat.lng, e.lngLat.lat]);
+      setCircleCenter([lng, lat]);
     } else if (drawMode === 'polygon') {
-      setPolygonPoints([...polygonPoints, [e.lngLat.lng, e.lngLat.lat]]);
+      setPolygonPoints([...polygonPoints, [lng, lat]]);
     }
   };
 
@@ -121,89 +130,13 @@ export default function Geofences() {
     }
   };
 
-  // Create GeoJSON for visualization
-  const geofenceFeatures = geofences
-    .filter((g) => g.active)
-    .map((g) => {
-      if (g.type === 'circle' && g.center_lat && g.center_lng && g.radius_meters) {
-        // Generate circle polygon (approximate with 64 points)
-        const points = 64;
-        const coords: [number, number][] = [];
-        const radiusInDegrees = g.radius_meters / 111320;
-        
-        for (let i = 0; i <= points; i++) {
-          const angle = (i / points) * 2 * Math.PI;
-          const lat = g.center_lat + radiusInDegrees * Math.cos(angle);
-          const lng = g.center_lng + radiusInDegrees * Math.sin(angle) / Math.cos(g.center_lat * Math.PI / 180);
-          coords.push([lng, lat]);
-        }
-        
-        return {
-          type: 'Feature' as const,
-          properties: { id: g.id, name: g.name },
-          geometry: {
-            type: 'Polygon' as const,
-            coordinates: [coords],
-          },
-        };
-      } else if (g.type === 'polygon') {
-        return {
-          type: 'Feature' as const,
-          properties: { id: g.id, name: g.name },
-          geometry: {
-            type: 'Polygon' as const,
-            coordinates: [g.geometry],
-          },
-        };
-      }
-      return null;
-    })
-    .filter(Boolean);
-
-  const geofenceGeoJSON = {
-    type: 'FeatureCollection' as const,
-    features: geofenceFeatures,
-  };
-
-  // Drawing preview
-  const previewFeature = drawMode === 'circle' && circleCenter
-    ? (() => {
-        const points = 64;
-        const coords: [number, number][] = [];
-        const radiusInDegrees = circleRadius / 111320;
-        
-        for (let i = 0; i <= points; i++) {
-          const angle = (i / points) * 2 * Math.PI;
-          const lat = circleCenter[1] + radiusInDegrees * Math.cos(angle);
-          const lng = circleCenter[0] + radiusInDegrees * Math.sin(angle) / Math.cos(circleCenter[1] * Math.PI / 180);
-          coords.push([lng, lat]);
-        }
-        
-        return {
-          type: 'FeatureCollection' as const,
-          features: [{
-            type: 'Feature' as const,
-            properties: {},
-            geometry: {
-              type: 'Polygon' as const,
-              coordinates: [coords],
-            },
-          }],
-        };
-      })()
-    : drawMode === 'polygon' && polygonPoints.length >= 2
-    ? {
-        type: 'FeatureCollection' as const,
-        features: [{
-          type: 'Feature' as const,
-          properties: {},
-          geometry: {
-            type: 'LineString' as const,
-            coordinates: polygonPoints,
-          },
-        }],
-      }
-    : null;
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -334,61 +267,85 @@ export default function Geofences() {
 
         {/* Map */}
         <div className="relative h-[70vh] rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800">
-          <Map
-            ref={mapRef}
-            mapboxAccessToken={MAPBOX_TOKEN}
-            initialViewState={{ longitude: 0, latitude: 20, zoom: 2 }}
-            mapStyle="mapbox://styles/mapbox/streets-v12"
-            style={{ width: '100%', height: '100%' }}
-            onClick={handleMapClick}
-          >
-            <NavigationControl position="bottom-right" />
-            
-            {/* Geofences */}
-            {geofenceGeoJSON.features.length > 0 && (
-              <Source id="geofences" type="geojson" data={geofenceGeoJSON}>
-                <Layer
-                  id="geofence-fill"
-                  type="fill"
-                  paint={{
-                    'fill-color': '#06b6d4',
-                    'fill-opacity': 0.2,
+          {!isLoaded ? (
+            <div className="flex items-center justify-center h-full bg-white/60 dark:bg-slate-900/50">
+              <p className="text-muted-foreground">Loading map...</p>
+            </div>
+          ) : (
+            <GoogleMap
+              mapContainerStyle={{ width: '100%', height: '100%' }}
+              center={{ lat: 20, lng: 0 }}
+              zoom={2}
+              onLoad={(map) => { mapRef.current = map; }}
+              onClick={handleMapClick}
+              options={{
+                zoomControl: true,
+                streetViewControl: false,
+                mapTypeControl: false,
+                fullscreenControl: true,
+              }}
+            >
+              {/* Existing Geofences */}
+              {geofences.filter(g => g.active).map((g) => {
+                if (g.type === 'circle' && g.center_lat && g.center_lng && g.radius_meters) {
+                  return (
+                    <GoogleCircle
+                      key={g.id}
+                      center={{ lat: g.center_lat, lng: g.center_lng }}
+                      radius={g.radius_meters}
+                      options={{
+                        fillColor: '#06b6d4',
+                        fillOpacity: 0.2,
+                        strokeColor: '#06b6d4',
+                        strokeWeight: 2,
+                      }}
+                    />
+                  );
+                } else if (g.type === 'polygon' && Array.isArray(g.geometry)) {
+                  return (
+                    <Polygon
+                      key={g.id}
+                      paths={g.geometry.map((coord: [number, number]) => ({ lat: coord[1], lng: coord[0] }))}
+                      options={{
+                        fillColor: '#06b6d4',
+                        fillOpacity: 0.2,
+                        strokeColor: '#06b6d4',
+                        strokeWeight: 2,
+                      }}
+                    />
+                  );
+                }
+                return null;
+              })}
+              
+              {/* Circle Drawing Preview */}
+              {drawMode === 'circle' && circleCenter && (
+                <GoogleCircle
+                  center={{ lat: circleCenter[1], lng: circleCenter[0] }}
+                  radius={circleRadius}
+                  options={{
+                    fillColor: '#f59e0b',
+                    fillOpacity: 0.3,
+                    strokeColor: '#f59e0b',
+                    strokeWeight: 2,
+                    strokeOpacity: 0.8,
                   }}
                 />
-                <Layer
-                  id="geofence-outline"
-                  type="line"
-                  paint={{
-                    'line-color': '#06b6d4',
-                    'line-width': 2,
+              )}
+              
+              {/* Polygon Drawing Preview */}
+              {drawMode === 'polygon' && polygonPoints.length >= 2 && (
+                <Polyline
+                  path={polygonPoints.map(pt => ({ lat: pt[1], lng: pt[0] }))}
+                  options={{
+                    strokeColor: '#f59e0b',
+                    strokeWeight: 2,
+                    strokeOpacity: 0.8,
                   }}
                 />
-              </Source>
-            )}
-            
-            {/* Drawing preview */}
-            {previewFeature && (
-              <Source id="preview" type="geojson" data={previewFeature}>
-                <Layer
-                  id="preview-fill"
-                  type="fill"
-                  paint={{
-                    'fill-color': '#f59e0b',
-                    'fill-opacity': 0.3,
-                  }}
-                />
-                <Layer
-                  id="preview-outline"
-                  type="line"
-                  paint={{
-                    'line-color': '#f59e0b',
-                    'line-width': 2,
-                    'line-dasharray': [2, 2],
-                  }}
-                />
-              </Source>
-            )}
-          </Map>
+              )}
+            </GoogleMap>
+          )}
         </div>
       </div>
 

@@ -46,6 +46,11 @@ export default function OpsTasks() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+  });
+
   useEffect(() => {
     checkAdmin();
     loadTasks();
@@ -252,41 +257,40 @@ export default function OpsTasks() {
 
         {/* Map & Details */}
         <div className="lg:col-span-2 glass-card rounded-xl overflow-hidden relative">
-          {MAPBOX_TOKEN ? (
-            <Map
-              mapboxAccessToken={MAPBOX_TOKEN}
-              initialViewState={centerLocation}
-              style={{ width: '100%', height: '100%' }}
-              mapStyle="mapbox://styles/mapbox/streets-v12"
+          {!isLoaded ? (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-muted-foreground">Loading map...</p>
+            </div>
+          ) : (
+            <GoogleMap
+              mapContainerStyle={{ width: '100%', height: '100%' }}
+              center={{ lat: centerLocation.latitude, lng: centerLocation.longitude }}
+              zoom={centerLocation.zoom}
+              options={{
+                zoomControl: true,
+                streetViewControl: false,
+                mapTypeControl: false,
+                fullscreenControl: true,
+              }}
             >
-              <NavigationControl position="top-right" />
               {tasks
                 .filter((t) => t.dropoff_lat && t.dropoff_lng)
                 .map((task) => (
                   <Marker
                     key={task.id}
-                    latitude={task.dropoff_lat!}
-                    longitude={task.dropoff_lng!}
+                    position={{ lat: task.dropoff_lat!, lng: task.dropoff_lng! }}
                     onClick={() => setSelectedTask(task)}
-                  >
-                    <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer shadow-lg ${
-                        task.status === 'delivered'
-                          ? 'bg-green-500'
-                          : task.status === 'en_route'
-                          ? 'bg-yellow-500'
-                          : 'bg-blue-500'
-                      }`}
-                    >
-                      <Package className="h-5 w-5 text-white" />
-                    </div>
-                  </Marker>
+                    icon={{
+                      path: window.google.maps.SymbolPath.CIRCLE,
+                      scale: 16,
+                      fillColor: task.status === 'delivered' ? '#22c55e' : task.status === 'en_route' ? '#eab308' : '#3b82f6',
+                      fillOpacity: 1,
+                      strokeColor: '#ffffff',
+                      strokeWeight: 2,
+                    }}
+                  />
                 ))}
-            </Map>
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-muted-foreground">MAPBOX_TOKEN not configured</p>
-            </div>
+            </GoogleMap>
           )}
 
           {/* Task Details Overlay */}

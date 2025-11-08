@@ -49,7 +49,12 @@ export default function DeviceDetails() {
 
   const { stats, loading: statsLoading, error: statsError } = useDeviceInsights(id, range);
 
-  const mapRef = useRef<MapRef | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
+
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+  });
 
   const fetchDevice = async () => {
     if (!id) return;
@@ -101,21 +106,15 @@ export default function DeviceDetails() {
   const lastUpdateMin = minutesSince(lastUpdateIso);
 
   const path = useMemo(() => {
-    if (points.length === 0) return null;
-    return {
-      type: 'Feature' as const,
-      geometry: {
-        type: 'LineString' as const,
-        coordinates: points.map((p) => [p.longitude, p.latitude]),
-      },
-      properties: {},
-    };
+    if (points.length === 0) return [];
+    return points.map((p) => ({ lat: p.latitude, lng: p.longitude }));
   }, [points]);
 
   useEffect(() => {
     if (!mapRef.current || !current) return;
-    mapRef.current.flyTo({ center: [current.longitude, current.latitude], zoom: 13, duration: 600 });
-  }, [idx]); // eslint-disable-line react-hooks/exhaustive-deps
+    mapRef.current.panTo({ lat: current.latitude, lng: current.longitude });
+    mapRef.current.setZoom(13);
+  }, [idx, current]);
 
   const onDelete = async () => {
     if (!id) return;
@@ -237,39 +236,49 @@ export default function DeviceDetails() {
         </div>
 
         <div className="relative map-shell rounded-xl overflow-hidden border-2 border-slate-900 dark:border-white shadow-brutal">
-          <Map
-            ref={mapRef}
-            mapboxAccessToken={MAPBOX_TOKEN}
-            initialViewState={
-              current
-                ? { longitude: current.longitude, latitude: current.latitude, zoom: 12 }
-                : { longitude: 0, latitude: 20, zoom: 1.5 }
-            }
-            mapStyle="mapbox://styles/mapbox/streets-v12"
-            style={{ width: '100%', height: '100%' }}
-          >
-            <NavigationControl position="bottom-right" />
-
-            {path && (
-              <Source id="route" type="geojson" data={path}>
-                <Layer
-                  id="route-line"
-                  type="line"
-                  paint={{ 'line-color': '#06b6d4', 'line-width': 3 }}
+          {!isLoaded ? (
+            <div className="flex items-center justify-center h-full bg-white/60 dark:bg-slate-900/50">
+              <p className="text-muted-foreground">Loading map...</p>
+            </div>
+          ) : (
+            <GoogleMap
+              mapContainerStyle={{ width: '100%', height: '100%' }}
+              center={
+                current
+                  ? { lat: current.latitude, lng: current.longitude }
+                  : { lat: 20, lng: 0 }
+              }
+              zoom={current ? 12 : 2}
+              onLoad={(map) => { mapRef.current = map; }}
+              options={{
+                zoomControl: true,
+                streetViewControl: false,
+                mapTypeControl: false,
+                fullscreenControl: true,
+              }}
+            >
+              {path.length > 0 && (
+                <Polyline
+                  path={path}
+                  options={{
+                    strokeColor: '#06b6d4',
+                    strokeWeight: 3,
+                    strokeOpacity: 0.8,
+                  }}
                 />
-              </Source>
-            )}
+              )}
 
-            {current && (
-              <DeviceMarker
-                latitude={current.latitude}
-                longitude={current.longitude}
-                speed={current.speed ?? null}
-                name={device.name}
-                status={device.status}
-              />
-            )}
-          </Map>
+              {current && (
+                <DeviceMarker
+                  latitude={current.latitude}
+                  longitude={current.longitude}
+                  speed={current.speed ?? null}
+                  name={device.name}
+                  status={device.status}
+                />
+              )}
+            </GoogleMap>
+          )}
         </div>
       </div>
     </div>
