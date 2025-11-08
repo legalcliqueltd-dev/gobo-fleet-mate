@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useGeofences } from '../hooks/useGeofences';
 import { useGeofenceEvents } from '../hooks/useGeofenceEvents';
-import Map, { Layer, Source, MapRef, NavigationControl } from 'react-map-gl';
-import { MAPBOX_TOKEN } from '../lib/mapboxConfig';
+import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
+import { GOOGLE_MAPS_API_KEY } from '../lib/googleMapsConfig';
 import { Plus, MapPin, Circle, Trash2, Eye, EyeOff, Bell, Check } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { toast } from 'sonner';

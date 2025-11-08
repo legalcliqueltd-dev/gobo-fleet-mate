@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
-import { Map, Marker, NavigationControl } from 'react-map-gl';
-import { MAPBOX_TOKEN } from '../../lib/mapboxConfig';
+import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
+import { GOOGLE_MAPS_API_KEY } from '../../lib/googleMapsConfig';
 import { Package, MapPin, User, Phone, Clock, FileText, Download } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
