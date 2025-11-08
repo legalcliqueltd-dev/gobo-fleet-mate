@@ -77,6 +77,11 @@ export default function Dashboard() {
                             d.status === 'active' ? 'bg-emerald-500' : d.status === 'idle' ? 'bg-amber-500' : 'bg-slate-400'
                           )} />
                           <span className="font-medium">{d.name ?? 'Unnamed device'}</span>
+                          {d.is_temporary && (
+                            <span className="px-1.5 py-0.5 text-[10px] rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium">
+                              GUEST
+                            </span>
+                          )}
                         </div>
                         <div className="mt-1 text-xs text-slate-500 flex items-center gap-1">
                           <Clock className="h-3 w-3" />

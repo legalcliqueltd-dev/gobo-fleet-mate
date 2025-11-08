@@ -13,6 +13,7 @@ type MarkerItem = {
   longitude: number;
   speed: number | null;
   timestamp: string | null;
+  is_temporary?: boolean;
 };
 type Props = {
   items: MarkerItem[];
@@ -89,7 +90,7 @@ export default function MapView({ items, onMarkerClick }: Props) {
             key={i.device_id}
             latitude={i.latitude}
             longitude={i.longitude}
-            name={i.name}
+            name={i.is_temporary ? `👤 ${i.name}` : i.name}
             speed={i.speed ?? null}
             status={i.status}
             onClick={() => {
