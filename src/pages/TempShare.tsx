@@ -43,6 +43,7 @@ export default function TempShare() {
 
       if (error) throw error;
       if (data.error) throw new Error(data.error);
+      if (!data.ok) throw new Error('Failed to claim session');
 
       toast.success('Location sharing started');
       setState('active');
@@ -113,14 +114,18 @@ export default function TempShare() {
         body: {
           action: 'update',
           token,
-          latitude,
-          longitude,
-          speed: speedKmh,
+          coords: {
+            latitude,
+            longitude,
+            speed: speedKmh,
+            timestamp: new Date().toISOString(),
+          },
         },
       });
 
       if (error) throw error;
       if (data.error) throw new Error(data.error);
+      if (!data.ok) throw new Error('Failed to update location');
 
       setLastUpdate(new Date());
     } catch (err: any) {
