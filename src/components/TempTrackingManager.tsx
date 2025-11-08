@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { createTempShareLink } from '@/lib/tempShare';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -67,21 +68,13 @@ export default function TempTrackingManager() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const token = crypto.randomUUID();
-      const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + parseInt(expiryHours));
+      const { url } = await createTempShareLink(
+        user.id,
+        parseInt(expiryHours),
+        label.trim() || undefined
+      );
 
-      const { error } = await supabase.from('temp_track_sessions').insert({
-        owner_user_id: user.id,
-        token,
-        label: label.trim() || null,
-        expires_at: expiresAt.toISOString(),
-      });
-
-      if (error) throw error;
-
-      const link = `${window.location.origin}/share/${token}`;
-      await navigator.clipboard.writeText(link);
+      await navigator.clipboard.writeText(url);
       
       toast.success('Link generated and copied to clipboard!');
       setLabel('');
@@ -89,7 +82,7 @@ export default function TempTrackingManager() {
       loadSessions();
     } catch (err: any) {
       console.error('Failed to generate link:', err);
-      toast.error('Failed to generate link');
+      toast.error(err.message || 'Failed to generate link');
     } finally {
       setLoading(false);
     }
