@@ -23,6 +23,7 @@ import Incidents from './pages/ops/Incidents';
 import OpsTasks from './pages/ops/OpsTasks';
 import TempShare from './pages/TempShare';
 import BackgroundPathsDemo from './pages/BackgroundPathsDemo';
+import HeroGeometricDemo from './pages/HeroGeometricDemo';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<Landing />} />
                 <Route path="/demo/background-paths" element={<BackgroundPathsDemo />} />
+                <Route path="/demo/hero-geometric" element={<HeroGeometricDemo />} />
                 <Route path="/auth" element={<Navigate to="/auth/login" replace />} />
                 <Route path="/auth/login" element={<Login />} />
                 <Route path="/auth/signup" element={<Signup />} />
