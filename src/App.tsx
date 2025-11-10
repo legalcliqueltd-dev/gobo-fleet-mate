@@ -25,6 +25,7 @@ import TempShare from './pages/TempShare';
 import BackgroundPathsDemo from './pages/BackgroundPathsDemo';
 import HeroGeometricDemo from './pages/HeroGeometricDemo';
 import PulseBeamsDemo from './pages/PulseBeamsDemo';
+import Header3Demo from './pages/Header3Demo';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 export default function App() {
@@ -43,6 +44,7 @@ export default function App() {
                 <Route path="/demo/background-paths" element={<BackgroundPathsDemo />} />
                 <Route path="/demo/hero-geometric" element={<HeroGeometricDemo />} />
                 <Route path="/demo/pulse-beams" element={<PulseBeamsDemo />} />
+                <Route path="/demo/header-3" element={<Header3Demo />} />
                 <Route path="/auth" element={<Navigate to="/auth/login" replace />} />
                 <Route path="/auth/login" element={<Login />} />
                 <Route path="/auth/signup" element={<Signup />} />
