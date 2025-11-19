@@ -51,6 +51,7 @@ export default function CreateTask() {
   const [submitting, setSubmitting] = useState(false);
 
   const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
   });
 
