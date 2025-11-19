@@ -23,6 +23,9 @@ import DriverSettings from './pages/driver/DriverSettings';
 import CompleteTask from './pages/driver/CompleteTask';
 import Incidents from './pages/ops/Incidents';
 import OpsTasks from './pages/ops/OpsTasks';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import DriversManagement from './pages/admin/DriversManagement';
+import CreateTask from './pages/admin/CreateTask';
 import TempShare from './pages/TempShare';
 import BackgroundPathsDemo from './pages/BackgroundPathsDemo';
 import HeroGeometricDemo from './pages/HeroGeometricDemo';
@@ -166,6 +169,65 @@ export default function App() {
                     </ProtectedRoute>
                   }
                 />
+                {/* Admin Routes */}
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute>
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <AdminDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/drivers"
+                  element={
+                    <ProtectedRoute>
+                      <DriversManagement />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/tasks/new"
+                  element={
+                    <ProtectedRoute>
+                      <CreateTask />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/tasks"
+                  element={
+                    <ProtectedRoute>
+                      <OpsTasks />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/sos"
+                  element={
+                    <ProtectedRoute>
+                      <Incidents />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/sos/:id"
+                  element={
+                    <ProtectedRoute>
+                      <Incidents />
+                    </ProtectedRoute>
+                  }
+                />
+                
+                {/* Legacy Operations Routes */}
                 <Route
                   path="/ops/incidents"
                   element={

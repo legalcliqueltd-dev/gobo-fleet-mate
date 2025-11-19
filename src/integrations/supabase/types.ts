@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          driver_limit: number
+          features: Json | null
+          id: string
+          plan_name: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          driver_limit?: number
+          features?: Json | null
+          id?: string
+          plan_name?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          driver_limit?: number
+          features?: Json | null
+          id?: string
+          plan_name?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       devices: {
         Row: {
           created_at: string | null
@@ -50,6 +95,75 @@ export type Database = {
           status_changed_at?: string | null
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      driver_connections: {
+        Row: {
+          admin_user_id: string
+          connected_at: string | null
+          created_at: string
+          driver_user_id: string
+          id: string
+          invited_at: string | null
+          status: string
+        }
+        Insert: {
+          admin_user_id: string
+          connected_at?: string | null
+          created_at?: string
+          driver_user_id: string
+          id?: string
+          invited_at?: string | null
+          status?: string
+        }
+        Update: {
+          admin_user_id?: string
+          connected_at?: string | null
+          created_at?: string
+          driver_user_id?: string
+          id?: string
+          invited_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      geofences: {
+        Row: {
+          coordinates: Json
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          radius_m: number | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          coordinates: Json
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          radius_m?: number | null
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          coordinates?: Json
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          radius_m?: number | null
+          type?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -531,6 +645,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_driver_limit: { Args: { admin_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
