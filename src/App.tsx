@@ -17,7 +17,9 @@ import Trips from './pages/Trips';
 import Settings from './pages/Settings';
 import Status from './pages/Status';
 import Driver from './pages/Driver';
+import DriverDashboard from './pages/driver/DriverDashboard';
 import DriverTasks from './pages/driver/DriverTasks';
+import DriverSettings from './pages/driver/DriverSettings';
 import CompleteTask from './pages/driver/CompleteTask';
 import Incidents from './pages/ops/Incidents';
 import OpsTasks from './pages/ops/OpsTasks';
@@ -115,8 +117,25 @@ export default function App() {
                     </ProtectedRoute>
                   }
                 />
+                {/* Driver Routes */}
                 <Route
                   path="/driver"
+                  element={
+                    <ProtectedRoute>
+                      <DriverDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/driver/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <DriverDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/driver/sos"
                   element={
                     <ProtectedRoute>
                       <Driver />
@@ -128,6 +147,14 @@ export default function App() {
                   element={
                     <ProtectedRoute>
                       <DriverTasks />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/driver/settings"
+                  element={
+                    <ProtectedRoute>
+                      <DriverSettings />
                     </ProtectedRoute>
                   }
                 />
