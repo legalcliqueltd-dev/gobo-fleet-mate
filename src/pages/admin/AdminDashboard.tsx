@@ -6,25 +6,13 @@ import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-map
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 import { 
   AlertTriangle, 
-  Users, 
   Package, 
-  Activity,
-  Bell,
   MapPin 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { toast } from 'sonner';
-
-type DriverLocation = {
-  driver_id: string;
-  driver_name: string | null;
-  latitude: number;
-  longitude: number;
-  last_update: string;
-  status: string;
-};
 
 type SOSEvent = {
   id: string;
@@ -51,11 +39,8 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const mapRef = useRef<google.maps.Map | null>(null);
   
-  const [driverLocations, setDriverLocations] = useState<DriverLocation[]>([]);
   const [sosEvents, setSosEvents] = useState<SOSEvent[]>([]);
   const [recentTasks, setRecentTasks] = useState<TaskActivity[]>([]);
-  const [selectedDriver, setSelectedDriver] = useState<DriverLocation | null>(null);
-  const [driverCount, setDriverCount] = useState(0);
   const [activeTaskCount, setActiveTaskCount] = useState(0);
 
   const { isLoaded } = useJsApiLoader({
@@ -77,13 +62,9 @@ export default function AdminDashboard() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, loadRecentTasks)
       .subscribe();
 
-    // Refresh driver locations every 10 seconds
-    const locationInterval = setInterval(loadDriverLocations, 10000);
-
     return () => {
       supabase.removeChannel(sosChannel);
       supabase.removeChannel(tasksChannel);
-      clearInterval(locationInterval);
     };
   }, []);
 
@@ -104,76 +85,10 @@ export default function AdminDashboard() {
 
   const loadDashboardData = async () => {
     await Promise.all([
-      loadDriverLocations(),
       loadSOSEvents(),
       loadRecentTasks(),
-      loadDriverCount(),
       loadActiveTaskCount(),
     ]);
-  };
-
-  const loadDriverLocations = async () => {
-    if (!user) return;
-    
-    // Get connected drivers
-    const { data: connections } = await supabase
-      .from('driver_connections')
-      .select('driver_user_id')
-      .eq('admin_user_id', user.id)
-      .eq('status', 'active');
-
-    if (!connections || connections.length === 0) {
-      setDriverLocations([]);
-      return;
-    }
-
-    const driverIds = connections.map(c => c.driver_user_id);
-
-    // Get their latest locations
-    const { data: devices } = await supabase
-      .from('devices')
-      .select('id, user_id, name, status')
-      .in('user_id', driverIds);
-
-    if (!devices) return;
-
-    const deviceIds = devices.map(d => d.id);
-
-    // Get latest location for each device
-    const { data: locations } = await supabase
-      .from('locations')
-      .select('device_id, latitude, longitude, timestamp')
-      .in('device_id', deviceIds)
-      .order('timestamp', { ascending: false });
-
-    if (!locations) return;
-
-    // Group by device_id and get most recent
-    const latestLocations: Record<string, any> = {};
-    locations.forEach(loc => {
-      if (!latestLocations[loc.device_id]) {
-        latestLocations[loc.device_id] = loc;
-      }
-    });
-
-    // Map to driver locations
-    const driverLocs: DriverLocation[] = devices
-      .map(device => {
-        const loc = latestLocations[device.id];
-        if (!loc) return null;
-        
-        return {
-          driver_id: device.user_id,
-          driver_name: device.name,
-          latitude: loc.latitude,
-          longitude: loc.longitude,
-          last_update: loc.timestamp,
-          status: device.status || 'offline',
-        };
-      })
-      .filter(Boolean) as DriverLocation[];
-
-    setDriverLocations(driverLocs);
   };
 
   const loadSOSEvents = async () => {
@@ -200,17 +115,6 @@ export default function AdminDashboard() {
     if (data) setRecentTasks(data);
   };
 
-  const loadDriverCount = async () => {
-    if (!user) return;
-    const { count } = await supabase
-      .from('driver_connections')
-      .select('*', { count: 'exact', head: true })
-      .eq('admin_user_id', user.id)
-      .eq('status', 'active');
-    
-    setDriverCount(count || 0);
-  };
-
   const loadActiveTaskCount = async () => {
     if (!user) return;
     const { count } = await supabase
@@ -234,8 +138,8 @@ export default function AdminDashboard() {
     );
   }
 
-  const centerLocation = driverLocations.length > 0
-    ? { lat: driverLocations[0].latitude, lng: driverLocations[0].longitude }
+  const centerLocation = sosEvents.length > 0 && sosEvents[0].latitude && sosEvents[0].longitude
+    ? { lat: sosEvents[0].latitude, lng: sosEvents[0].longitude }
     : { lat: 0, lng: 0 };
 
   return (
@@ -243,18 +147,8 @@ export default function AdminDashboard() {
       {/* Header Stats */}
       <div className="bg-background border-b p-4">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-2xl font-bold mb-4">Fleet Overview</h1>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card variant="glass">
-              <CardContent className="p-4 flex items-center gap-3">
-                <Users className="h-8 w-8 text-primary" />
-                <div>
-                  <p className="text-2xl font-bold">{driverCount}</p>
-                  <p className="text-sm text-muted-foreground">Active Drivers</p>
-                </div>
-              </CardContent>
-            </Card>
-            
+          <h1 className="text-2xl font-bold mb-4">Operations Overview</h1>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card variant="glass">
               <CardContent className="p-4 flex items-center gap-3">
                 <Package className="h-8 w-8 text-blue-500" />
@@ -271,16 +165,6 @@ export default function AdminDashboard() {
                 <div>
                   <p className="text-2xl font-bold">{sosEvents.length}</p>
                   <p className="text-sm text-muted-foreground">Active SOS</p>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card variant="glass">
-              <CardContent className="p-4 flex items-center gap-3">
-                <Activity className="h-8 w-8 text-green-500" />
-                <div>
-                  <p className="text-2xl font-bold">{driverLocations.length}</p>
-                  <p className="text-sm text-muted-foreground">Online Now</p>
                 </div>
               </CardContent>
             </Card>
@@ -364,23 +248,6 @@ export default function AdminDashboard() {
               fullscreenControl: true,
             }}
           >
-            {/* Driver Markers */}
-            {driverLocations.map((driver) => (
-              <Marker
-                key={driver.driver_id}
-                position={{ lat: driver.latitude, lng: driver.longitude }}
-                icon={{
-                  path: google.maps.SymbolPath.CIRCLE,
-                  scale: 8,
-                  fillColor: driver.status === 'active' ? '#22c55e' : '#94a3b8',
-                  fillOpacity: 1,
-                  strokeColor: '#ffffff',
-                  strokeWeight: 2,
-                }}
-                onClick={() => setSelectedDriver(driver)}
-              />
-            ))}
-
             {/* SOS Markers */}
             {sosEvents.map((sos) => 
               sos.latitude && sos.longitude ? (
@@ -394,29 +261,6 @@ export default function AdminDashboard() {
                   onClick={() => handleSOSClick(sos)}
                 />
               ) : null
-            )}
-
-            {/* Driver Info Window */}
-            {selectedDriver && (
-              <InfoWindow
-                position={{ lat: selectedDriver.latitude, lng: selectedDriver.longitude }}
-                onCloseClick={() => setSelectedDriver(null)}
-              >
-                <div className="p-2">
-                  <h3 className="font-semibold">{selectedDriver.driver_name || 'Driver'}</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Last update: {new Date(selectedDriver.last_update).toLocaleString()}
-                  </p>
-                  <div className="mt-2 flex gap-2">
-                    <Button size="sm" variant="outline">
-                      Assign Task
-                    </Button>
-                    <Button size="sm" variant="outline">
-                      <Bell className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </InfoWindow>
             )}
           </GoogleMap>
         </div>
