@@ -31,6 +31,7 @@ export default function AdminDashboard() {
   const [activeTaskCount, setActiveTaskCount] = useState(0);
 
   const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
   });
 
