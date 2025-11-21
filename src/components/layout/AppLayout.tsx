@@ -221,7 +221,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
         <div className="hidden md:block fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4">
           <div
             ref={containerRef}
-            className="relative flex items-center justify-between bg-background dark:bg-neutral-900 shadow-2xl rounded-full px-2 py-2 border border-border"
+            className="relative flex items-center justify-between bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg shadow-lg rounded-full px-2 py-1 border border-slate-200/50 dark:border-slate-700/50"
           >
             {navItems.map((item, index) => {
               const Icon = item.icon;
@@ -232,25 +232,25 @@ export default function AppLayout({ children }: PropsWithChildren) {
                   to={item.path}
                   ref={(el) => (btnRefs.current[index] = el)}
                   className={clsx(
-                    "relative flex flex-col items-center justify-center flex-1 px-4 py-3 text-sm font-medium transition-colors rounded-full",
+                    "relative flex items-center justify-center gap-1.5 flex-1 px-3 py-1.5 text-sm font-medium transition-colors rounded-full",
                     isActive 
                       ? "text-primary" 
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Icon className="h-5 w-5 z-10" />
-                  <span className="text-xs mt-1 z-10">{item.label}</span>
+                  <Icon className="h-4 w-4 z-10" />
+                  <span className="text-xs z-10 hidden lg:inline">{item.label}</span>
                 </Link>
               );
             })}
 
             {/* Sliding Active Indicator */}
             {activeIndex >= 0 && (
-              <motion.div
-                animate={indicatorStyle}
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                className="absolute top-1 bottom-1 rounded-full bg-primary/10 dark:bg-primary/20"
-              />
+        <motion.div
+          animate={indicatorStyle}
+          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+          className="absolute top-0.5 bottom-0.5 rounded-full bg-primary/15 dark:bg-primary/25"
+        />
             )}
           </div>
         </div>
