@@ -110,29 +110,38 @@ export type Database = {
       driver_connections: {
         Row: {
           admin_user_id: string
+          auto_registered_at: string | null
           connected_at: string | null
+          connection_code: string | null
           created_at: string
           driver_user_id: string
           id: string
           invited_at: string | null
+          registration_metadata: Json | null
           status: string
         }
         Insert: {
           admin_user_id: string
+          auto_registered_at?: string | null
           connected_at?: string | null
+          connection_code?: string | null
           created_at?: string
           driver_user_id: string
           id?: string
           invited_at?: string | null
+          registration_metadata?: Json | null
           status?: string
         }
         Update: {
           admin_user_id?: string
+          auto_registered_at?: string | null
           connected_at?: string | null
+          connection_code?: string | null
           created_at?: string
           driver_user_id?: string
           id?: string
           invited_at?: string | null
+          registration_metadata?: Json | null
           status?: string
         }
         Relationships: []
@@ -240,24 +249,30 @@ export type Database = {
       }
       profiles: {
         Row: {
+          auto_registered: boolean | null
           created_at: string
           email: string | null
           full_name: string | null
           id: string
+          registration_source: string | null
           updated_at: string
         }
         Insert: {
+          auto_registered?: boolean | null
           created_at?: string
           email?: string | null
           full_name?: string | null
           id: string
+          registration_source?: string | null
           updated_at?: string
         }
         Update: {
+          auto_registered?: boolean | null
           created_at?: string
           email?: string | null
           full_name?: string | null
           id?: string
+          registration_source?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -655,6 +670,15 @@ export type Database = {
     }
     Functions: {
       check_driver_limit: { Args: { admin_id: string }; Returns: boolean }
+      complete_driver_auto_registration: {
+        Args: {
+          p_connection_id: string
+          p_driver_email: string
+          p_driver_name: string
+          p_driver_user_id: string
+        }
+        Returns: Json
+      }
       device_stats: {
         Args: { p_device_id: string; p_since: string }
         Returns: {
@@ -664,7 +688,18 @@ export type Database = {
           max_speed_kmh: number
         }[]
       }
+      establish_driver_connection: {
+        Args: { p_connection_code: string; p_driver_user_id: string }
+        Returns: Json
+      }
       generate_connection_code: { Args: never; Returns: string }
+      get_admin_connection_code: {
+        Args: { p_admin_user_id: string }
+        Returns: {
+          connection_code: string
+          device_id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -675,6 +710,15 @@ export type Database = {
       haversine_km: {
         Args: { lat1: number; lat2: number; lon1: number; lon2: number }
         Returns: number
+      }
+      validate_connection_code_for_registration: {
+        Args: { p_connection_code: string }
+        Returns: {
+          admin_user_id: string
+          connection_id: string
+          error_message: string
+          is_valid: boolean
+        }[]
       }
     }
     Enums: {
