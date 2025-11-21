@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { Bell, Navigation, MapPin, Battery, LogOut, Info } from 'lucide-react';
+import { Bell, Navigation, MapPin, Battery, LogOut, Info, Link2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import ThemeToggle from '@/components/ThemeToggle';
 
@@ -20,10 +20,54 @@ export default function DriverSettings() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [batterySaving, setBatterySaving] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [connectedDevice, setConnectedDevice] = useState<{ id: string; name: string } | null>(null);
+  const [checkingConnection, setCheckingConnection] = useState(true);
 
   useEffect(() => {
     loadSettings();
+    checkDeviceConnection();
   }, []);
+
+  const checkDeviceConnection = async () => {
+    if (!user) return;
+    
+    setCheckingConnection(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('connect-driver', {
+        body: { action: 'get-connection' },
+      });
+
+      if (!error && data.connected && data.device) {
+        setConnectedDevice(data.device);
+      } else {
+        setConnectedDevice(null);
+      }
+    } catch (error) {
+      console.error('Error checking connection:', error);
+    } finally {
+      setCheckingConnection(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('connect-driver', {
+        body: { action: 'disconnect' },
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setConnectedDevice(null);
+        toast.success('Disconnected from device');
+      }
+    } catch (error) {
+      console.error('Disconnect error:', error);
+      toast.error('Failed to disconnect');
+    }
+  };
 
   const loadSettings = async () => {
     if (!user) return;
@@ -124,6 +168,68 @@ export default function DriverSettings() {
           Back to Dashboard
         </Button>
       </div>
+
+      {/* Device Connection */}
+      <Card variant="glass">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <Link2 className="h-6 w-6 text-primary" />
+            <div>
+              <h2 className="text-xl font-semibold">Device Connection</h2>
+              <p className="text-sm text-muted-foreground">
+                Link your app to an admin's tracking device
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {checkingConnection ? (
+            <div className="p-4 text-center text-muted-foreground">
+              Checking connection...
+            </div>
+          ) : connectedDevice ? (
+            <div className="space-y-3">
+              <div className="p-4 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                    Connected
+                  </span>
+                  <span className="inline-flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>
+                </div>
+                <p className="text-lg font-semibold mb-1">{connectedDevice.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  Your location is syncing to this device when on duty
+                </p>
+              </div>
+              
+              <Button
+                onClick={handleDisconnect}
+                variant="outline"
+                className="w-full"
+              >
+                <X className="h-4 w-4 mr-2" />
+                Disconnect Device
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="p-4 bg-muted/50 rounded-lg text-center">
+                <p className="text-sm text-muted-foreground">
+                  Not connected to any device
+                </p>
+              </div>
+              
+              <Button
+                onClick={() => navigate('/driver/connect')}
+                className="w-full"
+              >
+                <Link2 className="h-4 w-4 mr-2" />
+                Connect to Device
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* On Duty Status */}
       <Card variant="glass">

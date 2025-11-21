@@ -61,6 +61,9 @@ export type Database = {
       }
       devices: {
         Row: {
+          connected_at: string | null
+          connected_driver_id: string | null
+          connection_code: string | null
           created_at: string | null
           id: string
           imei: string | null
@@ -73,6 +76,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          connected_at?: string | null
+          connected_driver_id?: string | null
+          connection_code?: string | null
           created_at?: string | null
           id?: string
           imei?: string | null
@@ -85,6 +91,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          connected_at?: string | null
+          connected_driver_id?: string | null
+          connection_code?: string | null
           created_at?: string | null
           id?: string
           imei?: string | null
@@ -646,6 +655,7 @@ export type Database = {
     }
     Functions: {
       check_driver_limit: { Args: { admin_id: string }; Returns: boolean }
+      generate_connection_code: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
