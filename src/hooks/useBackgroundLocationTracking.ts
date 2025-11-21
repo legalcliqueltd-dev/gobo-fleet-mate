@@ -49,7 +49,20 @@ export const useBackgroundLocationTracking = (
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
 
-      // Check for existing device
+      // First check for device connected to this driver
+      const { data: connectedDevice, error: connectedError } = await supabase
+        .from('devices')
+        .select('id')
+        .eq('connected_driver_id', user.id)
+        .maybeSingle();
+
+      if (connectedError) throw connectedError;
+
+      if (connectedDevice) {
+        return connectedDevice.id;
+      }
+
+      // Fall back to checking for device owned by this user
       const { data: devices, error: fetchError } = await supabase
         .from('devices')
         .select('id')
@@ -62,7 +75,7 @@ export const useBackgroundLocationTracking = (
         return devices[0].id;
       }
 
-      // Create a new device for this user
+      // Create a new device for this user (legacy support)
       const { data: newDevice, error: createError } = await supabase
         .from('devices')
         .insert({

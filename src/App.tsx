@@ -21,6 +21,7 @@ import DriverDashboard from './pages/driver/DriverDashboard';
 import DriverTasks from './pages/driver/DriverTasks';
 import DriverSettings from './pages/driver/DriverSettings';
 import CompleteTask from './pages/driver/CompleteTask';
+import ConnectDevice from './pages/driver/ConnectDevice';
 import Incidents from './pages/ops/Incidents';
 import OpsTasks from './pages/ops/OpsTasks';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -126,6 +127,14 @@ export default function App() {
                   element={
                     <ProtectedRoute>
                       <DriverDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/driver/connect"
+                  element={
+                    <ProtectedRoute>
+                      <ConnectDevice />
                     </ProtectedRoute>
                   }
                 />
