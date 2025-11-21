@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabaseClient';
 import { GoogleMap, Polyline, useJsApiLoader } from '@react-google-maps/api';
 import DeviceMarker from '../../components/map/DeviceMarker';
-import { Play, Pause, Pencil, Trash2, ChevronLeft, Gauge, Timer, Route as RouteIcon, AlertTriangle } from 'lucide-react';
+import { Play, Pause, Pencil, Trash2, ChevronLeft, Gauge, Timer, Route as RouteIcon, AlertTriangle, Copy, Check } from 'lucide-react';
 import { GOOGLE_MAPS_API_KEY } from '../../lib/googleMapsConfig';
 import { useDeviceInsights } from '../../hooks/useDeviceInsights';
 
@@ -13,6 +13,8 @@ type DeviceRow = {
   imei: string | null;
   status: 'active' | 'idle' | 'offline' | null;
   created_at: string;
+  connection_code: string | null;
+  connected_driver_id: string | null;
 };
 
 type Point = {
@@ -46,6 +48,7 @@ export default function DeviceDetails() {
   const [err, setErr] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const [idx, setIdx] = useState(0);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const { stats, loading: statsLoading, error: statsError } = useDeviceInsights(id, range);
 
@@ -60,11 +63,19 @@ export default function DeviceDetails() {
     if (!id) return;
     const { data, error } = await supabase
       .from('devices')
-      .select('id, name, imei, status, created_at')
+      .select('id, name, imei, status, created_at, connection_code, connected_driver_id')
       .eq('id', id)
       .single();
     if (error) setErr(error.message);
     else setDevice(data);
+  };
+
+  const copyConnectionCode = () => {
+    if (device?.connection_code) {
+      navigator.clipboard.writeText(device.connection_code);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    }
   };
 
   const fetchHistory = async () => {
@@ -151,11 +162,42 @@ export default function DeviceDetails() {
       </div>
 
       <div className="nb-card p-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
           <div><span className="text-slate-500">IMEI:</span> <strong>{device.imei ?? '—'}</strong></div>
           <div><span className="text-slate-500">Status:</span> <strong>{device.status ?? '—'}</strong></div>
           <div><span className="text-slate-500">Created:</span> <strong>{new Date(device.created_at).toLocaleString()}</strong></div>
+          <div><span className="text-slate-500">Connected Driver:</span> <strong>{device.connected_driver_id ? 'Yes' : 'No'}</strong></div>
         </div>
+        
+        {device.connection_code && (
+          <div className="mt-4 pt-4 border-t-2 border-slate-200 dark:border-slate-700">
+            <div className="text-sm text-slate-500 mb-2">Driver Connection Code</div>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 bg-slate-100 dark:bg-slate-800 px-4 py-3 rounded-lg font-mono text-lg font-bold tracking-wider">
+                {device.connection_code}
+              </code>
+              <button
+                onClick={copyConnectionCode}
+                className="nb-button px-4 py-3 inline-flex items-center gap-2 whitespace-nowrap"
+              >
+                {codeCopied ? (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4" />
+                    Copy Code
+                  </>
+                )}
+              </button>
+            </div>
+            <div className="text-xs text-muted-foreground mt-2">
+              Share this code with your driver to connect their app
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Insights panel */}
