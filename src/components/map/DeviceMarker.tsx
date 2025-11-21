@@ -47,7 +47,7 @@ export default function DeviceMarker({ latitude, longitude, name, speed, status 
     <Marker
       position={{ lat: latitude, lng: longitude }}
       icon={{
-        url: `data:image/svg+xml;base64,${btoa(iconHtml)}`,
+        url: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(iconHtml)}`,
         anchor: new google.maps.Point(20, 40),
       }}
       onClick={onClick}
