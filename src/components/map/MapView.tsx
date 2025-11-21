@@ -69,33 +69,63 @@ export default function MapView({ items, onMarkerClick }: Props) {
   }
 
   return (
-    <div className="relative map-shell rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 glass-card">
+    <div className="relative map-shell rounded-2xl overflow-hidden border border-slate-200/50 dark:border-slate-700/50 shadow-xl">
       <GoogleMap
         mapContainerStyle={{ width: '100%', height: '100%' }}
         center={{ lat: initial.latitude, lng: initial.longitude }}
         zoom={initial.zoom}
         mapTypeId={MAP_STYLES[mapType]}
-        onLoad={(map) => { mapRef.current = map; }}
+        onLoad={(map) => { 
+          mapRef.current = map;
+          if (items.length > 1) {
+            setTimeout(() => fitToAll(), 100);
+          }
+        }}
         options={{
-          zoomControl: true,
+          zoomControl: false,
           streetViewControl: false,
           mapTypeControl: false,
-          fullscreenControl: true,
+          fullscreenControl: false,
+          styles: mapType === 'roadmap' ? [
+            {
+              featureType: "poi",
+              elementType: "labels",
+              stylers: [{ visibility: "off" }]
+            },
+            {
+              featureType: "transit",
+              elementType: "labels.icon",
+              stylers: [{ visibility: "off" }]
+            }
+          ] : []
         }}
       >
-        <div className="absolute top-2 left-2 z-10 flex gap-2">
-          <Button variant="outline" size="sm" onClick={fitToAll} className="bg-white/90 dark:bg-slate-900/80">
-            <Scan className="h-4 w-4 mr-1" /> Fit
+        <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={fitToAll} 
+            className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-slate-200/50 dark:border-slate-700/50 shadow-lg hover:bg-white dark:hover:bg-slate-800"
+          >
+            <Scan className="h-3.5 w-3.5 mr-1.5" /> Fit All
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setMapType(mapType === 'roadmap' ? 'satellite' : 'roadmap')}
-            className="bg-white/90 dark:bg-slate-900/80"
+            className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-slate-200/50 dark:border-slate-700/50 shadow-lg hover:bg-white dark:hover:bg-slate-800"
           >
-            <Layers className="h-4 w-4 mr-1" />
-            {mapType === 'roadmap' ? 'Satellite' : 'Roadmap'}
+            <Layers className="h-3.5 w-3.5 mr-1.5" />
+            {mapType === 'roadmap' ? 'Satellite' : 'Map'}
           </Button>
+        </div>
+        
+        <div className="absolute top-3 right-3 z-10">
+          <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50 rounded-lg shadow-lg px-3 py-2">
+            <div className="text-xs font-medium text-slate-600 dark:text-slate-300">
+              {items.length} Device{items.length !== 1 ? 's' : ''}
+            </div>
+          </div>
         </div>
 
         {items.map(i => (
