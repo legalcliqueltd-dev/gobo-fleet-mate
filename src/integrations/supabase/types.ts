@@ -655,6 +655,15 @@ export type Database = {
     }
     Functions: {
       check_driver_limit: { Args: { admin_id: string }; Returns: boolean }
+      device_stats: {
+        Args: { p_device_id: string; p_since: string }
+        Returns: {
+          avg_speed_kmh: number
+          distance_km: number
+          idle_minutes: number
+          max_speed_kmh: number
+        }[]
+      }
       generate_connection_code: { Args: never; Returns: string }
       has_role: {
         Args: {
@@ -662,6 +671,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      haversine_km: {
+        Args: { lat1: number; lat2: number; lon1: number; lon2: number }
+        Returns: number
       }
     }
     Enums: {
