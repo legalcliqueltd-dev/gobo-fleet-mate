@@ -3,6 +3,7 @@ import { useDeviceLocations } from '../hooks/useDeviceLocations';
 import MapView from '../components/map/MapView';
 import GeofenceAlerts from '../components/GeofenceAlerts';
 import TempTrackingManager from '../components/TempTrackingManager';
+import FloatingNav from '../components/ui/floating-nav';
 import { Clock, Plus, ExternalLink, TrendingUp } from 'lucide-react';
 import clsx from 'clsx';
 import { Link, useNavigate } from 'react-router-dom';
@@ -125,6 +126,8 @@ export default function Dashboard() {
     </div>
     
     <GeofenceAlerts />
+    
+    <FloatingNav />
     </div>
   );
 }
