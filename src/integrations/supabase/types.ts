@@ -711,6 +711,7 @@ export type Database = {
         Args: { lat1: number; lat2: number; lon1: number; lon2: number }
         Returns: number
       }
+      is_admin: { Args: { user_id: string }; Returns: boolean }
       validate_connection_code_for_registration: {
         Args: { p_connection_code: string }
         Returns: {

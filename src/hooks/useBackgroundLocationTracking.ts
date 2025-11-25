@@ -47,9 +47,12 @@ export const useBackgroundLocationTracking = (
   const getOrCreateDevice = async (): Promise<string | null> => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
+      if (!user) {
+        toast.error('Please log in first');
+        return null;
+      }
 
-      // First check for device connected to this driver
+      // ONLY check for device connected to this driver (no fallback!)
       const { data: connectedDevice, error: connectedError } = await supabase
         .from('devices')
         .select('id')
@@ -62,35 +65,12 @@ export const useBackgroundLocationTracking = (
         return connectedDevice.id;
       }
 
-      // Fall back to checking for device owned by this user
-      const { data: devices, error: fetchError } = await supabase
-        .from('devices')
-        .select('id')
-        .eq('user_id', user.id)
-        .limit(1);
-
-      if (fetchError) throw fetchError;
-
-      if (devices && devices.length > 0) {
-        return devices[0].id;
-      }
-
-      // Create a new device for this user (legacy support)
-      const { data: newDevice, error: createError } = await supabase
-        .from('devices')
-        .insert({
-          user_id: user.id,
-          name: 'Mobile Device',
-          status: 'active',
-        })
-        .select('id')
-        .single();
-
-      if (createError) throw createError;
-
-      return newDevice.id;
+      // No connected device found - driver must connect first
+      toast.error('No connected device. Please connect using a connection code first.');
+      return null;
     } catch (error) {
-      console.error('Error getting/creating device:', error);
+      console.error('Error getting device:', error);
+      toast.error('Failed to get connected device');
       return null;
     }
   };

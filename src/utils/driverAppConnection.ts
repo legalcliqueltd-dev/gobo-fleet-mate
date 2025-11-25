@@ -35,23 +35,23 @@ export async function connectDriver(connectionCode: string): Promise<{ success: 
     const { data, error } = await supabase.functions.invoke('connect-driver', {
       body: { 
         action: 'connect',
-        connection_code: connectionCode.trim().toUpperCase() 
+        code: connectionCode.trim().toUpperCase() 
       }
     });
 
     if (error) throw error;
 
     if (data.success) {
-      connectedDeviceId = data.device_id;
+      connectedDeviceId = data.device?.id;
       // Start location tracking automatically after connection
       await startLocationTracking();
       return { 
         success: true, 
         message: 'Connected successfully', 
-        deviceName: data.device_name 
+        deviceName: data.device?.name 
       };
     } else {
-      return { success: false, message: data.message || 'Connection failed' };
+      return { success: false, message: data.error || 'Connection failed' };
     }
   } catch (error: any) {
     console.error('Connection error:', error);
@@ -107,7 +107,7 @@ export async function getConnectionStatus(): Promise<{
 
     if (error) throw error;
 
-    if (data.success && data.device) {
+    if (data.connected && data.device) {
       connectedDeviceId = data.device.id;
       return {
         connected: true,
