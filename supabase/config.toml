@@ -2,3 +2,15 @@ project_id = "invbnyxieoyohahqhbir"
 
 [functions.temp-track]
 verify_jwt = false
+
+[functions.connect-driver]
+verify_jwt = false
+
+[functions.notify-inactivity]
+verify_jwt = false
+
+[functions.pod-otp]
+verify_jwt = false
+
+[functions.sos-dispatch]
+verify_jwt = false
