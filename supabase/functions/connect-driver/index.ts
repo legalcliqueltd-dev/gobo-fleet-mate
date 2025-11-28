@@ -6,17 +6,33 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
+  console.log('=== CONNECT-DRIVER FUNCTION INVOKED ===');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight');
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log('connect-driver invoked:', req.method);
-
   try {
+    // Use SERVICE_ROLE_KEY to validate user tokens server-side
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      }
+    );
+    
+    // Regular client for database operations with RLS
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
       {
         auth: {
           persistSession: false,
@@ -28,17 +44,32 @@ Deno.serve(async (req) => {
     // Get authenticated user
     const authHeader = req.headers.get('Authorization');
     console.log('Auth header present:', !!authHeader);
+    console.log('Auth header value (first 50 chars):', authHeader?.substring(0, 50));
+    
+    // Log all headers for debugging
+    const headersList: string[] = [];
+    req.headers.forEach((value, key) => {
+      headersList.push(`${key}: ${value.substring(0, 30)}...`);
+    });
+    console.log('All headers:', headersList.join(', '));
     
     if (!authHeader) {
+      console.log('ERROR: No Authorization header found');
       return new Response(
         JSON.stringify({ error: 'Authorization required' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(authHeader.replace('Bearer ', ''));
+    const token = authHeader.replace('Bearer ', '');
+    console.log('Token length:', token.length);
     
-    console.log('User lookup result:', user?.id, userError?.message);
+    // Use admin client to validate user token
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    
+    console.log('User lookup result - User ID:', user?.id);
+    console.log('User lookup result - Email:', user?.email);
+    console.log('User lookup error:', userError?.message);
     
     if (userError || !user) {
       console.error('Auth error:', userError);
