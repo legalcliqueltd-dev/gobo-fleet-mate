@@ -146,6 +146,69 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_locations: {
+        Row: {
+          accuracy: number | null
+          admin_code: string
+          created_at: string | null
+          driver_id: string
+          latitude: number
+          longitude: number
+          speed: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          accuracy?: number | null
+          admin_code: string
+          created_at?: string | null
+          driver_id: string
+          latitude: number
+          longitude: number
+          speed?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          accuracy?: number | null
+          admin_code?: string
+          created_at?: string | null
+          driver_id?: string
+          latitude?: number
+          longitude?: number
+          speed?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      drivers: {
+        Row: {
+          admin_code: string
+          connected_at: string | null
+          device_info: Json | null
+          driver_id: string
+          driver_name: string | null
+          last_seen_at: string | null
+          status: string | null
+        }
+        Insert: {
+          admin_code: string
+          connected_at?: string | null
+          device_info?: Json | null
+          driver_id: string
+          driver_name?: string | null
+          last_seen_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          admin_code?: string
+          connected_at?: string | null
+          device_info?: Json | null
+          driver_id?: string
+          driver_name?: string | null
+          last_seen_at?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       geofences: {
         Row: {
           coordinates: Json
@@ -670,6 +733,7 @@ export type Database = {
     }
     Functions: {
       check_driver_limit: { Args: { admin_id: string }; Returns: boolean }
+      cleanup_old_driver_locations: { Args: never; Returns: undefined }
       complete_driver_auto_registration: {
         Args: {
           p_connection_id: string
@@ -712,6 +776,15 @@ export type Database = {
         Returns: number
       }
       is_admin: { Args: { user_id: string }; Returns: boolean }
+      is_admin_from_auth: { Args: never; Returns: boolean }
+      validate_admin_connection_code: {
+        Args: { p_code: string }
+        Returns: {
+          admin_name: string
+          admin_user_id: string
+          is_valid: boolean
+        }[]
+      }
       validate_connection_code_for_registration: {
         Args: { p_connection_code: string }
         Returns: {

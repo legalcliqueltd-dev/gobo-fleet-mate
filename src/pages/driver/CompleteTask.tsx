@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { Camera, CheckCircle, QrCode, Hash, MapPin, FileText } from 'lucide-react';
 import { Button } from '../../components/ui/button';

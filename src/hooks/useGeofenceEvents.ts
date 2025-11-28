@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 
 export type GeofenceEvent = {
   id: string;
@@ -26,8 +26,8 @@ export function useGeofenceEvents(limit: number = 50) {
     setLoading(true);
     setError(null);
 
-    const { data, error: fetchError } = await supabase
-      .from('geofence_events')
+    const { data, error: fetchError } = await (supabase
+      .from('geofence_events' as any) as any)
       .select(`
         *,
         geofences!inner(name),
@@ -74,8 +74,8 @@ export function useGeofenceEvents(limit: number = 50) {
   }, [limit]);
 
   const acknowledgeEvent = async (id: string) => {
-    const { error } = await supabase
-      .from('geofence_events')
+    const { error } = await (supabase
+      .from('geofence_events' as any) as any)
       .update({ acknowledged: true })
       .eq('id', id);
 
