@@ -21,6 +21,9 @@ export default function ConnectDevice() {
   const [deviceName, setDeviceName] = useState<string>('');
 
   const handleConnect = async () => {
+    console.log('=== CONNECT BUTTON CLICKED ===');
+    console.log('User:', user?.id, user?.email);
+    
     if (!user) {
       toast.error('Please log in first');
       navigate('/auth/login');
@@ -36,12 +39,29 @@ export default function ConnectDevice() {
     setError(null);
 
     try {
+      // Get current session to verify we have a valid token
+      const { data: sessionData } = await supabase.auth.getSession();
+      console.log('Session exists:', !!sessionData.session);
+      console.log('Access token length:', sessionData.session?.access_token?.length);
+      
+      if (!sessionData.session) {
+        setError('Session expired. Please log in again.');
+        toast.error('Session expired. Please log in again.');
+        navigate('/auth/login');
+        return;
+      }
+
+      console.log('Calling connect-driver with code:', code.trim().toUpperCase());
+      
       const { data, error: functionError } = await supabase.functions.invoke('connect-driver', {
         body: {
           action: 'connect',
           code: code.trim().toUpperCase(),
         },
       });
+
+      console.log('Function response:', data);
+      console.log('Function error:', functionError);
 
       if (functionError) {
         throw functionError;
