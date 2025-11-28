@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 
 export type FleetStats = {
   total_distance_km: number;
@@ -35,7 +35,7 @@ export function useFleetAnalytics(days: number = 7) {
 
       try {
         // Fetch fleet stats
-        const { data: statsData, error: statsError } = await supabase.rpc('fleet_stats', {
+        const { data: statsData, error: statsError } = await (supabase.rpc as any)('fleet_stats', {
           p_since: since.toISOString(),
         });
 
@@ -57,7 +57,7 @@ export function useFleetAnalytics(days: number = 7) {
         }
 
         // Fetch utilization data
-        const { data: utilizationData, error: utilizationError } = await supabase.rpc(
+        const { data: utilizationData, error: utilizationError } = await (supabase.rpc as any)(
           'fleet_utilization_daily',
           { p_days: days }
         );

@@ -5,17 +5,10 @@
  * Prerequisites:
  * - Install @supabase/supabase-js
  * - Install @capacitor/geolocation
- * - Replace SUPABASE_URL and SUPABASE_ANON_KEY with your values
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 import { Geolocation } from '@capacitor/geolocation';
-
-// Replace these with your Supabase credentials
-const SUPABASE_URL = 'https://invbnyxieoyohahqhbir.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImludmJueXhpZW95b2hhaHFoYmlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyNTAxMDUsImV4cCI6MjA3NzgyNjEwNX0.bOHyM6iexSMj-EtMoyjMEm92ydF5Yy-J7DHgocn4AKI';
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let locationWatchId: string | null = null;
 let connectedDeviceId: string | null = null;
@@ -31,6 +24,8 @@ export async function connectDriver(connectionCode: string): Promise<{ success: 
       return { success: false, message: 'Please log in first' };
     }
 
+    console.log('Connecting driver with code:', connectionCode.trim().toUpperCase());
+
     // Call the connect-driver edge function
     const { data, error } = await supabase.functions.invoke('connect-driver', {
       body: { 
@@ -39,9 +34,11 @@ export async function connectDriver(connectionCode: string): Promise<{ success: 
       }
     });
 
+    console.log('Connect response:', data, error);
+
     if (error) throw error;
 
-    if (data.success) {
+    if (data?.success) {
       connectedDeviceId = data.device?.id;
       // Start location tracking automatically after connection
       await startLocationTracking();
@@ -51,7 +48,7 @@ export async function connectDriver(connectionCode: string): Promise<{ success: 
         deviceName: data.device?.name 
       };
     } else {
-      return { success: false, message: data.error || 'Connection failed' };
+      return { success: false, message: data?.error || 'Connection failed' };
     }
   } catch (error: any) {
     console.error('Connection error:', error);
@@ -107,7 +104,7 @@ export async function getConnectionStatus(): Promise<{
 
     if (error) throw error;
 
-    if (data.connected && data.device) {
+    if (data?.connected && data?.device) {
       connectedDeviceId = data.device.id;
       return {
         connected: true,

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 
 export type GeofenceType = 'circle' | 'polygon';
 
@@ -34,7 +34,7 @@ export function useGeofences() {
     if (error) {
       setError(error.message);
     } else {
-      setGeofences(data || []);
+      setGeofences((data || []) as any);
     }
     setLoading(false);
   };
@@ -51,8 +51,8 @@ export function useGeofences() {
       .from('geofences')
       .insert({
         ...geofence,
-        user_id: userData.user.id,
-      })
+        created_by: userData.user.id,
+      } as any)
       .select()
       .single();
 

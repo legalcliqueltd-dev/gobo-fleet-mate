@@ -11,6 +11,8 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  console.log('connect-driver invoked:', req.method);
+
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -25,6 +27,8 @@ Deno.serve(async (req) => {
 
     // Get authenticated user
     const authHeader = req.headers.get('Authorization');
+    console.log('Auth header present:', !!authHeader);
+    
     if (!authHeader) {
       return new Response(
         JSON.stringify({ error: 'Authorization required' }),
@@ -34,6 +38,8 @@ Deno.serve(async (req) => {
 
     const { data: { user }, error: userError } = await supabaseClient.auth.getUser(authHeader.replace('Bearer ', ''));
     
+    console.log('User lookup result:', user?.id, userError?.message);
+    
     if (userError || !user) {
       console.error('Auth error:', userError);
       return new Response(
@@ -42,15 +48,21 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { action, code } = await req.json();
+    const body = await req.json();
+    const { action, code } = body;
+    console.log('Action:', action, 'Code:', code);
 
     if (action === 'connect') {
+      console.log('Looking up device with code:', code);
+      
       // Find device with this connection code
       const { data: device, error: deviceError } = await supabaseClient
         .from('devices')
         .select('id, user_id, name, connected_driver_id')
         .eq('connection_code', code)
         .maybeSingle();
+
+      console.log('Device lookup result:', device, deviceError);
 
       if (deviceError) {
         console.error('Device lookup error:', deviceError);
@@ -61,11 +73,14 @@ Deno.serve(async (req) => {
       }
 
       if (!device) {
+        console.log('No device found with code:', code);
         return new Response(
           JSON.stringify({ error: 'Invalid connection code' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+
+      console.log('Device found:', device.id, device.name);
 
       // Check if device is already connected to another driver
       if (device.connected_driver_id && device.connected_driver_id !== user.id) {

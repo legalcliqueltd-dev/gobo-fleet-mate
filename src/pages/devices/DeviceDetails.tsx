@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabaseClient';
+import { supabase } from '@/integrations/supabase/client';
 import { GoogleMap, Polyline, useJsApiLoader } from '@react-google-maps/api';
 import DeviceMarker from '../../components/map/DeviceMarker';
 import { Play, Pause, Pencil, Trash2, ChevronLeft, Gauge, Timer, Route as RouteIcon, AlertTriangle, Copy, Check } from 'lucide-react';
@@ -67,7 +67,7 @@ export default function DeviceDetails() {
       .eq('id', id)
       .single();
     if (error) setErr(error.message);
-    else setDevice(data);
+    else setDevice(data as any);
   };
 
   const copyConnectionCode = () => {
@@ -91,7 +91,7 @@ export default function DeviceDetails() {
       .gte('timestamp', since.toISOString())
       .order('timestamp', { ascending: true });
     if (error) setErr(error.message);
-    setPoints((data ?? []) as Point[]);
+    setPoints((data ?? []) as unknown as Point[]);
     setIdx(0);
     setLoading(false);
   };
