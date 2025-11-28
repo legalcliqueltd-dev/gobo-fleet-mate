@@ -3,6 +3,27 @@
 ## Overview
 This guide provides everything needed to integrate the Rocket driver app with your admin dashboard.
 
+> **🔐 IMPORTANT: For complete authentication setup (Email + Google OAuth), see [ROCKET_AUTH_COMPLETE.md](./ROCKET_AUTH_COMPLETE.md)**
+
+---
+
+## Quick Setup Checklist
+
+Before integrating, ensure these are configured in **Supabase → Authentication → URL Configuration**:
+
+```
+# Site URL
+https://YOUR-ROCKET-APP.rocket.new
+
+# Redirect URLs (add all)
+https://YOUR-ROCKET-APP.rocket.new
+https://YOUR-ROCKET-APP.rocket.new/auth/callback
+https://d78756af-7da0-400e-bb46-4b099b10699b.lovableproject.com
+http://localhost:3000
+http://localhost:8080
+rocket://callback
+```
+
 ---
 
 ## 1. Supabase Configuration
