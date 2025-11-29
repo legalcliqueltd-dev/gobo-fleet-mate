@@ -66,84 +66,98 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Check if there's already a driver connected with this code in the drivers table
+      // Check if this code is already assigned to a DIFFERENT driver
       const { data: existingDriver } = await supabaseAdmin
         .from('drivers')
         .select('driver_id, driver_name, admin_code')
         .eq('admin_code', code)
         .maybeSingle();
 
+      if (existingDriver && existingDriver.driver_id !== user.id) {
+        // Code is assigned to a different driver - reject
+        console.log('Code already assigned to different driver:', existingDriver.driver_id);
+        return new Response(
+          JSON.stringify({ error: 'This code is already assigned to another driver' }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Get driver's profile for their real name
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      // Determine driver name: provided name > existing name > profile name > email prefix
+      const resolvedName = driverName?.trim() || 
+        existingDriver?.driver_name ||
+        profile?.full_name?.trim() || 
+        user.email?.split('@')[0] || 
+        'Driver';
+
       if (existingDriver) {
-        // Code already has a driver - check if it's the same user
-        if (existingDriver.driver_id !== user.id) {
-          console.log('Code already assigned to different driver:', existingDriver.driver_id);
-          return new Response(
-            JSON.stringify({ error: 'This code is already assigned to another driver' }),
-            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        
-        // Same user reconnecting - update their status
+        // Same driver reconnecting - update their status
         console.log('Same driver reconnecting:', user.id);
         await supabaseAdmin
           .from('drivers')
           .update({
+            driver_name: resolvedName,
             status: 'active',
             last_seen_at: new Date().toISOString(),
             connected_at: new Date().toISOString(),
           })
-          .eq('driver_id', user.id)
           .eq('admin_code', code);
       } else {
-        // New driver connecting - check if device has another driver already
-        if (device.connected_driver_id && device.connected_driver_id !== user.id) {
-          // Check if that driver is using this same code
-          const { data: otherDriver } = await supabaseAdmin
-            .from('drivers')
-            .select('driver_id')
-            .eq('admin_code', code)
-            .neq('driver_id', user.id)
-            .maybeSingle();
-            
-          if (otherDriver) {
-            return new Response(
-              JSON.stringify({ error: 'This code is already assigned to another driver' }),
-              { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-        }
-
-        // Get driver's profile for their real name
-        const { data: profile } = await supabaseAdmin
-          .from('profiles')
-          .select('full_name, email')
-          .eq('id', user.id)
+        // New driver connecting - check if this driver already has a different code
+        const { data: existingDriverRecord } = await supabaseAdmin
+          .from('drivers')
+          .select('admin_code')
+          .eq('driver_id', user.id)
           .maybeSingle();
 
-        // Determine driver name: provided name > profile name > email prefix > null
-        const resolvedName = driverName?.trim() || 
-          profile?.full_name?.trim() || 
-          user.email?.split('@')[0] || 
-          null;
+        if (existingDriverRecord) {
+          // Driver already has a code - update to new code
+          console.log('Driver switching from code', existingDriverRecord.admin_code, 'to', code);
+          const { error: updateError } = await supabaseAdmin
+            .from('drivers')
+            .update({
+              admin_code: code,
+              driver_name: resolvedName,
+              status: 'active',
+              connected_at: new Date().toISOString(),
+              last_seen_at: new Date().toISOString(),
+            })
+            .eq('driver_id', user.id);
 
-        // Create new driver entry
-        const { error: insertError } = await supabaseAdmin
-          .from('drivers')
-          .insert({
-            driver_id: user.id,
-            admin_code: code,
-            driver_name: resolvedName,
-            status: 'active',
-            connected_at: new Date().toISOString(),
-            last_seen_at: new Date().toISOString(),
-          });
+          if (updateError) {
+            console.error('Error updating driver:', updateError);
+            return new Response(
+              JSON.stringify({ error: 'Failed to update driver connection' }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        } else {
+          // Brand new driver - create entry
+          console.log('Creating new driver:', user.id, 'with code:', code);
+          const { error: insertError } = await supabaseAdmin
+            .from('drivers')
+            .insert({
+              driver_id: user.id,
+              admin_code: code,
+              driver_name: resolvedName,
+              status: 'active',
+              connected_at: new Date().toISOString(),
+              last_seen_at: new Date().toISOString(),
+            });
 
-        if (insertError) {
-          console.error('Error creating driver:', insertError);
-          return new Response(
-            JSON.stringify({ error: 'Failed to register driver' }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
+          if (insertError) {
+            console.error('Error creating driver:', insertError);
+            return new Response(
+              JSON.stringify({ error: 'Failed to register driver' }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
         }
       }
 

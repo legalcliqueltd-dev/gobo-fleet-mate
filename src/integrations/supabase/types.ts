@@ -732,6 +732,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_update_driver_status: { Args: never; Returns: Json }
       check_driver_limit: { Args: { admin_id: string }; Returns: boolean }
       cleanup_old_driver_locations: { Args: never; Returns: undefined }
       complete_driver_auto_registration: {
@@ -777,11 +778,34 @@ export type Database = {
       }
       is_admin: { Args: { user_id: string }; Returns: boolean }
       is_admin_from_auth: { Args: never; Returns: boolean }
+      register_driver_with_code: {
+        Args: {
+          p_admin_code: string
+          p_driver_id: string
+          p_driver_name: string
+        }
+        Returns: Json
+      }
+      update_driver_heartbeat: {
+        Args: { p_driver_id: string; p_status?: string }
+        Returns: Json
+      }
       validate_admin_connection_code: {
         Args: { p_code: string }
         Returns: {
           admin_name: string
           admin_user_id: string
+          is_valid: boolean
+        }[]
+      }
+      validate_and_check_code_assignment: {
+        Args: { p_code: string; p_driver_name: string }
+        Returns: {
+          admin_name: string
+          admin_user_id: string
+          error_message: string
+          existing_driver_name: string
+          is_code_in_use: boolean
           is_valid: boolean
         }[]
       }
