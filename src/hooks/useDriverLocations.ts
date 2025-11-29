@@ -22,8 +22,11 @@ export function useDriverLocations() {
   const [error, setError] = useState<string | null>(null);
   const [adminCodes, setAdminCodes] = useState<Set<string>>(new Set());
 
-  const fetchDriverLocations = useCallback(async () => {
+  const fetchDriverLocations = useCallback(async (silent = false) => {
     if (!user) return;
+    
+    // Only show loading on initial fetch, not on refreshes
+    if (!silent) setLoading(true);
     
     try {
       // Get admin codes from connections and devices
@@ -100,18 +103,15 @@ export function useDriverLocations() {
   useEffect(() => {
     if (!user) return;
     
-    fetchDriverLocations();
+    fetchDriverLocations(false); // Initial fetch with loading
 
-    // Real-time subscriptions for instant updates
+    // Real-time subscriptions for instant updates (silent)
     const locationsChannel = supabase
       .channel('realtime-driver-locations')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'driver_locations' },
-        (payload) => {
-          console.log('📍 Driver location update:', payload);
-          fetchDriverLocations();
-        }
+        () => fetchDriverLocations(true)
       )
       .subscribe();
 
@@ -120,15 +120,12 @@ export function useDriverLocations() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'drivers' },
-        (payload) => {
-          console.log('🚗 Driver status update:', payload);
-          fetchDriverLocations();
-        }
+        () => fetchDriverLocations(true)
       )
       .subscribe();
 
-    // Fallback polling every 15 seconds
-    const interval = setInterval(fetchDriverLocations, 15000);
+    // Fallback polling every 15 seconds (silent)
+    const interval = setInterval(() => fetchDriverLocations(true), 15000);
 
     return () => {
       supabase.removeChannel(locationsChannel);
