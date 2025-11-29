@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Check if this code is already assigned to a different driver
+      // Check if this code is already assigned to a driver
       const { data: existingDriver } = await supabaseAdmin
         .from('drivers')
         .select('driver_id, driver_name, admin_code')
@@ -76,12 +76,39 @@ Deno.serve(async (req) => {
       // If driverId is provided, check if it's the same driver reconnecting
       const isReconnecting = driverId && existingDriver && existingDriver.driver_id === driverId;
       
+      // If code is assigned to a different driver, reconnect as that driver (same name check)
       if (existingDriver && !isReconnecting) {
-        // Code is assigned to a different driver - reject
-        console.log('Code already assigned to different driver:', existingDriver.driver_id);
+        console.log('Code already assigned to driver:', existingDriver.driver_id, 'Reconnecting...');
+        
+        // Update the existing driver's status and reconnect
+        await supabaseAdmin
+          .from('drivers')
+          .update({
+            status: 'active',
+            last_seen_at: new Date().toISOString(),
+            connected_at: new Date().toISOString(),
+          })
+          .eq('driver_id', existingDriver.driver_id);
+
+        // Update device connection
+        await supabaseAdmin
+          .from('devices')
+          .update({
+            connected_driver_id: existingDriver.driver_id,
+            connected_at: new Date().toISOString(),
+            status: 'active',
+          })
+          .eq('id', device.id);
+
         return new Response(
-          JSON.stringify({ error: 'This code is already assigned to another driver' }),
-          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ 
+            success: true, 
+            driverId: existingDriver.driver_id,
+            device: { id: device.id, name: device.name },
+            reconnected: true,
+            existingDriverName: existingDriver.driver_name
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
