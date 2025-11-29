@@ -5,7 +5,7 @@ import MapView from '../components/map/MapView';
 import DriversList from '../components/DriversList';
 import GeofenceAlerts from '../components/GeofenceAlerts';
 import TempTrackingManager from '../components/TempTrackingManager';
-import { Clock, Plus, ExternalLink, TrendingUp, Car, Users, Activity, Trash2 } from 'lucide-react';
+import { Clock, Plus, ExternalLink, TrendingUp, Car, Users, Activity, Trash2, Link2 } from 'lucide-react';
 import clsx from 'clsx';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
@@ -254,10 +254,16 @@ export default function Dashboard() {
             <CardHeader className="pb-3">
               <h3 className="font-heading font-semibold text-sm">Quick Actions</h3>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-2">
+              <Link to="/temp-tracking">
+                <Button variant="outline" size="sm" className="w-full justify-start">
+                  <Link2 className="h-4 w-4 mr-2" />
+                  Temporary Tracking Links
+                </Button>
+              </Link>
               <Button variant="outline" size="sm" className="w-full justify-start text-destructive hover:bg-destructive/10" onClick={handleDeleteTempHistory}>
                 <Trash2 className="h-4 w-4 mr-2" />
-                Clear Temp Tracking History
+                Clear Temp History
               </Button>
             </CardContent>
           </Card>

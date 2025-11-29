@@ -29,6 +29,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import DriversManagement from './pages/admin/DriversManagement';
 import CreateTask from './pages/admin/CreateTask';
 import TempShare from './pages/TempShare';
+import TempTracking from './pages/TempTracking';
 import BackgroundPathsDemo from './pages/BackgroundPathsDemo';
 import HeroGeometricDemo from './pages/HeroGeometricDemo';
 import PulseBeamsDemo from './pages/PulseBeamsDemo';
@@ -127,6 +128,14 @@ export default function App() {
                   element={
                     <ProtectedRoute>
                       <Settings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/temp-tracking"
+                  element={
+                    <ProtectedRoute>
+                      <TempTracking />
                     </ProtectedRoute>
                   }
                 />

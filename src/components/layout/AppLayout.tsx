@@ -1,5 +1,5 @@
 import { PropsWithChildren, useState, useRef, useEffect } from 'react';
-import { Car, Menu, X, MoreHorizontal, AlertTriangle, Home, TrendingUp, MapPin, Users, Settings as SettingsIcon } from 'lucide-react';
+import { Car, Menu, X, MoreHorizontal, AlertTriangle, Home, TrendingUp, MapPin, Users, Settings as SettingsIcon, Link2 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
@@ -178,6 +178,14 @@ export default function AppLayout({ children }: PropsWithChildren) {
                       onClick={closeMobileMenu}
                     >
                       Settings
+                    </Link>
+                    <Link 
+                      to="/temp-tracking" 
+                      className="px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition flex items-center gap-2"
+                      onClick={closeMobileMenu}
+                    >
+                      <Link2 className="h-4 w-4" />
+                      Temp Tracking
                     </Link>
                     <div className="border-t border-white/10 dark:border-slate-800/60 my-2"></div>
                     <div className="px-3 py-2 text-sm text-slate-600 dark:text-slate-400">{user.email}</div>
