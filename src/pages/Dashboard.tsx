@@ -1,29 +1,38 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useDeviceLocations } from '../hooks/useDeviceLocations';
 import { useDriverLocations, DriverLocation } from '../hooks/useDriverLocations';
 import MapView from '../components/map/MapView';
 import DriversList from '../components/DriversList';
 import GeofenceAlerts from '../components/GeofenceAlerts';
 import TempTrackingManager from '../components/TempTrackingManager';
-import { Clock, Plus, ExternalLink, TrendingUp } from 'lucide-react';
+import { Clock, Plus, ExternalLink, TrendingUp, Car, Users, Activity, Trash2 } from 'lucide-react';
 import clsx from 'clsx';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 export default function Dashboard() {
   const { items, markers, loading, error } = useDeviceLocations();
   const { drivers } = useDriverLocations();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
-  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const selected = useMemo(
-    () => items.find((d) => d.id === selectedId) ?? null,
-    [items, selectedId]
-  );
+  useEffect(() => {
+    const focusId = searchParams.get('focus');
+    if (focusId) {
+      if (focusId.startsWith('driver-')) {
+        setSelectedDriverId(focusId.replace('driver-', ''));
+        setSelectedId(null);
+      } else {
+        setSelectedId(focusId);
+        setSelectedDriverId(null);
+      }
+    }
+  }, [searchParams]);
 
-  // Combine device markers with driver markers
   const allMarkers = useMemo(() => {
     const driverMarkers = drivers.map(d => ({
       device_id: `driver-${d.driver_id}`,
@@ -44,124 +53,225 @@ export default function Dashboard() {
     setSelectedId(null);
   }, []);
 
+  const handleDeleteDevice = async (deviceId: string) => {
+    const device = items.find(d => d.id === deviceId);
+    const confirmed = window.confirm(`Delete ${device?.name || 'this device'} and all its data?`);
+    if (!confirmed) return;
+
+    try {
+      await supabase.from('locations').delete().eq('device_id', deviceId);
+      await supabase.from('trips').delete().eq('device_id', deviceId);
+      const { error } = await supabase.from('devices').delete().eq('id', deviceId);
+      if (error) throw error;
+      toast.success('Device deleted');
+      setSelectedId(null);
+    } catch (err) {
+      console.error('Error deleting device:', err);
+      toast.error('Failed to delete device');
+    }
+  };
+
+  const handleDeleteTempHistory = async () => {
+    const confirmed = window.confirm('Delete all temporary tracking sessions?');
+    if (!confirmed) return;
+
+    try {
+      const { error } = await supabase.from('temp_track_sessions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      if (error) throw error;
+      toast.success('Temporary tracking history cleared');
+    } catch (err) {
+      console.error('Error clearing temp history:', err);
+      toast.error('Failed to clear temporary history');
+    }
+  };
+
+  const activeDevices = items.filter(d => d.status === 'active').length;
+  const activeDrivers = drivers.filter(d => 
+    d.last_seen_at && Date.now() - new Date(d.last_seen_at).getTime() < 15 * 60 * 1000
+  ).length;
+
   return (
-    <div className="space-y-4">
-      {/* Analytics Banner */}
-      <Link
-        to="/analytics"
-        className="block rounded-xl border border-cyan-200 dark:border-cyan-800 bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/30 dark:to-blue-950/30 p-4 hover:shadow-md transition-shadow"
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-cyan-600 text-white p-2">
-              <TrendingUp className="h-5 w-5" />
+    <div className="space-y-6">
+      {/* Stats Banner */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/20">
+                <Car className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{items.length}</p>
+                <p className="text-xs text-muted-foreground">Total Devices</p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-cyan-900 dark:text-cyan-100">Fleet Analytics</h3>
-              <p className="text-sm text-cyan-700 dark:text-cyan-300">
-                View aggregated metrics, status breakdown, and utilization trends
-              </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-success/10 to-success/5 border-2 border-success/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-success/20">
+                <Users className="h-5 w-5 text-success" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{activeDrivers}</p>
+                <p className="text-xs text-muted-foreground">Active Drivers</p>
+              </div>
             </div>
-          </div>
-          <ExternalLink className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
-        </div>
-      </Link>
+          </CardContent>
+        </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4">
-      <Card variant="brutal">
-        <CardHeader className="flex items-center justify-between">
-          <h3 className="font-heading font-semibold">Your devices</h3>
-          <Link to="/devices/new" className="inline-flex">
-            <Button variant="outline" size="sm"><Plus className="h-3 w-3 mr-1" /> Add Device</Button>
-          </Link>
-        </CardHeader>
-        <CardContent>
-          {loading && <div className="text-sm text-slate-500">Loading devices…</div>}
-          {error && <div className="text-sm text-red-600">{error}</div>}
-          {!loading && items.length === 0 && (
-            <div className="text-sm text-slate-500">No devices yet. Click "Add Device" to create one.</div>
-          )}
-          <ul className="space-y-2">
-            {items.map((d) => {
-              const hasFix = !!d.latest;
-              return (
-                <li key={d.id}>
-                  <div
-                    className={clsx(
-                      'w-full rounded-md border px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-800',
-                      selectedId === d.id
-                        ? 'border-cyan-400 bg-cyan-50/50 dark:bg-cyan-900/10'
-                        : 'border-slate-200 dark:border-slate-800'
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <button onClick={() => setSelectedId(d.id)} className="text-left flex-1">
-                        <div className="flex items-center gap-2">
-                          <div className={clsx(
-                            'h-2.5 w-2.5 rounded-full',
-                            d.status === 'active' ? 'bg-emerald-500' : d.status === 'idle' ? 'bg-amber-500' : 'bg-slate-400'
-                          )} />
-                          <span className="font-medium">{d.name ?? 'Unnamed device'}</span>
-                          {d.is_temporary && (
-                            <span className="px-1.5 py-0.5 text-[10px] rounded bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium">
-                              GUEST
-                            </span>
-                          )}
-                        </div>
-                        <div className="mt-1 text-xs text-slate-500 flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {hasFix ? new Date(d.latest!.timestamp).toLocaleString() : '—'}
-                        </div>
-                      </button>
-                      <Link to={`/devices/${d.id}`} className="text-xs inline-flex items-center gap-1 hover:underline">
-                        Details <ExternalLink className="h-3 w-3" />
-                      </Link>
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="mt-4 text-xs text-slate-500">Click a device to recenter the map. Open details to view history.</div>
-        </CardContent>
-      </Card>
+        <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border-2 border-warning/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-warning/20">
+                <Activity className="h-5 w-5 text-warning" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{activeDevices}</p>
+                <p className="text-xs text-muted-foreground">Online Now</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Connected Drivers from Rocket App */}
-      <DriversList 
-        onDriverSelect={handleDriverSelect}
-        selectedDriverId={selectedDriverId}
-      />
-
-      <section>
-        <MapView
-          items={allMarkers}
-          onMarkerClick={(id) => {
-            if (id.startsWith('driver-')) {
-              setSelectedDriverId(id.replace('driver-', ''));
-              setSelectedId(null);
-            } else {
-              setSelectedId(id);
-              setSelectedDriverId(null);
-              navigate(`/devices/${id}`);
-            }
-          }}
-        />
-        {/* Floating brutal FAB for small screens */}
-        <Link to="/devices/new" className="md:hidden fixed bottom-6 right-6 z-20 safe-bottom">
-          <Button variant="brutal" size="icon" className="rounded-xl h-14 w-14">
-            <Plus className="h-6 w-6" />
-          </Button>
+        <Link to="/analytics" className="block">
+          <Card className="bg-gradient-to-br from-fleet-blue/10 to-fleet-blue/5 border-2 border-fleet-blue/20 hover:border-fleet-blue/40 transition-all h-full">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-fleet-blue/20">
+                  <TrendingUp className="h-5 w-5 text-fleet-blue" />
+                </div>
+                <div>
+                  <p className="font-semibold">Analytics</p>
+                  <p className="text-xs text-muted-foreground">View Reports →</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </Link>
-        <div className="mt-2 text-xs text-slate-500">Toggle map style (Streets/Satellite) in the map controls.</div>
-      </section>
-    </div>
+      </div>
 
-    {/* Temporary Tracking Section */}
-    <div className="mt-6">
+      {/* Main Content - Map First */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
+        <section className="order-1">
+          <MapView
+            items={allMarkers}
+            selectedId={selectedDriverId ? `driver-${selectedDriverId}` : selectedId}
+            onMarkerClick={(id) => {
+              if (id.startsWith('driver-')) {
+                setSelectedDriverId(id.replace('driver-', ''));
+                setSelectedId(null);
+              } else {
+                setSelectedId(id);
+                setSelectedDriverId(null);
+              }
+            }}
+          />
+        </section>
+
+        <aside className="order-2 space-y-4">
+          {/* Devices Card */}
+          <Card className="border-2 border-border">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-heading font-semibold flex items-center gap-2 text-lg">
+                  <div className="p-1.5 rounded-lg bg-primary/20">
+                    <Car className="h-4 w-4 text-primary" />
+                  </div>
+                  Your Devices
+                </h3>
+                <Link to="/devices/new">
+                  <Button variant="outline" size="sm" className="h-8">
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loading && (
+                <div className="flex items-center justify-center py-6">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                </div>
+              )}
+              {error && <div className="text-sm text-destructive">{error}</div>}
+              {!loading && items.length === 0 && (
+                <div className="text-center py-6">
+                  <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
+                    <Car className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground">No devices yet.</p>
+                  <Link to="/devices/new" className="text-sm text-primary hover:underline">Add your first device →</Link>
+                </div>
+              )}
+              <ul className="space-y-2 max-h-[280px] overflow-y-auto">
+                {items.map((d) => {
+                  const hasFix = !!d.latest;
+                  return (
+                    <li key={d.id}>
+                      <div className={clsx(
+                        'rounded-xl border-2 p-3 transition-all hover:border-primary/50 hover:bg-primary/5',
+                        selectedId === d.id ? 'border-primary bg-primary/10 shadow-lg' : 'border-border bg-card/50'
+                      )}>
+                        <div className="flex items-start justify-between gap-2">
+                          <button onClick={() => setSelectedId(d.id)} className="text-left flex-1">
+                            <div className="flex items-center gap-2">
+                              <div className={clsx(
+                                'h-2.5 w-2.5 rounded-full',
+                                d.status === 'active' ? 'bg-success animate-pulse' : d.status === 'idle' ? 'bg-warning' : 'bg-muted-foreground'
+                              )} />
+                              <span className="font-semibold">{d.name ?? 'Unnamed'}</span>
+                              {d.is_temporary && (
+                                <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-purple-500/20 text-purple-400 font-bold">TEMP</span>
+                              )}
+                            </div>
+                            <div className="mt-1.5 text-xs text-muted-foreground flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {hasFix ? new Date(d.latest!.timestamp).toLocaleString() : 'No location'}
+                            </div>
+                          </button>
+                          <div className="flex items-center gap-1">
+                            <Link to={`/devices/${d.id}`} className="p-1.5 rounded-lg hover:bg-primary/10" title="Details">
+                              <ExternalLink className="h-4 w-4 text-primary" />
+                            </Link>
+                            <button onClick={() => handleDeleteDevice(d.id)} className="p-1.5 rounded-lg hover:bg-destructive/10" title="Delete">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </CardContent>
+          </Card>
+
+          <DriversList onDriverSelect={handleDriverSelect} selectedDriverId={selectedDriverId} />
+
+          <Card className="border-2 border-border">
+            <CardHeader className="pb-3">
+              <h3 className="font-heading font-semibold text-sm">Quick Actions</h3>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" size="sm" className="w-full justify-start text-destructive hover:bg-destructive/10" onClick={handleDeleteTempHistory}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Clear Temp Tracking History
+              </Button>
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
+
       <TempTrackingManager />
-    </div>
-    
-    <GeofenceAlerts />
+      <GeofenceAlerts />
+
+      <Link to="/devices/new" className="lg:hidden fixed bottom-6 right-6 z-20 safe-bottom">
+        <Button variant="brutal" size="icon" className="rounded-xl h-14 w-14 shadow-xl">
+          <Plus className="h-6 w-6" />
+        </Button>
+      </Link>
     </div>
   );
 }
