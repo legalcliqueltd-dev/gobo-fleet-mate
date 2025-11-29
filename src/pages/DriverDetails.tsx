@@ -28,6 +28,14 @@ type LocationHistory = {
   longitude: number;
   speed: number | null;
   accuracy: number | null;
+  recorded_at: string | null;
+};
+
+type CurrentLocation = {
+  latitude: number;
+  longitude: number;
+  speed: number | null;
+  accuracy: number | null;
   updated_at: string | null;
 };
 
@@ -36,6 +44,7 @@ export default function DriverDetails() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [driver, setDriver] = useState<DriverDetail | null>(null);
+  const [currentLocation, setCurrentLocation] = useState<CurrentLocation | null>(null);
   const [locationHistory, setLocationHistory] = useState<LocationHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
@@ -61,15 +70,27 @@ export default function DriverDetails() {
         setDriver(driverData as DriverDetail);
         setEditedName(driverData.driver_name || '');
 
-        const { data: locData, error: locError } = await supabase
+        // Fetch current location from driver_locations
+        const { data: currentLocData } = await supabase
           .from('driver_locations')
-          .select('*')
+          .select('latitude, longitude, speed, accuracy, updated_at')
           .eq('driver_id', driverId)
-          .order('updated_at', { ascending: false })
-          .limit(50);
+          .single();
 
-        if (!locError && locData) {
-          setLocationHistory(locData as LocationHistory[]);
+        if (currentLocData) {
+          setCurrentLocation(currentLocData as CurrentLocation);
+        }
+
+        // Fetch location history from driver_location_history table
+        const { data: historyData } = await supabase
+          .from('driver_location_history')
+          .select('latitude, longitude, speed, accuracy, recorded_at')
+          .eq('driver_id', driverId)
+          .order('recorded_at', { ascending: false })
+          .limit(100);
+
+        if (historyData) {
+          setLocationHistory(historyData as LocationHistory[]);
         }
       } catch (err) {
         console.error('Error fetching driver:', err);
@@ -340,30 +361,33 @@ export default function DriverDetails() {
         <CardContent>
           <DriverLocationMap
             driverName={driver.driver_name || 'Driver'}
-            currentLocation={locationHistory[0] || null}
-            locationHistory={locationHistory}
+            currentLocation={currentLocation}
+            locationHistory={locationHistory.map(h => ({
+              ...h,
+              updated_at: h.recorded_at
+            }))}
             isOnline={isOnline}
           />
           
           {/* Location stats */}
-          {locationHistory[0] && (
+          {currentLocation && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-border">
               <div>
                 <p className="text-xs text-muted-foreground">Latitude</p>
-                <p className="font-mono font-semibold text-sm">{locationHistory[0].latitude.toFixed(6)}</p>
+                <p className="font-mono font-semibold text-sm">{currentLocation.latitude.toFixed(6)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Longitude</p>
-                <p className="font-mono font-semibold text-sm">{locationHistory[0].longitude.toFixed(6)}</p>
+                <p className="font-mono font-semibold text-sm">{currentLocation.longitude.toFixed(6)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Accuracy</p>
-                <p className="font-semibold text-sm">{locationHistory[0].accuracy ? `±${Math.round(locationHistory[0].accuracy)}m` : '—'}</p>
+                <p className="font-semibold text-sm">{currentLocation.accuracy ? `±${Math.round(currentLocation.accuracy)}m` : '—'}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Last Update</p>
-                <p className="font-semibold text-sm">{locationHistory[0].updated_at 
-                  ? new Date(locationHistory[0].updated_at).toLocaleString() 
+                <p className="font-semibold text-sm">{currentLocation.updated_at 
+                  ? new Date(currentLocation.updated_at).toLocaleString() 
                   : '—'}</p>
               </div>
             </div>
@@ -407,7 +431,7 @@ export default function DriverDetails() {
                         {loc.latitude.toFixed(5)}, {loc.longitude.toFixed(5)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {loc.updated_at ? new Date(loc.updated_at).toLocaleString() : '—'}
+                        {loc.recorded_at ? new Date(loc.recorded_at).toLocaleString() : '—'}
                       </p>
                     </div>
                   </div>
