@@ -27,30 +27,72 @@ const MAP_STYLES = {
   satellite: 'hybrid',
 };
 
-// Custom marker SVG creator
+// Custom marker SVG creator - Enhanced for driver visibility
 const createMarkerIcon = (status: string | null, isSelected: boolean, isDriver: boolean) => {
   const colors = {
-    active: { bg: '#10b981', ring: '#34d399' },
-    idle: { bg: '#f59e0b', ring: '#fbbf24' },
-    offline: { bg: '#6b7280', ring: '#9ca3af' },
+    active: { bg: '#10b981', ring: '#34d399', glow: 'rgba(16,185,129,0.4)' },
+    idle: { bg: '#f59e0b', ring: '#fbbf24', glow: 'rgba(245,158,11,0.4)' },
+    offline: { bg: '#6b7280', ring: '#9ca3af', glow: 'rgba(107,114,128,0.3)' },
   };
   
   const color = colors[status as keyof typeof colors] || colors.offline;
-  const scale = isSelected ? 1.3 : 1;
-  const size = isSelected ? 44 : 34;
+  const size = isSelected ? 52 : (isDriver ? 44 : 34);
+  const centerX = size / 2;
+  const centerY = size / 2;
   
+  // Driver markers are larger and more prominent
+  if (isDriver) {
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+        <!-- Outer glow for drivers -->
+        <circle cx="${centerX}" cy="${centerY}" r="${size/2 - 4}" fill="${color.glow}" opacity="0.6"/>
+        
+        <!-- Main circle with gradient -->
+        <defs>
+          <linearGradient id="driverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:${color.ring};stop-opacity:1" />
+            <stop offset="100%" style="stop-color:${color.bg};stop-opacity:1" />
+          </linearGradient>
+        </defs>
+        <circle cx="${centerX}" cy="${centerY}" r="${size/2 - 6}" fill="url(#driverGrad)" stroke="${isSelected ? '#3b82f6' : 'white'}" stroke-width="${isSelected ? 4 : 3}"/>
+        
+        <!-- Inner highlight -->
+        <circle cx="${centerX}" cy="${centerY}" r="${size/2 - 12}" fill="white" fill-opacity="0.2"/>
+        
+        <!-- Driver icon (person silhouette) -->
+        <circle cx="${centerX}" cy="${centerY - 5}" r="5" fill="white"/>
+        <ellipse cx="${centerX}" cy="${centerY + 6}" rx="8" ry="5" fill="white"/>
+        
+        <!-- Active pulse animation -->
+        ${status === 'active' ? `
+          <circle cx="${centerX}" cy="${centerY}" r="${size/2 - 6}" fill="none" stroke="${color.ring}" stroke-width="3" opacity="0.6">
+            <animate attributeName="r" from="${size/2 - 6}" to="${size/2 + 8}" dur="1.5s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" from="0.6" to="0" dur="1.5s" repeatCount="indefinite"/>
+          </circle>
+          <circle cx="${centerX}" cy="${centerY}" r="${size/2 - 6}" fill="none" stroke="${color.ring}" stroke-width="2" opacity="0.4">
+            <animate attributeName="r" from="${size/2 - 6}" to="${size/2 + 12}" dur="2s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" from="0.4" to="0" dur="2s" repeatCount="indefinite"/>
+          </circle>
+        ` : ''}
+        
+        <!-- Selection ring -->
+        ${isSelected ? `
+          <circle cx="${centerX}" cy="${centerY}" r="${size/2 - 3}" fill="none" stroke="#3b82f6" stroke-width="2" stroke-dasharray="4 2"/>
+        ` : ''}
+      </svg>
+    `;
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  }
+  
+  // Device markers (vehicles)
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-      <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" fill="${color.bg}" stroke="${isSelected ? '#3b82f6' : color.ring}" stroke-width="${isSelected ? 3 : 2}"/>
-      ${isDriver ? `
-        <path d="M${size/2 - 6} ${size/2 + 2}L${size/2} ${size/2 - 8}L${size/2 + 6} ${size/2 + 2}Z" fill="white" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
-      ` : `
-        <rect x="${size/2 - 5}" y="${size/2 - 3}" width="10" height="6" rx="1.5" fill="white"/>
-        <circle cx="${size/2 - 3}" cy="${size/2 + 4}" r="2" fill="white"/>
-        <circle cx="${size/2 + 3}" cy="${size/2 + 4}" r="2" fill="white"/>
-      `}
+      <circle cx="${centerX}" cy="${centerY}" r="${size/2 - 2}" fill="${color.bg}" stroke="${isSelected ? '#3b82f6' : color.ring}" stroke-width="${isSelected ? 3 : 2}"/>
+      <rect x="${centerX - 5}" y="${centerY - 3}" width="10" height="6" rx="1.5" fill="white"/>
+      <circle cx="${centerX - 3}" cy="${centerY + 4}" r="2" fill="white"/>
+      <circle cx="${centerX + 3}" cy="${centerY + 4}" r="2" fill="white"/>
       ${status === 'active' ? `
-        <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 4}" fill="none" stroke="${color.ring}" stroke-width="2" opacity="0.5">
+        <circle cx="${centerX}" cy="${centerY}" r="${size/2 - 4}" fill="none" stroke="${color.ring}" stroke-width="2" opacity="0.5">
           <animate attributeName="r" from="${size/2 - 4}" to="${size/2 + 4}" dur="1.5s" repeatCount="indefinite"/>
           <animate attributeName="opacity" from="0.5" to="0" dur="1.5s" repeatCount="indefinite"/>
         </circle>
@@ -180,14 +222,23 @@ export default function MapView({ items, selectedId, onMarkerClick }: Props) {
         <div className="absolute top-4 right-4 z-10">
           <div className="bg-card/95 backdrop-blur-sm border-2 border-border rounded-xl shadow-lg px-4 py-2.5">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5" title="Active Drivers">
                 <div className="h-2.5 w-2.5 rounded-full bg-success animate-pulse"></div>
                 <span className="text-sm font-semibold">
-                  {displayItems.filter(i => i.status === 'active').length}
+                  {displayItems.filter(i => i.device_id.startsWith('driver-') && i.status === 'active').length}
                 </span>
+                <span className="text-xs text-muted-foreground">drivers</span>
               </div>
               <div className="w-px h-4 bg-border"></div>
-              <span className="text-sm text-muted-foreground">
+              <div className="flex items-center gap-1.5" title="Active Devices">
+                <div className="h-2.5 w-2.5 rounded bg-primary/70"></div>
+                <span className="text-sm font-semibold">
+                  {displayItems.filter(i => !i.device_id.startsWith('driver-') && i.status === 'active').length}
+                </span>
+                <span className="text-xs text-muted-foreground">devices</span>
+              </div>
+              <div className="w-px h-4 bg-border"></div>
+              <span className="text-xs text-muted-foreground">
                 {displayItems.length} total
               </span>
             </div>
@@ -197,18 +248,30 @@ export default function MapView({ items, selectedId, onMarkerClick }: Props) {
         {/* Legend */}
         <div className="absolute bottom-4 left-4 z-10">
           <div className="bg-card/95 backdrop-blur-sm border-2 border-border rounded-xl shadow-lg px-3 py-2">
-            <div className="flex items-center gap-4 text-xs">
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded-full bg-success"></div>
-                <span className="text-muted-foreground">Active</span>
+            <div className="flex flex-col gap-2 text-xs">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <div className="h-3 w-3 rounded-full bg-success"></div>
+                  <span className="text-muted-foreground">Active</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-3 w-3 rounded-full bg-warning"></div>
+                  <span className="text-muted-foreground">Idle</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-3 w-3 rounded-full bg-muted-foreground"></div>
+                  <span className="text-muted-foreground">Offline</span>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded-full bg-warning"></div>
-                <span className="text-muted-foreground">Idle</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded-full bg-muted-foreground"></div>
-                <span className="text-muted-foreground">Offline</span>
+              <div className="flex items-center gap-3 pt-1 border-t border-border">
+                <div className="flex items-center gap-1.5">
+                  <div className="h-4 w-4 rounded-full bg-gradient-to-br from-success/80 to-success border-2 border-white shadow-sm"></div>
+                  <span className="text-muted-foreground font-medium">Driver</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="h-3 w-3 rounded bg-primary/60"></div>
+                  <span className="text-muted-foreground">Device</span>
+                </div>
               </div>
             </div>
           </div>
@@ -218,6 +281,7 @@ export default function MapView({ items, selectedId, onMarkerClick }: Props) {
         {displayItems.map(item => {
           const isDriver = item.device_id.startsWith('driver-');
           const isSelected = selectedId === item.device_id;
+          const markerSize = isSelected ? 52 : (isDriver ? 44 : 34);
           
           return (
             <Marker
@@ -225,12 +289,12 @@ export default function MapView({ items, selectedId, onMarkerClick }: Props) {
               position={{ lat: item.latitude, lng: item.longitude }}
               icon={{
                 url: createMarkerIcon(item.status, isSelected, isDriver),
-                anchor: new google.maps.Point(isSelected ? 22 : 17, isSelected ? 22 : 17),
+                anchor: new google.maps.Point(markerSize / 2, markerSize / 2),
               }}
               onClick={() => onMarkerClick?.(item.device_id)}
               onMouseOver={() => setHoveredId(item.device_id)}
               onMouseOut={() => setHoveredId(null)}
-              zIndex={isSelected ? 1000 : item.status === 'active' ? 100 : 1}
+              zIndex={isSelected ? 1000 : isDriver ? 500 : (item.status === 'active' ? 100 : 1)}
             />
           );
         })}
