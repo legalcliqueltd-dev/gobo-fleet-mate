@@ -242,6 +242,42 @@ export type Database = {
         }
         Relationships: []
       }
+      emergency_contacts: {
+        Row: {
+          admin_code: string
+          contact_name: string
+          contact_phone: string
+          contact_role: string | null
+          contact_type: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          admin_code: string
+          contact_name: string
+          contact_phone: string
+          contact_role?: string | null
+          contact_type: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          admin_code?: string
+          contact_name?: string
+          contact_phone?: string
+          contact_role?: string | null
+          contact_type?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       geofences: {
         Row: {
           coordinates: Json
