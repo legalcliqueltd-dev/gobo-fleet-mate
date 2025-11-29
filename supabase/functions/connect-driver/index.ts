@@ -22,7 +22,10 @@ Deno.serve(async (req) => {
 
     // Get authenticated user
     const authHeader = req.headers.get('Authorization');
+    console.log('Auth header present:', !!authHeader);
+    
     if (!authHeader) {
+      console.log('No auth header - returning 401');
       return new Response(
         JSON.stringify({ error: 'Authorization required' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -30,18 +33,31 @@ Deno.serve(async (req) => {
     }
 
     const token = authHeader.replace('Bearer ', '');
+    console.log('Token length:', token.length);
+    
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     
-    if (userError || !user) {
+    if (userError) {
+      console.log('User auth error:', userError.message);
+      return new Response(
+        JSON.stringify({ error: 'Invalid authentication', details: userError.message }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    if (!user) {
+      console.log('No user returned from auth');
       return new Response(
         JSON.stringify({ error: 'Invalid authentication' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    console.log('Authenticated user:', user.id, user.email);
+    
     const body = await req.json();
     const { action, code, driverName } = body;
-    console.log('Action:', action, 'Code:', code, 'User:', user.id);
+    console.log('Action:', action, 'Code:', code, 'DriverName:', driverName);
 
     if (action === 'connect') {
       // Find device with this connection code
