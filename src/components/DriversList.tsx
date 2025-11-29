@@ -14,12 +14,12 @@ type Props = {
 export default function DriversList({ onDriverSelect, selectedDriverId }: Props) {
   const { drivers, loading, error } = useDriverLocations();
 
-  // Check if driver is online (last seen within 2 minutes = active tracking)
+  // Check if driver is online (last seen within 5 minutes = active tracking)
   const isOnline = (lastSeen: string | null, status: string | null) => {
     if (status === 'offline' || status === 'disconnected') return false;
     if (!lastSeen) return false;
     const diff = Date.now() - new Date(lastSeen).getTime();
-    return diff < 2 * 60 * 1000; // 2 minutes for "online" status
+    return diff < 5 * 60 * 1000; // 5 minutes for "online" status
   };
 
   // Check if driver was recently active (within 15 minutes)
