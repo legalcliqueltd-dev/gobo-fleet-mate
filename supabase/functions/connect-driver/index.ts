@@ -5,6 +5,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Generate a unique driver ID
+function generateDriverId(): string {
+  return crypto.randomUUID();
+}
+
 Deno.serve(async (req) => {
   console.log('=== CONNECT-DRIVER FUNCTION INVOKED ===');
   console.log('Method:', req.method);
@@ -20,51 +25,30 @@ Deno.serve(async (req) => {
       { auth: { persistSession: false, autoRefreshToken: false } }
     );
 
-    // Get authenticated user
-    const authHeader = req.headers.get('Authorization');
-    console.log('Auth header present:', !!authHeader);
-    
-    if (!authHeader) {
-      console.log('No auth header - returning 401');
-      return new Response(
-        JSON.stringify({ error: 'Authorization required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    console.log('Token length:', token.length);
-    
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
-    
-    if (userError) {
-      console.log('User auth error:', userError.message);
-      return new Response(
-        JSON.stringify({ error: 'Invalid authentication', details: userError.message }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    if (!user) {
-      console.log('No user returned from auth');
-      return new Response(
-        JSON.stringify({ error: 'Invalid authentication' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log('Authenticated user:', user.id, user.email);
-    
     const body = await req.json();
-    const { action, code, driverName } = body;
-    console.log('Action:', action, 'Code:', code, 'DriverName:', driverName);
+    const { action, code, driverName, driverId } = body;
+    console.log('Action:', action, 'Code:', code, 'DriverName:', driverName, 'DriverId:', driverId);
 
     if (action === 'connect') {
+      if (!code?.trim()) {
+        return new Response(
+          JSON.stringify({ error: 'Connection code is required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!driverName?.trim()) {
+        return new Response(
+          JSON.stringify({ error: 'Driver name is required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       // Find device with this connection code
       const { data: device, error: deviceError } = await supabaseAdmin
         .from('devices')
         .select('id, user_id, name, connected_driver_id, connection_code')
-        .eq('connection_code', code)
+        .eq('connection_code', code.trim().toUpperCase())
         .maybeSingle();
 
       if (deviceError) {
@@ -82,14 +66,17 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Check if this code is already assigned to a DIFFERENT driver
+      // Check if this code is already assigned to a different driver
       const { data: existingDriver } = await supabaseAdmin
         .from('drivers')
         .select('driver_id, driver_name, admin_code')
-        .eq('admin_code', code)
+        .eq('admin_code', code.trim().toUpperCase())
         .maybeSingle();
 
-      if (existingDriver && existingDriver.driver_id !== user.id) {
+      // If driverId is provided, check if it's the same driver reconnecting
+      const isReconnecting = driverId && existingDriver && existingDriver.driver_id === driverId;
+      
+      if (existingDriver && !isReconnecting) {
         // Code is assigned to a different driver - reject
         console.log('Code already assigned to different driver:', existingDriver.driver_id);
         return new Response(
@@ -98,82 +85,44 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Get driver's profile for their real name
-      const { data: profile } = await supabaseAdmin
-        .from('profiles')
-        .select('full_name, email')
-        .eq('id', user.id)
-        .maybeSingle();
+      let finalDriverId: string;
 
-      // Determine driver name: provided name > existing name > profile name > email prefix
-      const resolvedName = driverName?.trim() || 
-        existingDriver?.driver_name ||
-        profile?.full_name?.trim() || 
-        user.email?.split('@')[0] || 
-        'Driver';
-
-      if (existingDriver) {
+      if (isReconnecting) {
         // Same driver reconnecting - update their status
-        console.log('Same driver reconnecting:', user.id);
+        console.log('Same driver reconnecting:', driverId);
+        finalDriverId = driverId;
+        
         await supabaseAdmin
           .from('drivers')
           .update({
-            driver_name: resolvedName,
+            driver_name: driverName.trim(),
             status: 'active',
             last_seen_at: new Date().toISOString(),
             connected_at: new Date().toISOString(),
           })
-          .eq('admin_code', code);
+          .eq('driver_id', driverId);
       } else {
-        // New driver connecting - check if this driver already has a different code
-        const { data: existingDriverRecord } = await supabaseAdmin
+        // New driver connecting - generate new ID
+        finalDriverId = generateDriverId();
+        console.log('Creating new driver:', finalDriverId, 'with code:', code);
+        
+        const { error: insertError } = await supabaseAdmin
           .from('drivers')
-          .select('admin_code')
-          .eq('driver_id', user.id)
-          .maybeSingle();
+          .insert({
+            driver_id: finalDriverId,
+            admin_code: code.trim().toUpperCase(),
+            driver_name: driverName.trim(),
+            status: 'active',
+            connected_at: new Date().toISOString(),
+            last_seen_at: new Date().toISOString(),
+          });
 
-        if (existingDriverRecord) {
-          // Driver already has a code - update to new code
-          console.log('Driver switching from code', existingDriverRecord.admin_code, 'to', code);
-          const { error: updateError } = await supabaseAdmin
-            .from('drivers')
-            .update({
-              admin_code: code,
-              driver_name: resolvedName,
-              status: 'active',
-              connected_at: new Date().toISOString(),
-              last_seen_at: new Date().toISOString(),
-            })
-            .eq('driver_id', user.id);
-
-          if (updateError) {
-            console.error('Error updating driver:', updateError);
-            return new Response(
-              JSON.stringify({ error: 'Failed to update driver connection' }),
-              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
-        } else {
-          // Brand new driver - create entry
-          console.log('Creating new driver:', user.id, 'with code:', code);
-          const { error: insertError } = await supabaseAdmin
-            .from('drivers')
-            .insert({
-              driver_id: user.id,
-              admin_code: code,
-              driver_name: resolvedName,
-              status: 'active',
-              connected_at: new Date().toISOString(),
-              last_seen_at: new Date().toISOString(),
-            });
-
-          if (insertError) {
-            console.error('Error creating driver:', insertError);
-            return new Response(
-              JSON.stringify({ error: 'Failed to register driver' }),
-              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
+        if (insertError) {
+          console.error('Error creating driver:', insertError);
+          return new Response(
+            JSON.stringify({ error: 'Failed to register driver' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
       }
 
@@ -181,25 +130,16 @@ Deno.serve(async (req) => {
       await supabaseAdmin
         .from('devices')
         .update({
-          connected_driver_id: user.id,
+          connected_driver_id: finalDriverId,
           connected_at: new Date().toISOString(),
           status: 'active',
         })
         .eq('id', device.id);
 
-      // Upsert driver connection record
-      await supabaseAdmin
-        .from('driver_connections')
-        .upsert({
-          admin_user_id: device.user_id,
-          driver_user_id: user.id,
-          status: 'active',
-          connected_at: new Date().toISOString(),
-        }, { onConflict: 'admin_user_id,driver_user_id' });
-
       return new Response(
         JSON.stringify({ 
           success: true, 
+          driverId: finalDriverId,
           device: { id: device.id, name: device.name }
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -207,11 +147,18 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'disconnect') {
+      if (!driverId) {
+        return new Response(
+          JSON.stringify({ error: 'Driver ID is required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       // Update driver status
       await supabaseAdmin
         .from('drivers')
         .update({ status: 'offline', last_seen_at: new Date().toISOString() })
-        .eq('driver_id', user.id);
+        .eq('driver_id', driverId);
 
       // Disconnect from device
       await supabaseAdmin
@@ -221,7 +168,7 @@ Deno.serve(async (req) => {
           connected_at: null,
           status: 'offline',
         })
-        .eq('connected_driver_id', user.id);
+        .eq('connected_driver_id', driverId);
 
       return new Response(
         JSON.stringify({ success: true }),
@@ -230,15 +177,21 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'get-connection') {
+      if (!driverId) {
+        return new Response(
+          JSON.stringify({ connected: false, device: null }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       // Get driver's current connection
       const { data: driver } = await supabaseAdmin
         .from('drivers')
         .select('admin_code, driver_name, status')
-        .eq('driver_id', user.id)
-        .eq('status', 'active')
+        .eq('driver_id', driverId)
         .maybeSingle();
 
-      if (!driver) {
+      if (!driver || driver.status === 'offline') {
         return new Response(
           JSON.stringify({ connected: false, device: null }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -263,6 +216,13 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'update-status') {
+      if (!driverId) {
+        return new Response(
+          JSON.stringify({ error: 'Driver ID is required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       const { status } = body;
       
       await supabaseAdmin
@@ -271,7 +231,7 @@ Deno.serve(async (req) => {
           status: status || 'active',
           last_seen_at: new Date().toISOString() 
         })
-        .eq('driver_id', user.id);
+        .eq('driver_id', driverId);
 
       return new Response(
         JSON.stringify({ success: true }),
@@ -280,6 +240,13 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'update-name') {
+      if (!driverId) {
+        return new Response(
+          JSON.stringify({ error: 'Driver ID is required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       const { name } = body;
       
       if (!name?.trim()) {
@@ -292,7 +259,74 @@ Deno.serve(async (req) => {
       await supabaseAdmin
         .from('drivers')
         .update({ driver_name: name.trim() })
-        .eq('driver_id', user.id);
+        .eq('driver_id', driverId);
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (action === 'update-location') {
+      if (!driverId) {
+        return new Response(
+          JSON.stringify({ error: 'Driver ID is required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { latitude, longitude, speed, accuracy } = body;
+      
+      if (latitude === undefined || longitude === undefined) {
+        return new Response(
+          JSON.stringify({ error: 'Latitude and longitude are required' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Get driver's admin_code
+      const { data: driver } = await supabaseAdmin
+        .from('drivers')
+        .select('admin_code')
+        .eq('driver_id', driverId)
+        .maybeSingle();
+
+      if (!driver) {
+        return new Response(
+          JSON.stringify({ error: 'Driver not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Upsert location
+      const { error: locationError } = await supabaseAdmin
+        .from('driver_locations')
+        .upsert({
+          driver_id: driverId,
+          admin_code: driver.admin_code,
+          latitude,
+          longitude,
+          speed: speed || null,
+          accuracy: accuracy || null,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'driver_id' });
+
+      if (locationError) {
+        console.error('Location update error:', locationError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to update location' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Also update driver's last_seen_at
+      await supabaseAdmin
+        .from('drivers')
+        .update({ 
+          status: 'active',
+          last_seen_at: new Date().toISOString() 
+        })
+        .eq('driver_id', driverId);
 
       return new Response(
         JSON.stringify({ success: true }),
