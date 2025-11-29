@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useDeviceLocations } from '../hooks/useDeviceLocations';
+import { useDriverLocations, DriverLocation } from '../hooks/useDriverLocations';
 import MapView from '../components/map/MapView';
+import DriversList from '../components/DriversList';
 import GeofenceAlerts from '../components/GeofenceAlerts';
 import TempTrackingManager from '../components/TempTrackingManager';
 import { Clock, Plus, ExternalLink, TrendingUp } from 'lucide-react';
@@ -11,13 +13,36 @@ import Button from '../components/ui/Button';
 
 export default function Dashboard() {
   const { items, markers, loading, error } = useDeviceLocations();
+  const { drivers } = useDriverLocations();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const selected = useMemo(
     () => items.find((d) => d.id === selectedId) ?? null,
     [items, selectedId]
   );
+
+  // Combine device markers with driver markers
+  const allMarkers = useMemo(() => {
+    const driverMarkers = drivers.map(d => ({
+      device_id: `driver-${d.driver_id}`,
+      name: d.driver_name || `Driver ${d.driver_id.slice(0, 8)}`,
+      latitude: d.latitude,
+      longitude: d.longitude,
+      speed: d.speed,
+      timestamp: d.last_seen_at,
+      status: (d.last_seen_at && Date.now() - new Date(d.last_seen_at).getTime() < 15 * 60 * 1000) 
+        ? 'active' as const 
+        : 'offline' as const,
+    }));
+    return [...markers, ...driverMarkers];
+  }, [markers, drivers]);
+
+  const handleDriverSelect = useCallback((driver: DriverLocation) => {
+    setSelectedDriverId(driver.driver_id);
+    setSelectedId(null);
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -101,12 +126,24 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
+      {/* Connected Drivers from Rocket App */}
+      <DriversList 
+        onDriverSelect={handleDriverSelect}
+        selectedDriverId={selectedDriverId}
+      />
+
       <section>
         <MapView
-          items={markers}
+          items={allMarkers}
           onMarkerClick={(id) => {
-            setSelectedId(id);
-            navigate(`/devices/${id}`);
+            if (id.startsWith('driver-')) {
+              setSelectedDriverId(id.replace('driver-', ''));
+              setSelectedId(null);
+            } else {
+              setSelectedId(id);
+              setSelectedDriverId(null);
+              navigate(`/devices/${id}`);
+            }
           }}
         />
         {/* Floating brutal FAB for small screens */}
