@@ -146,6 +146,39 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_location_history: {
+        Row: {
+          accuracy: number | null
+          admin_code: string
+          driver_id: string
+          id: string
+          latitude: number
+          longitude: number
+          recorded_at: string | null
+          speed: number | null
+        }
+        Insert: {
+          accuracy?: number | null
+          admin_code: string
+          driver_id: string
+          id?: string
+          latitude: number
+          longitude: number
+          recorded_at?: string | null
+          speed?: number | null
+        }
+        Update: {
+          accuracy?: number | null
+          admin_code?: string
+          driver_id?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          recorded_at?: string | null
+          speed?: number | null
+        }
+        Relationships: []
+      }
       driver_locations: {
         Row: {
           accuracy: number | null

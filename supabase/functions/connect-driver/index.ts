@@ -311,6 +311,12 @@ Deno.serve(async (req) => {
         );
       }
 
+      // Filter out poor accuracy locations (> 100m) for better tracking
+      const accuracyValue = accuracy || 0;
+      const isAccurate = accuracyValue <= 100;
+      
+      console.log('Location update - Driver:', driverId, 'Lat:', latitude, 'Lng:', longitude, 'Accuracy:', accuracyValue, 'Accurate:', isAccurate);
+
       // Get driver's admin_code
       const { data: driver } = await supabaseAdmin
         .from('drivers')
@@ -325,28 +331,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Upsert location
-      const { error: locationError } = await supabaseAdmin
-        .from('driver_locations')
-        .upsert({
-          driver_id: driverId,
-          admin_code: driver.admin_code,
-          latitude,
-          longitude,
-          speed: speed || null,
-          accuracy: accuracy || null,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'driver_id' });
-
-      if (locationError) {
-        console.error('Location update error:', locationError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to update location' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      // Also update driver's last_seen_at
+      // Always update driver's last_seen_at
       await supabaseAdmin
         .from('drivers')
         .update({ 
@@ -355,10 +340,54 @@ Deno.serve(async (req) => {
         })
         .eq('driver_id', driverId);
 
-      return new Response(
-        JSON.stringify({ success: true }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      // Only store location if accuracy is good
+      if (isAccurate) {
+        // Upsert current location
+        const { error: locationError } = await supabaseAdmin
+          .from('driver_locations')
+          .upsert({
+            driver_id: driverId,
+            admin_code: driver.admin_code,
+            latitude,
+            longitude,
+            speed: speed || null,
+            accuracy: accuracyValue,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'driver_id' });
+
+        if (locationError) {
+          console.error('Location update error:', locationError);
+        }
+
+        // Also store in location history for tracking movement
+        const { error: historyError } = await supabaseAdmin
+          .from('driver_location_history')
+          .insert({
+            driver_id: driverId,
+            admin_code: driver.admin_code,
+            latitude,
+            longitude,
+            speed: speed || null,
+            accuracy: accuracyValue,
+            recorded_at: new Date().toISOString(),
+          });
+
+        if (historyError) {
+          console.error('History insert error:', historyError);
+        }
+
+        return new Response(
+          JSON.stringify({ success: true, stored: true, accuracy: accuracyValue }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } else {
+        // Location too inaccurate, skip storing but still acknowledge
+        console.log('Skipping inaccurate location - accuracy:', accuracyValue, 'm');
+        return new Response(
+          JSON.stringify({ success: true, stored: false, accuracy: accuracyValue, reason: 'accuracy_too_low' }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     return new Response(
