@@ -11,6 +11,7 @@ import UpdatePassword from './pages/auth/UpdatePassword';
 import AddDevice from './pages/devices/AddDevice';
 import EditDevice from './pages/devices/EditDevice';
 import DeviceDetails from './pages/devices/DeviceDetails';
+import DriverDetails from './pages/DriverDetails';
 import FleetAnalytics from './pages/FleetAnalytics';
 import Geofences from './pages/Geofences';
 import Trips from './pages/Trips';
@@ -70,6 +71,14 @@ export default function App() {
                   element={
                     <ProtectedRoute>
                       <FleetAnalytics />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/driver/:driverId"
+                  element={
+                    <ProtectedRoute>
+                      <DriverDetails />
                     </ProtectedRoute>
                   }
                 />
