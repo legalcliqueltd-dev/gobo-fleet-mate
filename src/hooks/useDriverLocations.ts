@@ -70,7 +70,7 @@ export function useDriverLocations() {
         .select('*')
         .in('driver_id', driverIds);
 
-      // Merge and filter
+      // Merge drivers with their locations (don't filter out drivers without location)
       const merged: DriverLocation[] = driversData.map(driver => {
         const location = locationsData?.find(l => l.driver_id === driver.driver_id);
         return {
@@ -85,7 +85,7 @@ export function useDriverLocations() {
           last_seen_at: driver.last_seen_at,
           connected_at: driver.connected_at,
         };
-      }).filter(d => d.latitude !== 0 && d.longitude !== 0);
+      });
 
       setDrivers(merged);
       setError(null);
