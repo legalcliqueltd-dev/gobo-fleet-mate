@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import clsx from 'clsx';
+import DriverLocationMap from '@/components/map/DriverLocationMap';
 
 type DriverDetail = {
   driver_id: string;
@@ -316,30 +317,48 @@ export default function DriverDetails() {
         </Card>
       </div>
 
-      {/* Current Location */}
-      {locationHistory[0] && (
-        <Card className="border-2 border-border">
-          <CardHeader className="pb-3">
+      {/* Driver Location Map */}
+      <Card className="border-2 border-border">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
             <h3 className="font-heading font-semibold flex items-center gap-2 text-lg">
               <div className="p-1.5 rounded-lg bg-primary/20">
                 <MapPin className="h-4 w-4 text-primary" />
               </div>
-              Current Location
+              Live Location & Trail
             </h3>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/dashboard?focus=driver-${driver.driver_id}`)}
+            >
+              <MapPin className="h-4 w-4 mr-2" />
+              Full Map
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <DriverLocationMap
+            driverName={driver.driver_name || 'Driver'}
+            currentLocation={locationHistory[0] || null}
+            locationHistory={locationHistory}
+            isOnline={isOnline}
+          />
+          
+          {/* Location stats */}
+          {locationHistory[0] && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-border">
               <div>
                 <p className="text-xs text-muted-foreground">Latitude</p>
-                <p className="font-mono font-semibold">{locationHistory[0].latitude.toFixed(6)}</p>
+                <p className="font-mono font-semibold text-sm">{locationHistory[0].latitude.toFixed(6)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Longitude</p>
-                <p className="font-mono font-semibold">{locationHistory[0].longitude.toFixed(6)}</p>
+                <p className="font-mono font-semibold text-sm">{locationHistory[0].longitude.toFixed(6)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Accuracy</p>
-                <p className="font-semibold">{locationHistory[0].accuracy ? `±${Math.round(locationHistory[0].accuracy)}m` : '—'}</p>
+                <p className="font-semibold text-sm">{locationHistory[0].accuracy ? `±${Math.round(locationHistory[0].accuracy)}m` : '—'}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Last Update</p>
@@ -348,17 +367,9 @@ export default function DriverDetails() {
                   : '—'}</p>
               </div>
             </div>
-            <Button 
-              className="mt-4" 
-              variant="outline"
-              onClick={() => navigate(`/dashboard?focus=driver-${driver.driver_id}`)}
-            >
-              <MapPin className="h-4 w-4 mr-2" />
-              View on Map
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+          )}
+        </CardContent>
+      </Card>
 
       {/* Location History */}
       <Card className="border-2 border-border">
