@@ -71,11 +71,14 @@ export default function MapView({ items, selectedId, onMarkerClick }: Props) {
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
   });
 
-  // Filter out items with invalid/zero coordinates
+  // Items with valid coordinates (not 0,0)
   const validItems = useMemo(() => 
-    items.filter(i => i.latitude !== 0 || i.longitude !== 0),
+    items.filter(i => i.latitude !== 0 && i.longitude !== 0),
     [items]
   );
+  
+  // Use all items for display, valid items for map calculations
+  const displayItems = items;
 
   const initial = useMemo(() => {
     // Default to a reasonable center (e.g., Nigeria/Africa) if no valid locations
@@ -87,13 +90,13 @@ export default function MapView({ items, selectedId, onMarkerClick }: Props) {
   // Fly to selected marker
   useEffect(() => {
     if (selectedId && mapRef.current) {
-      const item = validItems.find(i => i.device_id === selectedId);
-      if (item) {
+      const item = displayItems.find(i => i.device_id === selectedId);
+      if (item && item.latitude !== 0 && item.longitude !== 0) {
         mapRef.current.panTo({ lat: item.latitude, lng: item.longitude });
         mapRef.current.setZoom(15);
       }
     }
-  }, [selectedId, validItems]);
+  }, [selectedId, displayItems]);
 
   const fitToAll = () => {
     if (!mapRef.current || validItems.length === 0) return;
@@ -180,12 +183,12 @@ export default function MapView({ items, selectedId, onMarkerClick }: Props) {
               <div className="flex items-center gap-1.5">
                 <div className="h-2.5 w-2.5 rounded-full bg-success animate-pulse"></div>
                 <span className="text-sm font-semibold">
-                  {validItems.filter(i => i.status === 'active').length}
+                  {displayItems.filter(i => i.status === 'active').length}
                 </span>
               </div>
               <div className="w-px h-4 bg-border"></div>
               <span className="text-sm text-muted-foreground">
-                {validItems.length} on map ({items.length} total)
+                {displayItems.length} total
               </span>
             </div>
           </div>
@@ -212,7 +215,7 @@ export default function MapView({ items, selectedId, onMarkerClick }: Props) {
         </div>
 
         {/* Markers */}
-        {validItems.map(item => {
+        {displayItems.map(item => {
           const isDriver = item.device_id.startsWith('driver-');
           const isSelected = selectedId === item.device_id;
           
@@ -234,7 +237,7 @@ export default function MapView({ items, selectedId, onMarkerClick }: Props) {
 
         {/* Info Window for hovered marker */}
         {hoveredId && (() => {
-          const item = validItems.find(i => i.device_id === hoveredId);
+          const item = displayItems.find(i => i.device_id === hoveredId);
           if (!item) return null;
           
           return (
