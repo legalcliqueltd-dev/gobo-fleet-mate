@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
-import { Bell, Info, Palette, MapPin, Battery } from 'lucide-react';
+import { Bell, Info, Palette, MapPin, Battery, Settings as SettingsIcon, User } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
 import { Label } from '../components/ui/label';
 import { Switch } from '../components/ui/switch';
@@ -13,7 +13,6 @@ export default function Settings() {
   const { user } = useAuth();
   const [tokens, setTokens] = useState<{ id: string; token: string; platform: string; created_at: string }[]>([]);
   
-  // Location tracking settings
   const [locationTrackingEnabled, setLocationTrackingEnabled] = useState(() => {
     return localStorage.getItem('locationTrackingEnabled') !== 'false';
   });
@@ -42,7 +41,6 @@ export default function Settings() {
     setLocationTrackingEnabled(enabled);
     localStorage.setItem('locationTrackingEnabled', String(enabled));
     toast.success(enabled ? 'Location tracking enabled' : 'Location tracking disabled');
-    // Trigger page reload to apply changes
     setTimeout(() => window.location.reload(), 500);
   };
 
@@ -56,7 +54,6 @@ export default function Settings() {
     setBatterySavingMode(enabled);
     localStorage.setItem('batterySavingMode', String(enabled));
     toast.success(enabled ? 'Battery saving mode enabled' : 'Battery saving mode disabled');
-    // Trigger page reload to apply changes
     setTimeout(() => window.location.reload(), 500);
   };
 
@@ -72,15 +69,22 @@ export default function Settings() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div>
-        <h1 className="font-heading text-3xl font-bold">Settings</h1>
-        <p className="text-muted-foreground mt-1">Manage your account and notification preferences</p>
+      <div className="flex items-center gap-3">
+        <div className="p-2.5 rounded-xl bg-primary/20">
+          <SettingsIcon className="h-6 w-6 text-primary" />
+        </div>
+        <div>
+          <h1 className="font-heading text-3xl font-bold">Settings</h1>
+          <p className="text-muted-foreground">Manage your account and preferences</p>
+        </div>
       </div>
 
-      <Card variant="brutal">
-        <CardHeader>
+      <Card className="border-2 border-border">
+        <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-primary" />
+            <div className="p-1.5 rounded-lg bg-primary/20">
+              <MapPin className="h-4 w-4 text-primary" />
+            </div>
             <h3 className="font-heading font-semibold text-lg">Location Tracking</h3>
           </div>
         </CardHeader>
@@ -104,10 +108,10 @@ export default function Settings() {
               <div className="space-y-2">
                 <Label htmlFor="update-interval" className="font-medium">Update Frequency</Label>
                 <Select value={updateInterval} onValueChange={handleUpdateIntervalChange}>
-                  <SelectTrigger id="update-interval">
+                  <SelectTrigger id="update-interval" className="bg-background">
                     <SelectValue placeholder="Select frequency" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-popover border-border">
                     <SelectItem value="10000">Every 10 seconds</SelectItem>
                     <SelectItem value="30000">Every 30 seconds</SelectItem>
                     <SelectItem value="60000">Every 1 minute</SelectItem>
@@ -122,11 +126,11 @@ export default function Settings() {
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <Battery className="h-4 w-4 text-primary" />
+                    <Battery className="h-4 w-4 text-warning" />
                     <Label htmlFor="battery-saving" className="font-medium">Battery Saving Mode</Label>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Reduces tracking frequency when battery is low (2x at 50%, 3x at 20%)
+                    Reduces tracking frequency when battery is low
                   </p>
                 </div>
                 <Switch
@@ -140,10 +144,12 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <Card variant="brutal">
-        <CardHeader>
+      <Card className="border-2 border-border">
+        <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
-            <Palette className="h-5 w-5 text-primary" />
+            <div className="p-1.5 rounded-lg bg-primary/20">
+              <Palette className="h-4 w-4 text-primary" />
+            </div>
             <h3 className="font-heading font-semibold text-lg">Appearance</h3>
           </div>
         </CardHeader>
@@ -158,28 +164,23 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <Card variant="brutal">
-        <CardHeader>
+      <Card className="border-2 border-border">
+        <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
-            <Bell className="h-5 w-5 text-primary" />
+            <div className="p-1.5 rounded-lg bg-primary/20">
+              <Bell className="h-4 w-4 text-primary" />
+            </div>
             <h3 className="font-heading font-semibold text-lg">Notifications</h3>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/20 p-4">
+          <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4">
             <div className="flex gap-3">
-              <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+              <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
               <div className="space-y-2">
-                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                  In-App Notifications Enabled
-                </p>
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  You're currently receiving real-time in-app notifications for geofence events.
-                  Browser push notifications have been disabled to avoid dependency conflicts.
-                </p>
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  To add push notifications, you can use the Supabase edge function approach
-                  without Firebase, or implement a webhook-based notification system.
+                <p className="text-sm font-medium">In-App Notifications Enabled</p>
+                <p className="text-sm text-muted-foreground">
+                  You're receiving real-time in-app notifications for geofence events and driver updates.
                 </p>
               </div>
             </div>
@@ -202,17 +203,25 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <Card variant="brutal">
-        <CardHeader>
-          <h3 className="font-heading font-semibold text-lg">Account</h3>
+      <Card className="border-2 border-border">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-primary/20">
+              <User className="h-4 w-4 text-primary" />
+            </div>
+            <h3 className="font-heading font-semibold text-lg">Account</h3>
+          </div>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Email: <span className="font-medium text-foreground">{user?.email}</span>
-          </p>
-          <p className="text-sm text-muted-foreground mt-2">
-            Manage your email and password from the Supabase Auth dashboard.
-          </p>
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs text-muted-foreground">Email</p>
+              <p className="font-medium">{user?.email}</p>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Manage your email and password from the Supabase Auth dashboard.
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
