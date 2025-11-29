@@ -4,9 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
+import { Input } from '@/components/ui/input';
 import { 
   ArrowLeft, MapPin, Clock, Navigation, Trash2, Unlink, 
-  User, Activity, Calendar, Signal, AlertTriangle 
+  User, Activity, Calendar, Signal, AlertTriangle, Pencil, Check, X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import clsx from 'clsx';
@@ -38,13 +39,17 @@ export default function DriverDetails() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  
+  // Name editing state
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState('');
+  const [savingName, setSavingName] = useState(false);
 
   useEffect(() => {
     if (!driverId || !user) return;
 
     const fetchDriver = async () => {
       try {
-        // Fetch driver details
         const { data: driverData, error: driverError } = await supabase
           .from('drivers')
           .select('*')
@@ -53,8 +58,8 @@ export default function DriverDetails() {
 
         if (driverError) throw driverError;
         setDriver(driverData as DriverDetail);
+        setEditedName(driverData.driver_name || '');
 
-        // Fetch location history
         const { data: locData, error: locError } = await supabase
           .from('driver_locations')
           .select('*')
@@ -76,19 +81,45 @@ export default function DriverDetails() {
     fetchDriver();
   }, [driverId, user]);
 
+  const handleSaveName = async () => {
+    if (!driver) return;
+    setSavingName(true);
+
+    try {
+      const { error } = await supabase
+        .from('drivers')
+        .update({ driver_name: editedName.trim() || null })
+        .eq('driver_id', driver.driver_id);
+
+      if (error) throw error;
+
+      setDriver({ ...driver, driver_name: editedName.trim() || null });
+      setIsEditingName(false);
+      toast.success('Driver name updated');
+    } catch (err) {
+      console.error('Error updating name:', err);
+      toast.error('Failed to update name');
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditedName(driver?.driver_name || '');
+    setIsEditingName(false);
+  };
+
   const handleDisconnect = async () => {
     if (!driver) return;
     setDisconnecting(true);
 
     try {
-      // Update driver status to disconnected
       const { error } = await supabase
         .from('drivers')
         .update({ status: 'disconnected' })
         .eq('driver_id', driver.driver_id);
 
       if (error) throw error;
-
       toast.success('Driver disconnected successfully');
       navigate('/dashboard');
     } catch (err) {
@@ -110,20 +141,10 @@ export default function DriverDetails() {
     setDeleting(true);
 
     try {
-      // Delete location history first
-      await supabase
-        .from('driver_locations')
-        .delete()
-        .eq('driver_id', driver.driver_id);
-
-      // Delete driver
-      const { error } = await supabase
-        .from('drivers')
-        .delete()
-        .eq('driver_id', driver.driver_id);
+      await supabase.from('driver_locations').delete().eq('driver_id', driver.driver_id);
+      const { error } = await supabase.from('drivers').delete().eq('driver_id', driver.driver_id);
 
       if (error) throw error;
-
       toast.success('Driver deleted successfully');
       navigate('/dashboard');
     } catch (err) {
@@ -159,22 +180,49 @@ export default function DriverDetails() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div>
-            <h1 className="text-2xl font-heading font-bold flex items-center gap-3">
-              <div className={clsx(
-                'h-3 w-3 rounded-full',
-                isOnline ? 'bg-success animate-pulse' : 'bg-muted-foreground'
-              )} />
-              {driver.driver_name || `Driver ${driver.driver_id.slice(0, 8)}`}
-            </h1>
-            <p className="text-muted-foreground text-sm">
+          <div className="flex-1">
+            {isEditingName ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                  placeholder="Enter driver name"
+                  className="max-w-[250px] h-9"
+                  autoFocus
+                />
+                <Button size="sm" onClick={handleSaveName} disabled={savingName} className="h-9">
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button size="sm" variant="outline" onClick={handleCancelEdit} className="h-9">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-heading font-bold flex items-center gap-3">
+                  <div className={clsx(
+                    'h-3 w-3 rounded-full',
+                    isOnline ? 'bg-success animate-pulse' : 'bg-muted-foreground'
+                  )} />
+                  {driver.driver_name || `Driver ${driver.driver_id.slice(0, 8)}`}
+                </h1>
+                <button
+                  onClick={() => setIsEditingName(true)}
+                  className="p-1.5 rounded-lg hover:bg-primary/10 transition-colors"
+                  title="Edit name"
+                >
+                  <Pencil className="h-4 w-4 text-primary" />
+                </button>
+              </div>
+            )}
+            <p className="text-muted-foreground text-sm mt-1">
               {isOnline ? 'Online' : 'Offline'} • Connected via {driver.admin_code}
             </p>
           </div>
@@ -185,7 +233,7 @@ export default function DriverDetails() {
             variant="outline" 
             onClick={handleDisconnect}
             disabled={disconnecting}
-            className="text-warning border-warning hover:bg-warning/10"
+            className="text-warning border-warning/50 hover:bg-warning/10"
           >
             <Unlink className="h-4 w-4 mr-2" />
             {disconnecting ? 'Disconnecting...' : 'Disconnect'}
@@ -196,14 +244,14 @@ export default function DriverDetails() {
             disabled={deleting}
           >
             <Trash2 className="h-4 w-4 mr-2" />
-            {deleting ? 'Deleting...' : 'Delete Driver'}
+            {deleting ? 'Deleting...' : 'Delete'}
           </Button>
         </div>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-primary/20">
@@ -217,7 +265,7 @@ export default function DriverDetails() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-success/10 to-success/5 border-success/20">
+        <Card className="bg-gradient-to-br from-success/10 to-success/5 border-2 border-success/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-success/20">
@@ -235,7 +283,7 @@ export default function DriverDetails() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border-warning/20">
+        <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border-2 border-warning/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-warning/20">
@@ -253,7 +301,7 @@ export default function DriverDetails() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-fleet-blue/10 to-fleet-blue/5 border-fleet-blue/20">
+        <Card className="bg-gradient-to-br from-fleet-blue/10 to-fleet-blue/5 border-2 border-fleet-blue/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-fleet-blue/20">
@@ -270,10 +318,12 @@ export default function DriverDetails() {
 
       {/* Current Location */}
       {locationHistory[0] && (
-        <Card>
-          <CardHeader>
-            <h3 className="font-heading font-semibold flex items-center gap-2">
-              <MapPin className="h-5 w-5 text-primary" />
+        <Card className="border-2 border-border">
+          <CardHeader className="pb-3">
+            <h3 className="font-heading font-semibold flex items-center gap-2 text-lg">
+              <div className="p-1.5 rounded-lg bg-primary/20">
+                <MapPin className="h-4 w-4 text-primary" />
+              </div>
               Current Location
             </h3>
           </CardHeader>
@@ -281,19 +331,19 @@ export default function DriverDetails() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <p className="text-xs text-muted-foreground">Latitude</p>
-                <p className="font-mono">{locationHistory[0].latitude.toFixed(6)}</p>
+                <p className="font-mono font-semibold">{locationHistory[0].latitude.toFixed(6)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Longitude</p>
-                <p className="font-mono">{locationHistory[0].longitude.toFixed(6)}</p>
+                <p className="font-mono font-semibold">{locationHistory[0].longitude.toFixed(6)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Accuracy</p>
-                <p>{locationHistory[0].accuracy ? `${Math.round(locationHistory[0].accuracy)}m` : '—'}</p>
+                <p className="font-semibold">{locationHistory[0].accuracy ? `±${Math.round(locationHistory[0].accuracy)}m` : '—'}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Last Update</p>
-                <p>{locationHistory[0].updated_at 
+                <p className="font-semibold text-sm">{locationHistory[0].updated_at 
                   ? new Date(locationHistory[0].updated_at).toLocaleString() 
                   : '—'}</p>
               </div>
@@ -311,33 +361,38 @@ export default function DriverDetails() {
       )}
 
       {/* Location History */}
-      <Card>
-        <CardHeader>
-          <h3 className="font-heading font-semibold flex items-center gap-2">
-            <Clock className="h-5 w-5 text-primary" />
+      <Card className="border-2 border-border">
+        <CardHeader className="pb-3">
+          <h3 className="font-heading font-semibold flex items-center gap-2 text-lg">
+            <div className="p-1.5 rounded-lg bg-primary/20">
+              <Clock className="h-4 w-4 text-primary" />
+            </div>
             Location History
           </h3>
         </CardHeader>
         <CardContent>
           {locationHistory.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No location history available</p>
+            <div className="text-center py-8">
+              <Clock className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+              <p className="text-muted-foreground">No location history available</p>
+            </div>
           ) : (
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {locationHistory.map((loc, idx) => (
                 <div 
                   key={idx}
                   className={clsx(
-                    'flex items-center justify-between p-3 rounded-lg border',
-                    idx === 0 ? 'bg-primary/5 border-primary/20' : 'border-border'
+                    'flex items-center justify-between p-3 rounded-xl border-2 transition-all',
+                    idx === 0 ? 'bg-primary/5 border-primary/30' : 'border-border hover:bg-muted/30'
                   )}
                 >
                   <div className="flex items-center gap-3">
                     <div className={clsx(
-                      'h-2 w-2 rounded-full',
-                      idx === 0 ? 'bg-primary' : 'bg-muted-foreground'
+                      'h-2.5 w-2.5 rounded-full',
+                      idx === 0 ? 'bg-primary animate-pulse' : 'bg-muted-foreground'
                     )} />
                     <div>
-                      <p className="font-mono text-sm">
+                      <p className="font-mono text-sm font-medium">
                         {loc.latitude.toFixed(5)}, {loc.longitude.toFixed(5)}
                       </p>
                       <p className="text-xs text-muted-foreground">
@@ -346,7 +401,10 @@ export default function DriverDetails() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium">
+                    <p className={clsx(
+                      'text-sm font-semibold',
+                      (loc.speed ?? 0) > 0 ? 'text-success' : 'text-muted-foreground'
+                    )}>
                       {loc.speed ? `${Math.round(loc.speed)} km/h` : '0 km/h'}
                     </p>
                     {loc.accuracy && (
