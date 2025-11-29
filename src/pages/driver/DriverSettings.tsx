@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { Bell, Navigation, MapPin, Battery, LogOut, Info, Link2, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Bell, Navigation, MapPin, Battery, LogOut, Info, Link2, X, User, Pencil, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import ThemeToggle from '@/components/ThemeToggle';
 
@@ -16,12 +17,15 @@ export default function DriverSettings() {
   const navigate = useNavigate();
   
   const [onDuty, setOnDuty] = useState(false);
-  const [pingInterval, setPingInterval] = useState(30); // seconds
+  const [pingInterval, setPingInterval] = useState(30);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [batterySaving, setBatterySaving] = useState(true);
   const [saving, setSaving] = useState(false);
   const [connectedDevice, setConnectedDevice] = useState<{ id: string; name: string } | null>(null);
   const [checkingConnection, setCheckingConnection] = useState(true);
+  const [driverName, setDriverName] = useState('');
+  const [editingName, setEditingName] = useState(false);
+  const [savingName, setSavingName] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -39,6 +43,9 @@ export default function DriverSettings() {
 
       if (!error && data.connected && data.device) {
         setConnectedDevice(data.device);
+        if (data.driverName) {
+          setDriverName(data.driverName);
+        }
       } else {
         setConnectedDevice(null);
       }
@@ -228,6 +235,93 @@ export default function DriverSettings() {
               </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Driver Profile */}
+      <Card variant="glass">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <User className="h-6 w-6 text-primary" />
+            <div>
+              <h2 className="text-xl font-semibold">Your Profile</h2>
+              <p className="text-sm text-muted-foreground">
+                How you appear to your admin
+              </p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+              <div>
+                <Label className="font-medium">Display Name</Label>
+                {editingName ? (
+                  <div className="flex items-center gap-2 mt-2">
+                    <Input
+                      value={driverName}
+                      onChange={(e) => setDriverName(e.target.value)}
+                      placeholder="Enter your name"
+                      className="max-w-[200px]"
+                      disabled={savingName}
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={async () => {
+                        if (!driverName.trim()) {
+                          toast.error('Name cannot be empty');
+                          return;
+                        }
+                        setSavingName(true);
+                        try {
+                          const { data, error } = await supabase.functions.invoke('connect-driver', {
+                            body: { action: 'update-name', name: driverName.trim() },
+                          });
+                          if (error) throw error;
+                          if (data.success) {
+                            toast.success('Name updated');
+                            setEditingName(false);
+                          }
+                        } catch (err) {
+                          toast.error('Failed to update name');
+                        } finally {
+                          setSavingName(false);
+                        }
+                      }}
+                      disabled={savingName}
+                    >
+                      <Check className="h-4 w-4 text-success" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => setEditingName(false)}
+                      disabled={savingName}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-lg font-semibold mt-1">
+                    {driverName || user?.email?.split('@')[0] || 'Not set'}
+                  </p>
+                )}
+              </div>
+              {!editingName && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => setEditingName(true)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              This name will be visible to your admin on the dashboard
+            </p>
+          </div>
         </CardContent>
       </Card>
 

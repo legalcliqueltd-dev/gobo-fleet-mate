@@ -14,7 +14,16 @@ type Props = {
 export default function DriversList({ onDriverSelect, selectedDriverId }: Props) {
   const { drivers, loading, error } = useDriverLocations();
 
-  const isRecent = (lastSeen: string | null) => {
+  // Check if driver is online (last seen within 2 minutes = active tracking)
+  const isOnline = (lastSeen: string | null, status: string | null) => {
+    if (status === 'offline' || status === 'disconnected') return false;
+    if (!lastSeen) return false;
+    const diff = Date.now() - new Date(lastSeen).getTime();
+    return diff < 2 * 60 * 1000; // 2 minutes for "online" status
+  };
+
+  // Check if driver was recently active (within 15 minutes)
+  const isRecentlyActive = (lastSeen: string | null) => {
     if (!lastSeen) return false;
     const diff = Date.now() - new Date(lastSeen).getTime();
     return diff < 15 * 60 * 1000;
@@ -118,8 +127,9 @@ export default function DriversList({ onDriverSelect, selectedDriverId }: Props)
           </div>
         ) : (
           <ul className="space-y-2 max-h-[300px] overflow-y-auto">
-            {drivers.map((driver) => {
-              const online = isRecent(driver.last_seen_at);
+          {drivers.map((driver) => {
+              const online = isOnline(driver.last_seen_at, driver.status);
+              const recentlyActive = isRecentlyActive(driver.last_seen_at);
               return (
                 <li key={driver.driver_id}>
                   <div
@@ -142,13 +152,17 @@ export default function DriversList({ onDriverSelect, selectedDriverId }: Props)
                             )}
                           </div>
                           <span className="font-semibold">
-                            {driver.driver_name || `Driver ${driver.driver_id.slice(0, 8)}`}
+                            {driver.driver_name || 'Unnamed Driver'}
                           </span>
                           <span className={clsx(
                             'text-[10px] px-2 py-0.5 rounded-full font-bold uppercase',
-                            online ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground'
+                            online 
+                              ? 'bg-success text-success-foreground' 
+                              : recentlyActive 
+                                ? 'bg-warning text-warning-foreground'
+                                : 'bg-muted text-muted-foreground'
                           )}>
-                            {online ? 'Live' : 'Offline'}
+                            {online ? 'Online' : recentlyActive ? 'Away' : 'Offline'}
                           </span>
                         </div>
                         <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
