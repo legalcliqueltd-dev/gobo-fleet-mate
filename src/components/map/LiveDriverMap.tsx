@@ -288,16 +288,18 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
   }, [animatedPositions]);
 
   // Valid drivers with coordinates
-  const validDrivers = useMemo(() => 
-    drivers.filter(d => d.latitude !== 0 && d.longitude !== 0),
-    [drivers]
-  );
+  const validDrivers = useMemo(() => {
+    const filtered = drivers.filter(d => d.latitude !== 0 && d.longitude !== 0);
+    console.log('🗺️ LiveDriverMap validDrivers:', filtered.length, filtered.map(d => ({ name: d.driver_name, lat: d.latitude, lng: d.longitude })));
+    return filtered;
+  }, [drivers]);
 
   // Valid devices with coordinates
-  const validDevices = useMemo(() => 
-    devices.filter(d => d.latitude !== 0 && d.longitude !== 0),
-    [devices]
-  );
+  const validDevices = useMemo(() => {
+    const filtered = devices.filter(d => d.latitude !== 0 && d.longitude !== 0);
+    console.log('🗺️ LiveDriverMap validDevices:', filtered.length);
+    return filtered;
+  }, [devices]);
 
   const initial = useMemo(() => {
     const allItems = [...validDrivers, ...validDevices];
@@ -326,6 +328,13 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
     allItems.forEach(i => bounds.extend({ lat: i.latitude, lng: i.longitude }));
     mapRef.current.fitBounds(bounds, 80);
   };
+
+  // Debug: Log driver data
+  useEffect(() => {
+    console.log('🚗 LiveDriverMap: drivers from hook =', drivers.length);
+    console.log('🗺️ LiveDriverMap: validDrivers =', validDrivers.length, validDrivers);
+    console.log('📍 LiveDriverMap: validDevices =', validDevices.length);
+  }, [drivers, validDrivers, validDevices]);
 
   if (!GOOGLE_MAPS_API_KEY) {
     return (
@@ -469,6 +478,12 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
           const markerSize = isSelected ? 56 : 48;
           const position = getDriverPosition(driver);
           const initial = (driver.driver_name || driver.driver_id)[0].toUpperCase();
+          
+          // Skip if position is invalid
+          if (!position || !position.lat || !position.lng || isNaN(position.lat) || isNaN(position.lng)) {
+            console.warn(`⚠️ Invalid position for ${driver.driver_name}:`, position);
+            return null;
+          }
           
           return (
             <Marker

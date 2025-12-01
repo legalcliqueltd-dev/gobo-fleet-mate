@@ -48,22 +48,21 @@ export function useRealtimeDriverLocations() {
 
   // Fetch initial data
   const fetchDriverLocations = useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('🚫 No user, skipping driver fetch');
+      return;
+    }
 
     try {
-      // Fetch admin codes for the user
-      const { data: userData } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', user.id)
-        .single();
-
+      console.log('🔄 Fetching driver locations...');
+      
       // Fetch drivers linked to this admin
       const { data: driversData, error: driversError } = await supabase
         .from('drivers')
         .select('*');
 
       if (driversError) throw driversError;
+      console.log('👥 Drivers fetched:', driversData?.length, driversData);
 
       // Fetch latest locations for all drivers
       const { data: locationsData, error: locationsError } = await supabase
@@ -71,10 +70,12 @@ export function useRealtimeDriverLocations() {
         .select('*');
 
       if (locationsError) throw locationsError;
+      console.log('📍 Locations fetched:', locationsData?.length, locationsData);
 
       // Merge data
       const mergedDrivers: LiveDriverLocation[] = (driversData || []).map(driver => {
         const location = locationsData?.find(l => l.driver_id === driver.driver_id);
+        console.log(`🔗 Driver ${driver.driver_name}: location =`, location);
         const prevPos = previousPositions.current.get(driver.driver_id);
         
         return {
@@ -93,6 +94,13 @@ export function useRealtimeDriverLocations() {
         };
       });
 
+      console.log('✅ Merged drivers:', mergedDrivers.map(d => ({
+        name: d.driver_name,
+        lat: d.latitude,
+        lng: d.longitude,
+        status: d.status
+      })));
+
       // Update previous positions
       mergedDrivers.forEach(d => {
         if (d.latitude !== 0 && d.longitude !== 0) {
@@ -103,6 +111,9 @@ export function useRealtimeDriverLocations() {
           });
         }
       });
+
+      const validCount = mergedDrivers.filter(d => d.latitude !== 0 && d.longitude !== 0).length;
+      console.log(`📊 Valid drivers with location: ${validCount}/${mergedDrivers.length}`);
 
       setDrivers(mergedDrivers);
       setLastUpdate(new Date());
