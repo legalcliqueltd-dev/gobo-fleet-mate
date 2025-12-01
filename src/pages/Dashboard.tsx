@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useDeviceLocations } from '../hooks/useDeviceLocations';
 import { useDriverLocations, DriverLocation } from '../hooks/useDriverLocations';
-import MapView from '../components/map/MapView';
+import LiveDriverMap from '../components/map/LiveDriverMap';
 import DriversList from '../components/DriversList';
 import GeofenceAlerts from '../components/GeofenceAlerts';
 import TempTrackingManager from '../components/TempTrackingManager';
@@ -33,23 +33,26 @@ export default function Dashboard() {
     }
   }, [searchParams]);
 
-  const allMarkers = useMemo(() => {
-    const driverMarkers = drivers.map(d => ({
-      device_id: `driver-${d.driver_id}`,
-      name: d.driver_name || `Driver ${d.driver_id.slice(0, 8)}`,
-      latitude: d.latitude,
-      longitude: d.longitude,
-      speed: d.speed,
-      timestamp: d.last_seen_at,
-      status: (d.last_seen_at && Date.now() - new Date(d.last_seen_at).getTime() < 15 * 60 * 1000) 
-        ? 'active' as const 
-        : 'offline' as const,
+  // Convert device markers for LiveDriverMap
+  const deviceMarkers = useMemo(() => {
+    return markers.map(m => ({
+      device_id: m.device_id,
+      name: m.name || 'Device',
+      status: (m.status || 'offline') as 'active' | 'idle' | 'offline',
+      latitude: m.latitude,
+      longitude: m.longitude,
+      speed: m.speed || null,
+      timestamp: m.timestamp || null,
     }));
-    return [...markers, ...driverMarkers];
-  }, [markers, drivers]);
+  }, [markers]);
 
   const handleDriverSelect = useCallback((driver: DriverLocation) => {
     setSelectedDriverId(driver.driver_id);
+    setSelectedId(null);
+  }, []);
+
+  const handleLiveDriverSelect = useCallback((driverId: string) => {
+    setSelectedDriverId(driverId);
     setSelectedId(null);
   }, []);
 
@@ -156,18 +159,11 @@ export default function Dashboard() {
       {/* Main Content - Map First */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
         <section className="order-1">
-          <MapView
-            items={allMarkers}
-            selectedId={selectedDriverId ? `driver-${selectedDriverId}` : selectedId}
-            onMarkerClick={(id) => {
-              if (id.startsWith('driver-')) {
-                setSelectedDriverId(id.replace('driver-', ''));
-                setSelectedId(null);
-              } else {
-                setSelectedId(id);
-                setSelectedDriverId(null);
-              }
-            }}
+          <LiveDriverMap
+            selectedDriverId={selectedDriverId}
+            onDriverSelect={handleLiveDriverSelect}
+            showDevices={true}
+            devices={deviceMarkers}
           />
         </section>
 
