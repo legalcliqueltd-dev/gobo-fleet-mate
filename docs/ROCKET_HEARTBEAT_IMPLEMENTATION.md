@@ -8,6 +8,21 @@ The mobile app MUST continuously send location/heartbeat updates while the drive
 
 ---
 
+## CRITICAL: Error Handling for Deleted Drivers
+
+If a driver is deleted from the admin dashboard, the server will return:
+```json
+{ "error": "Driver not found", "requiresRelogin": true }
+```
+
+**The Rocket app MUST handle this by:**
+1. Clearing the cached `driverId` from local storage/AsyncStorage
+2. Stopping all location tracking and heartbeat intervals
+3. Redirecting the user to the login screen
+4. Showing a message like "Session expired. Please log in again."
+
+---
+
 ## Required API Calls
 
 ### 1. Location Update (Every 10-30 seconds)
@@ -30,7 +45,15 @@ const sendLocationUpdate = async (driverId, latitude, longitude, speed, accuracy
     })
   });
   
-  return response.json();
+  const data = await response.json();
+  
+  // CRITICAL: Handle deleted driver
+  if (data.requiresRelogin) {
+    await handleForcedLogout();
+    return null;
+  }
+  
+  return data;
 };
 ```
 
@@ -51,7 +74,28 @@ const sendHeartbeat = async (driverId) => {
     })
   });
   
-  return response.json();
+  const data = await response.json();
+  
+  // CRITICAL: Handle deleted driver
+  if (data.requiresRelogin) {
+    await handleForcedLogout();
+    return null;
+  }
+  
+  return data;
+};
+
+// Forced logout handler
+const handleForcedLogout = async () => {
+  // Clear stored driver ID
+  await AsyncStorage.removeItem('driverId');
+  await AsyncStorage.removeItem('adminCode');
+  
+  // Navigate to login screen
+  navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+  
+  // Show user-friendly message
+  Alert.alert('Session Expired', 'Please log in again with your connection code.');
 };
 ```
 
@@ -61,10 +105,11 @@ const sendHeartbeat = async (driverId) => {
 
 ```javascript
 class DriverTracker {
-  constructor(driverId) {
+  constructor(driverId, onForcedLogout) {
     this.driverId = driverId;
     this.locationWatchId = null;
     this.heartbeatInterval = null;
+    this.onForcedLogout = onForcedLogout; // Callback for forced logout
   }
 
   async start() {
@@ -120,7 +165,7 @@ class DriverTracker {
 
   async sendLocationUpdate(lat, lng, speed, accuracy) {
     try {
-      await fetch('https://invbnyxieoyohahqhbir.supabase.co/functions/v1/connect-driver', {
+      const response = await fetch('https://invbnyxieoyohahqhbir.supabase.co/functions/v1/connect-driver', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -132,6 +177,14 @@ class DriverTracker {
           accuracy: accuracy || 0
         })
       });
+      
+      const data = await response.json();
+      
+      // Handle forced logout
+      if (data.requiresRelogin && this.onForcedLogout) {
+        this.stop();
+        this.onForcedLogout();
+      }
     } catch (error) {
       console.error('Location update failed:', error);
     }
@@ -139,7 +192,7 @@ class DriverTracker {
 
   async sendHeartbeat() {
     try {
-      await fetch('https://invbnyxieoyohahqhbir.supabase.co/functions/v1/connect-driver', {
+      const response = await fetch('https://invbnyxieoyohahqhbir.supabase.co/functions/v1/connect-driver', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -148,6 +201,14 @@ class DriverTracker {
           status: 'active'
         })
       });
+      
+      const data = await response.json();
+      
+      // Handle forced logout
+      if (data.requiresRelogin && this.onForcedLogout) {
+        this.stop();
+        this.onForcedLogout();
+      }
     } catch (error) {
       console.error('Heartbeat failed:', error);
     }
