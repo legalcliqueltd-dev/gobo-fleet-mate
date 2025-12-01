@@ -250,6 +250,21 @@ Deno.serve(async (req) => {
         );
       }
 
+      // Validate driver exists before updating
+      const { data: driver } = await supabaseAdmin
+        .from('drivers')
+        .select('driver_id')
+        .eq('driver_id', driverId)
+        .maybeSingle();
+
+      if (!driver) {
+        console.log('Driver not found for update-status:', driverId);
+        return new Response(
+          JSON.stringify({ error: 'Driver not found', requiresRelogin: true }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       const { status } = body;
       
       await supabaseAdmin
@@ -311,9 +326,10 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Filter out poor accuracy locations (> 100m) for better tracking
+      // Filter out poor accuracy locations (> 1500m) for better tracking
+      // Threshold raised from 100m to handle indoor/poor GPS conditions
       const accuracyValue = accuracy || 0;
-      const isAccurate = accuracyValue <= 100;
+      const isAccurate = accuracyValue <= 1500;
       
       console.log('Location update - Driver:', driverId, 'Lat:', latitude, 'Lng:', longitude, 'Accuracy:', accuracyValue, 'Accurate:', isAccurate);
 
@@ -325,8 +341,9 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (!driver) {
+        console.log('Driver not found for update-location:', driverId);
         return new Response(
-          JSON.stringify({ error: 'Driver not found' }),
+          JSON.stringify({ error: 'Driver not found', requiresRelogin: true }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
