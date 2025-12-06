@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '../contexts/AuthContext';
-import { AlertTriangle, Camera, MapPin } from 'lucide-react';
+import { AlertTriangle, Camera, MapPin, X, Upload, Image } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Textarea } from '../components/ui/textarea';
 import { toast } from 'sonner';
@@ -19,9 +19,14 @@ export default function Driver() {
   const [submitting, setSubmitting] = useState(false);
   const [recentSOS, setRecentSOS] = useState<any>(null);
   const [positionInterval, setPositionInterval] = useState<number | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   
   const holdTimerRef = useRef<number | null>(null);
   const countdownTimerRef = useRef<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Get current location
@@ -40,12 +45,36 @@ export default function Driver() {
     // Load most recent SOS for this user
     loadRecentSOS();
 
+    // Subscribe to updates for this user's SOS events
+    const channel = supabase
+      .channel('driver-sos-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'sos_events',
+        },
+        (payload) => {
+          if (payload.new && recentSOS && payload.new.id === recentSOS.id) {
+            setRecentSOS(payload.new);
+            if (payload.new.status === 'acknowledged') {
+              toast.success('Your SOS has been acknowledged! Help is on the way.');
+            } else if (payload.new.status === 'resolved') {
+              toast.success('Your SOS has been resolved.');
+            }
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
       if (countdownTimerRef.current) clearInterval(countdownTimerRef.current);
       if (positionInterval) clearInterval(positionInterval);
+      supabase.removeChannel(channel);
     };
-  }, []);
+  }, [recentSOS?.id]);
 
   const loadRecentSOS = async () => {
     if (!user) return;
@@ -82,6 +111,62 @@ export default function Driver() {
     setCountdown(2);
   };
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Photo must be less than 5MB');
+        return;
+      }
+      setPhotoFile(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const removePhoto = () => {
+    setPhotoFile(null);
+    if (photoPreview) {
+      URL.revokeObjectURL(photoPreview);
+    }
+    setPhotoPreview(null);
+  };
+
+  const uploadPhoto = async (sosId: string): Promise<string | null> => {
+    if (!photoFile || !user) return null;
+    
+    setUploadingPhoto(true);
+    try {
+      const fileExt = photoFile.name.split('.').pop();
+      const fileName = `${user.id}/${sosId}/${Date.now()}.${fileExt}`;
+      
+      const { data, error } = await supabase.storage
+        .from('sos-evidence')
+        .upload(fileName, photoFile, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (error) {
+        console.error('Photo upload error:', error);
+        toast.error('Failed to upload photo');
+        return null;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('sos-evidence')
+        .getPublicUrl(fileName);
+
+      return urlData.publicUrl;
+    } catch (err: any) {
+      console.error('Photo upload exception:', err);
+      return null;
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const submitSOS = async () => {
     if (!user || !location) {
       toast.error('Location required');
@@ -90,6 +175,7 @@ export default function Driver() {
 
     setSubmitting(true);
     try {
+      // First create the SOS event without photo
       const { data, error } = await supabase
         .from('sos_events')
         .insert({
@@ -105,9 +191,22 @@ export default function Driver() {
 
       if (error) throw error;
 
+      // Upload photo if present and update SOS with URL
+      if (photoFile && data) {
+        const photoUrl = await uploadPhoto(data.id);
+        if (photoUrl) {
+          await supabase
+            .from('sos_events')
+            .update({ photo_url: photoUrl })
+            .eq('id', data.id);
+          data.photo_url = photoUrl;
+        }
+      }
+
       toast.success('SOS sent! Help is on the way.');
       setShowForm(false);
       setMessage('');
+      removePhoto();
       setRecentSOS(data);
 
       // Start auto-updating position every 30 seconds for 10 minutes
@@ -167,24 +266,43 @@ export default function Driver() {
     cancelled: 'bg-gray-500',
   };
 
+  const statusText = {
+    open: 'Waiting for response...',
+    acknowledged: 'Help is on the way!',
+    resolved: 'Resolved',
+    cancelled: 'Cancelled',
+  };
+
   return (
     <div className="max-w-2xl mx-auto">
       <h1 className="font-heading text-3xl font-bold mb-6">Driver Emergency</h1>
 
       {recentSOS && recentSOS.status !== 'resolved' && recentSOS.status !== 'cancelled' && (
-        <div className="nb-card p-4 mb-6 border-red-500">
+        <div className="glass-card p-4 mb-6 border-2 border-red-500/50 rounded-xl">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-lg">Active SOS</h3>
             <span className={`px-3 py-1 rounded-full text-white text-sm ${statusColor[recentSOS.status as keyof typeof statusColor]}`}>
               {recentSOS.status.toUpperCase()}
             </span>
           </div>
-          <p className="text-sm text-muted-foreground mb-2">
+          <p className="text-sm text-muted-foreground mb-1">
             Hazard: <strong>{recentSOS.hazard}</strong>
           </p>
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-sm font-medium mb-2 text-primary">
+            {statusText[recentSOS.status as keyof typeof statusText]}
+          </p>
+          <p className="text-xs text-muted-foreground mb-4">
             {new Date(recentSOS.created_at).toLocaleString()}
           </p>
+          {recentSOS.photo_url && (
+            <div className="mb-4">
+              <img
+                src={recentSOS.photo_url}
+                alt="Evidence"
+                className="w-full max-h-48 object-cover rounded-lg"
+              />
+            </div>
+          )}
           {recentSOS.status === 'open' && (
             <Button variant="outline" size="sm" onClick={cancelSOS}>
               Cancel SOS
@@ -216,7 +334,7 @@ export default function Driver() {
           </p>
         </div>
       ) : (
-        <div className="nb-card p-6">
+        <div className="glass-card p-6 rounded-xl">
           <h2 className="font-heading text-xl font-semibold mb-4">Emergency Details</h2>
           
           <div className="mb-4">
@@ -236,6 +354,62 @@ export default function Driver() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Photo Upload Section */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">Photo Evidence (Optional)</label>
+            {photoPreview ? (
+              <div className="relative">
+                <img
+                  src={photoPreview}
+                  alt="Preview"
+                  className="w-full max-h-48 object-cover rounded-lg"
+                />
+                <button
+                  onClick={removePhoto}
+                  className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => cameraInputRef.current?.click()}
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  Camera
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Image className="h-4 w-4 mr-2" />
+                  Gallery
+                </Button>
+              </div>
+            )}
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handlePhotoChange}
+            />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handlePhotoChange}
+            />
           </div>
 
           <div className="mb-4">
@@ -260,14 +434,17 @@ export default function Driver() {
           <div className="flex gap-2">
             <Button
               onClick={submitSOS}
-              disabled={submitting || !location}
+              disabled={submitting || !location || uploadingPhoto}
               className="flex-1"
               variant="destructive"
             >
-              {submitting ? 'Sending...' : 'Send SOS'}
+              {submitting || uploadingPhoto ? 'Sending...' : 'Send SOS'}
             </Button>
             <Button
-              onClick={() => setShowForm(false)}
+              onClick={() => {
+                setShowForm(false);
+                removePhoto();
+              }}
               variant="outline"
             >
               Cancel

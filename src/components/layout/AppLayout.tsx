@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/button';
 import LocationPermissionPrompt from '../LocationPermissionPrompt';
 import { useBackgroundLocationTracking } from '@/hooks/useBackgroundLocationTracking';
+import SOSNotificationBell from '../sos/SOSNotificationBell';
 
 export default function AppLayout({ children }: PropsWithChildren) {
   const { user, signOut, loading } = useAuth();
@@ -78,13 +79,16 @@ export default function AppLayout({ children }: PropsWithChildren) {
             {/* Desktop Actions */}
             <div className="hidden md:flex items-center gap-3">
               {user && (
-                <Link 
-                  to="/driver" 
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-all hover:shadow-lg"
-                >
-                  <AlertTriangle className="h-4 w-4" />
-                  SOS
-                </Link>
+                <>
+                  <SOSNotificationBell />
+                  <Link 
+                    to="/driver" 
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-all hover:shadow-lg"
+                  >
+                    <AlertTriangle className="h-4 w-4" />
+                    SOS
+                  </Link>
+                </>
               )}
               {!loading && (user ? (
                 <>
@@ -106,13 +110,16 @@ export default function AppLayout({ children }: PropsWithChildren) {
             {/* Mobile Menu Button */}
             <div className="flex items-center gap-2 md:hidden">
               {user && (
-                <Link 
-                  to="/driver"
-                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold"
-                >
-                  <AlertTriangle className="h-3 w-3" />
-                  SOS
-                </Link>
+                <>
+                  <SOSNotificationBell />
+                  <Link 
+                    to="/driver"
+                    className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold"
+                  >
+                    <AlertTriangle className="h-3 w-3" />
+                    SOS
+                  </Link>
+                </>
               )}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
