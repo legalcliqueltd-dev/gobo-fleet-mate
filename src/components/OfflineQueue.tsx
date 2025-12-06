@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader } from './ui/Card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Wifi, WifiOff, RefreshCw, Trash2, CheckCircle } from 'lucide-react';
@@ -138,7 +138,7 @@ export default function OfflineQueue() {
   }
 
   return (
-    <Card variant="glass" className="m-4">
+    <Card className="m-4 bg-background/50 backdrop-blur border border-border">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

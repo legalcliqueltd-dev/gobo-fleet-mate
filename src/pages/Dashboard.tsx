@@ -8,8 +8,8 @@ import TempTrackingManager from '../components/TempTrackingManager';
 import { Clock, Plus, ExternalLink, TrendingUp, Car, Users, Activity, Trash2, Link2 } from 'lucide-react';
 import clsx from 'clsx';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Card, CardContent, CardHeader } from '../components/ui/Card';
-import Button from '../components/ui/Button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -270,7 +270,7 @@ export default function Dashboard() {
       <GeofenceAlerts />
 
       <Link to="/devices/new" className="lg:hidden fixed bottom-6 right-6 z-20 safe-bottom">
-        <Button variant="brutal" size="icon" className="rounded-xl h-14 w-14 shadow-xl">
+        <Button variant="default" size="icon" className="rounded-xl h-14 w-14 shadow-xl">
           <Plus className="h-6 w-6" />
         </Button>
       </Link>

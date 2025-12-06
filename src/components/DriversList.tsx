@@ -1,5 +1,5 @@
 import { useDriverLocations, DriverLocation } from '@/hooks/useDriverLocations';
-import { Card, CardContent, CardHeader } from './ui/Card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Clock, MapPin, Navigation, User, Wifi, WifiOff, ExternalLink, Trash2, Unlink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';

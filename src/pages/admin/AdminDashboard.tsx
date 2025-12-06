@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import DeviceMarker from '@/components/map/DeviceMarker';
 
@@ -133,7 +133,7 @@ export default function AdminDashboard() {
         <div className="max-w-7xl mx-auto">
           <h1 className="text-2xl font-bold mb-4">Operations Overview</h1>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card variant="glass">
+            <Card className="bg-background/50 backdrop-blur border border-border">
               <CardContent className="p-4 flex items-center gap-3">
                 <Package className="h-8 w-8 text-blue-500" />
                 <div>
@@ -142,7 +142,7 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
             </Card>
-            <Card variant="glass">
+            <Card className="bg-background/50 backdrop-blur border border-border">
               <CardContent className="p-4 flex items-center gap-3">
                 <Users className="h-8 w-8 text-emerald-500" />
                 <div>
@@ -151,7 +151,7 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
             </Card>
-            <Card variant="glass">
+            <Card className="bg-background/50 backdrop-blur border border-border">
               <CardContent className="p-4 flex items-center gap-3">
                 <Radio className="h-8 w-8 text-amber-500" />
                 <div>
@@ -160,7 +160,7 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
             </Card>
-            <Card variant="glass">
+            <Card className="bg-background/50 backdrop-blur border border-border">
               <CardContent className="p-4 flex items-center gap-3">
                 <MapPin className="h-8 w-8 text-purple-500" />
                 <div>
@@ -217,33 +217,31 @@ export default function AdminDashboard() {
                 />
               ))}
 
-              {/* Info Window for selected device */}
-              {selectedDevice && markers.find(m => m.device_id === selectedDevice) && (
-                <InfoWindow
-                  position={{
-                    lat: markers.find(m => m.device_id === selectedDevice)!.latitude,
-                    lng: markers.find(m => m.device_id === selectedDevice)!.longitude
-                  }}
-                  onCloseClick={() => setSelectedDevice(null)}
-                >
-                  <div className="p-2">
-                    <h3 className="font-semibold">{markers.find(m => m.device_id === selectedDevice)!.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Speed: {markers.find(m => m.device_id === selectedDevice)!.speed || 0} km/h
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Last update: {new Date(markers.find(m => m.device_id === selectedDevice)!.timestamp).toLocaleTimeString()}
-                    </p>
-                    <Button
-                      size="sm"
-                      className="mt-2 w-full"
-                      onClick={() => navigate(`/devices/${selectedDevice}`)}
-                    >
-                      View Details
-                    </Button>
-                  </div>
-                </InfoWindow>
-              )}
+              {/* Compact Info Window for selected device - click to open, click elsewhere to close */}
+              {selectedDevice && (() => {
+                const device = markers.find(m => m.device_id === selectedDevice);
+                if (!device) return null;
+                return (
+                  <InfoWindow
+                    position={{ lat: device.latitude, lng: device.longitude }}
+                    onCloseClick={() => setSelectedDevice(null)}
+                    options={{ pixelOffset: new google.maps.Size(0, -20) }}
+                  >
+                    <div className="p-1.5 min-w-[120px]">
+                      <p className="font-medium text-xs text-gray-900">{device.name}</p>
+                      <p className="text-[10px] text-gray-600">
+                        {device.speed || 0} km/h • {new Date(device.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                      <button
+                        className="mt-1 w-full text-[10px] text-blue-600 hover:underline"
+                        onClick={() => navigate(`/devices/${selectedDevice}`)}
+                      >
+                        Details →
+                      </button>
+                    </div>
+                  </InfoWindow>
+                );
+              })()}
             </GoogleMap>
           )}
         </div>
@@ -279,8 +277,7 @@ export default function AdminDashboard() {
                         }}
                       >
                         <Card 
-                          variant="glass"
-                          className={`transition-all ${
+                          className={`transition-all bg-background/50 backdrop-blur border border-border ${
                             selectedDevice === device.id ? 'ring-2 ring-primary' : ''
                           }`}
                         >
@@ -330,7 +327,7 @@ export default function AdminDashboard() {
                   </p>
                 ) : (
                   recentTasks.map((task) => (
-                    <Card key={task.id} variant="glass">
+                    <Card key={task.id} className="bg-background/50 backdrop-blur border border-border">
                       <CardContent className="p-3">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">

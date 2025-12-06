@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Link2, Check, AlertCircle, User } from 'lucide-react';
@@ -117,7 +117,7 @@ export default function ConnectDevice() {
   if (connected) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <Card variant="glass" className="max-w-md w-full">
+        <Card className="max-w-md w-full bg-background/50 backdrop-blur border border-border">
           <CardContent className="p-6 text-center space-y-4">
             <div className="w-16 h-16 bg-success rounded-full flex items-center justify-center mx-auto">
               <Check className="h-8 w-8 text-success-foreground" />
@@ -149,7 +149,7 @@ export default function ConnectDevice() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
-      <Card variant="glass" className="max-w-md w-full">
+      <Card className="max-w-md w-full bg-background/50 backdrop-blur border border-border">
         <CardContent className="p-6 space-y-6">
           <div className="text-center">
             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
