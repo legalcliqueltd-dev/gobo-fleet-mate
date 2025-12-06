@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -177,7 +177,7 @@ export default function DriverSettings() {
       </div>
 
       {/* Device Connection */}
-      <Card variant="glass">
+      <Card className="bg-background/50 backdrop-blur border border-border">
         <CardHeader>
           <div className="flex items-center gap-3">
             <Link2 className="h-6 w-6 text-primary" />
@@ -239,7 +239,7 @@ export default function DriverSettings() {
       </Card>
 
       {/* Driver Profile */}
-      <Card variant="glass">
+      <Card className="bg-background/50 backdrop-blur border border-border">
         <CardHeader>
           <div className="flex items-center gap-3">
             <User className="h-6 w-6 text-primary" />
@@ -326,7 +326,7 @@ export default function DriverSettings() {
       </Card>
 
       {/* On Duty Status */}
-      <Card variant="glass">
+      <Card className="bg-background/50 backdrop-blur border border-border">
         <CardHeader>
           <div className="flex items-center gap-3">
             <Navigation className="h-6 w-6 text-primary" />
@@ -361,7 +361,7 @@ export default function DriverSettings() {
       </Card>
 
       {/* Location Settings */}
-      <Card variant="glass">
+      <Card className="bg-background/50 backdrop-blur border border-border">
         <CardHeader>
           <div className="flex items-center gap-3">
             <MapPin className="h-6 w-6 text-primary" />
@@ -413,7 +413,7 @@ export default function DriverSettings() {
       </Card>
 
       {/* Notifications */}
-      <Card variant="glass">
+      <Card className="bg-background/50 backdrop-blur border border-border">
         <CardHeader>
           <div className="flex items-center gap-3">
             <Bell className="h-6 w-6 text-primary" />
@@ -453,7 +453,7 @@ export default function DriverSettings() {
       </Card>
 
       {/* Appearance */}
-      <Card variant="glass">
+      <Card className="bg-background/50 backdrop-blur border border-border">
         <CardHeader>
           <div>
             <h2 className="text-xl font-semibold">Appearance</h2>
@@ -471,7 +471,7 @@ export default function DriverSettings() {
       </Card>
 
       {/* App Info */}
-      <Card variant="glass">
+      <Card className="bg-background/50 backdrop-blur border border-border">
         <CardHeader>
           <div className="flex items-center gap-3">
             <Info className="h-6 w-6 text-primary" />

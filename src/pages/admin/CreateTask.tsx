@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
-import { Card, CardContent, CardHeader } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -196,7 +196,7 @@ export default function CreateTask() {
 
           <div className="space-y-6">
             {/* Basic Info */}
-            <Card variant="glass">
+            <Card className="bg-background/50 backdrop-blur border border-border">
               <CardHeader>
                 <h2 className="text-lg font-semibold">Task Details</h2>
               </CardHeader>
@@ -251,7 +251,7 @@ export default function CreateTask() {
             </Card>
 
             {/* Locations */}
-            <Card variant="glass">
+            <Card className="bg-background/50 backdrop-blur border border-border">
               <CardHeader>
                 <h2 className="text-lg font-semibold">Locations</h2>
                 <p className="text-sm text-muted-foreground">
@@ -346,7 +346,7 @@ export default function CreateTask() {
       <div className="flex-1 relative">
         {markerMode && (
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
-            <Card variant="glass">
+            <Card className="bg-background/50 backdrop-blur border border-border">
               <CardContent className="p-3">
                 <p className="text-sm font-medium">
                   Click on the map to set {markerMode} location

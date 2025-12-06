@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Copy, Check, QrCode, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -84,7 +84,7 @@ export default function AddDevice() {
       <div className="max-w-2xl mx-auto p-4">
         <h2 className="font-heading text-2xl font-semibold mb-6">Device Created Successfully!</h2>
         
-        <Card variant="glass" className="mb-6">
+        <Card className="mb-6 bg-background/50 backdrop-blur border border-border">
           <CardContent className="p-6 space-y-4">
             <div>
               <h3 className="text-lg font-semibold mb-2">Device: {deviceName}</h3>

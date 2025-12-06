@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -230,7 +230,7 @@ export default function DriversManagement() {
       </div>
 
       {activeDriverCount >= driverLimit && (
-        <Card variant="glass" className="mb-6 border-amber-500/50">
+        <Card className="mb-6 border-amber-500/50 bg-background/50 backdrop-blur">
           <CardContent className="p-4 flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
             <div className="flex-1">
@@ -254,7 +254,7 @@ export default function DriversManagement() {
       {loading ? (
         <p className="text-center text-muted-foreground py-12">Loading drivers...</p>
       ) : drivers.length === 0 ? (
-        <Card variant="glass">
+        <Card className="bg-background/50 backdrop-blur border border-border">
           <CardContent className="p-12 text-center">
             <Users className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-xl font-semibold mb-2">No Drivers Connected</h3>
@@ -270,7 +270,7 @@ export default function DriversManagement() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {drivers.map((driver) => (
-            <Card key={driver.id} variant="glass">
+            <Card key={driver.id} className="bg-background/50 backdrop-blur border border-border">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div>
@@ -384,13 +384,13 @@ export default function DriversManagement() {
               Upgrade to our Pro plan to connect up to 10 drivers, or Business plan for unlimited drivers.
             </p>
             <div className="space-y-2">
-              <Card variant="glass">
+              <Card className="bg-background/50 backdrop-blur border border-border">
                 <CardContent className="p-4">
                   <h4 className="font-semibold">Pro Plan - $29/month</h4>
                   <p className="text-sm text-muted-foreground">Up to 10 drivers</p>
                 </CardContent>
               </Card>
-              <Card variant="glass">
+              <Card className="bg-background/50 backdrop-blur border border-border">
                 <CardContent className="p-4">
                   <h4 className="font-semibold">Business Plan - $99/month</h4>
                   <p className="text-sm text-muted-foreground">Unlimited drivers</p>
