@@ -234,7 +234,7 @@ function ConnectionIndicator({ status, lastUpdate }: { status: string; lastUpdat
 export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDevices = true, devices = [] }: Props) {
   const mapRef = useRef<google.maps.Map | null>(null);
   const [mapType, setMapType] = useState<keyof typeof MAP_STYLES>('roadmap');
-  const [hoveredDriverId, setHoveredDriverId] = useState<string | null>(null);
+  const [openInfoWindowId, setOpenInfoWindowId] = useState<string | null>(null);
   const [animatedPositions, setAnimatedPositions] = useState<Map<string, { lat: number; lng: number }>>(new Map());
   
   const { drivers, loading, error, lastUpdate, connectionStatus } = useRealtimeDriverLocations();
@@ -358,8 +358,7 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
     );
   }
 
-  const selectedDriver = validDrivers.find(d => d.driver_id === selectedDriverId);
-  const hoveredDriver = hoveredDriverId ? validDrivers.find(d => d.driver_id === hoveredDriverId) : null;
+  const openInfoDriver = openInfoWindowId ? validDrivers.find(d => d.driver_id === openInfoWindowId) : null;
 
   return (
     <div className="relative h-[70vh] rounded-2xl overflow-hidden border-2 border-border shadow-xl bg-card">
@@ -493,30 +492,28 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
                 url: createDriverMarkerIcon(driver.status, isSelected, initial),
                 anchor: new google.maps.Point(markerSize / 2, markerSize / 2),
               }}
-              onClick={() => onDriverSelect?.(driver.driver_id)}
-              onMouseOver={() => setHoveredDriverId(driver.driver_id)}
-              onMouseOut={() => setHoveredDriverId(null)}
+              onClick={() => {
+                setOpenInfoWindowId(driver.driver_id);
+                onDriverSelect?.(driver.driver_id);
+              }}
               zIndex={isSelected ? 1000 : (driver.status === 'active' ? 800 : 600)}
             />
           );
         })}
 
-        {/* Info Window for hovered/selected driver */}
-        {(hoveredDriver || selectedDriver) && (() => {
-          const driver = hoveredDriver || selectedDriver;
-          if (!driver) return null;
-          const position = getDriverPosition(driver);
+        {/* Info Window for clicked driver */}
+        {openInfoDriver && (() => {
+          const position = getDriverPosition(openInfoDriver);
           
           return (
             <InfoWindow
               position={position}
               options={{ 
                 pixelOffset: new google.maps.Size(0, -30),
-                disableAutoPan: true,
               }}
-              onCloseClick={() => setHoveredDriverId(null)}
+              onCloseClick={() => setOpenInfoWindowId(null)}
             >
-              <DriverCard driver={driver} onClose={() => setHoveredDriverId(null)} />
+              <DriverCard driver={openInfoDriver} onClose={() => setOpenInfoWindowId(null)} />
             </InfoWindow>
           );
         })()}
