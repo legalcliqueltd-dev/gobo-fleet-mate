@@ -34,6 +34,8 @@ import BackgroundPathsDemo from './pages/BackgroundPathsDemo';
 import HeroGeometricDemo from './pages/HeroGeometricDemo';
 import PulseBeamsDemo from './pages/PulseBeamsDemo';
 import Header3Demo from './pages/Header3Demo';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 import { ThemeProvider } from './contexts/ThemeContext';
 
 export default function App() {
@@ -59,6 +61,8 @@ export default function App() {
                 <Route path="/auth/forgot" element={<ForgotPassword />} />
                 <Route path="/auth/update-password" element={<UpdatePassword />} />
                 <Route path="/status" element={<Status />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/terms" element={<Terms />} />
                 <Route
                   path="/dashboard"
                   element={
