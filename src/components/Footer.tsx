@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Truck, Mail, Phone, MapPin, Twitter, Linkedin, Facebook } from "lucide-react";
 import HealthCheck from "@/components/HealthCheck";
-import { useLocation } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 
 const Footer = () => {
   const location = useLocation();
@@ -42,8 +42,8 @@ const Footer = () => {
     {
       title: "Legal",
       links: [
-        { name: "Privacy Policy", href: "#privacy" },
-        { name: "Terms of Service", href: "#terms" },
+        { name: "Privacy Policy", href: "/privacy", isRoute: true },
+        { name: "Terms of Service", href: "/terms", isRoute: true },
         { name: "Cookie Policy", href: "#cookies" },
         { name: "GDPR", href: "#gdpr" },
         { name: "Security", href: "#security" },
@@ -110,12 +110,21 @@ const Footer = () => {
               <ul className="space-y-3">
                 {section.links.map((link, linkIndex) => (
                   <li key={linkIndex}>
-                    <a
-                      href={link.href}
-                      className="text-muted-foreground hover:text-foreground transition-colors text-sm"
-                    >
-                      {link.name}
-                    </a>
+                    {(link as any).isRoute ? (
+                      <Link
+                        to={link.href}
+                        className="text-muted-foreground hover:text-foreground transition-colors text-sm"
+                      >
+                        {link.name}
+                      </Link>
+                    ) : (
+                      <a
+                        href={link.href}
+                        className="text-muted-foreground hover:text-foreground transition-colors text-sm"
+                      >
+                        {link.name}
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>
