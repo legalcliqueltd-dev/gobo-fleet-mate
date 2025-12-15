@@ -123,7 +123,7 @@ const Hero = () => {
                   size="lg"
                   className="rounded-[0.7rem] group-hover:-translate-y-0.5 transition-transform w-full sm:w-auto"
                 >
-                  Start Free Trial
+                  Get Started
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </a>
@@ -131,7 +131,7 @@ const Hero = () => {
             <a href="#download">
               <Button variant="outline" size="lg" className="w-full sm:w-auto">
                 <Download className="w-5 h-5 mr-2" />
-                Download Driver App
+                Download Driver Tracker App
               </Button>
             </a>
           </motion.div>
