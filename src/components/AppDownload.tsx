@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Download, Smartphone, Shield, Zap, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 
-const APK_DOWNLOAD_URL = "https://github.com/legalcliqueltd-dev/gobo-fleet-mate/releases/download/v1.0.0/rocket-driver.apk";
+const APK_DOWNLOAD_URL = "https://github.com/legalcliqueltd-dev/gobo-fleet-mate/releases/download/v1.0.0/FleetTrackMate.3.apk";
 
 const AppDownload = () => {
   const steps = [
