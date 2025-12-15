@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ArrowRight, MapPin, Truck, BarChart3 } from "lucide-react";
+import { ArrowRight, MapPin, Truck, BarChart3, Download } from "lucide-react";
 import { motion } from "framer-motion";
+
 function FloatingPaths({ position }: { position: number }) {
   const paths = Array.from({ length: 36 }, (_, i) => ({
     id: i,
@@ -68,11 +68,11 @@ const Hero = () => {
           className="max-w-4xl mx-auto text-center"
         >
           {/* Animated Heading */}
-          <h1 className="text-5xl sm:text-7xl md:text-8xl font-bold mb-8 tracking-tighter">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold mb-6 md:mb-8 tracking-tighter">
             {words.map((word, wordIndex) => (
               <span
                 key={wordIndex}
-                className="inline-block mr-4 last:mr-0"
+                className="inline-block mr-2 sm:mr-4 last:mr-0"
               >
                 {word.split("").map((letter, letterIndex) => (
                   <motion.span
@@ -100,7 +100,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8, duration: 0.8 }}
-            className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto leading-relaxed"
+            className="text-lg md:text-xl lg:text-2xl text-muted-foreground mb-6 md:mb-8 max-w-3xl mx-auto leading-relaxed px-4"
           >
             Advanced cloud-based fleet tracking and management solution. 
             Monitor your vehicles in real-time, optimize routes, and boost efficiency.
@@ -111,7 +111,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1, duration: 0.8 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center mb-8"
+            className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center mb-6 md:mb-8 px-4"
           >
             <div className="inline-block group relative bg-gradient-to-b from-primary/10 to-primary/5 
               p-px rounded-xl backdrop-blur-lg overflow-hidden shadow-lg hover:shadow-xl 
@@ -121,16 +121,17 @@ const Hero = () => {
                 <Button
                   variant="hero"
                   size="lg"
-                  className="rounded-[0.7rem] group-hover:-translate-y-0.5 transition-transform"
+                  className="rounded-[0.7rem] group-hover:-translate-y-0.5 transition-transform w-full sm:w-auto"
                 >
                   Start Free Trial
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </a>
             </div>
-            <a href="/dashboard">
-              <Button variant="outline" size="lg">
-                View Dashboard
+            <a href="#download">
+              <Button variant="outline" size="lg" className="w-full sm:w-auto">
+                <Download className="w-5 h-5 mr-2" />
+                Download Driver App
               </Button>
             </a>
           </motion.div>
@@ -140,18 +141,18 @@ const Hero = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1.2, duration: 0.8 }}
-            className="flex flex-wrap justify-center gap-8 text-muted-foreground mb-8"
+            className="flex flex-wrap justify-center gap-4 md:gap-8 text-muted-foreground mb-8 px-4"
           >
-            <div className="flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-primary" />
+            <div className="flex items-center gap-2 text-sm md:text-base">
+              <MapPin className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               <span>Real-time Tracking</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Truck className="w-5 h-5 text-primary" />
+            <div className="flex items-center gap-2 text-sm md:text-base">
+              <Truck className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               <span>Fleet Management</span>
             </div>
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-primary" />
+            <div className="flex items-center gap-2 text-sm md:text-base">
+              <BarChart3 className="w-4 h-4 md:w-5 md:h-5 text-primary" />
               <span>Analytics & Reports</span>
             </div>
           </motion.div>
@@ -160,4 +161,5 @@ const Hero = () => {
     </section>
   );
 };
+
 export default Hero;

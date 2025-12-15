@@ -5,7 +5,7 @@ import LiveDriverMap from '../components/map/LiveDriverMap';
 import DriversList from '../components/DriversList';
 import GeofenceAlerts from '../components/GeofenceAlerts';
 import TempTrackingManager from '../components/TempTrackingManager';
-import { Clock, Plus, ExternalLink, TrendingUp, Car, Users, Activity, Trash2, Link2 } from 'lucide-react';
+import { Clock, Plus, ExternalLink, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone } from 'lucide-react';
 import clsx from 'clsx';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// Placeholder APK URL - update when uploaded to GitHub Releases
+const APK_DOWNLOAD_URL = "https://github.com/YOUR_USERNAME/rocket-driver/releases/latest/download/rocket-driver.apk";
 export default function Dashboard() {
   const { items, markers, loading, error } = useDeviceLocations();
   const { drivers } = useDriverLocations();
@@ -245,6 +247,29 @@ export default function Dashboard() {
           </Card>
 
           <DriversList onDriverSelect={handleDriverSelect} selectedDriverId={selectedDriverId} />
+
+          {/* Driver App Download Card */}
+          <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/10 to-primary/5">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-primary/20">
+                  <Smartphone className="h-4 w-4 text-primary" />
+                </div>
+                <h3 className="font-heading font-semibold text-sm">Driver App</h3>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground mb-3">
+                Get the Rocket Driver app for your drivers
+              </p>
+              <a href={APK_DOWNLOAD_URL} download>
+                <Button variant="hero" size="sm" className="w-full">
+                  <Download className="h-4 w-4 mr-2" />
+                  Download APK
+                </Button>
+              </a>
+            </CardContent>
+          </Card>
 
           <Card className="border-2 border-border">
             <CardHeader className="pb-3">
