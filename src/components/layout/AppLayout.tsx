@@ -1,5 +1,6 @@
 import { PropsWithChildren, useState, useRef, useEffect } from 'react';
-import { Car, Menu, X, MoreHorizontal, AlertTriangle, Home, TrendingUp, MapPin, Users, Settings as SettingsIcon, Link2 } from 'lucide-react';
+import { Menu, X, MoreHorizontal, AlertTriangle, Home, TrendingUp, MapPin, Users, Settings as SettingsIcon, Link2 } from 'lucide-react';
+import logo from '@/assets/logo.webp';
 import { Link, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
@@ -70,9 +71,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
         <div className="mx-auto max-w-7xl px-3 xs:px-4 py-3">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2 font-heading font-semibold tracking-tight">
-              <span className="inline-flex items-center justify-center h-9 w-9 rounded-lg nb-border bg-white dark:bg-slate-900 text-cyan-700 dark:text-cyan-300">
-                <Car className="h-4 w-4" />
-              </span>
+              <img src={logo} alt="FleetTrackMate" className="h-9 w-9 rounded-lg" />
               <span className="text-lg">FleetTrackMate</span>
             </Link>
 
