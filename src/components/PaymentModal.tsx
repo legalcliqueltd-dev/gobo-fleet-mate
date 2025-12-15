@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Check, CreditCard, Building2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PaymentModalProps {
   open: boolean;
@@ -40,19 +41,26 @@ const PaymentModal = ({ open, onOpenChange, onSuccess }: PaymentModalProps) => {
     setLoading(true);
 
     try {
-      if (selectedMethod === "paystack") {
-        // Paystack integration - placeholder
-        toast.info("Paystack payment coming soon! Contact support to upgrade.");
-      } else if (selectedMethod === "stripe") {
-        // Stripe integration - placeholder
-        toast.info("Stripe payment coming soon! Contact support to upgrade.");
-      }
+      const functionName = selectedMethod === "stripe" ? "create-checkout" : "create-paystack-checkout";
       
-      // For now, just close the modal
-      // onSuccess?.();
+      const { data, error } = await supabase.functions.invoke(functionName);
+
+      if (error) {
+        throw new Error(error.message || "Failed to create checkout session");
+      }
+
+      if (data?.url) {
+        // Open checkout in new tab
+        window.open(data.url, "_blank");
+        onOpenChange(false);
+        toast.success("Redirecting to payment page...");
+      } else {
+        throw new Error("No checkout URL received");
+      }
     } catch (error) {
       console.error("Payment error:", error);
-      toast.error("Payment failed. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Payment failed. Please try again.";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
