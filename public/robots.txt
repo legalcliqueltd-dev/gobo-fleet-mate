@@ -1,3 +1,28 @@
+# FleetTrackMate - Fleet Management & GPS Tracking
+# https://fleettrackmate.com
+
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /driver
+Disallow: /admin
+Disallow: /settings
+Disallow: /ops
+Disallow: /devices
+Disallow: /geofences
+Disallow: /trips
+Disallow: /fleet-analytics
+Disallow: /temp-tracking
+Disallow: /auth/update-password
+Disallow: /auth/forgot-password
+
+# Sitemap
+Sitemap: https://fleettrackmate.com/sitemap.xml
+
+# Crawl-delay for polite crawling
+Crawl-delay: 1
+
+# Allow social media bots
 User-agent: Googlebot
 Allow: /
 
@@ -10,5 +35,8 @@ Allow: /
 User-agent: facebookexternalhit
 Allow: /
 
-User-agent: *
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: Slackbot
 Allow: /
