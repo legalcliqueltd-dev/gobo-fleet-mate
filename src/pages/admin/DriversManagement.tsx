@@ -25,8 +25,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Users, UserPlus, Mail, Phone, MapPin, Trash2, AlertTriangle } from 'lucide-react';
+import { Users, UserPlus, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import PaymentModal from '@/components/PaymentModal';
 
 type DriverConnection = {
   id: string;
@@ -52,7 +53,7 @@ export default function DriversManagement() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [deleteDriverId, setDeleteDriverId] = useState<string | null>(null);
-  const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -126,7 +127,7 @@ export default function DriversManagement() {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    setSubscription(data || { driver_limit: 3, plan_name: 'free' });
+    setSubscription(data || { driver_limit: 1, plan_name: 'free' });
   };
 
   const handleInviteDriver = async () => {
@@ -137,10 +138,10 @@ export default function DriversManagement() {
 
     // Check driver limit
     const activeDrivers = drivers.filter(d => d.status === 'active').length;
-    const limit = subscription?.driver_limit || 3;
+    const limit = subscription?.driver_limit || 1;
 
     if (activeDrivers >= limit) {
-      setUpgradeDialogOpen(true);
+      setPaymentModalOpen(true);
       return;
     }
 
@@ -208,21 +209,26 @@ export default function DriversManagement() {
   };
 
   const activeDriverCount = drivers.filter(d => d.status === 'active').length;
-  const driverLimit = subscription?.driver_limit || 3;
+  const driverLimit = subscription?.driver_limit || 1;
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Driver Management</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Driver Management</h1>
           <p className="text-muted-foreground mt-1">
-            {activeDriverCount} of {driverLimit} drivers • {subscription?.plan_name || 'Free'} Plan
+            {activeDriverCount} of {driverLimit} driver{driverLimit > 1 ? 's' : ''} • {subscription?.plan_name === 'free' ? 'Free' : 'Pro'} Plan
           </p>
         </div>
         <Button
           size="lg"
-          onClick={() => setInviteDialogOpen(true)}
-          disabled={activeDriverCount >= driverLimit}
+          onClick={() => {
+            if (activeDriverCount >= driverLimit) {
+              setPaymentModalOpen(true);
+            } else {
+              setInviteDialogOpen(true);
+            }
+          }}
         >
           <UserPlus className="h-5 w-5 mr-2" />
           Add Driver
@@ -230,21 +236,26 @@ export default function DriversManagement() {
       </div>
 
       {activeDriverCount >= driverLimit && (
-        <Card className="mb-6 border-amber-500/50 bg-background/50 backdrop-blur">
-          <CardContent className="p-4 flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
+        <Card className="mb-6 border-warning/50 bg-warning/5">
+          <CardContent className="p-4 flex flex-col sm:flex-row items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-warning mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <p className="font-medium">Driver Limit Reached</p>
+              <p className="font-medium">
+                {driverLimit === 1 ? 'Free Plan Limit' : 'Driver Limit Reached'}
+              </p>
               <p className="text-sm text-muted-foreground">
-                You've reached your plan's driver limit ({driverLimit}). Upgrade to connect more drivers.
+                {driverLimit === 1 
+                  ? 'Your first driver is free! Upgrade to Pro for unlimited drivers at ₦3,999/month.'
+                  : `You've reached your plan's driver limit (${driverLimit}). Upgrade to connect more drivers.`
+                }
               </p>
             </div>
             <Button
-              variant="outline"
+              variant="hero"
               size="sm"
-              onClick={() => setUpgradeDialogOpen(true)}
+              onClick={() => setPaymentModalOpen(true)}
             >
-              Upgrade Plan
+              Upgrade to Pro
             </Button>
           </CardContent>
         </Card>
@@ -309,7 +320,7 @@ export default function DriversManagement() {
                     variant="ghost"
                     onClick={() => setDeleteDriverId(driver.id)}
                   >
-                    <Trash2 className="h-4 w-4 text-red-500" />
+                    <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
               </CardContent>
@@ -370,44 +381,15 @@ export default function DriversManagement() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Upgrade Dialog */}
-      <Dialog open={upgradeDialogOpen} onOpenChange={setUpgradeDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Upgrade Required</DialogTitle>
-            <DialogDescription>
-              You've reached the maximum number of drivers for your current plan.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="text-sm mb-4">
-              Upgrade to our Pro plan to connect up to 10 drivers, or Business plan for unlimited drivers.
-            </p>
-            <div className="space-y-2">
-              <Card className="bg-background/50 backdrop-blur border border-border">
-                <CardContent className="p-4">
-                  <h4 className="font-semibold">Pro Plan - $29/month</h4>
-                  <p className="text-sm text-muted-foreground">Up to 10 drivers</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-background/50 backdrop-blur border border-border">
-                <CardContent className="p-4">
-                  <h4 className="font-semibold">Business Plan - $99/month</h4>
-                  <p className="text-sm text-muted-foreground">Unlimited drivers</p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setUpgradeDialogOpen(false)}>
-              Maybe Later
-            </Button>
-            <Button onClick={() => navigate('/admin/subscription')}>
-              Upgrade Now
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Payment Modal */}
+      <PaymentModal
+        open={paymentModalOpen}
+        onOpenChange={setPaymentModalOpen}
+        onSuccess={() => {
+          setPaymentModalOpen(false);
+          loadSubscription();
+        }}
+      />
     </div>
   );
 }

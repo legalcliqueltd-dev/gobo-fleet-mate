@@ -2,6 +2,7 @@ import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import Features from "@/components/Features";
 import DashboardPreview from "@/components/DashboardPreview";
+import AppDownload from "@/components/AppDownload";
 import Testimonials from "@/components/Testimonials";
 import Pricing from "@/components/Pricing";
 import Footer from "@/components/Footer";
@@ -18,6 +19,7 @@ const Index = () => {
         <div id="dashboard">
           <DashboardPreview />
         </div>
+        <AppDownload />
         <div id="testimonials">
           <Testimonials />
         </div>
