@@ -12,7 +12,7 @@ export default function Landing() {
         badge="Cloud-Based Fleet Management"
         title1="Real-time Fleet"
         title2="Tracking"
-        description="Monitor multiple devices live on an interactive map. Built with Supabase, React, and Google Maps."
+        description="Monitor multiple devices live on an interactive map with professional GPS tracking and fleet analytics."
       >
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
           <Link to="/auth/signup">
