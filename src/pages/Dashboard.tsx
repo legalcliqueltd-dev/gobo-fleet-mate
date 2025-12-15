@@ -13,8 +13,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// Placeholder APK URL - update when uploaded to GitHub Releases
-const APK_DOWNLOAD_URL = "https://github.com/YOUR_USERNAME/rocket-driver/releases/latest/download/rocket-driver.apk";
+const APK_DOWNLOAD_URL = "https://github.com/legalcliqueltd-dev/gobo-fleet-mate/releases/download/v1.0.0/rocket-driver.apk";
 export default function Dashboard() {
   const { items, markers, loading, error } = useDeviceLocations();
   const { drivers } = useDriverLocations();
