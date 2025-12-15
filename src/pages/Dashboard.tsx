@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-const APK_DOWNLOAD_URL = "https://github.com/legalcliqueltd-dev/gobo-fleet-mate/releases/download/v1.0.0/rocket-driver.apk";
+const APK_DOWNLOAD_URL = "https://github.com/legalcliqueltd-dev/gobo-fleet-mate/releases/download/v1.0.0/FleetTrackMate.3.apk";
 export default function Dashboard() {
   const { items, markers, loading, error } = useDeviceLocations();
   const { drivers } = useDriverLocations();
@@ -95,61 +95,61 @@ export default function Dashboard() {
   ).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Stats Banner */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-primary/20">
-                <Car className="h-5 w-5 text-primary" />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+          <CardContent className="p-3 md:p-4">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-2 md:p-2.5 rounded-lg md:rounded-xl bg-primary/20 shrink-0">
+                <Car className="h-4 w-4 md:h-5 md:w-5 text-primary" />
               </div>
-              <div>
-                <p className="text-2xl font-bold">{items.length}</p>
-                <p className="text-xs text-muted-foreground">Total Devices</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-success/10 to-success/5 border-2 border-success/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-success/20">
-                <Users className="h-5 w-5 text-success" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{activeDrivers}</p>
-                <p className="text-xs text-muted-foreground">Active Drivers</p>
+              <div className="min-w-0">
+                <p className="text-xl md:text-2xl font-bold">{items.length}</p>
+                <p className="text-[10px] md:text-xs text-muted-foreground truncate">Total Devices</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border-2 border-warning/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-warning/20">
-                <Activity className="h-5 w-5 text-warning" />
+        <Card className="bg-gradient-to-br from-success/10 to-success/5 border border-success/20">
+          <CardContent className="p-3 md:p-4">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-2 md:p-2.5 rounded-lg md:rounded-xl bg-success/20 shrink-0">
+                <Users className="h-4 w-4 md:h-5 md:w-5 text-success" />
               </div>
-              <div>
-                <p className="text-2xl font-bold">{activeDevices}</p>
-                <p className="text-xs text-muted-foreground">Online Now</p>
+              <div className="min-w-0">
+                <p className="text-xl md:text-2xl font-bold">{activeDrivers}</p>
+                <p className="text-[10px] md:text-xs text-muted-foreground truncate">Active Drivers</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border border-warning/20">
+          <CardContent className="p-3 md:p-4">
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="p-2 md:p-2.5 rounded-lg md:rounded-xl bg-warning/20 shrink-0">
+                <Activity className="h-4 w-4 md:h-5 md:w-5 text-warning" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xl md:text-2xl font-bold">{activeDevices}</p>
+                <p className="text-[10px] md:text-xs text-muted-foreground truncate">Online Now</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Link to="/analytics" className="block">
-          <Card className="bg-gradient-to-br from-fleet-blue/10 to-fleet-blue/5 border-2 border-fleet-blue/20 hover:border-fleet-blue/40 transition-all h-full">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-fleet-blue/20">
-                  <TrendingUp className="h-5 w-5 text-fleet-blue" />
+          <Card className="bg-gradient-to-br from-fleet-blue/10 to-fleet-blue/5 border border-fleet-blue/20 hover:border-fleet-blue/40 transition-all h-full">
+            <CardContent className="p-3 md:p-4">
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="p-2 md:p-2.5 rounded-lg md:rounded-xl bg-fleet-blue/20 shrink-0">
+                  <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-fleet-blue" />
                 </div>
-                <div>
-                  <p className="font-semibold">Analytics</p>
-                  <p className="text-xs text-muted-foreground">View Reports →</p>
+                <div className="min-w-0">
+                  <p className="text-sm md:text-base font-semibold">Analytics</p>
+                  <p className="text-[10px] md:text-xs text-muted-foreground truncate">View Reports →</p>
                 </div>
               </div>
             </CardContent>
@@ -158,8 +158,8 @@ export default function Dashboard() {
       </div>
 
       {/* Main Content - Map First */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6">
-        <section className="order-1">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] xl:grid-cols-[1fr_380px] gap-4 md:gap-6">
+        <section className="order-2 lg:order-1 min-h-[300px] md:min-h-[400px]">
           <LiveDriverMap
             selectedDriverId={selectedDriverId}
             onDriverSelect={handleLiveDriverSelect}
@@ -168,72 +168,72 @@ export default function Dashboard() {
           />
         </section>
 
-        <aside className="order-2 space-y-4">
+        <aside className="order-1 lg:order-2 space-y-3 md:space-y-4">
           {/* Devices Card */}
-          <Card className="border-2 border-border">
-            <CardHeader className="pb-3">
+          <Card className="border border-border">
+            <CardHeader className="p-3 md:pb-3">
               <div className="flex items-center justify-between">
-                <h3 className="font-heading font-semibold flex items-center gap-2 text-lg">
-                  <div className="p-1.5 rounded-lg bg-primary/20">
-                    <Car className="h-4 w-4 text-primary" />
+                <h3 className="font-heading font-semibold flex items-center gap-2 text-sm md:text-base">
+                  <div className="p-1 md:p-1.5 rounded-lg bg-primary/20">
+                    <Car className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
                   </div>
                   Your Devices
                 </h3>
                 <Link to="/devices/new">
-                  <Button variant="outline" size="sm" className="h-8">
-                    <Plus className="h-3.5 w-3.5 mr-1" /> Add
+                  <Button variant="outline" size="sm" className="h-7 md:h-8 text-xs md:text-sm">
+                    <Plus className="h-3 w-3 md:h-3.5 md:w-3.5 mr-1" /> Add
                   </Button>
                 </Link>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-3 pt-0">
               {loading && (
-                <div className="flex items-center justify-center py-6">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                <div className="flex items-center justify-center py-4 md:py-6">
+                  <div className="animate-spin rounded-full h-5 w-5 md:h-6 md:w-6 border-b-2 border-primary"></div>
                 </div>
               )}
-              {error && <div className="text-sm text-destructive">{error}</div>}
+              {error && <div className="text-xs md:text-sm text-destructive">{error}</div>}
               {!loading && items.length === 0 && (
-                <div className="text-center py-6">
-                  <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">
-                    <Car className="h-6 w-6 text-muted-foreground" />
+                <div className="text-center py-4 md:py-6">
+                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-2 md:mb-3">
+                    <Car className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
                   </div>
-                  <p className="text-sm text-muted-foreground">No devices yet.</p>
-                  <Link to="/devices/new" className="text-sm text-primary hover:underline">Add your first device →</Link>
+                  <p className="text-xs md:text-sm text-muted-foreground">No devices yet.</p>
+                  <Link to="/devices/new" className="text-xs md:text-sm text-primary hover:underline">Add your first device →</Link>
                 </div>
               )}
-              <ul className="space-y-2 max-h-[280px] overflow-y-auto">
+              <ul className="space-y-2 max-h-[200px] md:max-h-[280px] overflow-y-auto">
                 {items.map((d) => {
                   const hasFix = !!d.latest;
                   return (
                     <li key={d.id}>
                       <div className={clsx(
-                        'rounded-xl border-2 p-3 transition-all hover:border-primary/50 hover:bg-primary/5',
-                        selectedId === d.id ? 'border-primary bg-primary/10 shadow-lg' : 'border-border bg-card/50'
+                        'rounded-lg md:rounded-xl border p-2 md:p-3 transition-all hover:border-primary/50 hover:bg-primary/5',
+                        selectedId === d.id ? 'border-primary bg-primary/10 shadow-md' : 'border-border bg-card/50'
                       )}>
                         <div className="flex items-start justify-between gap-2">
-                          <button onClick={() => setSelectedId(d.id)} className="text-left flex-1">
+                          <button onClick={() => setSelectedId(d.id)} className="text-left flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <div className={clsx(
-                                'h-2.5 w-2.5 rounded-full',
+                                'h-2 w-2 md:h-2.5 md:w-2.5 rounded-full shrink-0',
                                 d.status === 'active' ? 'bg-success animate-pulse' : d.status === 'idle' ? 'bg-warning' : 'bg-muted-foreground'
                               )} />
-                              <span className="font-semibold">{d.name ?? 'Unnamed'}</span>
+                              <span className="font-semibold text-sm md:text-base truncate">{d.name ?? 'Unnamed'}</span>
                               {d.is_temporary && (
-                                <span className="px-1.5 py-0.5 text-[10px] rounded-full bg-purple-500/20 text-purple-400 font-bold">TEMP</span>
+                                <span className="px-1 py-0.5 text-[8px] md:text-[10px] rounded-full bg-purple-500/20 text-purple-400 font-bold shrink-0">TEMP</span>
                               )}
                             </div>
-                            <div className="mt-1.5 text-xs text-muted-foreground flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {hasFix ? new Date(d.latest!.timestamp).toLocaleString() : 'No location'}
+                            <div className="mt-1 md:mt-1.5 text-[10px] md:text-xs text-muted-foreground flex items-center gap-1">
+                              <Clock className="h-2.5 w-2.5 md:h-3 md:w-3 shrink-0" />
+                              <span className="truncate">{hasFix ? new Date(d.latest!.timestamp).toLocaleString() : 'No location'}</span>
                             </div>
                           </button>
-                          <div className="flex items-center gap-1">
-                            <Link to={`/devices/${d.id}`} className="p-1.5 rounded-lg hover:bg-primary/10" title="Details">
-                              <ExternalLink className="h-4 w-4 text-primary" />
+                          <div className="flex items-center gap-0.5 md:gap-1 shrink-0">
+                            <Link to={`/devices/${d.id}`} className="p-1 md:p-1.5 rounded-lg hover:bg-primary/10" title="Details">
+                              <ExternalLink className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
                             </Link>
-                            <button onClick={() => handleDeleteDevice(d.id)} className="p-1.5 rounded-lg hover:bg-destructive/10" title="Delete">
-                              <Trash2 className="h-4 w-4 text-destructive" />
+                            <button onClick={() => handleDeleteDevice(d.id)} className="p-1 md:p-1.5 rounded-lg hover:bg-destructive/10" title="Delete">
+                              <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4 text-destructive" />
                             </button>
                           </div>
                         </div>
@@ -248,41 +248,37 @@ export default function Dashboard() {
           <DriversList onDriverSelect={handleDriverSelect} selectedDriverId={selectedDriverId} />
 
           {/* Driver App Download Card */}
-          <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/10 to-primary/5">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-primary/20">
-                  <Smartphone className="h-4 w-4 text-primary" />
+          <Card className="border border-primary/20 bg-gradient-to-br from-primary/10 to-primary/5">
+            <CardContent className="p-3 md:p-4">
+              <div className="flex items-center gap-2 mb-2 md:mb-3">
+                <div className="p-1 md:p-1.5 rounded-lg bg-primary/20">
+                  <Smartphone className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
                 </div>
-                <h3 className="font-heading font-semibold text-sm">Driver App</h3>
+                <h3 className="font-heading font-semibold text-xs md:text-sm">Driver App</h3>
               </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground mb-3">
+              <p className="text-[10px] md:text-xs text-muted-foreground mb-2 md:mb-3">
                 Get the Rocket Driver app for your drivers
               </p>
               <a href={APK_DOWNLOAD_URL} download>
-                <Button variant="hero" size="sm" className="w-full">
-                  <Download className="h-4 w-4 mr-2" />
+                <Button variant="hero" size="sm" className="w-full h-8 md:h-9 text-xs md:text-sm">
+                  <Download className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
                   Download APK
                 </Button>
               </a>
             </CardContent>
           </Card>
 
-          <Card className="border-2 border-border">
-            <CardHeader className="pb-3">
-              <h3 className="font-heading font-semibold text-sm">Quick Actions</h3>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Link to="/temp-tracking">
-                <Button variant="outline" size="sm" className="w-full justify-start">
-                  <Link2 className="h-4 w-4 mr-2" />
-                  Temporary Tracking Links
+          <Card className="border border-border">
+            <CardContent className="p-3 md:p-4 space-y-2">
+              <h3 className="font-heading font-semibold text-xs md:text-sm mb-2">Quick Actions</h3>
+              <Link to="/temp-tracking" className="block">
+                <Button variant="outline" size="sm" className="w-full justify-start h-8 md:h-9 text-xs md:text-sm">
+                  <Link2 className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
+                  Temp Tracking Links
                 </Button>
               </Link>
-              <Button variant="outline" size="sm" className="w-full justify-start text-destructive hover:bg-destructive/10" onClick={handleDeleteTempHistory}>
-                <Trash2 className="h-4 w-4 mr-2" />
+              <Button variant="outline" size="sm" className="w-full justify-start h-8 md:h-9 text-xs md:text-sm text-destructive hover:bg-destructive/10" onClick={handleDeleteTempHistory}>
+                <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
                 Clear Temp History
               </Button>
             </CardContent>
@@ -293,9 +289,9 @@ export default function Dashboard() {
       <TempTrackingManager />
       <GeofenceAlerts />
 
-      <Link to="/devices/new" className="lg:hidden fixed bottom-6 right-6 z-20 safe-bottom">
-        <Button variant="default" size="icon" className="rounded-xl h-14 w-14 shadow-xl">
-          <Plus className="h-6 w-6" />
+      <Link to="/devices/new" className="lg:hidden fixed bottom-4 right-4 md:bottom-6 md:right-6 z-20 safe-bottom">
+        <Button variant="default" size="icon" className="rounded-xl h-12 w-12 md:h-14 md:w-14 shadow-xl">
+          <Plus className="h-5 w-5 md:h-6 md:w-6" />
         </Button>
       </Link>
     </div>
