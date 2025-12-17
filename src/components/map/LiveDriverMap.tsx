@@ -484,6 +484,11 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
     return drivers.filter(d => d.latitude !== 0 && d.longitude !== 0);
   }, [drivers]);
 
+  // Drivers without location (connected but no GPS)
+  const driversWithoutLocation = useMemo(() => {
+    return drivers.filter(d => (d.latitude === 0 || d.longitude === 0) && d.status !== 'offline');
+  }, [drivers]);
+
   // Valid devices with coordinates
   const validDevices = useMemo(() => {
     return devices.filter(d => d.latitude !== 0 && d.longitude !== 0);
@@ -612,7 +617,7 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
             <div className="flex flex-col gap-2">
               <ConnectionIndicator status={connectionStatus} lastUpdate={lastUpdate} />
               <div className="flex items-center gap-3 pt-2 border-t border-border">
-                <div className="flex items-center gap-1.5" title="Active Drivers">
+                <div className="flex items-center gap-1.5" title="Active Drivers on Map">
                   <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/50"></div>
                   <span className="text-sm font-bold text-foreground">
                     {validDrivers.filter(d => d.status === 'active').length}
@@ -624,9 +629,34 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
                   {validDrivers.length} total
                 </span>
               </div>
+              {/* Warning for drivers without location */}
+              {driversWithoutLocation.length > 0 && (
+                <div className="flex items-center gap-2 pt-2 border-t border-amber-500/30 text-amber-400">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <span className="text-xs font-medium">
+                    {driversWithoutLocation.length} driver{driversWithoutLocation.length > 1 ? 's' : ''} online but no GPS
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
+
+        {/* No Location Warning Banner */}
+        {driversWithoutLocation.length > 0 && validDrivers.length === 0 && (
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-10 max-w-md">
+            <div className="bg-amber-500/20 backdrop-blur-md border-2 border-amber-500/40 rounded-xl shadow-2xl px-4 py-3 text-center">
+              <div className="flex items-center justify-center gap-2 text-amber-400 mb-1">
+                <AlertTriangle className="h-5 w-5" />
+                <span className="font-bold">No Location Data</span>
+              </div>
+              <p className="text-xs text-amber-300/80">
+                {driversWithoutLocation.length} driver{driversWithoutLocation.length > 1 ? 's are' : ' is'} online but not sending GPS coordinates. 
+                Make sure "Duty Status" is ON in the driver app.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Right Side - Zoom Controls */}
         <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10 flex flex-col gap-1">
