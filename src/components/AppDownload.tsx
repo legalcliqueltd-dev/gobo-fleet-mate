@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Download, Smartphone, Shield, Zap, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { ShareAppButton } from "@/components/ShareAppButton";
 
 const APK_DOWNLOAD_URL = "https://github.com/legalcliqueltd-dev/gobo-fleet-mate/releases/download/v1.0.0/FleetTrackMate.3.apk";
 
@@ -62,6 +63,7 @@ const AppDownload = () => {
                       Download APK
                     </Button>
                   </a>
+                  <ShareAppButton variant="outline" size="lg" className="w-full" />
                 </div>
 
                 <div className="flex flex-wrap justify-center gap-4 text-sm text-muted-foreground">
