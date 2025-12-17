@@ -16,12 +16,15 @@ export interface LiveDriverLocation {
   last_seen_at: string | null;
   updated_at: string | null;
   isAnimating?: boolean;
+  batteryLevel?: number;
+  isBackground?: boolean;
+  timeSinceUpdate?: number; // milliseconds since last update
 }
 
-// Time thresholds for status
-const ACTIVE_THRESHOLD = 2 * 60 * 1000;  // 2 min = active
-const IDLE_THRESHOLD = 5 * 60 * 1000;    // 5 min = idle
-const STALE_THRESHOLD = 15 * 1000;       // 15 sec without update = stale
+// Time thresholds for status (in milliseconds)
+const ACTIVE_THRESHOLD = 2 * 60 * 1000;     // 2 min = active
+const STALE_THRESHOLD = 5 * 60 * 1000;      // 5 min = stale (warn user)
+const OFFLINE_THRESHOLD = 15 * 60 * 1000;   // 15 min = offline
 
 export function useRealtimeDriverLocations() {
   const { user } = useAuth();
@@ -34,16 +37,45 @@ export function useRealtimeDriverLocations() {
   // Keep track of previous positions for animation
   const previousPositions = useRef<Map<string, { lat: number; lng: number; timestamp: number }>>(new Map());
 
-  // Calculate driver status based on last seen time
-  const calculateStatus = useCallback((lastSeenAt: string | null, speed: number | null): LiveDriverLocation['status'] => {
-    if (!lastSeenAt) return 'offline';
+  // Calculate driver status based on last seen time and location update time
+  const calculateStatus = useCallback((
+    lastSeenAt: string | null, 
+    locationUpdatedAt: string | null,
+    speed: number | null
+  ): { status: LiveDriverLocation['status']; timeSinceUpdate: number } => {
+    // Use the more recent timestamp between last_seen_at and location updated_at
+    const lastActivity = locationUpdatedAt 
+      ? new Date(Math.max(
+          new Date(lastSeenAt || 0).getTime(),
+          new Date(locationUpdatedAt).getTime()
+        ))
+      : lastSeenAt ? new Date(lastSeenAt) : null;
+
+    if (!lastActivity) {
+      return { status: 'offline', timeSinceUpdate: Infinity };
+    }
     
-    const timeSinceUpdate = Date.now() - new Date(lastSeenAt).getTime();
+    const timeSinceUpdate = Date.now() - lastActivity.getTime();
     
-    if (timeSinceUpdate > IDLE_THRESHOLD) return 'offline';
-    if (timeSinceUpdate > ACTIVE_THRESHOLD) return 'idle';
-    if (speed && speed > 5) return 'active';
-    return 'active';
+    // Offline if no update in 15+ minutes
+    if (timeSinceUpdate > OFFLINE_THRESHOLD) {
+      return { status: 'offline', timeSinceUpdate };
+    }
+    
+    // Stale if no update in 5-15 minutes (warn user data may be outdated)
+    if (timeSinceUpdate > STALE_THRESHOLD) {
+      return { status: 'stale', timeSinceUpdate };
+    }
+    
+    // Idle if no update in 2-5 minutes
+    if (timeSinceUpdate > ACTIVE_THRESHOLD) {
+      return { status: 'idle', timeSinceUpdate };
+    }
+    
+    // Active - check if actually driving or just idle
+    // If speed > 5 km/h, they're driving (active)
+    // Otherwise they're active but stationary
+    return { status: 'active', timeSinceUpdate };
   }, []);
 
   // Fetch initial data
@@ -56,18 +88,48 @@ export function useRealtimeDriverLocations() {
     try {
       console.log('🔄 Fetching driver locations...');
       
-      // Fetch drivers linked to this admin
+      // First get admin's connection codes from devices
+      const { data: devicesData, error: devicesError } = await supabase
+        .from('devices')
+        .select('connection_code')
+        .eq('user_id', user.id)
+        .not('connection_code', 'is', null);
+
+      if (devicesError) throw devicesError;
+      
+      const adminCodes = devicesData?.map(d => d.connection_code).filter(Boolean) || [];
+      console.log('📋 Admin codes:', adminCodes);
+
+      if (adminCodes.length === 0) {
+        console.log('No connection codes found for this admin');
+        setDrivers([]);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch drivers linked to this admin's codes
       const { data: driversData, error: driversError } = await supabase
         .from('drivers')
-        .select('*');
+        .select('*')
+        .in('admin_code', adminCodes);
 
       if (driversError) throw driversError;
       console.log('👥 Drivers fetched:', driversData?.length, driversData);
 
-      // Fetch latest locations for all drivers
+      if (!driversData || driversData.length === 0) {
+        setDrivers([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get driver IDs
+      const driverIds = driversData.map(d => d.driver_id);
+
+      // Fetch latest locations for these drivers
       const { data: locationsData, error: locationsError } = await supabase
         .from('driver_locations')
-        .select('*');
+        .select('*')
+        .in('driver_id', driverIds);
 
       if (locationsError) throw locationsError;
       console.log('📍 Locations fetched:', locationsData?.length, locationsData);
@@ -77,6 +139,14 @@ export function useRealtimeDriverLocations() {
         const location = locationsData?.find(l => l.driver_id === driver.driver_id);
         console.log(`🔗 Driver ${driver.driver_name}: location =`, location);
         const prevPos = previousPositions.current.get(driver.driver_id);
+        const { status, timeSinceUpdate } = calculateStatus(
+          driver.last_seen_at, 
+          location?.updated_at ?? null,
+          location?.speed ?? null
+        );
+        
+        // Extract battery info from device_info if available
+        const deviceInfo = driver.device_info as { batteryLevel?: number; isBackground?: boolean } | null;
         
         return {
           driver_id: driver.driver_id,
@@ -88,9 +158,12 @@ export function useRealtimeDriverLocations() {
           previousLongitude: prevPos?.lng,
           speed: location?.speed ?? null,
           accuracy: location?.accuracy ?? null,
-          status: calculateStatus(driver.last_seen_at, location?.speed ?? null),
+          status,
+          timeSinceUpdate,
           last_seen_at: driver.last_seen_at,
           updated_at: location?.updated_at ?? null,
+          batteryLevel: deviceInfo?.batteryLevel,
+          isBackground: deviceInfo?.isBackground,
         };
       });
 
@@ -98,7 +171,8 @@ export function useRealtimeDriverLocations() {
         name: d.driver_name,
         lat: d.latitude,
         lng: d.longitude,
-        status: d.status
+        status: d.status,
+        timeSinceUpdate: d.timeSinceUpdate
       })));
 
       // Update previous positions
@@ -159,6 +233,12 @@ export function useRealtimeDriverLocations() {
                     timestamp: Date.now()
                   });
 
+                  const { status, timeSinceUpdate } = calculateStatus(
+                    driver.last_seen_at,
+                    newLocation.updated_at,
+                    newLocation.speed
+                  );
+
                   return {
                     ...driver,
                     previousLatitude: prevPos?.lat ?? driver.latitude,
@@ -168,7 +248,8 @@ export function useRealtimeDriverLocations() {
                     speed: newLocation.speed,
                     accuracy: newLocation.accuracy,
                     updated_at: newLocation.updated_at,
-                    status: calculateStatus(newLocation.updated_at, newLocation.speed),
+                    status,
+                    timeSinceUpdate,
                     isAnimating: true,
                   };
                 }
@@ -190,6 +271,9 @@ export function useRealtimeDriverLocations() {
           
           if (payload.eventType === 'INSERT') {
             const newDriver = payload.new as any;
+            const deviceInfo = newDriver.device_info as { batteryLevel?: number; isBackground?: boolean } | null;
+            const { status, timeSinceUpdate } = calculateStatus(newDriver.last_seen_at, null, null);
+            
             setDrivers(prev => {
               if (prev.find(d => d.driver_id === newDriver.driver_id)) return prev;
               return [...prev, {
@@ -200,20 +284,33 @@ export function useRealtimeDriverLocations() {
                 longitude: 0,
                 speed: null,
                 accuracy: null,
-                status: calculateStatus(newDriver.last_seen_at, null),
+                status,
+                timeSinceUpdate,
                 last_seen_at: newDriver.last_seen_at,
                 updated_at: null,
+                batteryLevel: deviceInfo?.batteryLevel,
+                isBackground: deviceInfo?.isBackground,
               }];
             });
           } else if (payload.eventType === 'UPDATE') {
             const updatedDriver = payload.new as any;
+            const deviceInfo = updatedDriver.device_info as { batteryLevel?: number; isBackground?: boolean } | null;
+            
             setDrivers(prev => prev.map(d => {
               if (d.driver_id === updatedDriver.driver_id) {
+                const { status, timeSinceUpdate } = calculateStatus(
+                  updatedDriver.last_seen_at, 
+                  d.updated_at,
+                  d.speed
+                );
                 return {
                   ...d,
                   driver_name: updatedDriver.driver_name,
-                  status: calculateStatus(updatedDriver.last_seen_at, d.speed),
+                  status,
+                  timeSinceUpdate,
                   last_seen_at: updatedDriver.last_seen_at,
+                  batteryLevel: deviceInfo?.batteryLevel,
+                  isBackground: deviceInfo?.isBackground,
                 };
               }
               return d;
@@ -233,14 +330,18 @@ export function useRealtimeDriverLocations() {
         }
       });
 
-    // Periodically refresh status (check for stale)
+    // Periodically refresh status (check for stale) every 30 seconds
     const statusInterval = setInterval(() => {
-      setDrivers(prev => prev.map(d => ({
-        ...d,
-        status: calculateStatus(d.last_seen_at, d.speed),
-        isAnimating: false, // Reset animation flag after interval
-      })));
-    }, 10000); // Check every 10 seconds
+      setDrivers(prev => prev.map(d => {
+        const { status, timeSinceUpdate } = calculateStatus(d.last_seen_at, d.updated_at, d.speed);
+        return {
+          ...d,
+          status,
+          timeSinceUpdate,
+          isAnimating: false, // Reset animation flag after interval
+        };
+      }));
+    }, 30000);
 
     return () => {
       supabase.removeChannel(locationsChannel);

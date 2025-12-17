@@ -3,7 +3,8 @@ import { GoogleMap, useJsApiLoader, Marker, InfoWindow, TrafficLayer } from '@re
 import { Button } from '@/components/ui/button';
 import { 
   Layers, Scan, MapPin, Phone, MessageSquare, Navigation, Signal, SignalLow, SignalZero, 
-  Clock, Zap, Maximize2, Minimize2, Car, Mountain, Route, Compass
+  Clock, Zap, Maximize2, Minimize2, Car, Mountain, Route, Compass, Battery, BatteryLow,
+  BatteryWarning, AlertTriangle, WifiOff
 } from 'lucide-react';
 import { GOOGLE_MAPS_API_KEY } from '../../lib/googleMapsConfig';
 import { useRealtimeDriverLocations, LiveDriverLocation } from '@/hooks/useRealtimeDriverLocations';
@@ -185,34 +186,92 @@ const createDeviceMarkerIcon = (status: string | null, isSelected: boolean) => {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 };
 
+// Format time since update for display
+function formatTimeSince(ms: number | undefined): string {
+  if (!ms || ms === Infinity) return 'Never';
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+// Battery icon based on level
+function BatteryIcon({ level }: { level?: number }) {
+  if (level === undefined) return null;
+  if (level < 20) return <BatteryWarning className="h-4 w-4 text-red-400" />;
+  if (level < 50) return <BatteryLow className="h-4 w-4 text-amber-400" />;
+  return <Battery className="h-4 w-4 text-emerald-400" />;
+}
+
 // Enhanced driver info card component
 function DriverCard({ driver, onClose }: { driver: LiveDriverLocation; onClose: () => void }) {
   const statusColors = {
     active: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
     idle: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
     offline: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-    stale: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
+    stale: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   };
+
+  const statusLabels = {
+    active: 'Active',
+    idle: 'Idle',
+    offline: 'Offline',
+    stale: 'Stale Data',
+  };
+
+  const isStale = driver.status === 'stale';
+  const isOffline = driver.status === 'offline';
   
   return (
-    <div className="min-w-[260px] bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-2xl border border-slate-700/50 overflow-hidden">
+    <div className="min-w-[280px] bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-2xl border border-slate-700/50 overflow-hidden">
+      {/* Stale/Offline Warning Banner */}
+      {(isStale || isOffline) && (
+        <div className={clsx(
+          'px-3 py-2 flex items-center gap-2 text-xs font-medium',
+          isOffline ? 'bg-gray-600/30 text-gray-300' : 'bg-orange-500/20 text-orange-400'
+        )}>
+          <AlertTriangle className="h-3.5 w-3.5" />
+          <span>
+            {isOffline 
+              ? 'Driver is offline - no recent updates' 
+              : `Data may be outdated (${formatTimeSince(driver.timeSinceUpdate)})`
+            }
+          </span>
+        </div>
+      )}
+      
       {/* Header with gradient */}
       <div className="bg-gradient-to-r from-primary/20 to-primary/5 px-4 py-3 border-b border-slate-700/50">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-white font-bold text-lg shadow-lg">
+          <div className={clsx(
+            'w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg',
+            isOffline ? 'bg-gray-600' : 'bg-gradient-to-br from-primary to-primary/60'
+          )}>
             {(driver.driver_name || 'D').charAt(0).toUpperCase()}
           </div>
           <div className="flex-1">
             <h4 className="font-bold text-white text-sm">
               {driver.driver_name || `Driver ${driver.driver_id.slice(0, 8)}`}
             </h4>
-            <span className={clsx(
-              'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border',
-              statusColors[driver.status]
-            )}>
-              {driver.status === 'active' && <span className="w-1.5 h-1.5 rounded-full bg-current mr-1 animate-pulse" />}
-              {driver.status.charAt(0).toUpperCase() + driver.status.slice(1)}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={clsx(
+                'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border',
+                statusColors[driver.status]
+              )}>
+                {driver.status === 'active' && <span className="w-1.5 h-1.5 rounded-full bg-current mr-1 animate-pulse" />}
+                {driver.status === 'stale' && <AlertTriangle className="h-2.5 w-2.5 mr-1" />}
+                {statusLabels[driver.status]}
+              </span>
+              {driver.isBackground && (
+                <span className="text-[9px] text-slate-500 flex items-center gap-0.5">
+                  <WifiOff className="h-2.5 w-2.5" />
+                  BG
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -239,11 +298,27 @@ function DriverCard({ driver, onClose }: { driver: LiveDriverLocation; onClose: 
               <span className="text-[10px] text-slate-400">Accuracy</span>
             </div>
           )}
+
+          {driver.batteryLevel !== undefined && (
+            <div className="bg-slate-800/50 rounded-lg p-2.5 border border-slate-700/30">
+              <div className="flex items-center gap-2">
+                <BatteryIcon level={driver.batteryLevel} />
+                <span className="text-white font-semibold">{driver.batteryLevel}%</span>
+              </div>
+              <span className="text-[10px] text-slate-400">Battery</span>
+            </div>
+          )}
         </div>
         
-        <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-800/30 rounded-lg px-3 py-2">
+        {/* Last update with color coding */}
+        <div className={clsx(
+          'flex items-center gap-2 text-xs rounded-lg px-3 py-2',
+          isStale ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20' :
+          isOffline ? 'bg-gray-500/10 text-gray-400 border border-gray-500/20' :
+          'bg-slate-800/30 text-slate-400'
+        )}>
           <Clock className="h-3.5 w-3.5" />
-          <span>Last seen {formatTimeAgo(driver.updated_at || driver.last_seen_at)}</span>
+          <span>Last update: {formatTimeSince(driver.timeSinceUpdate)}</span>
         </div>
       </div>
       
