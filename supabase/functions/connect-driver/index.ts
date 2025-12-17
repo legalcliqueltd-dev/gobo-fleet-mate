@@ -29,17 +29,20 @@ Deno.serve(async (req) => {
     const { action, code, driverName, driverId } = body;
     console.log('Action:', action, 'Code:', code, 'DriverName:', driverName, 'DriverId:', driverId);
 
+    // Always include server_time in responses for clock sync
+    const serverTime = new Date().toISOString();
+
     if (action === 'connect') {
       if (!code?.trim()) {
         return new Response(
-          JSON.stringify({ error: 'Connection code is required' }),
+          JSON.stringify({ error: 'Connection code is required', server_time: serverTime }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
       if (!driverName?.trim()) {
         return new Response(
-          JSON.stringify({ error: 'Driver name is required' }),
+          JSON.stringify({ error: 'Driver name is required', server_time: serverTime }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -54,14 +57,14 @@ Deno.serve(async (req) => {
       if (deviceError) {
         console.error('Device lookup error:', deviceError);
         return new Response(
-          JSON.stringify({ error: 'Failed to find device' }),
+          JSON.stringify({ error: 'Failed to find device', server_time: serverTime }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
       if (!device) {
         return new Response(
-          JSON.stringify({ error: 'Invalid connection code' }),
+          JSON.stringify({ error: 'Invalid connection code', server_time: serverTime }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -106,7 +109,16 @@ Deno.serve(async (req) => {
             driverId: existingDriver.driver_id,
             device: { id: device.id, name: device.name },
             reconnected: true,
-            existingDriverName: existingDriver.driver_name
+            existingDriverName: existingDriver.driver_name,
+            server_time: serverTime,
+            // Configuration for mobile app
+            config: {
+              locationUpdateIntervalMs: 15000,  // 15 seconds when moving
+              heartbeatIntervalMs: 30000,       // 30 seconds
+              stationaryIntervalMs: 60000,      // 60 seconds when stationary
+              lowBatteryIntervalMs: 120000,     // 2 minutes when battery < 20%
+              accuracyThresholdM: 1500,         // Max accuracy for storing location
+            }
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
@@ -147,7 +159,7 @@ Deno.serve(async (req) => {
         if (insertError) {
           console.error('Error creating driver:', insertError);
           return new Response(
-            JSON.stringify({ error: 'Failed to register driver' }),
+            JSON.stringify({ error: 'Failed to register driver', server_time: serverTime }),
             { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -167,7 +179,16 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           success: true, 
           driverId: finalDriverId,
-          device: { id: device.id, name: device.name }
+          device: { id: device.id, name: device.name },
+          server_time: serverTime,
+          // Configuration for mobile app
+          config: {
+            locationUpdateIntervalMs: 15000,
+            heartbeatIntervalMs: 30000,
+            stationaryIntervalMs: 60000,
+            lowBatteryIntervalMs: 120000,
+            accuracyThresholdM: 1500,
+          }
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -176,7 +197,7 @@ Deno.serve(async (req) => {
     if (action === 'disconnect') {
       if (!driverId) {
         return new Response(
-          JSON.stringify({ error: 'Driver ID is required' }),
+          JSON.stringify({ error: 'Driver ID is required', server_time: serverTime }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -198,7 +219,7 @@ Deno.serve(async (req) => {
         .eq('connected_driver_id', driverId);
 
       return new Response(
-        JSON.stringify({ success: true }),
+        JSON.stringify({ success: true, server_time: serverTime }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -206,7 +227,7 @@ Deno.serve(async (req) => {
     if (action === 'get-connection') {
       if (!driverId) {
         return new Response(
-          JSON.stringify({ connected: false, device: null }),
+          JSON.stringify({ connected: false, device: null, server_time: serverTime }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -220,7 +241,7 @@ Deno.serve(async (req) => {
 
       if (!driver || driver.status === 'offline') {
         return new Response(
-          JSON.stringify({ connected: false, device: null }),
+          JSON.stringify({ connected: false, device: null, server_time: serverTime }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -236,7 +257,8 @@ Deno.serve(async (req) => {
         JSON.stringify({ 
           connected: true,
           device: device ? { id: device.id, name: device.name } : null,
-          driverName: driver.driver_name
+          driverName: driver.driver_name,
+          server_time: serverTime
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -245,7 +267,7 @@ Deno.serve(async (req) => {
     if (action === 'update-status') {
       if (!driverId) {
         return new Response(
-          JSON.stringify({ error: 'Driver ID is required' }),
+          JSON.stringify({ error: 'Driver ID is required', server_time: serverTime }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -260,23 +282,31 @@ Deno.serve(async (req) => {
       if (!driver) {
         console.log('Driver not found for update-status:', driverId);
         return new Response(
-          JSON.stringify({ error: 'Driver not found', requiresRelogin: true }),
+          JSON.stringify({ error: 'Driver not found', requiresRelogin: true, server_time: serverTime }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      const { status } = body;
+      const { status, batteryLevel } = body;
+      
+      // Update driver with optional device info including battery
+      const updateData: any = { 
+        status: status || 'active',
+        last_seen_at: new Date().toISOString() 
+      };
+      
+      // Store battery info in device_info JSON if provided
+      if (batteryLevel !== undefined) {
+        updateData.device_info = { batteryLevel, lastBatteryUpdate: serverTime };
+      }
       
       await supabaseAdmin
         .from('drivers')
-        .update({ 
-          status: status || 'active',
-          last_seen_at: new Date().toISOString() 
-        })
+        .update(updateData)
         .eq('driver_id', driverId);
 
       return new Response(
-        JSON.stringify({ success: true }),
+        JSON.stringify({ success: true, server_time: serverTime }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -284,7 +314,7 @@ Deno.serve(async (req) => {
     if (action === 'update-name') {
       if (!driverId) {
         return new Response(
-          JSON.stringify({ error: 'Driver ID is required' }),
+          JSON.stringify({ error: 'Driver ID is required', server_time: serverTime }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -293,7 +323,7 @@ Deno.serve(async (req) => {
       
       if (!name?.trim()) {
         return new Response(
-          JSON.stringify({ error: 'Name is required' }),
+          JSON.stringify({ error: 'Name is required', server_time: serverTime }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -304,7 +334,7 @@ Deno.serve(async (req) => {
         .eq('driver_id', driverId);
 
       return new Response(
-        JSON.stringify({ success: true }),
+        JSON.stringify({ success: true, server_time: serverTime }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -312,49 +342,65 @@ Deno.serve(async (req) => {
     if (action === 'update-location') {
       if (!driverId) {
         return new Response(
-          JSON.stringify({ error: 'Driver ID is required' }),
+          JSON.stringify({ error: 'Driver ID is required', server_time: serverTime }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      const { latitude, longitude, speed, accuracy } = body;
+      const { latitude, longitude, speed, accuracy, bearing, batteryLevel, isBackground } = body;
       
       if (latitude === undefined || longitude === undefined) {
         return new Response(
-          JSON.stringify({ error: 'Latitude and longitude are required' }),
+          JSON.stringify({ error: 'Latitude and longitude are required', server_time: serverTime }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
       // Filter out poor accuracy locations (> 1500m) for better tracking
-      // Threshold raised from 100m to handle indoor/poor GPS conditions
       const accuracyValue = accuracy || 0;
       const isAccurate = accuracyValue <= 1500;
       
-      console.log('Location update - Driver:', driverId, 'Lat:', latitude, 'Lng:', longitude, 'Accuracy:', accuracyValue, 'Accurate:', isAccurate);
+      console.log('Location update - Driver:', driverId, 
+        'Lat:', latitude, 'Lng:', longitude, 
+        'Speed:', speed, 'Bearing:', bearing,
+        'Accuracy:', accuracyValue, 'Accurate:', isAccurate,
+        'Battery:', batteryLevel, 'Background:', isBackground);
 
       // Get driver's admin_code
       const { data: driver } = await supabaseAdmin
         .from('drivers')
-        .select('admin_code')
+        .select('admin_code, device_info')
         .eq('driver_id', driverId)
         .maybeSingle();
 
       if (!driver) {
         console.log('Driver not found for update-location:', driverId);
         return new Response(
-          JSON.stringify({ error: 'Driver not found', requiresRelogin: true }),
+          JSON.stringify({ error: 'Driver not found', requiresRelogin: true, server_time: serverTime }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      // Always update driver's last_seen_at
+      // Update driver's last_seen_at and device info
+      const driverUpdate: any = { 
+        status: 'active',
+        last_seen_at: new Date().toISOString() 
+      };
+      
+      // Merge device info
+      if (batteryLevel !== undefined || bearing !== undefined) {
+        driverUpdate.device_info = {
+          ...(driver.device_info || {}),
+          ...(batteryLevel !== undefined ? { batteryLevel } : {}),
+          ...(bearing !== undefined ? { bearing } : {}),
+          ...(isBackground !== undefined ? { isBackground } : {}),
+          lastUpdate: serverTime,
+        };
+      }
+      
       await supabaseAdmin
         .from('drivers')
-        .update({ 
-          status: 'active',
-          last_seen_at: new Date().toISOString() 
-        })
+        .update(driverUpdate)
         .eq('driver_id', driverId);
 
       // Only store location if accuracy is good
@@ -394,28 +440,43 @@ Deno.serve(async (req) => {
         }
 
         return new Response(
-          JSON.stringify({ success: true, stored: true, accuracy: accuracyValue }),
+          JSON.stringify({ 
+            success: true, 
+            stored: true, 
+            accuracy: accuracyValue,
+            server_time: serverTime,
+            // Return next update interval based on battery
+            nextUpdateMs: batteryLevel && batteryLevel < 20 ? 120000 : 
+                          speed && speed > 5 ? 15000 : 60000
+          }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       } else {
         // Location too inaccurate, skip storing but still acknowledge
         console.log('Skipping inaccurate location - accuracy:', accuracyValue, 'm');
         return new Response(
-          JSON.stringify({ success: true, stored: false, accuracy: accuracyValue, reason: 'accuracy_too_low' }),
+          JSON.stringify({ 
+            success: true, 
+            stored: false, 
+            accuracy: accuracyValue, 
+            reason: 'accuracy_too_low',
+            server_time: serverTime,
+            nextUpdateMs: 15000 // Try again in 15 seconds
+          }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
 
     return new Response(
-      JSON.stringify({ error: 'Invalid action' }),
+      JSON.stringify({ error: 'Invalid action', server_time: serverTime }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Server error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ error: 'Internal server error', details: error.message, server_time: new Date().toISOString() }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
