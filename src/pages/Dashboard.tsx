@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-const APK_DOWNLOAD_URL = "https://github.com/legalcliqueltd-dev/gobo-fleet-mate/releases/download/v1.0.0/FleetTrackMate.3.apk";
+const APK_DOWNLOAD_URL = "https://fleettrackmate.com/downloads/FleetTrackMate.apk";
 export default function Dashboard() {
   const { items, markers, loading, error } = useDeviceLocations();
   const { drivers } = useDriverLocations();

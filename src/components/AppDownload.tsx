@@ -5,7 +5,7 @@ import { Download, Smartphone, Shield, Zap, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { ShareAppButton } from "@/components/ShareAppButton";
 
-const APK_DOWNLOAD_URL = "https://github.com/legalcliqueltd-dev/gobo-fleet-mate/releases/download/v1.0.0/FleetTrackMate.3.apk";
+const APK_DOWNLOAD_URL = "https://fleettrackmate.com/downloads/FleetTrackMate.apk";
 
 const AppDownload = () => {
   const steps = [

@@ -4,6 +4,9 @@
 #   RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 # </IfModule>
 
+# APK Downloads - Proper MIME type for Android installation
+AddType application/vnd.android.package-archive .apk
+
 # SPA Routing - Handle client-side routes
 <IfModule mod_rewrite.c>
   RewriteEngine On
