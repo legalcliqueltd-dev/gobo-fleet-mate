@@ -28,6 +28,7 @@ import OpsTasks from './pages/ops/OpsTasks';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import DriversManagement from './pages/admin/DriversManagement';
 import CreateTask from './pages/admin/CreateTask';
+import LocationSimulator from './pages/app/LocationSimulator';
 import TempShare from './pages/TempShare';
 import TempTracking from './pages/TempTracking';
 import BackgroundPathsDemo from './pages/BackgroundPathsDemo';
@@ -254,6 +255,14 @@ export default function App() {
                   element={
                     <ProtectedRoute>
                       <Incidents />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin/simulator"
+                  element={
+                    <ProtectedRoute>
+                      <LocationSimulator />
                     </ProtectedRoute>
                   }
                 />
