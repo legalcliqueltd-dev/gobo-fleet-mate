@@ -17,8 +17,11 @@ export interface LiveDriverLocation {
   updated_at: string | null;
   isAnimating?: boolean;
   batteryLevel?: number;
+  lastBatteryLevel?: number; // Battery level before going offline
   isBackground?: boolean;
-  timeSinceUpdate?: number; // milliseconds since last update
+  timeSinceUpdate?: number;
+  lastKnownLatitude?: number; // Last known location before offline
+  lastKnownLongitude?: number;
 }
 
 // Time thresholds for status (in milliseconds)
@@ -34,16 +37,17 @@ export function useRealtimeDriverLocations() {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   
-  // Keep track of previous positions for animation
+  // Store admin codes for filtering realtime updates
+  const adminCodesRef = useRef<string[]>([]);
   const previousPositions = useRef<Map<string, { lat: number; lng: number; timestamp: number }>>(new Map());
+  // Track last known battery and location before offline
+  const lastKnownStateRef = useRef<Map<string, { battery?: number; lat?: number; lng?: number }>>(new Map());
 
-  // Calculate driver status based on last seen time and location update time
   const calculateStatus = useCallback((
     lastSeenAt: string | null, 
     locationUpdatedAt: string | null,
     speed: number | null
   ): { status: LiveDriverLocation['status']; timeSinceUpdate: number } => {
-    // Use the more recent timestamp between last_seen_at and location updated_at
     const lastActivity = locationUpdatedAt 
       ? new Date(Math.max(
           new Date(lastSeenAt || 0).getTime(),
@@ -57,28 +61,21 @@ export function useRealtimeDriverLocations() {
     
     const timeSinceUpdate = Date.now() - lastActivity.getTime();
     
-    // Offline if no update in 15+ minutes
     if (timeSinceUpdate > OFFLINE_THRESHOLD) {
       return { status: 'offline', timeSinceUpdate };
     }
     
-    // Stale if no update in 5-15 minutes (warn user data may be outdated)
     if (timeSinceUpdate > STALE_THRESHOLD) {
       return { status: 'stale', timeSinceUpdate };
     }
     
-    // Idle if no update in 2-5 minutes
     if (timeSinceUpdate > ACTIVE_THRESHOLD) {
       return { status: 'idle', timeSinceUpdate };
     }
     
-    // Active - check if actually driving or just idle
-    // If speed > 5 km/h, they're driving (active)
-    // Otherwise they're active but stationary
     return { status: 'active', timeSinceUpdate };
   }, []);
 
-  // Fetch initial data
   const fetchDriverLocations = useCallback(async () => {
     if (!user) {
       console.log('🚫 No user, skipping driver fetch');
@@ -86,9 +83,9 @@ export function useRealtimeDriverLocations() {
     }
 
     try {
-      console.log('🔄 Fetching driver locations...');
+      console.log('🔄 Fetching driver locations for user:', user.id);
       
-      // First get admin's connection codes from devices
+      // Get admin's connection codes from devices
       const { data: devicesData, error: devicesError } = await supabase
         .from('devices')
         .select('connection_code')
@@ -97,8 +94,9 @@ export function useRealtimeDriverLocations() {
 
       if (devicesError) throw devicesError;
       
-      const adminCodes = devicesData?.map(d => d.connection_code).filter(Boolean) || [];
-      console.log('📋 Admin codes:', adminCodes);
+      const adminCodes = devicesData?.map(d => d.connection_code).filter(Boolean) as string[] || [];
+      adminCodesRef.current = adminCodes; // Store for realtime filtering
+      console.log('📋 Admin codes for this user:', adminCodes);
 
       if (adminCodes.length === 0) {
         console.log('No connection codes found for this admin');
@@ -107,14 +105,14 @@ export function useRealtimeDriverLocations() {
         return;
       }
 
-      // Fetch drivers linked to this admin's codes
+      // Fetch ONLY drivers linked to this admin's codes
       const { data: driversData, error: driversError } = await supabase
         .from('drivers')
         .select('*')
         .in('admin_code', adminCodes);
 
       if (driversError) throw driversError;
-      console.log('👥 Drivers fetched:', driversData?.length, driversData);
+      console.log('👥 Drivers for this admin:', driversData?.length);
 
       if (!driversData || driversData.length === 0) {
         setDrivers([]);
@@ -122,31 +120,39 @@ export function useRealtimeDriverLocations() {
         return;
       }
 
-      // Get driver IDs
       const driverIds = driversData.map(d => d.driver_id);
 
-      // Fetch latest locations for these drivers
+      // Fetch latest locations for these drivers only
       const { data: locationsData, error: locationsError } = await supabase
         .from('driver_locations')
         .select('*')
         .in('driver_id', driverIds);
 
       if (locationsError) throw locationsError;
-      console.log('📍 Locations fetched:', locationsData?.length, locationsData);
+      console.log('📍 Locations fetched:', locationsData?.length);
 
       // Merge data
       const mergedDrivers: LiveDriverLocation[] = (driversData || []).map(driver => {
         const location = locationsData?.find(l => l.driver_id === driver.driver_id);
-        console.log(`🔗 Driver ${driver.driver_name}: location =`, location);
         const prevPos = previousPositions.current.get(driver.driver_id);
+        const lastKnown = lastKnownStateRef.current.get(driver.driver_id);
         const { status, timeSinceUpdate } = calculateStatus(
           driver.last_seen_at, 
           location?.updated_at ?? null,
           location?.speed ?? null
         );
         
-        // Extract battery info from device_info if available
         const deviceInfo = driver.device_info as { batteryLevel?: number; isBackground?: boolean } | null;
+        const currentBattery = deviceInfo?.batteryLevel;
+        
+        // Store last known state for when driver goes offline
+        if (status !== 'offline' && (location?.latitude || currentBattery)) {
+          lastKnownStateRef.current.set(driver.driver_id, {
+            battery: currentBattery,
+            lat: location?.latitude,
+            lng: location?.longitude,
+          });
+        }
         
         return {
           driver_id: driver.driver_id,
@@ -162,18 +168,13 @@ export function useRealtimeDriverLocations() {
           timeSinceUpdate,
           last_seen_at: driver.last_seen_at,
           updated_at: location?.updated_at ?? null,
-          batteryLevel: deviceInfo?.batteryLevel,
+          batteryLevel: currentBattery,
+          lastBatteryLevel: status === 'offline' ? lastKnown?.battery : undefined,
           isBackground: deviceInfo?.isBackground,
+          lastKnownLatitude: status === 'offline' ? lastKnown?.lat : undefined,
+          lastKnownLongitude: status === 'offline' ? lastKnown?.lng : undefined,
         };
       });
-
-      console.log('✅ Merged drivers:', mergedDrivers.map(d => ({
-        name: d.driver_name,
-        lat: d.latitude,
-        lng: d.longitude,
-        status: d.status,
-        timeSinceUpdate: d.timeSinceUpdate
-      })));
 
       // Update previous positions
       mergedDrivers.forEach(d => {
@@ -186,8 +187,11 @@ export function useRealtimeDriverLocations() {
         }
       });
 
-      const validCount = mergedDrivers.filter(d => d.latitude !== 0 && d.longitude !== 0).length;
-      console.log(`📊 Valid drivers with location: ${validCount}/${mergedDrivers.length}`);
+      console.log('✅ Merged drivers:', mergedDrivers.map(d => ({
+        name: d.driver_name,
+        admin_code: d.admin_code,
+        status: d.status,
+      })));
 
       setDrivers(mergedDrivers);
       setLastUpdate(new Date());
@@ -199,7 +203,6 @@ export function useRealtimeDriverLocations() {
     }
   }, [user, calculateStatus]);
 
-  // Set up realtime subscriptions
   useEffect(() => {
     if (!user) return;
 
@@ -216,16 +219,21 @@ export function useRealtimeDriverLocations() {
           table: 'driver_locations'
         },
         (payload) => {
-          console.log('📍 Location update:', payload);
-          setLastUpdate(new Date());
+          console.log('📍 Location update received:', payload);
           
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const newLocation = payload.new as any;
             
+            // CRITICAL: Only process updates for drivers belonging to this admin
+            if (!adminCodesRef.current.includes(newLocation.admin_code)) {
+              console.log('🚫 Ignoring location update - not my driver:', newLocation.admin_code);
+              return;
+            }
+            
+            setLastUpdate(new Date());
             setDrivers(prev => {
               return prev.map(driver => {
                 if (driver.driver_id === newLocation.driver_id) {
-                  // Store previous position for interpolation
                   const prevPos = previousPositions.current.get(driver.driver_id);
                   previousPositions.current.set(driver.driver_id, {
                     lat: newLocation.latitude,
@@ -238,6 +246,15 @@ export function useRealtimeDriverLocations() {
                     newLocation.updated_at,
                     newLocation.speed
                   );
+
+                  // Update last known state
+                  if (status !== 'offline') {
+                    lastKnownStateRef.current.set(driver.driver_id, {
+                      battery: driver.batteryLevel,
+                      lat: newLocation.latitude,
+                      lng: newLocation.longitude,
+                    });
+                  }
 
                   return {
                     ...driver,
@@ -267,10 +284,17 @@ export function useRealtimeDriverLocations() {
           table: 'drivers'
         },
         (payload) => {
-          console.log('👤 Driver update:', payload);
+          console.log('👤 Driver update received:', payload);
           
           if (payload.eventType === 'INSERT') {
             const newDriver = payload.new as any;
+            
+            // CRITICAL: Only process updates for drivers belonging to this admin
+            if (!adminCodesRef.current.includes(newDriver.admin_code)) {
+              console.log('🚫 Ignoring driver insert - not my driver:', newDriver.admin_code);
+              return;
+            }
+            
             const deviceInfo = newDriver.device_info as { batteryLevel?: number; isBackground?: boolean } | null;
             const { status, timeSinceUpdate } = calculateStatus(newDriver.last_seen_at, null, null);
             
@@ -294,6 +318,13 @@ export function useRealtimeDriverLocations() {
             });
           } else if (payload.eventType === 'UPDATE') {
             const updatedDriver = payload.new as any;
+            
+            // CRITICAL: Only process updates for drivers belonging to this admin
+            if (!adminCodesRef.current.includes(updatedDriver.admin_code)) {
+              console.log('🚫 Ignoring driver update - not my driver:', updatedDriver.admin_code);
+              return;
+            }
+            
             const deviceInfo = updatedDriver.device_info as { batteryLevel?: number; isBackground?: boolean } | null;
             
             setDrivers(prev => prev.map(d => {
@@ -303,6 +334,18 @@ export function useRealtimeDriverLocations() {
                   d.updated_at,
                   d.speed
                 );
+                
+                const lastKnown = lastKnownStateRef.current.get(d.driver_id);
+                
+                // Store last known state before going offline
+                if (d.status !== 'offline' && status === 'offline') {
+                  lastKnownStateRef.current.set(d.driver_id, {
+                    battery: d.batteryLevel,
+                    lat: d.latitude,
+                    lng: d.longitude,
+                  });
+                }
+                
                 return {
                   ...d,
                   driver_name: updatedDriver.driver_name,
@@ -310,6 +353,7 @@ export function useRealtimeDriverLocations() {
                   timeSinceUpdate,
                   last_seen_at: updatedDriver.last_seen_at,
                   batteryLevel: deviceInfo?.batteryLevel,
+                  lastBatteryLevel: status === 'offline' ? lastKnown?.battery : undefined,
                   isBackground: deviceInfo?.isBackground,
                 };
               }
@@ -330,15 +374,17 @@ export function useRealtimeDriverLocations() {
         }
       });
 
-    // Periodically refresh status (check for stale) every 30 seconds
+    // Periodically refresh status every 30 seconds
     const statusInterval = setInterval(() => {
       setDrivers(prev => prev.map(d => {
         const { status, timeSinceUpdate } = calculateStatus(d.last_seen_at, d.updated_at, d.speed);
+        const lastKnown = lastKnownStateRef.current.get(d.driver_id);
         return {
           ...d,
           status,
           timeSinceUpdate,
-          isAnimating: false, // Reset animation flag after interval
+          isAnimating: false,
+          lastBatteryLevel: status === 'offline' ? lastKnown?.battery : undefined,
         };
       }));
     }, 30000);
