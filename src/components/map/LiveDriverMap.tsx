@@ -225,6 +225,14 @@ function DriverCard({ driver, onClose }: { driver: LiveDriverLocation; onClose: 
   const isStale = driver.status === 'stale';
   const isOffline = driver.status === 'offline';
   
+  // Display battery - current if online, last known if offline
+  const displayBattery = driver.batteryLevel ?? driver.lastBatteryLevel;
+  const isLastBattery = !driver.batteryLevel && driver.lastBatteryLevel !== undefined;
+  
+  // Last known location for offline drivers
+  const lastLat = driver.lastKnownLatitude ?? driver.latitude;
+  const lastLng = driver.lastKnownLongitude ?? driver.longitude;
+  
   return (
     <div className="min-w-[280px] bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-2xl border border-slate-700/50 overflow-hidden">
       {/* Stale/Offline Warning Banner */}
@@ -279,7 +287,7 @@ function DriverCard({ driver, onClose }: { driver: LiveDriverLocation; onClose: 
       {/* Stats */}
       <div className="p-4 space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          {driver.speed !== null && (
+          {driver.speed !== null && !isOffline && (
             <div className="bg-slate-800/50 rounded-lg p-2.5 border border-slate-700/30">
               <div className="flex items-center gap-2">
                 <Zap className="h-4 w-4 text-yellow-400" />
@@ -289,7 +297,7 @@ function DriverCard({ driver, onClose }: { driver: LiveDriverLocation; onClose: 
             </div>
           )}
           
-          {driver.accuracy && (
+          {driver.accuracy && !isOffline && (
             <div className="bg-slate-800/50 rounded-lg p-2.5 border border-slate-700/30">
               <div className="flex items-center gap-2">
                 <Signal className="h-4 w-4 text-blue-400" />
@@ -299,16 +307,34 @@ function DriverCard({ driver, onClose }: { driver: LiveDriverLocation; onClose: 
             </div>
           )}
 
-          {driver.batteryLevel !== undefined && (
-            <div className="bg-slate-800/50 rounded-lg p-2.5 border border-slate-700/30">
+          {/* Battery - Current or Last Known */}
+          {displayBattery !== undefined && (
+            <div className={clsx(
+              'bg-slate-800/50 rounded-lg p-2.5 border',
+              isLastBattery ? 'border-gray-500/30' : 'border-slate-700/30'
+            )}>
               <div className="flex items-center gap-2">
-                <BatteryIcon level={driver.batteryLevel} />
-                <span className="text-white font-semibold">{driver.batteryLevel}%</span>
+                <BatteryIcon level={displayBattery} />
+                <span className={clsx('font-semibold', isLastBattery ? 'text-gray-400' : 'text-white')}>
+                  {displayBattery}%
+                </span>
               </div>
-              <span className="text-[10px] text-slate-400">Battery</span>
+              <span className="text-[10px] text-slate-400">
+                {isLastBattery ? 'Last Battery' : 'Battery'}
+              </span>
             </div>
           )}
         </div>
+        
+        {/* Last Known Location for offline drivers */}
+        {isOffline && lastLat !== 0 && lastLng !== 0 && (
+          <div className="bg-slate-800/30 rounded-lg px-3 py-2 border border-slate-700/30">
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <MapPin className="h-3.5 w-3.5 text-gray-400" />
+              <span>Last Location: {lastLat.toFixed(4)}, {lastLng.toFixed(4)}</span>
+            </div>
+          </div>
+        )}
         
         {/* Last update with color coding */}
         <div className={clsx(
