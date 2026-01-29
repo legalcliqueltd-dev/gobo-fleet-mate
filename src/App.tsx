@@ -39,11 +39,51 @@ import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import { ThemeProvider } from './contexts/ThemeContext';
 
+// Driver App (Mobile-only pages)
+import DriverApp from './pages/app/DriverApp';
+import DriverAppLogin from './pages/app/DriverAppLogin';
+import DriverAppSignup from './pages/app/DriverAppSignup';
+import DriverAppConnect from './pages/app/DriverAppConnect';
+import DriverAppDashboard from './pages/app/DriverAppDashboard';
+import DriverAppTasks from './pages/app/DriverAppTasks';
+import DriverAppSOS from './pages/app/DriverAppSOS';
+import DriverAppSettings from './pages/app/DriverAppSettings';
+
 export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
         <Routes>
+          {/* Driver App Routes (Mobile-only, no AppLayout) */}
+          <Route path="/app" element={<DriverApp />} />
+          <Route path="/app/login" element={<DriverAppLogin />} />
+          <Route path="/app/signup" element={<DriverAppSignup />} />
+          <Route path="/app/connect" element={
+            <ProtectedRoute>
+              <DriverAppConnect />
+            </ProtectedRoute>
+          } />
+          <Route path="/app/dashboard" element={
+            <ProtectedRoute>
+              <DriverAppDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/app/tasks" element={
+            <ProtectedRoute>
+              <DriverAppTasks />
+            </ProtectedRoute>
+          } />
+          <Route path="/app/sos" element={
+            <ProtectedRoute>
+              <DriverAppSOS />
+            </ProtectedRoute>
+          } />
+          <Route path="/app/settings" element={
+            <ProtectedRoute>
+              <DriverAppSettings />
+            </ProtectedRoute>
+          } />
+
           {/* Public share route without layout */}
           <Route path="/share/:token" element={<TempShare />} />
           
