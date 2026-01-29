@@ -57,6 +57,15 @@ export default function AdminDashboard() {
     };
   }, []);
 
+  // Fit map bounds when markers change
+  useEffect(() => {
+    if (mapRef.current && markers.length > 1) {
+      const bounds = new google.maps.LatLngBounds();
+      markers.forEach(m => bounds.extend({ lat: m.latitude, lng: m.longitude }));
+      mapRef.current.fitBounds(bounds);
+    }
+  }, [markers]);
+
   const checkAdminAccess = async () => {
     if (!user) return;
     const { data } = await supabase
@@ -103,14 +112,6 @@ export default function AdminDashboard() {
     setActiveTaskCount(count || 0);
   };
 
-  if (!isLoaded) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <p className="text-muted-foreground">Loading dashboard...</p>
-      </div>
-    );
-  }
-
   const centerLocation = markers.length > 0 
     ? { lat: markers[0].latitude, lng: markers[0].longitude }
     : { lat: 37.7749, lng: -122.4194 }; // Default to San Francisco
@@ -118,13 +119,13 @@ export default function AdminDashboard() {
   const activeDrivers = devices.filter(d => d.status === 'active' && !d.is_temporary).length;
   const onlineDevices = devices.filter(d => d.status !== 'offline').length;
 
-  useEffect(() => {
-    if (mapRef.current && markers.length > 1) {
-      const bounds = new google.maps.LatLngBounds();
-      markers.forEach(m => bounds.extend({ lat: m.latitude, lng: m.longitude }));
-      mapRef.current.fitBounds(bounds);
-    }
-  }, [markers]);
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <p className="text-muted-foreground">Loading dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col">
