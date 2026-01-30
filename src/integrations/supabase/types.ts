@@ -606,6 +606,7 @@ export type Database = {
           id: string
           otp_expires_at: string | null
           otp_hash: string | null
+          otp_salt: string | null
           pickup_lat: number | null
           pickup_lng: number | null
           qr_secret: string | null
@@ -626,6 +627,7 @@ export type Database = {
           id?: string
           otp_expires_at?: string | null
           otp_hash?: string | null
+          otp_salt?: string | null
           pickup_lat?: number | null
           pickup_lng?: number | null
           qr_secret?: string | null
@@ -646,6 +648,7 @@ export type Database = {
           id?: string
           otp_expires_at?: string | null
           otp_hash?: string | null
+          otp_salt?: string | null
           pickup_lat?: number | null
           pickup_lng?: number | null
           qr_secret?: string | null
