@@ -32,17 +32,52 @@ Deno.serve(async (req) => {
     // Always include server_time in responses for clock sync
     const serverTime = new Date().toISOString();
 
+    // === INPUT VALIDATION HELPERS ===
+    const validateConnectionCode = (codeInput: string | undefined): string | null => {
+      if (!codeInput?.trim()) return 'Connection code is required';
+      const trimmed = codeInput.trim().toUpperCase();
+      if (trimmed.length !== 8) return 'Connection code must be 8 characters';
+      if (!/^[A-Z0-9]+$/.test(trimmed)) return 'Connection code must be alphanumeric';
+      return null;
+    };
+
+    const validateDriverName = (name: string | undefined): string | null => {
+      if (!name?.trim()) return 'Driver name is required';
+      if (name.trim().length > 100) return 'Driver name must be 100 characters or less';
+      return null;
+    };
+
+    const validateLatitude = (lat: number | undefined): boolean => {
+      return lat !== undefined && lat >= -90 && lat <= 90;
+    };
+
+    const validateLongitude = (lng: number | undefined): boolean => {
+      return lng !== undefined && lng >= -180 && lng <= 180;
+    };
+
+    const validateBatteryLevel = (level: number | undefined): boolean => {
+      return level === undefined || (level >= 0 && level <= 100);
+    };
+
+    const validateSpeed = (speed: number | undefined): boolean => {
+      return speed === undefined || (speed >= 0 && speed <= 500);
+    };
+
     if (action === 'connect') {
-      if (!code?.trim()) {
+      // Validate connection code format
+      const codeError = validateConnectionCode(code);
+      if (codeError) {
         return new Response(
-          JSON.stringify({ error: 'Connection code is required', server_time: serverTime }),
+          JSON.stringify({ error: codeError, server_time: serverTime }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
-      if (!driverName?.trim()) {
+      // Validate driver name
+      const nameError = validateDriverName(driverName);
+      if (nameError) {
         return new Response(
-          JSON.stringify({ error: 'Driver name is required', server_time: serverTime }),
+          JSON.stringify({ error: nameError, server_time: serverTime }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -349,9 +384,26 @@ Deno.serve(async (req) => {
 
       const { latitude, longitude, speed, accuracy, bearing, batteryLevel, isBackground } = body;
       
-      if (latitude === undefined || longitude === undefined) {
+      // Validate latitude and longitude
+      if (!validateLatitude(latitude) || !validateLongitude(longitude)) {
         return new Response(
-          JSON.stringify({ error: 'Latitude and longitude are required', server_time: serverTime }),
+          JSON.stringify({ error: 'Invalid coordinates. Latitude must be -90 to 90, longitude -180 to 180', server_time: serverTime }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Validate battery level if provided
+      if (!validateBatteryLevel(batteryLevel)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid battery level. Must be 0-100', server_time: serverTime }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Validate speed if provided
+      if (!validateSpeed(speed)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid speed. Must be 0-500 km/h', server_time: serverTime }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
