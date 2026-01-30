@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, Download } from 'lucide-react';
 import AppDownload from '@/components/AppDownload';
 import Pricing from '@/components/Pricing';
+import Footer from '@/components/Footer';
 
 export default function Landing() {
   return (
@@ -35,6 +36,8 @@ export default function Landing() {
       <div id="pricing">
         <Pricing />
       </div>
+
+      <Footer />
     </div>
   );
 }
