@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useBackgroundLocationTracking } from '@/hooks/useBackgroundLocationTracking';
@@ -22,7 +22,7 @@ type Task = {
 };
 
 export default function DriverAppDashboard() {
-  const { user } = useAuth();
+  const { session } = useDriverSession();
   const navigate = useNavigate();
   const mapRef = useRef<google.maps.Map | null>(null);
   
@@ -100,7 +100,7 @@ export default function DriverAppDashboard() {
     }
   }, [onDuty]);
 
-  // Load tasks
+  // Load tasks assigned to this driver
   useEffect(() => {
     loadTasks();
     
@@ -112,14 +112,16 @@ export default function DriverAppDashboard() {
     return () => {
       supabase.removeChannel(tasksChannel);
     };
-  }, []);
+  }, [session?.driverId]);
 
   const loadTasks = async () => {
-    if (!user) return;
+    if (!session?.driverId) return;
+    
+    // Tasks are assigned by driver_id (not user_id for code-based drivers)
     const { data } = await supabase
       .from('tasks')
       .select('id, title, dropoff_lat, dropoff_lng, status')
-      .eq('assigned_user_id', user.id)
+      .eq('assigned_user_id', session.driverId)
       .in('status', ['assigned', 'en_route']);
     if (data) setTasks(data);
   };

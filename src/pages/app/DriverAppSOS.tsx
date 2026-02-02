@@ -1,15 +1,15 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertTriangle, Phone, MessageSquare, Send } from 'lucide-react';
+import { AlertTriangle, Phone, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
 
 export default function DriverAppSOS() {
-  const { user } = useAuth();
+  const { session } = useDriverSession();
   const navigate = useNavigate();
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState('');
@@ -17,7 +17,6 @@ export default function DriverAppSOS() {
   const [sosActive, setSosActive] = useState(false);
   const [sosHolding, setSosHolding] = useState(false);
   const [countdown, setCountdown] = useState(3);
-  const holdTimerRef = useRef<number | null>(null);
   const countdownRef = useRef<number | null>(null);
 
   const handleSOSPress = () => {
@@ -61,9 +60,9 @@ export default function DriverAppSOS() {
       };
       setCurrentLocation(location);
 
-      // Create SOS event
+      // Create SOS event using driver_id instead of user_id
       const { error } = await supabase.from('sos_events').insert({
-        user_id: user?.id,
+        user_id: session?.driverId, // Use driver_id for code-based drivers
         latitude: location.lat,
         longitude: location.lng,
         message: message || 'Emergency SOS triggered',
@@ -83,7 +82,6 @@ export default function DriverAppSOS() {
   };
 
   const cancelSOS = async () => {
-    // In a real app, you'd update the SOS event status
     setSosActive(false);
     setMessage('');
     toast.info('SOS cancelled');

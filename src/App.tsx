@@ -3,7 +3,9 @@ import AppLayout from './components/layout/AppLayout';
 import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute';
+import DriverProtectedRoute from './components/DriverProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
+import { DriverSessionProvider } from './contexts/DriverSessionContext';
 import Login from './pages/auth/Login';
 import Signup from './pages/auth/Signup';
 import ForgotPassword from './pages/auth/ForgotPassword';
@@ -39,10 +41,8 @@ import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import { ThemeProvider } from './contexts/ThemeContext';
 
-// Driver App (Mobile-only pages)
+// Driver App (Mobile-only pages) - No email/password required
 import DriverApp from './pages/app/DriverApp';
-import DriverAppLogin from './pages/app/DriverAppLogin';
-import DriverAppSignup from './pages/app/DriverAppSignup';
 import DriverAppConnect from './pages/app/DriverAppConnect';
 import DriverAppDashboard from './pages/app/DriverAppDashboard';
 import DriverAppTasks from './pages/app/DriverAppTasks';
@@ -54,34 +54,34 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <Routes>
-          {/* Driver App Routes (Mobile-only, no AppLayout) */}
-          <Route path="/app" element={<DriverApp />} />
-          <Route path="/app/login" element={<DriverAppLogin />} />
-          <Route path="/app/signup" element={<DriverAppSignup />} />
-          <Route path="/app/connect" element={
-            <ProtectedRoute>
-              <DriverAppConnect />
-            </ProtectedRoute>
-          } />
-          <Route path="/app/dashboard" element={
-            <ProtectedRoute>
-              <DriverAppDashboard />
-            </ProtectedRoute>
-          } />
-          <Route path="/app/tasks" element={
-            <ProtectedRoute>
-              <DriverAppTasks />
-            </ProtectedRoute>
-          } />
-          <Route path="/app/sos" element={
-            <ProtectedRoute>
-              <DriverAppSOS />
-            </ProtectedRoute>
-          } />
-          <Route path="/app/settings" element={
-            <ProtectedRoute>
-              <DriverAppSettings />
-            </ProtectedRoute>
+          {/* Driver App Routes (Mobile-only, code-based auth - no email required) */}
+          <Route path="/app/*" element={
+            <DriverSessionProvider>
+              <Routes>
+                <Route path="/" element={<DriverApp />} />
+                <Route path="/connect" element={<DriverAppConnect />} />
+                <Route path="/dashboard" element={
+                  <DriverProtectedRoute>
+                    <DriverAppDashboard />
+                  </DriverProtectedRoute>
+                } />
+                <Route path="/tasks" element={
+                  <DriverProtectedRoute>
+                    <DriverAppTasks />
+                  </DriverProtectedRoute>
+                } />
+                <Route path="/sos" element={
+                  <DriverProtectedRoute>
+                    <DriverAppSOS />
+                  </DriverProtectedRoute>
+                } />
+                <Route path="/settings" element={
+                  <DriverProtectedRoute>
+                    <DriverAppSettings />
+                  </DriverProtectedRoute>
+                } />
+              </Routes>
+            </DriverSessionProvider>
           } />
 
           {/* Public share route without layout */}

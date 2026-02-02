@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { Loader2 } from 'lucide-react';
 
 /**
@@ -9,56 +8,25 @@ import { Loader2 } from 'lucide-react';
  * 
  * This is the main entry point for the iOS/Android driver app.
  * It checks connection status and redirects accordingly:
- * - Not logged in → Login page
- * - Logged in but not connected → Connect page
+ * - Not connected → Connect page (name + code)
  * - Connected → Dashboard
+ * 
+ * No email/password login required - just name and admin code.
  */
 export default function DriverApp() {
-  const { user, loading: authLoading } = useAuth();
+  const { isConnected, loading } = useDriverSession();
   const navigate = useNavigate();
-  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (authLoading) return;
+    if (loading) return;
 
-    if (!user) {
-      // Not logged in - go to login with redirect back to app
-      navigate('/app/login', { replace: true });
-      return;
-    }
-
-    // Check if driver is connected
-    checkConnectionStatus();
-  }, [user, authLoading]);
-
-  const checkConnectionStatus = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('connect-driver', {
-        body: { action: 'get-connection' },
-      });
-
-      if (error) {
-        console.error('Connection check error:', error);
-        navigate('/app/connect', { replace: true });
-        return;
-      }
-
-      if (data?.connected) {
-        // Driver is connected - go to dashboard
-        navigate('/app/dashboard', { replace: true });
-      } else {
-        // Not connected - go to connect page
-        navigate('/app/connect', { replace: true });
-      }
-    } catch (err) {
-      console.error('Failed to check connection:', err);
+    if (isConnected) {
+      navigate('/app/dashboard', { replace: true });
+    } else {
       navigate('/app/connect', { replace: true });
-    } finally {
-      setChecking(false);
     }
-  };
+  }, [isConnected, loading, navigate]);
 
-  // Show loading state while checking
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="flex flex-col items-center gap-4">
