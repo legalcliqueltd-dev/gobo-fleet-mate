@@ -9,8 +9,9 @@ const Pricing = () => {
     {
       name: "Basic",
       price: "$1.99",
-      period: "forever",
+      period: "/month",
       description: "Perfect for getting started",
+      trial: "7 days free",
       features: [
         "1 driver connection",
         "Real-time GPS tracking",
@@ -19,16 +20,17 @@ const Pricing = () => {
         "Basic analytics",
         "Email support",
       ],
-      cta: "Get Started Free",
+      cta: "Start Free Trial",
       href: "/auth/signup",
       popular: false,
       icon: Zap,
     },
     {
       name: "Pro",
-      price: "$4",
+      price: "$3.99",
       period: "/month",
       description: "For growing businesses",
+      trial: "7 days free",
       features: [
         "Unlimited driver connections",
         "Real-time GPS tracking",
@@ -39,7 +41,7 @@ const Pricing = () => {
         "Trip history & reports",
         "SOS emergency system",
       ],
-      cta: "Upgrade to Pro",
+      cta: "Start Free Trial",
       href: "/auth/signup",
       popular: true,
       icon: Star,
@@ -105,6 +107,11 @@ const Pricing = () => {
                     <span className="text-4xl font-bold">{plan.price}</span>
                     <span className="text-muted-foreground">{plan.period}</span>
                   </div>
+                  {plan.trial && (
+                    <Badge variant="outline" className="mt-2 border-success/50 text-success bg-success/10">
+                      {plan.trial}
+                    </Badge>
+                  )}
                 </CardHeader>
                 
                 <CardContent className="flex flex-col h-full">
@@ -144,7 +151,7 @@ const Pricing = () => {
           <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Check className="w-4 h-4 text-success" />
-              <span>No credit card required</span>
+              <span>7 days free trial</span>
             </div>
             <div className="flex items-center gap-2">
               <Check className="w-4 h-4 text-success" />
