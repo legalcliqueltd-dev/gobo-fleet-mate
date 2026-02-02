@@ -97,17 +97,42 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
   const currentPlan = plans[selectedPlan];
   const currentPrice = selectedMethod === "paystack" ? currentPlan.priceNGN : currentPlan.priceUSD;
 
+  const isVoluntaryUpgrade = !!onDismiss;
+
   return (
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
       <div className="w-full max-w-4xl my-8">
+        {/* Close button for voluntary upgrades */}
+        {isVoluntaryUpgrade && (
+          <div className="flex justify-end mb-4">
+            <Button variant="ghost" size="sm" onClick={onDismiss}>
+              ✕ Close
+            </Button>
+          </div>
+        )}
+
         <div className="text-center mb-8">
-          <Badge variant="outline" className="mb-4 border-destructive/50 text-destructive bg-destructive/10">
-            Trial Expired
-          </Badge>
-          <h1 className="text-3xl font-bold mb-2">Choose Your Plan</h1>
-          <p className="text-muted-foreground">
-            Your 7-day trial has ended. Subscribe to continue tracking your fleet.
-          </p>
+          {isVoluntaryUpgrade ? (
+            <>
+              <Badge variant="outline" className="mb-4 border-primary/50 text-primary bg-primary/10">
+                Upgrade Your Plan
+              </Badge>
+              <h1 className="text-3xl font-bold mb-2">Unlock Full Access</h1>
+              <p className="text-muted-foreground">
+                Subscribe now to get unlimited features and priority support.
+              </p>
+            </>
+          ) : (
+            <>
+              <Badge variant="outline" className="mb-4 border-destructive/50 text-destructive bg-destructive/10">
+                Trial Expired
+              </Badge>
+              <h1 className="text-3xl font-bold mb-2">Choose Your Plan</h1>
+              <p className="text-muted-foreground">
+                Your 7-day trial has ended. Subscribe to continue tracking your fleet.
+              </p>
+            </>
+          )}
         </div>
 
         {/* Plan Selection */}

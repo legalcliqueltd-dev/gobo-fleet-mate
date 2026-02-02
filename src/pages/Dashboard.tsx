@@ -24,6 +24,7 @@ export default function Dashboard() {
   const { subscription, hasFullAccess, refreshSubscription } = useAuth();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [searchParams] = useSearchParams();
 
   // Handle payment success callback
@@ -114,6 +115,11 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-4 md:space-y-6">
+      {/* Upgrade Modal - shown when user clicks Upgrade Now during trial */}
+      {showUpgradeModal && (
+        <PaymentWall onDismiss={() => setShowUpgradeModal(false)} />
+      )}
+
       {/* Trial Banner */}
       {subscription.status === 'trial' && subscription.trialDaysRemaining > 0 && (
         <Card className="border-warning/50 bg-warning/10">
@@ -125,11 +131,14 @@ export default function Dashboard() {
                   Free Trial: {subscription.trialDaysRemaining} day{subscription.trialDaysRemaining !== 1 ? 's' : ''} remaining
                 </span>
               </div>
-              <Link to="/settings">
-                <Button variant="outline" size="sm" className="h-7 text-xs">
-                  Upgrade Now
-                </Button>
-              </Link>
+              <Button 
+                variant="hero" 
+                size="sm" 
+                className="h-7 text-xs"
+                onClick={() => setShowUpgradeModal(true)}
+              >
+                Upgrade Now
+              </Button>
             </div>
           </CardContent>
         </Card>
