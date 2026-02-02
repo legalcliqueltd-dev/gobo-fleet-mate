@@ -9,28 +9,53 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Check, CreditCard, Building2, Loader2 } from "lucide-react";
+import { Check, CreditCard, Building2, Loader2, Globe, MapPin, Star, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+
+type Plan = "basic" | "pro";
+type PaymentMethod = "paystack" | "stripe";
 
 interface PaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  defaultPlan?: Plan;
 }
 
-const PaymentModal = ({ open, onOpenChange, onSuccess }: PaymentModalProps) => {
-  const [selectedMethod, setSelectedMethod] = useState<"paystack" | "stripe" | null>(null);
-  const [loading, setLoading] = useState(false);
+const plans = {
+  basic: {
+    name: "Basic",
+    priceUSD: "$1.99",
+    priceNGN: "₦1,499",
+    icon: Zap,
+    features: [
+      "1 driver connection",
+      "Real-time GPS tracking",
+      "Dashboard access",
+      "Mobile driver app",
+    ],
+  },
+  pro: {
+    name: "Pro",
+    priceUSD: "$3.99",
+    priceNGN: "₦3,999",
+    icon: Star,
+    features: [
+      "Unlimited driver connections",
+      "Advanced analytics",
+      "Priority support",
+      "Push notifications",
+      "Custom geofencing",
+      "SOS emergency system",
+    ],
+  },
+};
 
-  const features = [
-    "Unlimited driver connections",
-    "Advanced analytics dashboard",
-    "Priority customer support",
-    "Push notifications",
-    "Custom geofencing",
-    "Trip history & reports",
-  ];
+const PaymentModal = ({ open, onOpenChange, onSuccess, defaultPlan = "pro" }: PaymentModalProps) => {
+  const [selectedPlan, setSelectedPlan] = useState<Plan>(defaultPlan);
+  const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const handlePayment = async () => {
     if (!selectedMethod) {
@@ -43,14 +68,15 @@ const PaymentModal = ({ open, onOpenChange, onSuccess }: PaymentModalProps) => {
     try {
       const functionName = selectedMethod === "stripe" ? "create-checkout" : "create-paystack-checkout";
       
-      const { data, error } = await supabase.functions.invoke(functionName);
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        body: { plan: selectedPlan }
+      });
 
       if (error) {
         throw new Error(error.message || "Failed to create checkout session");
       }
 
       if (data?.url) {
-        // Open checkout in new tab
         window.open(data.url, "_blank");
         onOpenChange(false);
         toast.success("Redirecting to payment page...");
@@ -66,44 +92,70 @@ const PaymentModal = ({ open, onOpenChange, onSuccess }: PaymentModalProps) => {
     }
   };
 
+  const currentPlan = plans[selectedPlan];
+  const currentPrice = selectedMethod === "paystack" ? currentPlan.priceNGN : currentPlan.priceUSD;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold text-center">
-            Upgrade to Pro
+            Choose Your Plan
           </DialogTitle>
           <DialogDescription className="text-center">
-            Unlock unlimited drivers and premium features
+            Unlock all features with a paid subscription
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          {/* Price */}
-          <div className="text-center">
-            <div className="flex items-baseline justify-center gap-1">
-              <span className="text-4xl font-bold">₦3,999</span>
-              <span className="text-muted-foreground">/month</span>
-            </div>
-            <Badge variant="secondary" className="mt-2 bg-success/20 text-success border-success/30">
-              Cancel anytime
-            </Badge>
-          </div>
-
-          {/* Features */}
-          <div className="grid grid-cols-1 gap-2">
-            {features.map((feature, index) => (
-              <div key={index} className="flex items-center gap-2 text-sm">
-                <div className="w-5 h-5 rounded-full bg-success/20 flex items-center justify-center flex-shrink-0">
-                  <Check className="w-3 h-3 text-success" />
-                </div>
-                <span>{feature}</span>
-              </div>
+        <div className="space-y-4 py-4">
+          {/* Plan Selection */}
+          <div className="grid grid-cols-2 gap-3">
+            {(Object.entries(plans) as [Plan, typeof plans.basic][]).map(([key, plan]) => (
+              <Card 
+                key={key}
+                className={`cursor-pointer transition-all hover:border-primary/50 ${
+                  selectedPlan === key 
+                    ? "border-2 border-primary bg-primary/5" 
+                    : "border-2 border-border"
+                }`}
+                onClick={() => setSelectedPlan(key)}
+              >
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <plan.icon className={`w-4 h-4 ${selectedPlan === key ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <span className="font-semibold">{plan.name}</span>
+                    {key === "pro" && (
+                      <Badge className="text-[10px] px-1 py-0">Popular</Badge>
+                    )}
+                  </div>
+                  <div className="text-lg font-bold">
+                    {selectedMethod === "paystack" ? plan.priceNGN : plan.priceUSD}
+                    <span className="text-xs text-muted-foreground font-normal">/mo</span>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
 
+          {/* Features */}
+          <div className="bg-muted/30 rounded-lg p-3">
+            <p className="text-xs font-medium text-muted-foreground mb-2">
+              {currentPlan.name} includes:
+            </p>
+            <div className="grid grid-cols-1 gap-1.5">
+              {currentPlan.features.map((feature, index) => (
+                <div key={index} className="flex items-center gap-2 text-sm">
+                  <div className="w-4 h-4 rounded-full bg-success/20 flex items-center justify-center flex-shrink-0">
+                    <Check className="w-2.5 h-2.5 text-success" />
+                  </div>
+                  <span>{feature}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Payment Methods */}
-          <div className="space-y-3">
+          <div className="space-y-2">
             <p className="text-sm font-medium text-muted-foreground">Select payment method:</p>
             
             <div className="grid grid-cols-2 gap-3">
@@ -115,12 +167,15 @@ const PaymentModal = ({ open, onOpenChange, onSuccess }: PaymentModalProps) => {
                 }`}
                 onClick={() => setSelectedMethod("paystack")}
               >
-                <CardContent className="p-4 flex flex-col items-center gap-2">
-                  <div className="w-10 h-10 rounded-lg bg-[#00C3F7]/20 flex items-center justify-center">
-                    <Building2 className="w-5 h-5 text-[#00C3F7]" />
+                <CardContent className="p-3 flex flex-col items-center gap-1.5">
+                  <div className="w-8 h-8 rounded-lg bg-[#00C3F7]/20 flex items-center justify-center">
+                    <Building2 className="w-4 h-4 text-[#00C3F7]" />
                   </div>
                   <span className="font-medium text-sm">Paystack</span>
-                  <span className="text-xs text-muted-foreground">Nigerian cards</span>
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <MapPin className="w-2.5 h-2.5" />
+                    Nigeria
+                  </div>
                 </CardContent>
               </Card>
 
@@ -132,12 +187,15 @@ const PaymentModal = ({ open, onOpenChange, onSuccess }: PaymentModalProps) => {
                 }`}
                 onClick={() => setSelectedMethod("stripe")}
               >
-                <CardContent className="p-4 flex flex-col items-center gap-2">
-                  <div className="w-10 h-10 rounded-lg bg-[#635BFF]/20 flex items-center justify-center">
-                    <CreditCard className="w-5 h-5 text-[#635BFF]" />
+                <CardContent className="p-3 flex flex-col items-center gap-1.5">
+                  <div className="w-8 h-8 rounded-lg bg-[#635BFF]/20 flex items-center justify-center">
+                    <CreditCard className="w-4 h-4 text-[#635BFF]" />
                   </div>
                   <span className="font-medium text-sm">Stripe</span>
-                  <span className="text-xs text-muted-foreground">International</span>
+                  <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    <Globe className="w-2.5 h-2.5" />
+                    International
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -157,13 +215,20 @@ const PaymentModal = ({ open, onOpenChange, onSuccess }: PaymentModalProps) => {
                 Processing...
               </>
             ) : (
-              <>Pay ₦3,999/month</>
+              <>Subscribe - {currentPrice}/month</>
             )}
           </Button>
 
-          <p className="text-xs text-center text-muted-foreground">
-            By proceeding, you agree to our Terms of Service and Privacy Policy.
-          </p>
+          <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Check className="w-3 h-3 text-success" />
+              7 days free trial
+            </div>
+            <div className="flex items-center gap-1">
+              <Check className="w-3 h-3 text-success" />
+              Cancel anytime
+            </div>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

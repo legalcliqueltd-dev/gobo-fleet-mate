@@ -386,7 +386,12 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          payment_provider: string | null
           registration_source: string | null
+          subscription_end_at: string | null
+          subscription_plan: string | null
+          subscription_status: string | null
+          trial_started_at: string | null
           updated_at: string
         }
         Insert: {
@@ -395,7 +400,12 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          payment_provider?: string | null
           registration_source?: string | null
+          subscription_end_at?: string | null
+          subscription_plan?: string | null
+          subscription_status?: string | null
+          trial_started_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -404,7 +414,12 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          payment_provider?: string | null
           registration_source?: string | null
+          subscription_end_at?: string | null
+          subscription_plan?: string | null
+          subscription_status?: string | null
+          trial_started_at?: string | null
           updated_at?: string
         }
         Relationships: []

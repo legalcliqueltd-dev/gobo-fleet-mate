@@ -12,8 +12,11 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CREATE-CHECKOUT] ${step}${detailsStr}`);
 };
 
-// FleetTrackMate Pro price ID
-const PRICE_ID = "price_1RXr1bDRWKLOzMXaOq97Fnw4";
+// Stripe Price IDs - with 7-day free trial
+const STRIPE_PRICES = {
+  basic: "price_basic_199", // $1.99/month - Replace with actual Stripe price ID
+  pro: "price_1RXr1bDRWKLOzMXaOq97Fnw4", // $3.99/month (existing)
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -27,6 +30,17 @@ serve(async (req) => {
 
   try {
     logStep("Function started");
+
+    // Parse request body for plan selection
+    const body = await req.json().catch(() => ({}));
+    const plan = body.plan || "pro"; // Default to pro if not specified
+    
+    if (!["basic", "pro"].includes(plan)) {
+      throw new Error("Invalid plan. Must be 'basic' or 'pro'");
+    }
+
+    const priceId = STRIPE_PRICES[plan as keyof typeof STRIPE_PRICES];
+    logStep("Plan selected", { plan, priceId });
 
     const authHeader = req.headers.get("Authorization")!;
     const token = authHeader.replace("Bearer ", "");
@@ -47,22 +61,25 @@ serve(async (req) => {
       logStep("Found existing customer", { customerId });
     }
 
-    // Create a subscription checkout session
+    // Create a subscription checkout session with 7-day trial
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [
         {
-          price: PRICE_ID,
+          price: priceId,
           quantity: 1,
         },
       ],
       mode: "subscription",
-      success_url: `${req.headers.get("origin")}/dashboard?payment=success`,
+      subscription_data: {
+        trial_period_days: 7,
+      },
+      success_url: `${req.headers.get("origin")}/dashboard?payment=success&plan=${plan}`,
       cancel_url: `${req.headers.get("origin")}/dashboard?payment=cancelled`,
     });
 
-    logStep("Checkout session created", { sessionId: session.id });
+    logStep("Checkout session created", { sessionId: session.id, plan });
 
     return new Response(JSON.stringify({ url: session.url }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
