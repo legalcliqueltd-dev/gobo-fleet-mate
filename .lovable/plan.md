@@ -1,43 +1,69 @@
 
-# Update Pricing Plans
+
+# Add PaymentWall to All Protected Routes
 
 ## Summary
-Update the pricing component to add a 7-day free trial for both plans and change the Pro price to $3.99.
+Currently, the PaymentWall only appears on the Dashboard page. When your trial expires, you won't see the payment wall on other pages like Settings. We need to move the PaymentWall to the ProtectedRoute component so it blocks access to ALL protected pages when the trial expires.
+
+## Current Behavior
+- PaymentWall is only rendered inside Dashboard.tsx
+- Other pages (Settings, Analytics, Trips, etc.) don't show the payment wall
+- Users can still access protected content after trial expires on non-Dashboard pages
+
+## Proposed Solution
+Move the subscription check and PaymentWall rendering into `ProtectedRoute.tsx` so it protects all routes uniformly.
 
 ## Changes
 
-### 1. Update Basic Plan
-- Add "7 days free trial" badge/indicator
-- Add trial info to the features or description
-- Update CTA button text to reflect the trial
+### 1. Update ProtectedRoute Component
+**File:** `src/components/ProtectedRoute.tsx`
 
-### 2. Update Pro Plan
-- Change price from `$4` to `$3.99`
-- Add "7 days free trial" badge/indicator
-- Add trial info to the features or description
-- Update CTA button text to reflect the trial
+- Import `useAuth` to access subscription status
+- Import `PaymentWall` component
+- Check if `subscription.status === 'expired'` after authentication check
+- Render `PaymentWall` instead of children when trial is expired
 
-### 3. UI Enhancements
-- Add a `trial` property to each plan object
-- Display a trial badge prominently on each card
-- Update the bottom section from "No credit card required" to "7 days free trial" since we're adding trials
+### 2. Remove Dashboard-specific PaymentWall Logic
+**File:** `src/pages/Dashboard.tsx`
+
+- Remove the early return that shows PaymentWall (lines 115-117)
+- Keep the trial banner and subscription badge (these are informational, not blocking)
 
 ## Technical Details
 
-**File to modify:** `src/components/Pricing.tsx`
-
-**Plan data changes:**
-```typescript
-// Basic plan additions
-trial: "7 days free",
-cta: "Start Free Trial",
-
-// Pro plan changes  
-price: "$3.99",
-trial: "7 days free",
-cta: "Start Free Trial",
+```text
+ProtectedRoute Flow:
+┌─────────────────────┐
+│     User visits     │
+│   protected route   │
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────┐
+│   Auth loading?     │
+│        Yes          │───▶ Show loading spinner
+└──────────┬──────────┘
+           │ No
+           ▼
+┌─────────────────────┐
+│   User logged in?   │
+│        No           │───▶ Redirect to login
+└──────────┬──────────┘
+           │ Yes
+           ▼
+┌─────────────────────┐
+│  Trial expired?     │
+│        Yes          │───▶ Show PaymentWall
+└──────────┬──────────┘
+           │ No
+           ▼
+┌─────────────────────┐
+│   Render children   │
+│  (protected page)   │
+└─────────────────────┘
 ```
 
-**UI additions:**
-- Add a trial badge below the price showing "7 days free trial"
-- Style the trial text with a subtle highlight color
+## Files to Modify
+1. `src/components/ProtectedRoute.tsx` - Add subscription check and PaymentWall
+2. `src/pages/Dashboard.tsx` - Remove redundant PaymentWall rendering
+
