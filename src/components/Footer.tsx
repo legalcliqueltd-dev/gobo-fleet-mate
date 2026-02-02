@@ -3,56 +3,85 @@ import { Badge } from "@/components/ui/badge";
 import { Truck, Mail, Phone, MapPin, Twitter, Linkedin, Facebook } from "lucide-react";
 import HealthCheck from "@/components/HealthCheck";
 import { useLocation, Link } from "react-router-dom";
-
 const Footer = () => {
   const location = useLocation();
   const isLandingPage = location.pathname === '/';
-  
-  const footerSections = [
-    {
-      title: "Product",
-      links: [
-        { name: "Features", href: "#features" },
-        { name: "Dashboard", href: "#dashboard" },
-        { name: "Mobile App", href: "#mobile" },
-        { name: "Integrations", href: "#integrations" },
-        { name: "API", href: "#api" },
-      ]
-    },
-    {
-      title: "Company",
-      links: [
-        { name: "About Us", href: "#about" },
-        { name: "Careers", href: "#careers" },
-        { name: "Press", href: "#press" },
-        { name: "Blog", href: "#blog" },
-        { name: "Partners", href: "#partners" },
-      ]
-    },
-    {
-      title: "Support",
-      links: [
-        { name: "Help Center", href: "#help" },
-        { name: "Documentation", href: "#docs" },
-        { name: "Contact Support", href: "#support" },
-        { name: "System Status", href: "#status" },
-        { name: "Training", href: "#training" },
-      ]
-    },
-    {
-      title: "Legal",
-      links: [
-        { name: "Privacy Policy", href: "/privacy", isRoute: true },
-        { name: "Terms of Service", href: "/terms", isRoute: true },
-        { name: "Cookie Policy", href: "#cookies" },
-        { name: "GDPR", href: "#gdpr" },
-        { name: "Security", href: "#security" },
-      ]
-    }
-  ];
-
-  return (
-    <footer className="bg-muted/30 border-t border-border/50">
+  const footerSections = [{
+    title: "Product",
+    links: [{
+      name: "Features",
+      href: "#features"
+    }, {
+      name: "Dashboard",
+      href: "#dashboard"
+    }, {
+      name: "Mobile App",
+      href: "#mobile"
+    }, {
+      name: "Integrations",
+      href: "#integrations"
+    }, {
+      name: "API",
+      href: "#api"
+    }]
+  }, {
+    title: "Company",
+    links: [{
+      name: "About Us",
+      href: "#about"
+    }, {
+      name: "Careers",
+      href: "#careers"
+    }, {
+      name: "Press",
+      href: "#press"
+    }, {
+      name: "Blog",
+      href: "#blog"
+    }, {
+      name: "Partners",
+      href: "#partners"
+    }]
+  }, {
+    title: "Support",
+    links: [{
+      name: "Help Center",
+      href: "#help"
+    }, {
+      name: "Documentation",
+      href: "#docs"
+    }, {
+      name: "Contact Support",
+      href: "#support"
+    }, {
+      name: "System Status",
+      href: "#status"
+    }, {
+      name: "Training",
+      href: "#training"
+    }]
+  }, {
+    title: "Legal",
+    links: [{
+      name: "Privacy Policy",
+      href: "/privacy",
+      isRoute: true
+    }, {
+      name: "Terms of Service",
+      href: "/terms",
+      isRoute: true
+    }, {
+      name: "Cookie Policy",
+      href: "#cookies"
+    }, {
+      name: "GDPR",
+      href: "#gdpr"
+    }, {
+      name: "Security",
+      href: "#security"
+    }]
+  }];
+  return <footer className="bg-muted/30 border-t border-border/50">
       {/* Main Footer */}
       <div className="container mx-auto px-4 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8">
@@ -77,15 +106,15 @@ const Footer = () => {
             <div className="space-y-3">
               <div className="flex items-center space-x-3 text-sm">
                 <Phone className="w-4 h-4 text-primary" />
-                <span>+1 (555) 123-4567</span>
+                <span>+44 734 1011 220</span>
               </div>
               <div className="flex items-center space-x-3 text-sm">
                 <Mail className="w-4 h-4 text-primary" />
-                <span>support@gftm.com</span>
+                <span>support@fleettrackmate.com</span>
               </div>
               <div className="flex items-center space-x-3 text-sm">
                 <MapPin className="w-4 h-4 text-primary" />
-                <span>San Francisco, CA</span>
+                <span>UK</span>
               </div>
             </div>
 
@@ -104,32 +133,18 @@ const Footer = () => {
           </div>
 
           {/* Footer Links */}
-          {footerSections.map((section, index) => (
-            <div key={index}>
+          {footerSections.map((section, index) => <div key={index}>
               <h4 className="font-semibold mb-4">{section.title}</h4>
               <ul className="space-y-3">
-                {section.links.map((link, linkIndex) => (
-                  <li key={linkIndex}>
-                    {(link as any).isRoute ? (
-                      <Link
-                        to={link.href}
-                        className="text-muted-foreground hover:text-foreground transition-colors text-sm"
-                      >
+                {section.links.map((link, linkIndex) => <li key={linkIndex}>
+                    {(link as any).isRoute ? <Link to={link.href} className="text-muted-foreground hover:text-foreground transition-colors text-sm">
                         {link.name}
-                      </Link>
-                    ) : (
-                      <a
-                        href={link.href}
-                        className="text-muted-foreground hover:text-foreground transition-colors text-sm"
-                      >
+                      </Link> : <a href={link.href} className="text-muted-foreground hover:text-foreground transition-colors text-sm">
                         {link.name}
-                      </a>
-                    )}
-                  </li>
-                ))}
+                      </a>}
+                  </li>)}
               </ul>
-            </div>
-          ))}
+            </div>)}
         </div>
       </div>
 
@@ -144,11 +159,7 @@ const Footer = () => {
               </p>
             </div>
             <div className="flex gap-3 w-full md:w-auto">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 md:w-64 px-4 py-2 rounded-md bg-background border border-border text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
+              <input type="email" placeholder="Enter your email" className="flex-1 md:w-64 px-4 py-2 rounded-md bg-background border border-border text-sm focus:ring-2 focus:ring-primary focus:border-transparent" />
               <Button variant="hero">Subscribe</Button>
             </div>
           </div>
@@ -177,8 +188,6 @@ const Footer = () => {
       
       {/* Health Check - Only on landing page */}
       {isLandingPage && <HealthCheck />}
-    </footer>
-  );
+    </footer>;
 };
-
 export default Footer;
