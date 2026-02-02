@@ -11,9 +11,17 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CREATE-PAYSTACK-CHECKOUT] ${step}${detailsStr}`);
 };
 
-// FleetTrackMate Pro - ₦3,999/month (amount in kobo)
-const AMOUNT_KOBO = 399900;
-const PLAN_CODE = "PLN_fleettrackmate_pro"; // You'll need to create this plan in Paystack dashboard
+// Paystack pricing (amount in kobo - 100 kobo = ₦1)
+const PAYSTACK_PRICES = {
+  basic: {
+    amount: 149900, // ₦1,499/month
+    name: "FleetTrackMate Basic",
+  },
+  pro: {
+    amount: 399900, // ₦3,999/month
+    name: "FleetTrackMate Pro",
+  },
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -28,6 +36,17 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
+    // Parse request body for plan selection
+    const body = await req.json().catch(() => ({}));
+    const plan = body.plan || "pro"; // Default to pro if not specified
+    
+    if (!["basic", "pro"].includes(plan)) {
+      throw new Error("Invalid plan. Must be 'basic' or 'pro'");
+    }
+
+    const priceConfig = PAYSTACK_PRICES[plan as keyof typeof PAYSTACK_PRICES];
+    logStep("Plan selected", { plan, amount: priceConfig.amount });
+
     const authHeader = req.headers.get("Authorization")!;
     const token = authHeader.replace("Bearer ", "");
     const { data } = await supabaseClient.auth.getUser(token);
@@ -40,9 +59,9 @@ serve(async (req) => {
       throw new Error("Paystack secret key not configured. Please add PAYSTACK_SECRET_KEY to secrets.");
     }
 
-    const origin = req.headers.get("origin") || "https://fleettrackmate.com";
+    const origin = req.headers.get("origin") || "https://gobo-fleet-mate.lovable.app";
 
-    // Initialize Paystack transaction for subscription
+    // Initialize Paystack transaction
     const response = await fetch("https://api.paystack.co/transaction/initialize", {
       method: "POST",
       headers: {
@@ -51,17 +70,17 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         email: user.email,
-        amount: AMOUNT_KOBO,
+        amount: priceConfig.amount,
         currency: "NGN",
-        callback_url: `${origin}/dashboard?payment=success`,
+        callback_url: `${origin}/dashboard?payment=success&plan=${plan}&provider=paystack`,
         metadata: {
           user_id: user.id,
-          plan: "pro",
+          plan,
           custom_fields: [
             {
               display_name: "Plan",
               variable_name: "plan",
-              value: "FleetTrackMate Pro"
+              value: priceConfig.name
             }
           ]
         }
@@ -74,7 +93,7 @@ serve(async (req) => {
       throw new Error(result.message || "Failed to initialize Paystack transaction");
     }
 
-    logStep("Paystack transaction initialized", { reference: result.data.reference });
+    logStep("Paystack transaction initialized", { reference: result.data.reference, plan });
 
     return new Response(JSON.stringify({ 
       url: result.data.authorization_url,

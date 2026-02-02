@@ -5,22 +5,38 @@ import LiveDriverMap from '../components/map/LiveDriverMap';
 import DriversList from '../components/DriversList';
 import GeofenceAlerts from '../components/GeofenceAlerts';
 import TempTrackingManager from '../components/TempTrackingManager';
-import { Clock, Plus, ExternalLink, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone } from 'lucide-react';
+import PaymentWall from '../components/PaymentWall';
+import { Clock, Plus, ExternalLink, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone, Timer } from 'lucide-react';
 import { ShareAppButton } from '@/components/ShareAppButton';
 import clsx from 'clsx';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 const APK_DOWNLOAD_URL = "https://fleettrackmate.com/downloads/FleetTrackMate.apk";
 export default function Dashboard() {
   const { items, markers, loading, error } = useDeviceLocations();
   const { drivers } = useDriverLocations();
+  const { subscription, hasFullAccess, refreshSubscription } = useAuth();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
+
+  // Handle payment success callback
+  useEffect(() => {
+    const paymentStatus = searchParams.get('payment');
+    if (paymentStatus === 'success') {
+      toast.success('Payment successful! Welcome to FleetTrackMate Pro.');
+      // Refresh subscription status
+      refreshSubscription();
+    } else if (paymentStatus === 'cancelled') {
+      toast.info('Payment cancelled.');
+    }
+  }, [searchParams, refreshSubscription]);
 
   useEffect(() => {
     const focusId = searchParams.get('focus');
@@ -95,8 +111,43 @@ export default function Dashboard() {
     d.last_seen_at && Date.now() - new Date(d.last_seen_at).getTime() < 15 * 60 * 1000
   ).length;
 
+  // Show payment wall if trial expired and no active subscription
+  if (subscription.status === 'expired') {
+    return <PaymentWall />;
+  }
+
   return (
     <div className="space-y-4 md:space-y-6">
+      {/* Trial Banner */}
+      {subscription.status === 'trial' && subscription.trialDaysRemaining > 0 && (
+        <Card className="border-warning/50 bg-warning/10">
+          <CardContent className="p-3 md:p-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <Timer className="h-4 w-4 text-warning" />
+                <span className="text-sm font-medium">
+                  Free Trial: {subscription.trialDaysRemaining} day{subscription.trialDaysRemaining !== 1 ? 's' : ''} remaining
+                </span>
+              </div>
+              <Link to="/settings">
+                <Button variant="outline" size="sm" className="h-7 text-xs">
+                  Upgrade Now
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Active Subscription Badge */}
+      {subscription.status === 'active' && subscription.plan && (
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="bg-success/10 text-success border-success/30">
+            {subscription.plan === 'pro' ? '⭐ Pro Plan' : '⚡ Basic Plan'}
+          </Badge>
+        </div>
+      )}
+
       {/* Stats Banner */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
