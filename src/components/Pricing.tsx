@@ -8,7 +8,7 @@ const Pricing = () => {
   const plans = [
     {
       name: "Free",
-      price: "₦0",
+      price: "$0",
       period: "forever",
       description: "Perfect for getting started",
       features: [
@@ -26,7 +26,7 @@ const Pricing = () => {
     },
     {
       name: "Pro",
-      price: "₦3,999",
+      price: "$39.99",
       period: "/month",
       description: "For growing businesses",
       features: [
