@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 const Pricing = () => {
   const plans = [
     {
-      name: "Free",
+      name: "Basic",
       price: "$1.99",
       period: "forever",
       description: "Perfect for getting started",
