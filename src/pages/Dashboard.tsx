@@ -111,10 +111,6 @@ export default function Dashboard() {
     d.last_seen_at && Date.now() - new Date(d.last_seen_at).getTime() < 15 * 60 * 1000
   ).length;
 
-  // Show payment wall if trial expired and no active subscription
-  if (subscription.status === 'expired') {
-    return <PaymentWall />;
-  }
 
   return (
     <div className="space-y-4 md:space-y-6">
