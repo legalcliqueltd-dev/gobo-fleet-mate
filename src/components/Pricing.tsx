@@ -26,7 +26,7 @@ const Pricing = () => {
     },
     {
       name: "Pro",
-      price: "$39.99",
+      price: "$4",
       period: "/month",
       description: "For growing businesses",
       features: [
