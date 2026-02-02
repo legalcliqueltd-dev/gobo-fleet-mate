@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ export default function DriverAppConnect() {
   const [searchParams] = useSearchParams();
   const codeFromUrl = searchParams.get('code');
   
-  const { user } = useAuth();
+  const { connect, isConnected, session } = useDriverSession();
   const navigate = useNavigate();
   const [code, setCode] = useState(codeFromUrl || '');
   const [driverName, setDriverName] = useState('');
@@ -21,43 +21,21 @@ export default function DriverAppConnect() {
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [deviceName, setDeviceName] = useState<string>('');
-  const [checkingExisting, setCheckingExisting] = useState(true);
 
-  useEffect(() => {
-    checkExistingConnection();
-  }, [user]);
-
-  const checkExistingConnection = async () => {
-    if (!user) {
-      setCheckingExisting(false);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase.functions.invoke('connect-driver', {
-        body: { action: 'get-connection' },
-      });
-
-      if (!error && data.connected && data.device) {
-        setConnected(true);
-        setDeviceName(data.device.name || 'Device');
-      }
-    } catch (err) {
-      console.error('Error checking connection:', err);
-    } finally {
-      setCheckingExisting(false);
-    }
-  };
+  // If already connected, redirect to dashboard
+  if (isConnected && !connected) {
+    navigate('/app/dashboard', { replace: true });
+    return null;
+  }
 
   const handleConnect = async () => {
-    if (!user) {
-      toast.error('Please log in first');
-      navigate('/app/login');
+    if (!code.trim()) {
+      setError('Please enter a connection code');
       return;
     }
 
-    if (!code.trim()) {
-      setError('Please enter a connection code');
+    if (!driverName.trim()) {
+      setError('Please enter your name');
       return;
     }
 
@@ -65,20 +43,12 @@ export default function DriverAppConnect() {
     setError(null);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      
-      if (!sessionData.session) {
-        setError('Session expired. Please log in again.');
-        toast.error('Session expired');
-        navigate('/app/login');
-        return;
-      }
-
+      // Call the connect-driver edge function (no auth required)
       const { data, error: functionError } = await supabase.functions.invoke('connect-driver', {
         body: {
           action: 'connect',
           code: code.trim().toUpperCase(),
-          driverName: driverName.trim() || undefined,
+          driverName: driverName.trim(),
         },
       });
 
@@ -87,10 +57,15 @@ export default function DriverAppConnect() {
       if (data.error) {
         setError(data.error);
         toast.error(data.error);
-      } else if (data.success) {
+      } else if (data.success && data.driverId) {
+        // Save session to localStorage
+        connect(data.driverId, driverName.trim(), code.trim().toUpperCase());
         setConnected(true);
-        setDeviceName(data.device?.name || 'Device');
+        setDeviceName(data.device?.name || 'Fleet');
         toast.success('Successfully connected!');
+      } else {
+        setError('Connection failed. Please try again.');
+        toast.error('Connection failed');
       }
     } catch (err: any) {
       console.error('Connection error:', err);
@@ -100,14 +75,6 @@ export default function DriverAppConnect() {
       setLoading(false);
     }
   };
-
-  if (checkingExisting) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
 
   if (connected) {
     return (
@@ -121,7 +88,8 @@ export default function DriverAppConnect() {
             <h2 className="text-2xl font-bold">Connected!</h2>
             
             <p className="text-muted-foreground">
-              You are connected to <span className="font-semibold">{deviceName}</span>
+              Welcome, <span className="font-semibold">{driverName}</span>! You're connected to{' '}
+              <span className="font-semibold">{deviceName}</span>
             </p>
 
             <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 text-sm">
@@ -158,18 +126,21 @@ export default function DriverAppConnect() {
             </div>
             <h2 className="text-xl font-bold mb-2">Connect to Fleet</h2>
             <p className="text-sm text-muted-foreground">
-              Enter the connection code from your admin
+              Enter your name and the connection code from your admin
             </p>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Your Name</label>
+              <label className="block text-sm font-medium mb-2">Your Name *</label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   value={driverName}
-                  onChange={(e) => setDriverName(e.target.value)}
+                  onChange={(e) => {
+                    setDriverName(e.target.value);
+                    setError(null);
+                  }}
                   placeholder="Enter your name"
                   className="pl-10"
                   disabled={loading}
@@ -178,7 +149,7 @@ export default function DriverAppConnect() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Connection Code</label>
+              <label className="block text-sm font-medium mb-2">Connection Code *</label>
               <Input
                 value={code}
                 onChange={(e) => {
@@ -200,7 +171,7 @@ export default function DriverAppConnect() {
 
             <Button
               onClick={handleConnect}
-              disabled={loading || !code.trim()}
+              disabled={loading || !code.trim() || !driverName.trim()}
               className="w-full"
               size="lg"
             >

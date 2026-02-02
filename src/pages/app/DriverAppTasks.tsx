@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Package, MapPin, Clock, CheckCircle2 } from 'lucide-react';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
 
@@ -19,7 +18,7 @@ type Task = {
 };
 
 export default function DriverAppTasks() {
-  const { user } = useAuth();
+  const { session } = useDriverSession();
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,15 +34,15 @@ export default function DriverAppTasks() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [session?.driverId]);
 
   const loadTasks = async () => {
-    if (!user) return;
+    if (!session?.driverId) return;
     
     const { data, error } = await supabase
       .from('tasks')
       .select('id, title, description, dropoff_lat, dropoff_lng, status, due_at')
-      .eq('assigned_user_id', user.id)
+      .eq('assigned_user_id', session.driverId)
       .in('status', ['assigned', 'en_route', 'completed'])
       .order('due_at', { ascending: true });
 

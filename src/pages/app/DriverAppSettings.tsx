@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/alert-dialog';
 
 export default function DriverAppSettings() {
-  const { user, signOut } = useAuth();
+  const { session, disconnect } = useDriverSession();
   const navigate = useNavigate();
   const [disconnecting, setDisconnecting] = useState(false);
   
@@ -49,25 +49,27 @@ export default function DriverAppSettings() {
   const handleDisconnect = async () => {
     setDisconnecting(true);
     try {
-      const { error } = await supabase.functions.invoke('connect-driver', {
-        body: { action: 'disconnect' },
+      // Call the edge function to update status
+      await supabase.functions.invoke('connect-driver', {
+        body: { 
+          action: 'disconnect',
+          driverId: session?.driverId,
+        },
       });
 
-      if (error) throw error;
-
+      // Clear local session
+      disconnect();
       toast.success('Disconnected from fleet');
       navigate('/app/connect');
     } catch (err: any) {
       console.error('Disconnect error:', err);
-      toast.error('Failed to disconnect');
+      // Still disconnect locally even if server call fails
+      disconnect();
+      toast.success('Disconnected from fleet');
+      navigate('/app/connect');
     } finally {
       setDisconnecting(false);
     }
-  };
-
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/app/login');
   };
 
   return (
@@ -85,8 +87,10 @@ export default function DriverAppSettings() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Signed in as</p>
-              <p className="font-medium">{user?.email}</p>
+              <p className="text-sm text-muted-foreground">Driver Name</p>
+              <p className="font-medium">{session?.driverName || 'Unknown'}</p>
+              <p className="text-sm text-muted-foreground mt-3">Admin Code</p>
+              <p className="font-mono text-sm">{session?.adminCode || 'Not connected'}</p>
             </div>
           </CardContent>
         </Card>
@@ -152,7 +156,7 @@ export default function DriverAppSettings() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Disconnect from fleet?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    You will need to enter a new connection code to reconnect. Your location will stop being shared.
+                    You will need to enter your name and connection code again to reconnect. Your location will stop being shared.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -165,16 +169,6 @@ export default function DriverAppSettings() {
             </AlertDialog>
           </CardContent>
         </Card>
-
-        {/* Sign Out */}
-        <Button
-          variant="destructive"
-          className="w-full gap-2"
-          onClick={handleSignOut}
-        >
-          <LogOut className="h-4 w-4" />
-          Sign Out
-        </Button>
 
         {/* App Info */}
         <div className="text-center text-xs text-muted-foreground pt-4">
