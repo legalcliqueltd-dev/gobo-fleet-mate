@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   bundledWebRuntime: false,
   server: {
-    url: 'https://d78756af-7da0-400e-bb46-4b099b10699b.lovableproject.com?forceHideBadge=true',
+    url: 'https://fleettrackmate.com/app?forceHideBadge=true',
     cleartext: true,
     androidScheme: 'https'
   }

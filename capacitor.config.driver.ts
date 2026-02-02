@@ -21,10 +21,9 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   bundledWebRuntime: false,
   
-  // Development mode - loads from Lovable preview (hot reload)
-  // REMOVE THIS SECTION FOR PRODUCTION BUILDS
+  // Production mode - loads from custom domain
   server: {
-    url: 'https://d78756af-7da0-400e-bb46-4b099b10699b.lovableproject.com/app?forceHideBadge=true',
+    url: 'https://fleettrackmate.com/app?forceHideBadge=true',
     cleartext: true,
     androidScheme: 'https',
   },
