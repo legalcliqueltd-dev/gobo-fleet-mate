@@ -227,7 +227,7 @@ export default function Dashboard() {
       </div>
 
       {/* Main Content - Map on Top */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_340px] gap-2 md:gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] gap-2 md:gap-3">
         <section className="order-1 min-h-[45vh] md:min-h-[50vh] lg:min-h-[65vh]">
           <LiveDriverMap
             selectedDriverId={selectedDriverId}
@@ -290,7 +290,7 @@ export default function Dashboard() {
                           <div className="flex items-center gap-0.5 shrink-0">
                             {d.connection_code && (
                               <>
-                                <span className="text-[9px] font-mono text-muted-foreground">{d.connection_code}</span>
+                                <span className="text-xs font-mono font-semibold text-foreground">{d.connection_code}</span>
                                 <button
                                   onClick={() => handleCopyCode(d.connection_code!, d.id)}
                                   className="p-0.5 rounded hover:bg-primary/10"
