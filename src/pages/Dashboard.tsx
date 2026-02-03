@@ -113,6 +113,17 @@ export default function Dashboard() {
     d.last_seen_at && Date.now() - new Date(d.last_seen_at).getTime() < 15 * 60 * 1000
   ).length;
 
+  const handleCopyCode = async (code: string, deviceId: string) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedId(deviceId);
+      toast.success('Code copied!');
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      toast.error('Failed to copy');
+    }
+  };
+
 
   return (
     <div className="space-y-4 md:space-y-6">
