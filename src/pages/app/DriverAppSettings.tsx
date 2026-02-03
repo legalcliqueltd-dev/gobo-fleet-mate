@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { User, LogOut, Battery, MapPin, Unlink } from 'lucide-react';
+import { User, Battery, MapPin, Unlink, Power, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
 import {
@@ -26,6 +26,12 @@ export default function DriverAppSettings() {
   const navigate = useNavigate();
   const [disconnecting, setDisconnecting] = useState(false);
   
+  // Duty status - defaults to true
+  const [onDuty, setOnDuty] = useState(() => {
+    const stored = localStorage.getItem('driverOnDuty');
+    return stored === null ? true : stored === 'true';
+  });
+  
   // Settings state (stored in localStorage for persistence)
   const [batterySaving, setBatterySaving] = useState(
     localStorage.getItem('batterySavingMode') === 'true'
@@ -33,6 +39,22 @@ export default function DriverAppSettings() {
   const [highAccuracy, setHighAccuracy] = useState(
     localStorage.getItem('highAccuracyMode') !== 'false'
   );
+
+  const handleDutyChange = (checked: boolean) => {
+    // If turning off, this is handled by the AlertDialog
+    // If turning on, just do it
+    if (checked) {
+      setOnDuty(true);
+      localStorage.setItem('driverOnDuty', 'true');
+      toast.success('Tracking enabled - you are now on duty');
+    }
+  };
+
+  const confirmTurnOffDuty = () => {
+    setOnDuty(false);
+    localStorage.setItem('driverOnDuty', 'false');
+    toast.warning('Tracking disabled - your location is no longer being shared');
+  };
 
   const handleBatterySavingChange = (checked: boolean) => {
     setBatterySaving(checked);
@@ -92,6 +114,73 @@ export default function DriverAppSettings() {
               <p className="text-sm text-muted-foreground mt-3">Admin Code</p>
               <p className="font-mono text-sm">{session?.adminCode || 'Not connected'}</p>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Tracking Control - Moved from Dashboard */}
+        <Card className="border-2 border-primary/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Power className="h-5 w-5" />
+              Tracking Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="on-duty" className="text-base font-medium">On Duty</Label>
+                <p className="text-xs text-muted-foreground">
+                  When enabled, your location is shared with your fleet manager
+                </p>
+              </div>
+              {onDuty ? (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Switch
+                      id="on-duty"
+                      checked={onDuty}
+                      className="data-[state=checked]:bg-success"
+                    />
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5 text-warning" />
+                        Disable Location Tracking?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Your fleet manager will no longer be able to see your location. 
+                        This may affect your job assignments and emergency response capabilities.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Keep Tracking On</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={confirmTurnOffDuty}
+                        className="bg-destructive hover:bg-destructive/90"
+                      >
+                        Turn Off Tracking
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ) : (
+                <Switch
+                  id="on-duty"
+                  checked={onDuty}
+                  onCheckedChange={handleDutyChange}
+                />
+              )}
+            </div>
+
+            {!onDuty && (
+              <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-warning flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-warning">
+                  Location tracking is disabled. Your fleet manager cannot see your position.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

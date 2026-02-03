@@ -840,6 +840,17 @@ export type Database = {
           max_speed_kmh: number
         }[]
       }
+      driver_stats: {
+        Args: { p_driver_id: string; p_since: string }
+        Returns: {
+          active_minutes: number
+          avg_speed_kmh: number
+          distance_km: number
+          idle_minutes: number
+          max_speed_kmh: number
+          total_points: number
+        }[]
+      }
       establish_driver_connection: {
         Args: { p_connection_code: string; p_driver_user_id: string }
         Returns: Json

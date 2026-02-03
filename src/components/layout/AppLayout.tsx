@@ -1,5 +1,5 @@
 import { PropsWithChildren, useState, useRef, useEffect } from 'react';
-import { Menu, X, MoreHorizontal, AlertTriangle, Home, TrendingUp, MapPin, Users, Settings as SettingsIcon, Link2 } from 'lucide-react';
+import { Menu, X, Home, Settings as SettingsIcon } from 'lucide-react';
 import logo from '@/assets/logo.webp';
 import { Link, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
@@ -7,34 +7,19 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/button';
 import LocationPermissionPrompt from '../LocationPermissionPrompt';
-import { useBackgroundLocationTracking } from '@/hooks/useBackgroundLocationTracking';
 import SOSNotificationBell from '../sos/SOSNotificationBell';
 
 export default function AppLayout({ children }: PropsWithChildren) {
   const { user, signOut, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const location = useLocation();
   const [indicatorStyle, setIndicatorStyle] = useState({ width: 0, left: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const btnRefs = useRef<(HTMLAnchorElement | null)[]>([]);
 
-  // Background location tracking with user preferences
-  const locationEnabled = localStorage.getItem('locationTrackingEnabled') !== 'false';
-  const updateInterval = parseInt(localStorage.getItem('locationUpdateInterval') || '30000');
-  const batterySaving = localStorage.getItem('batterySavingMode') === 'true';
-
-  const { isTracking, batteryLevel } = useBackgroundLocationTracking(!!user && locationEnabled, {
-    updateIntervalMs: updateInterval,
-    enableHighAccuracy: true,
-    batterySavingMode: batterySaving,
-  });
-
+  // Simplified nav - only Home and Settings
   const navItems = [
     { path: '/dashboard', icon: Home, label: 'Home' },
-    { path: '/analytics', icon: TrendingUp, label: 'Analytics' },
-    { path: '/trips', icon: MapPin, label: 'Trips' },
-    { path: '/geofences', icon: Users, label: 'Geofences' },
     { path: '/settings', icon: SettingsIcon, label: 'Settings' },
   ];
 
@@ -78,16 +63,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
             {/* Desktop Actions */}
             <div className="hidden md:flex items-center gap-3">
               {user && (
-                <>
-                  <SOSNotificationBell />
-                  <Link 
-                    to="/driver" 
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-all hover:shadow-lg"
-                  >
-                    <AlertTriangle className="h-4 w-4" />
-                    SOS
-                  </Link>
-                </>
+                <SOSNotificationBell />
               )}
               {!loading && (user ? (
                 <>
@@ -109,16 +85,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
             {/* Mobile Menu Button */}
             <div className="flex items-center gap-2 md:hidden">
               {user && (
-                <>
-                  <SOSNotificationBell />
-                  <Link 
-                    to="/driver"
-                    className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold"
-                  >
-                    <AlertTriangle className="h-3 w-3" />
-                    SOS
-                  </Link>
-                </>
+                <SOSNotificationBell />
               )}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -141,42 +108,14 @@ export default function AppLayout({ children }: PropsWithChildren) {
                 >
                   Dashboard
                 </Link>
-                <Link 
-                  to="/analytics" 
-                  className="px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition"
-                  onClick={closeMobileMenu}
-                >
-                  Analytics
-                </Link>
-                <Link 
-                  to="/trips" 
-                  className="px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition"
-                  onClick={closeMobileMenu}
-                >
-                  Trips
-                </Link>
-                <Link 
-                  to="/geofences" 
-                  className="px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition"
-                  onClick={closeMobileMenu}
-                >
-                  Geofences
-                </Link>
                 {user && (
                   <>
                     <Link 
-                      to="/driver/tasks" 
+                      to="/ops/incidents" 
                       className="px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition"
                       onClick={closeMobileMenu}
                     >
-                      My Tasks
-                    </Link>
-                    <Link 
-                      to="/ops/tasks" 
-                      className="px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition"
-                      onClick={closeMobileMenu}
-                    >
-                      Ops Console
+                      SOS Incidents
                     </Link>
                     <Link 
                       to="/settings" 
@@ -184,14 +123,6 @@ export default function AppLayout({ children }: PropsWithChildren) {
                       onClick={closeMobileMenu}
                     >
                       Settings
-                    </Link>
-                    <Link 
-                      to="/temp-tracking" 
-                      className="px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition flex items-center gap-2"
-                      onClick={closeMobileMenu}
-                    >
-                      <Link2 className="h-4 w-4" />
-                      Temp Tracking
                     </Link>
                     <div className="border-t border-white/10 dark:border-slate-800/60 my-2"></div>
                     <div className="px-3 py-2 text-sm text-slate-600 dark:text-slate-400">{user.email}</div>
@@ -230,12 +161,12 @@ export default function AppLayout({ children }: PropsWithChildren) {
       </header>
       <main className="mx-auto max-w-7xl px-3 xs:px-4 py-6 md:py-8 mb-24">{children}</main>
       
-      {/* Floating Navigation - Desktop */}
+      {/* Floating Navigation - Desktop (simplified with just 2 items) */}
       {user && (
-        <div className="hidden md:block fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4">
+        <div className="hidden md:block fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4">
           <div
             ref={containerRef}
-            className="relative flex items-center justify-between bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg shadow-lg rounded-full px-2 py-1 border border-slate-200/50 dark:border-slate-700/50"
+            className="relative flex items-center justify-center gap-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg shadow-lg rounded-full px-4 py-2 border border-slate-200/50 dark:border-slate-700/50"
           >
             {navItems.map((item, index) => {
               const Icon = item.icon;
@@ -246,25 +177,25 @@ export default function AppLayout({ children }: PropsWithChildren) {
                   to={item.path}
                   ref={(el) => (btnRefs.current[index] = el)}
                   className={clsx(
-                    "relative flex items-center justify-center gap-1.5 flex-1 px-3 py-1.5 text-sm font-medium transition-colors rounded-full",
+                    "relative flex items-center justify-center gap-2 px-6 py-2 text-sm font-medium transition-colors rounded-full",
                     isActive 
                       ? "text-primary" 
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <Icon className="h-4 w-4 z-10" />
-                  <span className="text-xs z-10 hidden lg:inline">{item.label}</span>
+                  <Icon className="h-5 w-5 z-10" />
+                  <span className="z-10">{item.label}</span>
                 </Link>
               );
             })}
 
             {/* Sliding Active Indicator */}
             {activeIndex >= 0 && (
-        <motion.div
-          animate={indicatorStyle}
-          transition={{ type: "spring", stiffness: 400, damping: 30 }}
-          className="absolute top-0.5 bottom-0.5 rounded-full bg-primary/15 dark:bg-primary/25"
-        />
+              <motion.div
+                animate={indicatorStyle}
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                className="absolute top-1 bottom-1 rounded-full bg-primary/15 dark:bg-primary/25"
+              />
             )}
           </div>
         </div>
