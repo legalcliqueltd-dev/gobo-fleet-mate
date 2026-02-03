@@ -226,9 +226,9 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {/* Main Content - Map First */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_360px] gap-3 md:gap-4">
-        <section className="order-2 lg:order-1 min-h-[50vh] md:min-h-[60vh] lg:min-h-[70vh]">
+      {/* Main Content - Map on Top */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_340px] gap-2 md:gap-3">
+        <section className="order-1 min-h-[45vh] md:min-h-[50vh] lg:min-h-[65vh]">
           <LiveDriverMap
             selectedDriverId={selectedDriverId}
             onDriverSelect={handleLiveDriverSelect}
@@ -237,7 +237,7 @@ export default function Dashboard() {
           />
         </section>
 
-        <aside className="order-1 lg:order-2 space-y-2 md:space-y-3">
+        <aside className="order-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-2 md:gap-2">
           {/* Devices Card */}
           <Card className="border border-border">
             <CardHeader className="p-2 md:p-3 pb-2">
