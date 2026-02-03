@@ -227,8 +227,8 @@ export default function Dashboard() {
       </div>
 
       {/* Main Content - Map First */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] xl:grid-cols-[1fr_380px] gap-4 md:gap-6">
-        <section className="order-2 lg:order-1 min-h-[300px] md:min-h-[400px]">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_360px] gap-3 md:gap-4">
+        <section className="order-2 lg:order-1 min-h-[50vh] md:min-h-[60vh] lg:min-h-[70vh]">
           <LiveDriverMap
             selectedDriverId={selectedDriverId}
             onDriverSelect={handleLiveDriverSelect}
