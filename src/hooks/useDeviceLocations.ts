@@ -54,6 +54,7 @@ export function useDeviceLocations() {
         status: d.status,
         created_at: d.created_at,
         is_temporary: d.is_temporary || false,
+        connection_code: d.connection_code || null,
         latest: Array.isArray(d.locations) && d.locations.length > 0 ? d.locations[0] : null,
       }));
 
