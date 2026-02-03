@@ -237,10 +237,10 @@ export default function Dashboard() {
           />
         </section>
 
-        <aside className="order-1 lg:order-2 space-y-3 md:space-y-4">
+        <aside className="order-1 lg:order-2 space-y-2 md:space-y-3">
           {/* Devices Card */}
           <Card className="border border-border">
-            <CardHeader className="p-3 md:pb-3">
+            <CardHeader className="p-2 md:p-3 pb-2">
               <div className="flex items-center justify-between">
                 <h3 className="font-heading font-semibold flex items-center gap-2 text-sm md:text-base">
                   <div className="p-1 md:p-1.5 rounded-lg bg-primary/20">
@@ -255,56 +255,78 @@ export default function Dashboard() {
                 </Link>
               </div>
             </CardHeader>
-            <CardContent className="p-3 pt-0">
+            <CardContent className="p-2 md:p-3 pt-0">
               {loading && (
-                <div className="flex items-center justify-center py-4 md:py-6">
+                <div className="flex items-center justify-center py-3 md:py-4">
                   <div className="animate-spin rounded-full h-5 w-5 md:h-6 md:w-6 border-b-2 border-primary"></div>
                 </div>
               )}
               {error && <div className="text-xs md:text-sm text-destructive">{error}</div>}
               {!loading && items.length === 0 && (
-                <div className="text-center py-4 md:py-6">
-                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-2 md:mb-3">
-                    <Car className="h-5 w-5 md:h-6 md:w-6 text-muted-foreground" />
+                <div className="text-center py-3 md:py-4">
+                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-2">
+                    <Car className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
                   </div>
                   <p className="text-xs md:text-sm text-muted-foreground">No devices yet.</p>
                   <Link to="/devices/new" className="text-xs md:text-sm text-primary hover:underline">Add your first device →</Link>
                 </div>
               )}
-              <ul className="space-y-2 max-h-[200px] md:max-h-[280px] overflow-y-auto">
+              <ul className="space-y-1.5 md:space-y-2 max-h-[250px] md:max-h-[350px] overflow-y-auto">
                 {items.map((d) => {
                   const hasFix = !!d.latest;
                   return (
                     <li key={d.id}>
                       <div className={clsx(
-                        'rounded-lg md:rounded-xl border p-2 md:p-3 transition-all hover:border-primary/50 hover:bg-primary/5',
+                        'rounded-lg border p-2 md:p-2.5 transition-all hover:border-primary/50 hover:bg-primary/5',
                         selectedId === d.id ? 'border-primary bg-primary/10 shadow-md' : 'border-border bg-card/50'
                       )}>
-                        <div className="flex items-start justify-between gap-2">
+                        {/* Row 1: Name + Status + Delete */}
+                        <div className="flex items-center justify-between gap-2">
                           <button onClick={() => setSelectedId(d.id)} className="text-left flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <div className={clsx(
-                                'h-2 w-2 md:h-2.5 md:w-2.5 rounded-full shrink-0',
+                                'h-2 w-2 rounded-full shrink-0',
                                 d.status === 'active' ? 'bg-success animate-pulse' : d.status === 'idle' ? 'bg-warning' : 'bg-muted-foreground'
                               )} />
-                              <span className="font-semibold text-sm md:text-base truncate">{d.name ?? 'Unnamed'}</span>
+                              <span className="font-semibold text-sm truncate">{d.name ?? 'Unnamed'}</span>
                               {d.is_temporary && (
-                                <span className="px-1 py-0.5 text-[8px] md:text-[10px] rounded-full bg-purple-500/20 text-purple-400 font-bold shrink-0">TEMP</span>
+                                <span className="px-1 py-0.5 text-[8px] rounded-full bg-purple-500/20 text-purple-400 font-bold shrink-0">TEMP</span>
                               )}
                             </div>
-                            <div className="mt-1 md:mt-1.5 text-[10px] md:text-xs text-muted-foreground flex items-center gap-1">
-                              <Clock className="h-2.5 w-2.5 md:h-3 md:w-3 shrink-0" />
-                              <span className="truncate">{hasFix ? new Date(d.latest!.timestamp).toLocaleString() : 'No location'}</span>
-                            </div>
                           </button>
-                          <div className="flex items-center gap-0.5 md:gap-1 shrink-0">
-                            <Link to={`/devices/${d.id}`} className="p-1 md:p-1.5 rounded-lg hover:bg-primary/10" title="Details">
-                              <ExternalLink className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
-                            </Link>
-                            <button onClick={() => handleDeleteDevice(d.id)} className="p-1 md:p-1.5 rounded-lg hover:bg-destructive/10" title="Delete">
-                              <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4 text-destructive" />
-                            </button>
+                          <button onClick={() => handleDeleteDevice(d.id)} className="p-1 rounded-lg hover:bg-destructive/10 shrink-0" title="Delete">
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </button>
+                        </div>
+                        
+                        {/* Row 2: Connection Code */}
+                        <div className="flex items-center justify-between mt-1.5 gap-2">
+                          <div className="text-[10px] md:text-xs text-muted-foreground font-mono truncate">
+                            {d.connection_code ? (
+                              <>Code: <span className="text-foreground font-semibold">{d.connection_code}</span></>
+                            ) : (
+                              <span className="italic">No code assigned</span>
+                            )}
                           </div>
+                          {d.connection_code && (
+                            <button
+                              onClick={() => handleCopyCode(d.connection_code!, d.id)}
+                              className="p-1 rounded hover:bg-primary/10 shrink-0"
+                              title="Copy code"
+                            >
+                              {copiedId === d.id ? (
+                                <Check className="h-3 w-3 text-success" />
+                              ) : (
+                                <Copy className="h-3 w-3 text-muted-foreground" />
+                              )}
+                            </button>
+                          )}
+                        </div>
+                        
+                        {/* Row 3: Timestamp */}
+                        <div className="mt-1 text-[10px] text-muted-foreground flex items-center gap-1">
+                          <Clock className="h-2.5 w-2.5 shrink-0" />
+                          <span className="truncate">{hasFix ? new Date(d.latest!.timestamp).toLocaleString() : 'No location'}</span>
                         </div>
                       </div>
                     </li>
