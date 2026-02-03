@@ -208,22 +208,6 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
-
-        <Link to="/analytics" className="block">
-          <Card className="bg-gradient-to-br from-fleet-blue/10 to-fleet-blue/5 border border-fleet-blue/20 hover:border-fleet-blue/40 transition-all h-full">
-            <CardContent className="p-2">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-fleet-blue/20 shrink-0">
-                  <TrendingUp className="h-3.5 w-3.5 text-fleet-blue" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold">Analytics</p>
-                  <p className="text-[10px] text-muted-foreground truncate">Reports →</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
       </div>
 
       {/* Main Content - Map on Top */}
