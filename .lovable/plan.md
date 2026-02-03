@@ -1,149 +1,137 @@
 
-
-# Dashboard Layout Optimization Plan
+# Driver Location Features Plan
 
 ## Overview
 
-This plan reorders the dashboard layout so the map appears on top in tablet/mobile views, reduces card padding/width, and creates a more compact, minimalistic design.
+This plan implements two related features:
+1. **Dashboard**: Ensure clicking a connected driver centers the map on their current location
+2. **Driver Details Page**: Add a "Current Location" button on the map to re-center on the driver's position
 
 ---
 
-## Current Issues (from screenshot)
+## Feature 1: Dashboard - Click Driver to Center Map
 
-| Issue | Current State |
-|-------|---------------|
-| Map position | Below sidebar cards on tablet (order-2) |
-| Device cards | Full-width sidebar, feels too spread out |
-| Spacing | Large gaps between elements |
-| Empty space | Cards don't use space efficiently |
+### Current Behavior
+Looking at the code, clicking on a connected driver in `DriversList.tsx` already calls `onDriverSelect?.(driver)` which triggers `handleDriverSelect` in `Dashboard.tsx` → sets `selectedDriverId` → `LiveDriverMap` receives it and should pan to that driver.
 
----
+### What Needs Verification
+The `LiveDriverMap` component already has logic to pan to selected driver. However, we should verify the flow is working correctly and improve the pan behavior if needed.
 
-## Changes Required
-
-### 1. Reorder Layout - Map on Top
-
-**Current (line 230-240)**:
-```
-Map: order-2 lg:order-1 (appears second on mobile/tablet)
-Sidebar: order-1 lg:order-2 (appears first on mobile/tablet)
-```
-
-**New Layout**:
-```
-Map: order-1 (always appears first)
-Sidebar: order-2 (always appears second)
-```
-
-This puts the map on top for all screen sizes (mobile, tablet, desktop side-by-side).
+### Changes to `LiveDriverMap.tsx`
+- Ensure the map smoothly pans to the selected driver when `selectedDriverId` changes
+- Add a visual indication that the driver is focused (already has selection ring)
 
 ---
 
-### 2. Reduce Card Width and Padding
+## Feature 2: Driver Details Page - "Current Location" Button
 
-**Sidebar Cards**:
-- Use a two-column grid on tablet for sidebar items
-- Reduce internal padding from `p-2 md:p-3` to `p-1.5 md:p-2`
-- Make device cards more compact with inline layout
+### Location
+Add a button to the map overlay in `DriverLocationMap.tsx` that re-centers the map on the driver's current location.
 
-**New Sidebar Grid** (for tablet):
+### Button Design
 ```
-md:grid md:grid-cols-2 lg:block
+┌─────────────────────────────────────────────────┐
+│ [Driver Info Overlay - top left]                │
+│                                                 │
+│                    MAP                          │
+│                                                 │
+│                           [📍 Current] ← NEW    │
+│ [Legend - bottom left]                          │
+└─────────────────────────────────────────────────┘
 ```
 
-This splits the sidebar into 2 columns on tablet, single column on mobile, and stacked on desktop sidebar.
+### Placement
+- Position: **Bottom right** corner of the map
+- Style: Floating button with icon + text, matching the existing overlay style
+
+### Behavior
+When clicked:
+1. Pan the map to the driver's current location
+2. Set appropriate zoom level (14-15)
+3. Brief visual feedback (button highlight)
 
 ---
 
-### 3. Compact Device Card Design
+## Files to Modify
 
-**Current Card** (3 rows, too tall):
+### 1. `src/components/map/DriverLocationMap.tsx`
+
+**Add "Current Location" Button**:
+- Add a new floating button in the bottom-right corner
+- Import `Crosshair` or `Target` icon from lucide-react
+- Create click handler that pans map to `currentLocation`
+
+**New code to add (around line 213-228)**:
+```tsx
+{/* Current Location Button - Bottom Right */}
+<button
+  onClick={() => {
+    if (mapRef.current && currentLocation) {
+      mapRef.current.panTo({ 
+        lat: currentLocation.latitude, 
+        lng: currentLocation.longitude 
+      });
+      mapRef.current.setZoom(15);
+    }
+  }}
+  className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-card/95 backdrop-blur-sm rounded-lg px-3 py-2 border border-border shadow-lg hover:bg-primary/10 hover:border-primary/50 transition-all text-xs font-medium"
+  title="Center on current location"
+>
+  <Crosshair className="h-3.5 w-3.5 text-primary" />
+  <span>Current</span>
+</button>
 ```
-Row 1: [●] Name [TEMP] [Delete]
-Row 2: Code: XXXXXXXX [Copy]
-Row 3: [Clock] Timestamp
-```
 
-**New Card** (more compact, 2 rows):
-```
-Row 1: [●] Name         Code: XXXX [📋] [🗑️]
-Row 2: [Clock] Timestamp | [TEMP badge if applicable]
-```
+### 2. `src/components/map/LiveDriverMap.tsx` (Verification)
 
-Benefits:
-- Single line for name + code + actions
-- Reduces vertical height significantly
-- Feels less "blocky"
+**Verify pan behavior**:
+- Ensure `useEffect` that watches `selectedDriverId` properly pans to driver
+- Confirm the pan animation is smooth
 
----
-
-### 4. Reduce Stats Banner Size
-
-**Current**: Full cards with large icons and text
-
-**Optimized**:
-- Smaller icon containers: `p-1.5` instead of `p-2`
-- Tighter padding: `p-2` instead of `p-3`
-- Smaller number text: `text-lg` instead of `text-xl`
-
----
-
-### 5. Reduce Overall Spacing
-
-| Element | Current | New |
-|---------|---------|-----|
-| Main container | `space-y-4 md:space-y-6` | `space-y-3 md:space-y-4` |
-| Grid gap | `gap-3 md:gap-4` | `gap-2 md:gap-3` |
-| Card internal | `space-y-2 md:space-y-3` | `space-y-1.5 md:space-y-2` |
-| Device list items | `space-y-1.5 md:space-y-2` | `space-y-1` |
-
----
-
-### 6. Responsive Layout Summary
-
-| Screen | Map Position | Sidebar Layout |
-|--------|--------------|----------------|
-| Mobile (<768px) | Top, full width | Below map, single column |
-| Tablet (768-1024px) | Top, full width | Below map, 2-column grid |
-| Desktop (>1024px) | Left side | Right sidebar, single column |
-
----
-
-## File to Modify
-
-**`src/pages/Dashboard.tsx`**
-
-Changes:
-1. Line 129: Reduce main spacing
-2. Line 169: Compact stats banner
-3. Line 230: Change grid layout and order classes
-4. Line 231: Map section - change to `order-1`
-5. Line 240: Sidebar - change to `order-2`, add tablet grid
-6. Lines 279-331: Compact device card layout
-7. Lines 341-378: Reduce card padding
+Current code at ~line 500-520 should handle this. May need minor adjustment if not working.
 
 ---
 
 ## Visual Result
 
-**Tablet View (after changes)**:
+### Driver Details Page Map (After Change)
+
 ```
-┌─────────────────────────────────────────┐
-│ [Stats: Devices] [Drivers] [Online] [→] │ ← Compact stats row
-├─────────────────────────────────────────┤
-│                                         │
-│              MAP (top)                  │ ← Map first
-│                                         │
-├──────────────────┬──────────────────────┤
-│  Your Devices    │  Connected Drivers   │ ← 2-column grid
-│  ┌────────────┐  │  ┌────────────────┐  │
-│  │ Device 1   │  │  │ Driver 1       │  │
-│  │ Device 2   │  │  │ Driver 2       │  │
-│  └────────────┘  │  └────────────────┘  │
-├──────────────────┴──────────────────────┤
-│  [Driver App]    │  [Quick Actions]     │ ← 2-column
-└─────────────────────────────────────────┘
+┌──────────────────────────────────────────────────┐
+│ [● John Doe] [LIVE]                              │
+│                                                  │
+│                                                  │
+│                   [Driver Marker]                │
+│                        ●                         │
+│                                                  │
+│                                                  │
+│ [● Current] [● History]          [📍 Current] ← │
+└──────────────────────────────────────────────────┘
 ```
 
-This creates a clean, modern dashboard where the map is the hero element and sidebar content is organized efficiently below.
+The button will:
+- Have a crosshair/target icon
+- Say "Current" as the label
+- Match the existing overlay styling (glass effect with border)
+- Highlight on hover
 
+---
+
+## Implementation Summary
+
+| File | Change |
+|------|--------|
+| `src/components/map/DriverLocationMap.tsx` | Add "Current Location" floating button (bottom-right) |
+| `src/components/map/LiveDriverMap.tsx` | Verify/improve selected driver pan behavior |
+
+---
+
+## Technical Notes
+
+1. **Map Reference**: Both components already have `mapRef` which provides access to `panTo()` and `setZoom()` methods
+
+2. **Smooth Pan**: Google Maps `panTo()` already animates smoothly
+
+3. **Button Accessibility**: Include `title` attribute for tooltip and ensure keyboard accessible
+
+4. **Responsive**: Button should be visible on all screen sizes, positioned to not overlap with other controls
