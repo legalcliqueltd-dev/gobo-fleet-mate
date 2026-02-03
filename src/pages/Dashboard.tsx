@@ -25,6 +25,7 @@ export default function Dashboard() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
 
   // Handle payment success callback
