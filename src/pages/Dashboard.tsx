@@ -329,42 +329,40 @@ export default function Dashboard() {
 
           <DriversList onDriverSelect={handleDriverSelect} selectedDriverId={selectedDriverId} />
 
-          {/* Driver App Download Card */}
+          {/* Driver App Download Card - Compact */}
           <Card className="border border-primary/20 bg-gradient-to-br from-primary/10 to-primary/5">
-            <CardContent className="p-3 md:p-4">
-              <div className="flex items-center gap-2 mb-2 md:mb-3">
-                <div className="p-1 md:p-1.5 rounded-lg bg-primary/20">
-                  <Smartphone className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
+            <CardContent className="p-1.5 md:p-2">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <div className="p-1 rounded-md bg-primary/20">
+                  <Smartphone className="h-3 w-3 text-primary" />
                 </div>
-                <h3 className="font-heading font-semibold text-xs md:text-sm">Driver App</h3>
+                <h3 className="font-heading font-semibold text-[11px]">Driver App</h3>
               </div>
-              <p className="text-[10px] md:text-xs text-muted-foreground mb-2 md:mb-3">
-                Get the Rocket Driver app for your drivers
-              </p>
-              <div className="flex gap-2">
+              <div className="flex gap-1.5">
                 <a href={APK_DOWNLOAD_URL} download className="flex-1">
-                  <Button variant="hero" size="sm" className="w-full h-8 md:h-9 text-xs md:text-sm">
-                    <Download className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
+                  <Button variant="hero" size="sm" className="w-full h-6 text-[10px]">
+                    <Download className="h-3 w-3 mr-1" />
                     Download
                   </Button>
                 </a>
-                <ShareAppButton variant="outline" size="sm" className="h-8 md:h-9 text-xs md:text-sm" />
+                <ShareAppButton variant="outline" size="sm" className="h-6 text-[10px] px-2" />
               </div>
             </CardContent>
           </Card>
 
+          {/* Quick Actions - Compact */}
           <Card className="border border-border">
-            <CardContent className="p-3 md:p-4 space-y-2">
-              <h3 className="font-heading font-semibold text-xs md:text-sm mb-2">Quick Actions</h3>
+            <CardContent className="p-1.5 md:p-2 space-y-1">
+              <h3 className="font-heading font-semibold text-[11px] mb-1">Quick Actions</h3>
               <Link to="/temp-tracking" className="block">
-                <Button variant="outline" size="sm" className="w-full justify-start h-8 md:h-9 text-xs md:text-sm">
-                  <Link2 className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
-                  Temp Tracking Links
+                <Button variant="outline" size="sm" className="w-full justify-start h-6 text-[10px]">
+                  <Link2 className="h-3 w-3 mr-1" />
+                  Temp Tracking
                 </Button>
               </Link>
-              <Button variant="outline" size="sm" className="w-full justify-start h-8 md:h-9 text-xs md:text-sm text-destructive hover:bg-destructive/10" onClick={handleDeleteTempHistory}>
-                <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
-                Clear Temp History
+              <Button variant="outline" size="sm" className="w-full justify-start h-6 text-[10px] text-destructive hover:bg-destructive/10" onClick={handleDeleteTempHistory}>
+                <Trash2 className="h-3 w-3 mr-1" />
+                Clear History
               </Button>
             </CardContent>
           </Card>
