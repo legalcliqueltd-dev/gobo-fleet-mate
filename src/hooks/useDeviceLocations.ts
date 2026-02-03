@@ -9,6 +9,7 @@ export type Device = {
   status: 'active' | 'idle' | 'offline' | null;
   created_at: string;
   is_temporary?: boolean;
+  connection_code?: string | null;
 };
 export type LocationRow = {
   id: string;
