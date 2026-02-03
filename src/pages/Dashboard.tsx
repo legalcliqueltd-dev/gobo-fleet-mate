@@ -165,45 +165,45 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Stats Banner */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+      {/* Stats Banner - Compact */}
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
-          <CardContent className="p-3 md:p-4">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-2 md:p-2.5 rounded-lg md:rounded-xl bg-primary/20 shrink-0">
-                <Car className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+          <CardContent className="p-2">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-primary/20 shrink-0">
+                <Car className="h-3.5 w-3.5 text-primary" />
               </div>
               <div className="min-w-0">
-                <p className="text-xl md:text-2xl font-bold">{items.length}</p>
-                <p className="text-[10px] md:text-xs text-muted-foreground truncate">Total Devices</p>
+                <p className="text-lg font-bold">{items.length}</p>
+                <p className="text-[10px] text-muted-foreground truncate">Devices</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-success/10 to-success/5 border border-success/20">
-          <CardContent className="p-3 md:p-4">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-2 md:p-2.5 rounded-lg md:rounded-xl bg-success/20 shrink-0">
-                <Users className="h-4 w-4 md:h-5 md:w-5 text-success" />
+          <CardContent className="p-2">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-success/20 shrink-0">
+                <Users className="h-3.5 w-3.5 text-success" />
               </div>
               <div className="min-w-0">
-                <p className="text-xl md:text-2xl font-bold">{activeDrivers}</p>
-                <p className="text-[10px] md:text-xs text-muted-foreground truncate">Active Drivers</p>
+                <p className="text-lg font-bold">{activeDrivers}</p>
+                <p className="text-[10px] text-muted-foreground truncate">Drivers</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border border-warning/20">
-          <CardContent className="p-3 md:p-4">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-2 md:p-2.5 rounded-lg md:rounded-xl bg-warning/20 shrink-0">
-                <Activity className="h-4 w-4 md:h-5 md:w-5 text-warning" />
+          <CardContent className="p-2">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-warning/20 shrink-0">
+                <Activity className="h-3.5 w-3.5 text-warning" />
               </div>
               <div className="min-w-0">
-                <p className="text-xl md:text-2xl font-bold">{activeDevices}</p>
-                <p className="text-[10px] md:text-xs text-muted-foreground truncate">Online Now</p>
+                <p className="text-lg font-bold">{activeDevices}</p>
+                <p className="text-[10px] text-muted-foreground truncate">Online</p>
               </div>
             </div>
           </CardContent>
@@ -211,14 +211,14 @@ export default function Dashboard() {
 
         <Link to="/analytics" className="block">
           <Card className="bg-gradient-to-br from-fleet-blue/10 to-fleet-blue/5 border border-fleet-blue/20 hover:border-fleet-blue/40 transition-all h-full">
-            <CardContent className="p-3 md:p-4">
-              <div className="flex items-center gap-2 md:gap-3">
-                <div className="p-2 md:p-2.5 rounded-lg md:rounded-xl bg-fleet-blue/20 shrink-0">
-                  <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-fleet-blue" />
+            <CardContent className="p-2">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-fleet-blue/20 shrink-0">
+                  <TrendingUp className="h-3.5 w-3.5 text-fleet-blue" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm md:text-base font-semibold">Analytics</p>
-                  <p className="text-[10px] md:text-xs text-muted-foreground truncate">View Reports →</p>
+                  <p className="text-sm font-semibold">Analytics</p>
+                  <p className="text-[10px] text-muted-foreground truncate">Reports →</p>
                 </div>
               </div>
             </CardContent>
