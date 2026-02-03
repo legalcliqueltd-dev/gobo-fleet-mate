@@ -14,6 +14,9 @@ type Props = {
 
 export default function DriversList({ onDriverSelect, selectedDriverId }: Props) {
   const { drivers, loading, error } = useDriverLocations();
+  const navigate = useNavigate();
+  const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const clickCountRef = useRef(0);
 
   // Check if driver is online (last seen within 5 minutes = active tracking)
   const isOnline = (lastSeen: string | null, status: string | null) => {
