@@ -9,6 +9,7 @@ export type Device = {
   status: 'active' | 'idle' | 'offline' | null;
   created_at: string;
   is_temporary?: boolean;
+  connection_code?: string | null;
 };
 export type LocationRow = {
   id: string;
@@ -34,7 +35,7 @@ export function useDeviceLocations() {
 
       const { data, error } = await supabase
         .from('devices')
-        .select('id, user_id, name, imei, status, created_at, is_temporary, locations (id, latitude, longitude, speed, timestamp)')
+        .select('id, user_id, name, imei, status, created_at, is_temporary, connection_code, locations (id, latitude, longitude, speed, timestamp)')
         .order('timestamp', { foreignTable: 'locations', ascending: false })
         .limit(1, { foreignTable: 'locations' });
 
@@ -53,6 +54,7 @@ export function useDeviceLocations() {
         status: d.status,
         created_at: d.created_at,
         is_temporary: d.is_temporary || false,
+        connection_code: d.connection_code || null,
         latest: Array.isArray(d.locations) && d.locations.length > 0 ? d.locations[0] : null,
       }));
 
