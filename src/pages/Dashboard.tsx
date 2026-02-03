@@ -126,7 +126,7 @@ export default function Dashboard() {
 
 
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="space-y-3 md:space-y-4">
       {/* Upgrade Modal - shown when user clicks Upgrade Now during trial */}
       {showUpgradeModal && (
         <PaymentWall onDismiss={() => setShowUpgradeModal(false)} />
