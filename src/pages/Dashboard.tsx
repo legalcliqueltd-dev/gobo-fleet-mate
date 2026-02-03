@@ -290,7 +290,7 @@ export default function Dashboard() {
                           <div className="flex items-center gap-0.5 shrink-0">
                             {d.connection_code && (
                               <>
-                                <span className="text-[9px] font-mono text-muted-foreground">{d.connection_code}</span>
+                                <span className="text-xs font-mono font-semibold text-foreground">{d.connection_code}</span>
                                 <button
                                   onClick={() => handleCopyCode(d.connection_code!, d.id)}
                                   className="p-0.5 rounded hover:bg-primary/10"
