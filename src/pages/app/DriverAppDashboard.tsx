@@ -3,14 +3,15 @@ import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useBackgroundLocationTracking } from '@/hooks/useBackgroundLocationTracking';
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
-import { Crosshair, Map, Power, Package } from 'lucide-react';
+import { Crosshair, Map, Package, Wifi, Signal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
 import DriverLocationMarker from '@/components/map/DriverLocationMarker';
 import DriverStatusCard from '@/components/driver/DriverStatusCard';
+import LocationBlocker from '@/components/driver/LocationBlocker';
 import { cn } from '@/lib/utils';
 
 type Task = {
@@ -21,6 +22,16 @@ type Task = {
   status: string;
 };
 
+type TrailPoint = {
+  lat: number;
+  lng: number;
+  timestamp: number;
+  speed: number | null;
+};
+
+const TRAIL_STORAGE_KEY = 'driver_location_trail';
+const MAX_TRAIL_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 export default function DriverAppDashboard() {
   const { session } = useDriverSession();
   const navigate = useNavigate();
@@ -28,15 +39,52 @@ export default function DriverAppDashboard() {
   
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [onDuty, setOnDuty] = useState(false);
   const [speed, setSpeed] = useState<number | null>(null);
   const [heading, setHeading] = useState<number | null>(null);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const [mapType, setMapType] = useState<'roadmap' | 'satellite'>('roadmap');
+  const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
+  const [trail, setTrail] = useState<TrailPoint[]>([]);
   
-  const { isTracking, batteryLevel, lastUpdate } = useBackgroundLocationTracking(onDuty, {
+  // Always on duty by default - read from localStorage or default to true
+  const [onDuty] = useState(() => {
+    const stored = localStorage.getItem('driverOnDuty');
+    return stored === null ? true : stored === 'true';
+  });
+
+  // Persist duty status
+  useEffect(() => {
+    localStorage.setItem('driverOnDuty', String(onDuty));
+  }, [onDuty]);
+
+  // Load trail from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem(TRAIL_STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as TrailPoint[];
+        // Filter out old points
+        const now = Date.now();
+        const validTrail = parsed.filter(p => now - p.timestamp < MAX_TRAIL_AGE_MS);
+        setTrail(validTrail);
+      } catch (e) {
+        console.error('Failed to parse stored trail:', e);
+      }
+    }
+  }, []);
+
+  // Save trail to localStorage when it changes
+  useEffect(() => {
+    if (trail.length > 0) {
+      localStorage.setItem(TRAIL_STORAGE_KEY, JSON.stringify(trail));
+    }
+  }, [trail]);
+
+  const { isTracking, batteryLevel, lastUpdate } = useBackgroundLocationTracking(onDuty && locationPermissionGranted, {
     updateIntervalMs: 30000,
-    batterySavingMode: true,
+    batterySavingMode: localStorage.getItem('batterySavingMode') === 'true',
+    enableHighAccuracy: localStorage.getItem('highAccuracyMode') !== 'false',
   });
 
   const { isLoaded } = useJsApiLoader({
@@ -44,16 +92,19 @@ export default function DriverAppDashboard() {
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
   });
 
-  // Watch position for real-time speed and heading updates
+  // Watch position for real-time updates
   useEffect(() => {
-    if (!onDuty || !navigator.geolocation) return;
+    if (!locationPermissionGranted || !navigator.geolocation) return;
 
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        setCurrentLocation({
+        const newLocation = {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
-        });
+        };
+        
+        setCurrentLocation(newLocation);
+        setAccuracy(pos.coords.accuracy);
         
         // Speed in m/s, convert to km/h
         if (pos.coords.speed !== null) {
@@ -66,39 +117,48 @@ export default function DriverAppDashboard() {
         }
         
         setLastSyncTime(new Date());
+
+        // Add to trail if on duty and accuracy is good
+        if (onDuty && pos.coords.accuracy < 100) {
+          setTrail(prev => {
+            const now = Date.now();
+            // Avoid adding duplicate points (within 50m and 10 seconds)
+            const lastPoint = prev[prev.length - 1];
+            if (lastPoint) {
+              const timeDiff = now - lastPoint.timestamp;
+              if (timeDiff < 10000) return prev; // Too soon
+            }
+            
+            const newTrail = [
+              ...prev.filter(p => now - p.timestamp < MAX_TRAIL_AGE_MS),
+              { 
+                lat: newLocation.lat, 
+                lng: newLocation.lng, 
+                timestamp: now,
+                speed: pos.coords.speed !== null ? pos.coords.speed * 3.6 : null
+              }
+            ];
+            
+            // Keep max 500 points
+            if (newTrail.length > 500) {
+              return newTrail.slice(-500);
+            }
+            return newTrail;
+          });
+        }
       },
       (err) => {
         console.error('Location watch error:', err);
       },
       {
-        enableHighAccuracy: true,
+        enableHighAccuracy: localStorage.getItem('highAccuracyMode') !== 'false',
         maximumAge: 5000,
         timeout: 10000,
       }
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [onDuty]);
-
-  // Get initial location when off duty
-  useEffect(() => {
-    if (onDuty) return;
-    
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setCurrentLocation({
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-          });
-        },
-        (err) => {
-          console.error('Location error:', err);
-          toast.error('Could not get your location');
-        }
-      );
-    }
-  }, [onDuty]);
+  }, [locationPermissionGranted, onDuty]);
 
   // Load tasks assigned to this driver
   useEffect(() => {
@@ -117,22 +177,12 @@ export default function DriverAppDashboard() {
   const loadTasks = async () => {
     if (!session?.driverId) return;
     
-    // Tasks are assigned by driver_id (not user_id for code-based drivers)
     const { data } = await supabase
       .from('tasks')
       .select('id, title, dropoff_lat, dropoff_lng, status')
       .eq('assigned_user_id', session.driverId)
       .in('status', ['assigned', 'en_route']);
     if (data) setTasks(data);
-  };
-
-  const toggleOnDuty = () => {
-    setOnDuty(!onDuty);
-    if (!onDuty) {
-      setSpeed(null);
-      setHeading(null);
-    }
-    toast.success(!onDuty ? 'Now on duty - tracking enabled' : 'Off duty - tracking disabled');
   };
 
   const centerOnLocation = useCallback(() => {
@@ -145,6 +195,27 @@ export default function DriverAppDashboard() {
   const toggleMapType = useCallback(() => {
     setMapType(prev => prev === 'roadmap' ? 'satellite' : 'roadmap');
   }, []);
+
+  // Create path for polyline from trail
+  const trailPath = trail.map(p => ({ lat: p.lat, lng: p.lng }));
+
+  // Calculate GPS signal quality
+  const getSignalQuality = () => {
+    if (accuracy === null) return { label: 'Unknown', color: 'text-muted-foreground' };
+    if (accuracy <= 10) return { label: 'Excellent', color: 'text-success' };
+    if (accuracy <= 30) return { label: 'Good', color: 'text-success' };
+    if (accuracy <= 100) return { label: 'Fair', color: 'text-warning' };
+    return { label: 'Poor', color: 'text-destructive' };
+  };
+
+  const signalQuality = getSignalQuality();
+
+  // Show location blocker if permission not granted
+  if (!locationPermissionGranted) {
+    return (
+      <LocationBlocker onPermissionGranted={() => setLocationPermissionGranted(true)} />
+    );
+  }
 
   if (!isLoaded) {
     return (
@@ -177,6 +248,19 @@ export default function DriverAppDashboard() {
               fullscreenControl: false,
             }}
           >
+            {/* Trail polyline */}
+            {trailPath.length > 1 && (
+              <Polyline
+                path={trailPath}
+                options={{
+                  strokeColor: '#3b82f6',
+                  strokeOpacity: 0.7,
+                  strokeWeight: 4,
+                  geodesic: true,
+                }}
+              />
+            )}
+
             {/* Driver's current location - Custom animated marker */}
             {currentLocation && (
               <DriverLocationMarker
@@ -202,27 +286,45 @@ export default function DriverAppDashboard() {
             )}
           </GoogleMap>
 
-          {/* Floating UI - On Duty Toggle */}
-          <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
-            <div className="pointer-events-auto">
-              <Button
-                size="lg"
-                variant={onDuty ? 'default' : 'outline'}
-                onClick={toggleOnDuty}
-                className={cn(
-                  "shadow-lg gap-2 transition-all duration-300",
-                  onDuty && "btn-glow-active"
+          {/* Floating UI - Tracking Status (top left) */}
+          <div className="absolute top-4 left-4 pointer-events-auto">
+            <div className={cn(
+              "flex items-center gap-2 px-3 py-2 rounded-full shadow-lg backdrop-blur-sm",
+              isTracking 
+                ? "bg-success/90 text-success-foreground" 
+                : "bg-muted/90 text-muted-foreground"
+            )}>
+              {isTracking ? (
+                <Wifi className="h-4 w-4 animate-pulse" />
+              ) : (
+                <Signal className="h-4 w-4" />
+              )}
+              <span className="text-sm font-medium">
+                {isTracking ? 'Tracking Active' : 'Tracking Off'}
+              </span>
+            </div>
+          </div>
+
+          {/* GPS Accuracy indicator (top right) */}
+          <div className="absolute top-4 right-4 pointer-events-auto">
+            <div className="bg-background/90 backdrop-blur-sm px-3 py-2 rounded-full shadow-lg">
+              <div className="flex items-center gap-2">
+                <Signal className={cn("h-4 w-4", signalQuality.color)} />
+                <span className={cn("text-xs font-medium", signalQuality.color)}>
+                  GPS: {signalQuality.label}
+                </span>
+                {accuracy !== null && (
+                  <span className="text-xs text-muted-foreground">
+                    ±{Math.round(accuracy)}m
+                  </span>
                 )}
-              >
-                <Power className="h-5 w-5" />
-                {onDuty ? 'On Duty' : 'Off Duty'}
-              </Button>
+              </div>
             </div>
           </div>
 
           {/* Tasks Summary */}
           {tasks.length > 0 && (
-            <div className="absolute top-20 left-4 pointer-events-auto">
+            <div className="absolute top-16 left-4 pointer-events-auto">
               <Button
                 variant="secondary"
                 onClick={() => navigate('/app/tasks')}
@@ -257,12 +359,13 @@ export default function DriverAppDashboard() {
           </div>
         </div>
 
-        {/* Status Card */}
+        {/* Enhanced Status Card */}
         <DriverStatusCard
           speed={speed}
           batteryLevel={batteryLevel}
           lastSyncTime={lastSyncTime || lastUpdate}
           isTracking={isTracking}
+          accuracy={accuracy}
         />
       </div>
     </DriverAppLayout>
