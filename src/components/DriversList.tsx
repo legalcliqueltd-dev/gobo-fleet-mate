@@ -1,10 +1,11 @@
 import { useDriverLocations, DriverLocation } from '@/hooks/useDriverLocations';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Clock, MapPin, Navigation, User, Wifi, WifiOff, ExternalLink, Trash2, Unlink } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import clsx from 'clsx';
+import { useRef } from 'react';
 
 type Props = {
   onDriverSelect?: (driver: DriverLocation) => void;
