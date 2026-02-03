@@ -6,7 +6,7 @@ import DriversList from '../components/DriversList';
 import GeofenceAlerts from '../components/GeofenceAlerts';
 import TempTrackingManager from '../components/TempTrackingManager';
 import PaymentWall from '../components/PaymentWall';
-import { Clock, Plus, ExternalLink, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone, Timer } from 'lucide-react';
+import { Clock, Plus, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone, Timer, Copy, Check } from 'lucide-react';
 import { ShareAppButton } from '@/components/ShareAppButton';
 import clsx from 'clsx';
 import { Link, useSearchParams } from 'react-router-dom';
