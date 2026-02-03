@@ -1,153 +1,149 @@
 
 
-# Dashboard "Your Devices" Enhancement Plan
+# Dashboard Layout Optimization Plan
 
 ## Overview
 
-This plan updates the "Your Devices" section on the admin dashboard to show device name and connection code directly in each card, removing the need to navigate to a separate details page. It also improves overall dashboard responsiveness.
+This plan reorders the dashboard layout so the map appears on top in tablet/mobile views, reduces card padding/width, and creates a more compact, minimalistic design.
+
+---
+
+## Current Issues (from screenshot)
+
+| Issue | Current State |
+|-------|---------------|
+| Map position | Below sidebar cards on tablet (order-2) |
+| Device cards | Full-width sidebar, feels too spread out |
+| Spacing | Large gaps between elements |
+| Empty space | Cards don't use space efficiently |
 
 ---
 
 ## Changes Required
 
-### 1. Update Device Data Hook
+### 1. Reorder Layout - Map on Top
 
-**File**: `src/hooks/useDeviceLocations.ts`
-
-Add `connection_code` to the Supabase query and type definition:
-
-```text
-Current query selects:
-  id, user_id, name, imei, status, created_at, is_temporary
-
-Updated query adds:
-  connection_code
+**Current (line 230-240)**:
+```
+Map: order-2 lg:order-1 (appears second on mobile/tablet)
+Sidebar: order-1 lg:order-2 (appears first on mobile/tablet)
 ```
 
-**Updated Type**:
-```typescript
-export type Device = {
-  id: string;
-  user_id: string;
-  name: string | null;
-  imei: string | null;
-  status: 'active' | 'idle' | 'offline' | null;
-  created_at: string;
-  is_temporary?: boolean;
-  connection_code?: string | null;  // NEW
-};
+**New Layout**:
+```
+Map: order-1 (always appears first)
+Sidebar: order-2 (always appears second)
 ```
 
+This puts the map on top for all screen sizes (mobile, tablet, desktop side-by-side).
+
 ---
 
-### 2. Update "Your Devices" Cards in Dashboard
+### 2. Reduce Card Width and Padding
 
-**File**: `src/pages/Dashboard.tsx`
+**Sidebar Cards**:
+- Use a two-column grid on tablet for sidebar items
+- Reduce internal padding from `p-2 md:p-3` to `p-1.5 md:p-2`
+- Make device cards more compact with inline layout
 
-**Current Card Layout**:
-```text
-[Status Dot] Device Name    [TEMP badge]    [Link] [Delete]
-[Clock] Last location timestamp
+**New Sidebar Grid** (for tablet):
+```
+md:grid md:grid-cols-2 lg:block
 ```
 
-**New Card Layout**:
-```text
-[Status Dot] Device Name    [TEMP badge]           [Delete]
-Code: XXXXXXXX                              [Copy button]
-[Clock] Last location timestamp
+This splits the sidebar into 2 columns on tablet, single column on mobile, and stacked on desktop sidebar.
+
+---
+
+### 3. Compact Device Card Design
+
+**Current Card** (3 rows, too tall):
+```
+Row 1: [●] Name [TEMP] [Delete]
+Row 2: Code: XXXXXXXX [Copy]
+Row 3: [Clock] Timestamp
 ```
 
-**Changes**:
-- Remove the `ExternalLink` icon (line 289-291)
-- Add connection code display with inline copy button
-- Show "No code" message if device has no connection_code
-- Add copy-to-clipboard functionality with toast feedback
-
----
-
-### 3. Remove Device Details Page Navigation
-
-**File**: `src/pages/Dashboard.tsx`
-
-- Remove the `<Link to={/devices/${d.id}}>` element
-- Keep single-click on device card for map focus only
-
-**Note**: The `/devices/:id` route can remain in `App.tsx` for direct URL access if needed, but will no longer be navigated to from the dashboard.
-
----
-
-### 4. Dashboard UI/Responsiveness Improvements
-
-**File**: `src/pages/Dashboard.tsx`
-
-| Issue | Fix |
-|-------|-----|
-| Empty space on mobile | Reduce padding: `p-2` on mobile, `p-3` on tablet, `p-4` on desktop |
-| Map not using full height | Increase min-height: `min-h-[50vh] md:min-h-[60vh] lg:min-h-[70vh]` |
-| Stats cards crowded | Keep current responsive grid, add horizontal scroll on very small screens |
-| Driver list max-height | Increase from 200px/280px to 250px/350px |
-| Card spacing | Reduce gap from `space-y-3` to `space-y-2` on mobile |
-| Device cards too tall | Make more compact with tighter padding |
-
-**Layout Grid Adjustment**:
-```text
-Current: grid-cols-1 lg:grid-cols-[1fr_340px] xl:grid-cols-[1fr_380px]
-Updated: grid-cols-1 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_360px]
+**New Card** (more compact, 2 rows):
 ```
-Slightly narrower sidebar to give more space to the map.
-
----
-
-## New Device Card Design
-
-Each device card will show:
-
-```text
-+-------------------------------------------+
-| [●] Fleet Van #1              [🗑️ Delete] |
-| Code: AC3F2B57                   [📋]     |
-| 🕐 Jan 3, 2026, 2:30:45 PM               |
-+-------------------------------------------+
+Row 1: [●] Name         Code: XXXX [📋] [🗑️]
+Row 2: [Clock] Timestamp | [TEMP badge if applicable]
 ```
 
-- Status dot (green/amber/gray)
-- Device name (bold)
-- TEMP badge if temporary device
-- Connection code with copy button
-- Last location timestamp
-- Delete button only (no external link)
+Benefits:
+- Single line for name + code + actions
+- Reduces vertical height significantly
+- Feels less "blocky"
 
 ---
 
-## Files to Modify
+### 4. Reduce Stats Banner Size
 
-| File | Changes |
-|------|---------|
-| `src/hooks/useDeviceLocations.ts` | Add `connection_code` to query and type |
-| `src/pages/Dashboard.tsx` | Update device cards, improve responsiveness |
+**Current**: Full cards with large icons and text
 
----
-
-## Implementation Notes
-
-1. **Copy to Clipboard**: Use `navigator.clipboard.writeText()` with a brief "Copied!" toast using `sonner`
-
-2. **No Code State**: If a device has no `connection_code`, show "No code assigned" in muted text
-
-3. **Responsive Padding**:
-   - Mobile: `p-2`
-   - Tablet: `p-3`  
-   - Desktop: `p-4`
-
-4. **Backward Compatibility**: Keep `/devices/:id` route in case users have bookmarked it
+**Optimized**:
+- Smaller icon containers: `p-1.5` instead of `p-2`
+- Tighter padding: `p-2` instead of `p-3`
+- Smaller number text: `text-lg` instead of `text-xl`
 
 ---
 
-## What Stays the Same
+### 5. Reduce Overall Spacing
 
-- "Connected Drivers" section (DriversList component) - no changes
-- Map functionality - unchanged
-- Stats banner - unchanged (just better responsive behavior)
-- Quick Actions card - unchanged
-- Driver App Download card - unchanged
+| Element | Current | New |
+|---------|---------|-----|
+| Main container | `space-y-4 md:space-y-6` | `space-y-3 md:space-y-4` |
+| Grid gap | `gap-3 md:gap-4` | `gap-2 md:gap-3` |
+| Card internal | `space-y-2 md:space-y-3` | `space-y-1.5 md:space-y-2` |
+| Device list items | `space-y-1.5 md:space-y-2` | `space-y-1` |
+
+---
+
+### 6. Responsive Layout Summary
+
+| Screen | Map Position | Sidebar Layout |
+|--------|--------------|----------------|
+| Mobile (<768px) | Top, full width | Below map, single column |
+| Tablet (768-1024px) | Top, full width | Below map, 2-column grid |
+| Desktop (>1024px) | Left side | Right sidebar, single column |
+
+---
+
+## File to Modify
+
+**`src/pages/Dashboard.tsx`**
+
+Changes:
+1. Line 129: Reduce main spacing
+2. Line 169: Compact stats banner
+3. Line 230: Change grid layout and order classes
+4. Line 231: Map section - change to `order-1`
+5. Line 240: Sidebar - change to `order-2`, add tablet grid
+6. Lines 279-331: Compact device card layout
+7. Lines 341-378: Reduce card padding
+
+---
+
+## Visual Result
+
+**Tablet View (after changes)**:
+```
+┌─────────────────────────────────────────┐
+│ [Stats: Devices] [Drivers] [Online] [→] │ ← Compact stats row
+├─────────────────────────────────────────┤
+│                                         │
+│              MAP (top)                  │ ← Map first
+│                                         │
+├──────────────────┬──────────────────────┤
+│  Your Devices    │  Connected Drivers   │ ← 2-column grid
+│  ┌────────────┐  │  ┌────────────────┐  │
+│  │ Device 1   │  │  │ Driver 1       │  │
+│  │ Device 2   │  │  │ Driver 2       │  │
+│  └────────────┘  │  └────────────────┘  │
+├──────────────────┴──────────────────────┤
+│  [Driver App]    │  [Quick Actions]     │ ← 2-column
+└─────────────────────────────────────────┘
+```
+
+This creates a clean, modern dashboard where the map is the hero element and sidebar content is organized efficiently below.
 
