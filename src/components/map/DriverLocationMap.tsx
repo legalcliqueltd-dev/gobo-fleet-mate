@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, Polyline, InfoWindow } from '@react-google-maps/api';
 import { GOOGLE_MAPS_API_KEY } from '../../lib/googleMapsConfig';
-import { MapPin, Navigation, Clock } from 'lucide-react';
+import { MapPin, Navigation, Clock, Crosshair } from 'lucide-react';
 import clsx from 'clsx';
 
 type LocationPoint = {
@@ -226,6 +226,24 @@ export default function DriverLocationMap({ driverName, currentLocation, locatio
           </div>
         </div>
       </div>
+
+      {/* Current Location Button - Bottom Right */}
+      <button
+        onClick={() => {
+          if (mapRef.current && currentLocation) {
+            mapRef.current.panTo({ 
+              lat: currentLocation.latitude, 
+              lng: currentLocation.longitude 
+            });
+            mapRef.current.setZoom(15);
+          }
+        }}
+        className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-card/95 backdrop-blur-sm rounded-lg px-3 py-2 border border-border shadow-lg hover:bg-primary/10 hover:border-primary/50 transition-all text-xs font-medium"
+        title="Center on current location"
+      >
+        <Crosshair className="h-3.5 w-3.5 text-primary" />
+        <span>Current</span>
+      </button>
 
       {/* Driver info overlay */}
       <div className="absolute top-3 left-3 bg-card/95 backdrop-blur-sm rounded-lg px-3 py-2 border border-border shadow-lg">
