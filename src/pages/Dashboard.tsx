@@ -126,7 +126,7 @@ export default function Dashboard() {
 
 
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="space-y-3 md:space-y-4">
       {/* Upgrade Modal - shown when user clicks Upgrade Now during trial */}
       {showUpgradeModal && (
         <PaymentWall onDismiss={() => setShowUpgradeModal(false)} />
@@ -165,45 +165,45 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Stats Banner */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+      {/* Stats Banner - Compact */}
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
-          <CardContent className="p-3 md:p-4">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-2 md:p-2.5 rounded-lg md:rounded-xl bg-primary/20 shrink-0">
-                <Car className="h-4 w-4 md:h-5 md:w-5 text-primary" />
+          <CardContent className="p-2">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-primary/20 shrink-0">
+                <Car className="h-3.5 w-3.5 text-primary" />
               </div>
               <div className="min-w-0">
-                <p className="text-xl md:text-2xl font-bold">{items.length}</p>
-                <p className="text-[10px] md:text-xs text-muted-foreground truncate">Total Devices</p>
+                <p className="text-lg font-bold">{items.length}</p>
+                <p className="text-[10px] text-muted-foreground truncate">Devices</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-success/10 to-success/5 border border-success/20">
-          <CardContent className="p-3 md:p-4">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-2 md:p-2.5 rounded-lg md:rounded-xl bg-success/20 shrink-0">
-                <Users className="h-4 w-4 md:h-5 md:w-5 text-success" />
+          <CardContent className="p-2">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-success/20 shrink-0">
+                <Users className="h-3.5 w-3.5 text-success" />
               </div>
               <div className="min-w-0">
-                <p className="text-xl md:text-2xl font-bold">{activeDrivers}</p>
-                <p className="text-[10px] md:text-xs text-muted-foreground truncate">Active Drivers</p>
+                <p className="text-lg font-bold">{activeDrivers}</p>
+                <p className="text-[10px] text-muted-foreground truncate">Drivers</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border border-warning/20">
-          <CardContent className="p-3 md:p-4">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="p-2 md:p-2.5 rounded-lg md:rounded-xl bg-warning/20 shrink-0">
-                <Activity className="h-4 w-4 md:h-5 md:w-5 text-warning" />
+          <CardContent className="p-2">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-warning/20 shrink-0">
+                <Activity className="h-3.5 w-3.5 text-warning" />
               </div>
               <div className="min-w-0">
-                <p className="text-xl md:text-2xl font-bold">{activeDevices}</p>
-                <p className="text-[10px] md:text-xs text-muted-foreground truncate">Online Now</p>
+                <p className="text-lg font-bold">{activeDevices}</p>
+                <p className="text-[10px] text-muted-foreground truncate">Online</p>
               </div>
             </div>
           </CardContent>
@@ -211,14 +211,14 @@ export default function Dashboard() {
 
         <Link to="/analytics" className="block">
           <Card className="bg-gradient-to-br from-fleet-blue/10 to-fleet-blue/5 border border-fleet-blue/20 hover:border-fleet-blue/40 transition-all h-full">
-            <CardContent className="p-3 md:p-4">
-              <div className="flex items-center gap-2 md:gap-3">
-                <div className="p-2 md:p-2.5 rounded-lg md:rounded-xl bg-fleet-blue/20 shrink-0">
-                  <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-fleet-blue" />
+            <CardContent className="p-2">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-fleet-blue/20 shrink-0">
+                  <TrendingUp className="h-3.5 w-3.5 text-fleet-blue" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm md:text-base font-semibold">Analytics</p>
-                  <p className="text-[10px] md:text-xs text-muted-foreground truncate">View Reports →</p>
+                  <p className="text-sm font-semibold">Analytics</p>
+                  <p className="text-[10px] text-muted-foreground truncate">Reports →</p>
                 </div>
               </div>
             </CardContent>
@@ -226,9 +226,9 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {/* Main Content - Map First */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] xl:grid-cols-[1fr_360px] gap-3 md:gap-4">
-        <section className="order-2 lg:order-1 min-h-[50vh] md:min-h-[60vh] lg:min-h-[70vh]">
+      {/* Main Content - Map on Top */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] xl:grid-cols-[1fr_340px] gap-2 md:gap-3">
+        <section className="order-1 min-h-[45vh] md:min-h-[50vh] lg:min-h-[65vh]">
           <LiveDriverMap
             selectedDriverId={selectedDriverId}
             onDriverSelect={handleLiveDriverSelect}
@@ -237,96 +237,87 @@ export default function Dashboard() {
           />
         </section>
 
-        <aside className="order-1 lg:order-2 space-y-2 md:space-y-3">
-          {/* Devices Card */}
+        <aside className="order-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-2 md:gap-2">
+          {/* Devices Card - Compact */}
           <Card className="border border-border">
-            <CardHeader className="p-2 md:p-3 pb-2">
+            <CardHeader className="p-1.5 md:p-2 pb-1">
               <div className="flex items-center justify-between">
-                <h3 className="font-heading font-semibold flex items-center gap-2 text-sm md:text-base">
-                  <div className="p-1 md:p-1.5 rounded-lg bg-primary/20">
-                    <Car className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
+                <h3 className="font-heading font-semibold flex items-center gap-1.5 text-xs md:text-sm">
+                  <div className="p-1 rounded-md bg-primary/20">
+                    <Car className="h-3 w-3 text-primary" />
                   </div>
-                  Your Devices
+                  Devices
                 </h3>
                 <Link to="/devices/new">
-                  <Button variant="outline" size="sm" className="h-7 md:h-8 text-xs md:text-sm">
-                    <Plus className="h-3 w-3 md:h-3.5 md:w-3.5 mr-1" /> Add
+                  <Button variant="outline" size="sm" className="h-6 text-[10px] px-2">
+                    <Plus className="h-3 w-3 mr-0.5" /> Add
                   </Button>
                 </Link>
               </div>
             </CardHeader>
-            <CardContent className="p-2 md:p-3 pt-0">
+            <CardContent className="p-1.5 md:p-2 pt-0">
               {loading && (
-                <div className="flex items-center justify-center py-3 md:py-4">
-                  <div className="animate-spin rounded-full h-5 w-5 md:h-6 md:w-6 border-b-2 border-primary"></div>
+                <div className="flex items-center justify-center py-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
                 </div>
               )}
-              {error && <div className="text-xs md:text-sm text-destructive">{error}</div>}
+              {error && <div className="text-[10px] text-destructive">{error}</div>}
               {!loading && items.length === 0 && (
-                <div className="text-center py-3 md:py-4">
-                  <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-2">
-                    <Car className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
-                  </div>
-                  <p className="text-xs md:text-sm text-muted-foreground">No devices yet.</p>
-                  <Link to="/devices/new" className="text-xs md:text-sm text-primary hover:underline">Add your first device →</Link>
+                <div className="text-center py-2">
+                  <Car className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
+                  <p className="text-[10px] text-muted-foreground">No devices yet.</p>
+                  <Link to="/devices/new" className="text-[10px] text-primary hover:underline">Add device →</Link>
                 </div>
               )}
-              <ul className="space-y-1.5 md:space-y-2 max-h-[250px] md:max-h-[350px] overflow-y-auto">
+              <ul className="space-y-1 max-h-[180px] md:max-h-[220px] overflow-y-auto">
                 {items.map((d) => {
                   const hasFix = !!d.latest;
                   return (
                     <li key={d.id}>
                       <div className={clsx(
-                        'rounded-lg border p-2 md:p-2.5 transition-all hover:border-primary/50 hover:bg-primary/5',
-                        selectedId === d.id ? 'border-primary bg-primary/10 shadow-md' : 'border-border bg-card/50'
+                        'rounded-md border p-1.5 transition-all hover:border-primary/50 hover:bg-primary/5',
+                        selectedId === d.id ? 'border-primary bg-primary/10' : 'border-border bg-card/50'
                       )}>
-                        {/* Row 1: Name + Status + Delete */}
-                        <div className="flex items-center justify-between gap-2">
-                          <button onClick={() => setSelectedId(d.id)} className="text-left flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <div className={clsx(
-                                'h-2 w-2 rounded-full shrink-0',
-                                d.status === 'active' ? 'bg-success animate-pulse' : d.status === 'idle' ? 'bg-warning' : 'bg-muted-foreground'
-                              )} />
-                              <span className="font-semibold text-sm truncate">{d.name ?? 'Unnamed'}</span>
-                              {d.is_temporary && (
-                                <span className="px-1 py-0.5 text-[8px] rounded-full bg-purple-500/20 text-purple-400 font-bold shrink-0">TEMP</span>
-                              )}
-                            </div>
+                        {/* Row 1: Name + Code + Actions */}
+                        <div className="flex items-center justify-between gap-1">
+                          <button onClick={() => setSelectedId(d.id)} className="text-left flex-1 min-w-0 flex items-center gap-1.5">
+                            <div className={clsx(
+                              'h-1.5 w-1.5 rounded-full shrink-0',
+                              d.status === 'active' ? 'bg-success animate-pulse' : d.status === 'idle' ? 'bg-warning' : 'bg-muted-foreground'
+                            )} />
+                            <span className="font-medium text-[11px] truncate">{d.name ?? 'Unnamed'}</span>
                           </button>
-                          <button onClick={() => handleDeleteDevice(d.id)} className="p-1 rounded-lg hover:bg-destructive/10 shrink-0" title="Delete">
-                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                          </button>
-                        </div>
-                        
-                        {/* Row 2: Connection Code */}
-                        <div className="flex items-center justify-between mt-1.5 gap-2">
-                          <div className="text-[10px] md:text-xs text-muted-foreground font-mono truncate">
-                            {d.connection_code ? (
-                              <>Code: <span className="text-foreground font-semibold">{d.connection_code}</span></>
-                            ) : (
-                              <span className="italic">No code assigned</span>
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            {d.connection_code && (
+                              <>
+                                <span className="text-[9px] font-mono text-muted-foreground">{d.connection_code}</span>
+                                <button
+                                  onClick={() => handleCopyCode(d.connection_code!, d.id)}
+                                  className="p-0.5 rounded hover:bg-primary/10"
+                                  title="Copy"
+                                >
+                                  {copiedId === d.id ? (
+                                    <Check className="h-2.5 w-2.5 text-success" />
+                                  ) : (
+                                    <Copy className="h-2.5 w-2.5 text-muted-foreground" />
+                                  )}
+                                </button>
+                              </>
                             )}
-                          </div>
-                          {d.connection_code && (
-                            <button
-                              onClick={() => handleCopyCode(d.connection_code!, d.id)}
-                              className="p-1 rounded hover:bg-primary/10 shrink-0"
-                              title="Copy code"
-                            >
-                              {copiedId === d.id ? (
-                                <Check className="h-3 w-3 text-success" />
-                              ) : (
-                                <Copy className="h-3 w-3 text-muted-foreground" />
-                              )}
+                            <button onClick={() => handleDeleteDevice(d.id)} className="p-0.5 rounded hover:bg-destructive/10" title="Delete">
+                              <Trash2 className="h-2.5 w-2.5 text-destructive" />
                             </button>
-                          )}
+                          </div>
                         </div>
-                        
-                        {/* Row 3: Timestamp */}
-                        <div className="mt-1 text-[10px] text-muted-foreground flex items-center gap-1">
-                          <Clock className="h-2.5 w-2.5 shrink-0" />
-                          <span className="truncate">{hasFix ? new Date(d.latest!.timestamp).toLocaleString() : 'No location'}</span>
+                        {/* Row 2: Timestamp + TEMP badge */}
+                        <div className="flex items-center justify-between mt-0.5">
+                          <div className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                            <Clock className="h-2 w-2" />
+                            <span className="truncate">{hasFix ? new Date(d.latest!.timestamp).toLocaleString() : 'No location'}</span>
+                          </div>
+                          {d.is_temporary && (
+                            <span className="px-1 py-0.5 text-[7px] rounded bg-purple-500/20 text-purple-400 font-bold">TEMP</span>
+                          )}
                         </div>
                       </div>
                     </li>
@@ -338,42 +329,40 @@ export default function Dashboard() {
 
           <DriversList onDriverSelect={handleDriverSelect} selectedDriverId={selectedDriverId} />
 
-          {/* Driver App Download Card */}
+          {/* Driver App Download Card - Compact */}
           <Card className="border border-primary/20 bg-gradient-to-br from-primary/10 to-primary/5">
-            <CardContent className="p-3 md:p-4">
-              <div className="flex items-center gap-2 mb-2 md:mb-3">
-                <div className="p-1 md:p-1.5 rounded-lg bg-primary/20">
-                  <Smartphone className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
+            <CardContent className="p-1.5 md:p-2">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <div className="p-1 rounded-md bg-primary/20">
+                  <Smartphone className="h-3 w-3 text-primary" />
                 </div>
-                <h3 className="font-heading font-semibold text-xs md:text-sm">Driver App</h3>
+                <h3 className="font-heading font-semibold text-[11px]">Driver App</h3>
               </div>
-              <p className="text-[10px] md:text-xs text-muted-foreground mb-2 md:mb-3">
-                Get the Rocket Driver app for your drivers
-              </p>
-              <div className="flex gap-2">
+              <div className="flex gap-1.5">
                 <a href={APK_DOWNLOAD_URL} download className="flex-1">
-                  <Button variant="hero" size="sm" className="w-full h-8 md:h-9 text-xs md:text-sm">
-                    <Download className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
+                  <Button variant="hero" size="sm" className="w-full h-6 text-[10px]">
+                    <Download className="h-3 w-3 mr-1" />
                     Download
                   </Button>
                 </a>
-                <ShareAppButton variant="outline" size="sm" className="h-8 md:h-9 text-xs md:text-sm" />
+                <ShareAppButton variant="outline" size="sm" className="h-6 text-[10px] px-2" />
               </div>
             </CardContent>
           </Card>
 
+          {/* Quick Actions - Compact */}
           <Card className="border border-border">
-            <CardContent className="p-3 md:p-4 space-y-2">
-              <h3 className="font-heading font-semibold text-xs md:text-sm mb-2">Quick Actions</h3>
+            <CardContent className="p-1.5 md:p-2 space-y-1">
+              <h3 className="font-heading font-semibold text-[11px] mb-1">Quick Actions</h3>
               <Link to="/temp-tracking" className="block">
-                <Button variant="outline" size="sm" className="w-full justify-start h-8 md:h-9 text-xs md:text-sm">
-                  <Link2 className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
-                  Temp Tracking Links
+                <Button variant="outline" size="sm" className="w-full justify-start h-6 text-[10px]">
+                  <Link2 className="h-3 w-3 mr-1" />
+                  Temp Tracking
                 </Button>
               </Link>
-              <Button variant="outline" size="sm" className="w-full justify-start h-8 md:h-9 text-xs md:text-sm text-destructive hover:bg-destructive/10" onClick={handleDeleteTempHistory}>
-                <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4 mr-1.5 md:mr-2" />
-                Clear Temp History
+              <Button variant="outline" size="sm" className="w-full justify-start h-6 text-[10px] text-destructive hover:bg-destructive/10" onClick={handleDeleteTempHistory}>
+                <Trash2 className="h-3 w-3 mr-1" />
+                Clear History
               </Button>
             </CardContent>
           </Card>
