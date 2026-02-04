@@ -1,53 +1,94 @@
 
+# Fix CapacitorGeolocation Import Error
 
-## Fix Capacitor Version Mismatch for iOS Build
+## Problem
 
-### The Problem
-Your project has a version conflict in the Capacitor packages:
-- `@capacitor/core` is set to version 8.x
-- All other Capacitor packages (`android`, `cli`, `geolocation`) are on version 7.x
-- `@capacitor/ios` (which you need) requires `@capacitor/core` version 7.x
+The iOS app loads a remote web URL (`https://fleettrackmate.com/app`) and several files directly import `@capacitor/geolocation` without checking if the code is running on a native platform. This causes errors because:
 
-This mismatch is preventing you from installing the iOS package.
+1. **`useBackgroundLocationTracking.ts`** - Directly imports and calls Capacitor Geolocation APIs without platform detection
+2. **`driverAppConnection.ts`** - Same issue: no platform checks before using Capacitor APIs
 
-### The Solution
-I'll align all Capacitor packages to version 7.4.4, and add the missing `@capacitor/ios` package.
+The **`LocationBlocker.tsx`** component correctly implements platform detection with `Capacitor.isNativePlatform()`, but the tracking hook doesn't follow this pattern.
 
-### Changes Required
+## Solution
 
-**1. Update package.json**
+Add platform detection to all files using Capacitor Geolocation. When running on web, fall back to the standard browser Geolocation API (`navigator.geolocation`).
 
-Change these dependencies:
+---
+
+## Files to Modify
+
+### 1. `src/hooks/useBackgroundLocationTracking.ts`
+
+**Changes:**
+- Import `Capacitor` from `@capacitor/core`
+- Wrap all Capacitor Geolocation calls with platform checks
+- Use browser `navigator.geolocation` as fallback for web environments
+- Handle the `watchId` type difference (string for Capacitor, number for browser)
+
 ```text
 Before:
-  "@capacitor/core": "^8.0.2"
+  import { Geolocation } from '@capacitor/geolocation';
+  const permission = await Geolocation.checkPermissions();
+  const watchId = await Geolocation.watchPosition(...);
 
 After:
-  "@capacitor/core": "^7.4.4",
-  "@capacitor/ios": "^7.4.4"
+  import { Geolocation } from '@capacitor/geolocation';
+  import { Capacitor } from '@capacitor/core';
+  
+  if (Capacitor.isNativePlatform()) {
+    // Use Capacitor Geolocation
+    const permission = await Geolocation.checkPermissions();
+    ...
+  } else {
+    // Use browser navigator.geolocation
+    navigator.geolocation.watchPosition(...);
+  }
 ```
 
-### After I Make This Change
+### 2. `src/utils/driverAppConnection.ts`
 
-Once approved, you'll need to run these commands locally:
+**Changes:**
+- Import `Capacitor` from `@capacitor/core`
+- Add platform detection before using Capacitor Geolocation
+- Provide browser fallback for web environments
 
-```bash
-# Pull the updated package.json
-git pull origin main
+---
 
-# Clean install to get aligned versions
-rm -rf node_modules package-lock.json
-npm install
+## Technical Details
 
-# Now sync iOS should work
-npx cap sync ios
+### Platform Detection Pattern
+```typescript
+import { Capacitor } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
 
-# Open in Xcode
-npx cap open ios
+// Check platform before using Capacitor APIs
+if (Capacitor.isNativePlatform()) {
+  // Native iOS/Android - use Capacitor
+  const status = await Geolocation.checkPermissions();
+} else {
+  // Web browser - use navigator.geolocation
+  navigator.geolocation.getCurrentPosition(...);
+}
 ```
 
-### Technical Details
-- Capacitor 7 uses Swift Package Manager (SPM) for iOS plugin management
-- All Capacitor packages must be on the same major version to work together
-- This change standardizes on v7.4.4 across the board
+### Watch ID Handling
+The watch ID type differs between platforms:
+- **Capacitor**: Returns `string`
+- **Browser**: Returns `number`
 
+Use a union type: `watchIdRef = useRef<string | number | null>(null)`
+
+### Permission Handling
+- **Native**: Use `Geolocation.requestPermissions()` to trigger the native dialog
+- **Web**: Use `navigator.permissions.query()` and `navigator.geolocation.getCurrentPosition()` to trigger browser prompts
+
+---
+
+## Expected Outcome
+
+After these changes:
+- The app will load correctly on both native iOS and web preview
+- Location tracking will work on native using Capacitor with background capability
+- Location tracking will work on web using standard browser APIs
+- No more import errors in the Xcode console
