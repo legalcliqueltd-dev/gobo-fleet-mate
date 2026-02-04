@@ -13,6 +13,19 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [retrying, setRetrying] = useState(false);
 
+  const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string) => {
+    let timeoutId: number | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = window.setTimeout(() => reject(new Error(`${label}_TIMEOUT`)), ms);
+    });
+
+    try {
+      return (await Promise.race([promise, timeoutPromise])) as T;
+    } finally {
+      if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+    }
+  };
+
   const checkPermission = async () => {
     setChecking(true);
     try {
@@ -58,20 +71,56 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
     setRetrying(true);
     try {
       if (Capacitor.isNativePlatform()) {
-        const result = await Geolocation.requestPermissions();
-        if (result.location === 'granted' || result.coarseLocation === 'granted') {
+        // iOS often only shows the permission prompt when calling getCurrentPosition.
+        // requestPermissions can remain in 'prompt' state without displaying UI.
+        const before = await Geolocation.checkPermissions();
+        console.log('[LocationBlocker] native permission before:', before);
+
+        if (before.location !== 'granted' && before.coarseLocation !== 'granted') {
+          try {
+            await withTimeout(Geolocation.requestPermissions(), 8000, 'REQUEST_PERMISSIONS');
+          } catch (e) {
+            console.warn('[LocationBlocker] requestPermissions timed out/failed:', e);
+          }
+        }
+
+        // Trigger the system prompt (or validate permission) with an actual position request.
+        try {
+          await withTimeout(
+            Geolocation.getCurrentPosition({
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 0,
+            }),
+            12000,
+            'GET_CURRENT_POSITION'
+          );
+        } catch (e) {
+          console.warn('[LocationBlocker] getCurrentPosition failed:', e);
+        }
+
+        const after = await Geolocation.checkPermissions();
+        console.log('[LocationBlocker] native permission after:', after);
+
+        if (after.location === 'granted' || after.coarseLocation === 'granted') {
           setHasPermission(true);
           onPermissionGranted();
+        } else {
+          setHasPermission(false);
         }
       } else {
         // Browser - try to trigger location prompt
         try {
-          await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, { 
-              enableHighAccuracy: true,
-              timeout: 10000 
-            });
-          });
+          await withTimeout(
+            new Promise<GeolocationPosition>((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+              });
+            }),
+            12000,
+            'BROWSER_GET_CURRENT_POSITION'
+          );
           setHasPermission(true);
           onPermissionGranted();
         } catch {
@@ -80,6 +129,7 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
       }
     } catch (error) {
       console.error('Permission request error:', error);
+      setHasPermission(false);
     } finally {
       setRetrying(false);
     }
@@ -87,9 +137,16 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
 
   const openSettings = () => {
     if (Capacitor.isNativePlatform()) {
-      // For native apps, guide user to settings
-      // In a real native app, you'd use a native plugin to open settings
-      alert('Please open your device Settings > Apps > FleetTrackMate > Permissions and enable Location.');
+      // Best-effort deep link to app settings (primarily iOS).
+      try {
+        window.location.href = 'app-settings:';
+      } catch {
+        // ignore
+      }
+
+      alert(
+        'Please open your device Settings > FleetTrackMate > Location and allow location access, then return to the app and tap Retry Check.'
+      );
     } else {
       // For browser, provide instructions
       alert('Please click the location icon in your browser address bar and allow location access, then click Retry.');
