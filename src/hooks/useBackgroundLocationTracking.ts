@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Geolocation } from '@capacitor/geolocation';
+import { Capacitor } from '@capacitor/core';
 
 export interface LocationTrackingOptions {
   updateIntervalMs?: number;
@@ -24,7 +25,8 @@ export const useBackgroundLocationTracking = (
   const [isTracking, setIsTracking] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [batteryLevel, setBatteryLevel] = useState<number>(100);
-  const watchIdRef = useRef<string | null>(null);
+  // Union type to handle both Capacitor (string) and browser (number) watch IDs
+  const watchIdRef = useRef<string | number | null>(null);
   const deviceIdRef = useRef<string | null>(null);
   const lastSentRef = useRef<number>(0);
   const batteryCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -155,47 +157,82 @@ export const useBackgroundLocationTracking = (
     }
 
     try {
-      // Request permissions
-      const permission = await Geolocation.checkPermissions();
-      
-      if (permission.location !== 'granted') {
-        const requestResult = await Geolocation.requestPermissions();
-        if (requestResult.location !== 'granted') {
-          toast.error('Location permission denied. Please enable location access in settings.');
-          return;
-        }
-      }
-
-      // Start watching position using Capacitor Geolocation
-      const watchId = await Geolocation.watchPosition(
-        {
-          enableHighAccuracy,
-          timeout: 10000,
-          maximumAge,
-        },
-        (position, err) => {
-          if (err) {
-            console.error('Location tracking error:', err);
-            if (err.message.includes('permission')) {
-              toast.error('Location permission denied. Please enable location access.');
-              setIsTracking(false);
-            }
+      if (Capacitor.isNativePlatform()) {
+        // Native platform - use Capacitor Geolocation
+        const permission = await Geolocation.checkPermissions();
+        
+        if (permission.location !== 'granted') {
+          const requestResult = await Geolocation.requestPermissions();
+          if (requestResult.location !== 'granted') {
+            toast.error('Location permission denied. Please enable location access in settings.');
             return;
           }
+        }
 
-          if (position) {
+        // Start watching position using Capacitor Geolocation
+        const watchId = await Geolocation.watchPosition(
+          {
+            enableHighAccuracy,
+            timeout: 10000,
+            maximumAge,
+          },
+          (position, err) => {
+            if (err) {
+              console.error('Location tracking error:', err);
+              if (err.message.includes('permission')) {
+                toast.error('Location permission denied. Please enable location access.');
+                setIsTracking(false);
+              }
+              return;
+            }
+
+            if (position) {
+              handlePositionUpdate(
+                position.coords.latitude,
+                position.coords.longitude,
+                position.coords.speed
+              );
+            }
+          }
+        );
+
+        watchIdRef.current = watchId;
+        setIsTracking(true);
+        console.log('Native background location tracking started');
+      } else {
+        // Web browser - use navigator.geolocation
+        if (!navigator.geolocation) {
+          toast.error('Geolocation is not supported by this browser.');
+          return;
+        }
+
+        // Check/request permission via getCurrentPosition (triggers browser prompt)
+        const watchId = navigator.geolocation.watchPosition(
+          (position) => {
             handlePositionUpdate(
               position.coords.latitude,
               position.coords.longitude,
               position.coords.speed
             );
+          },
+          (error) => {
+            console.error('Location tracking error:', error);
+            if (error.code === error.PERMISSION_DENIED) {
+              toast.error('Location permission denied. Please enable location access.');
+              setIsTracking(false);
+            }
+          },
+          {
+            enableHighAccuracy,
+            timeout: 10000,
+            maximumAge,
           }
-        }
-      );
+        );
 
-      watchIdRef.current = watchId;
-      setIsTracking(true);
-      console.log('Native background location tracking started');
+        watchIdRef.current = watchId;
+        setIsTracking(true);
+        console.log('Browser location tracking started');
+      }
       
       // Notify user about battery saving mode
       if (batterySavingMode) {
@@ -210,10 +247,16 @@ export const useBackgroundLocationTracking = (
   const stopTracking = async () => {
     if (watchIdRef.current !== null) {
       try {
-        await Geolocation.clearWatch({ id: watchIdRef.current });
+        if (Capacitor.isNativePlatform()) {
+          // Native - use Capacitor to clear watch
+          await Geolocation.clearWatch({ id: watchIdRef.current as string });
+        } else {
+          // Browser - use navigator.geolocation
+          navigator.geolocation.clearWatch(watchIdRef.current as number);
+        }
         watchIdRef.current = null;
         setIsTracking(false);
-        console.log('Background location tracking stopped');
+        console.log('Location tracking stopped');
       } catch (error) {
         console.error('Error stopping location tracking:', error);
       }

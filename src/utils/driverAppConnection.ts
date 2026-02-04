@@ -5,12 +5,15 @@
  * Prerequisites:
  * - Install @supabase/supabase-js
  * - Install @capacitor/geolocation
+ * - Install @capacitor/core
  */
 
 import { supabase } from '@/integrations/supabase/client';
 import { Geolocation } from '@capacitor/geolocation';
+import { Capacitor } from '@capacitor/core';
 
-let locationWatchId: string | null = null;
+// Union type to handle both Capacitor (string) and browser (number) watch IDs
+let locationWatchId: string | number | null = null;
 let connectedDeviceId: string | null = null;
 
 /**
@@ -125,16 +128,6 @@ export async function getConnectionStatus(): Promise<{
  */
 export async function startLocationTracking(): Promise<{ success: boolean; message: string }> {
   try {
-    // Check location permissions
-    const permission = await Geolocation.checkPermissions();
-    
-    if (permission.location !== 'granted') {
-      const requested = await Geolocation.requestPermissions();
-      if (requested.location !== 'granted') {
-        return { success: false, message: 'Location permission denied' };
-      }
-    }
-
     // Get or verify connected device
     if (!connectedDeviceId) {
       const status = await getConnectionStatus();
@@ -145,34 +138,70 @@ export async function startLocationTracking(): Promise<{ success: boolean; messa
     }
 
     // Stop existing watch if any
-    if (locationWatchId) {
-      await Geolocation.clearWatch({ id: locationWatchId });
-    }
+    await stopLocationTracking();
 
-    // Start watching position
-    locationWatchId = await Geolocation.watchPosition(
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      },
-      (position, err) => {
-        if (err) {
-          console.error('Location error:', err);
-          return;
-        }
-
-        if (position && connectedDeviceId) {
-          // Send location to backend
-          sendLocationUpdate(
-            connectedDeviceId,
-            position.coords.latitude,
-            position.coords.longitude,
-            position.coords.speed || 0
-          ).catch(console.error);
+    if (Capacitor.isNativePlatform()) {
+      // Native platform - use Capacitor Geolocation
+      const permission = await Geolocation.checkPermissions();
+      
+      if (permission.location !== 'granted') {
+        const requested = await Geolocation.requestPermissions();
+        if (requested.location !== 'granted') {
+          return { success: false, message: 'Location permission denied' };
         }
       }
-    );
+
+      // Start watching position using Capacitor
+      locationWatchId = await Geolocation.watchPosition(
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        },
+        (position, err) => {
+          if (err) {
+            console.error('Location error:', err);
+            return;
+          }
+
+          if (position && connectedDeviceId) {
+            // Send location to backend
+            sendLocationUpdate(
+              connectedDeviceId,
+              position.coords.latitude,
+              position.coords.longitude,
+              position.coords.speed || 0
+            ).catch(console.error);
+          }
+        }
+      );
+    } else {
+      // Web browser - use navigator.geolocation
+      if (!navigator.geolocation) {
+        return { success: false, message: 'Geolocation not supported' };
+      }
+
+      locationWatchId = navigator.geolocation.watchPosition(
+        (position) => {
+          if (connectedDeviceId) {
+            sendLocationUpdate(
+              connectedDeviceId,
+              position.coords.latitude,
+              position.coords.longitude,
+              position.coords.speed || 0
+            ).catch(console.error);
+          }
+        },
+        (error) => {
+          console.error('Location error:', error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    }
 
     return { success: true, message: 'Location tracking started' };
   } catch (error: any) {
@@ -185,8 +214,12 @@ export async function startLocationTracking(): Promise<{ success: boolean; messa
  * Stop location tracking
  */
 export async function stopLocationTracking(): Promise<void> {
-  if (locationWatchId) {
-    await Geolocation.clearWatch({ id: locationWatchId });
+  if (locationWatchId !== null) {
+    if (Capacitor.isNativePlatform()) {
+      await Geolocation.clearWatch({ id: locationWatchId as string });
+    } else {
+      navigator.geolocation.clearWatch(locationWatchId as number);
+    }
     locationWatchId = null;
   }
 }
