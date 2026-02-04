@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MapPin, Settings, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Geolocation } from '@capacitor/geolocation';
@@ -12,6 +12,8 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
   const [checking, setChecking] = useState(true);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [retrying, setRetrying] = useState(false);
+  const [permissionDebug, setPermissionDebug] = useState<string>('');
+  const checkPermissionRef = useRef<(() => void) | null>(null);
 
   const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string) => {
     let timeoutId: number | undefined;
@@ -32,15 +34,40 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
       if (Capacitor.isNativePlatform()) {
         // Use Capacitor Geolocation for native
         const status = await Geolocation.checkPermissions();
+        setPermissionDebug(`native: location=${status.location ?? 'n/a'} coarse=${status.coarseLocation ?? 'n/a'}`);
         if (status.location === 'granted' || status.coarseLocation === 'granted') {
           setHasPermission(true);
           onPermissionGranted();
         } else {
-          setHasPermission(false);
+          // On iOS, users can set "Ask Next Time / When I Share" which is effectively a prompt state.
+          // In that case, attempt a position request to trigger the system prompt; if it succeeds, let them through.
+          const isPrompt = status.location === 'prompt' || status.coarseLocation === 'prompt';
+          if (isPrompt) {
+            try {
+              await withTimeout(
+                Geolocation.getCurrentPosition({
+                  enableHighAccuracy: true,
+                  timeout: 10000,
+                  maximumAge: 0,
+                }),
+                12000,
+                'CHECK_GET_CURRENT_POSITION'
+              );
+
+              setHasPermission(true);
+              onPermissionGranted();
+            } catch (e) {
+              console.warn('[LocationBlocker] prompt getCurrentPosition failed:', e);
+              setHasPermission(false);
+            }
+          } else {
+            setHasPermission(false);
+          }
         }
       } else {
         // Use browser API for web
         const result = await navigator.permissions.query({ name: 'geolocation' });
+        setPermissionDebug(`web: ${result.state}`);
         if (result.state === 'granted') {
           setHasPermission(true);
           onPermissionGranted();
@@ -157,6 +184,32 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
     checkPermission();
   }, []);
 
+  // Re-check automatically when returning from Settings (common: user changes permission, then comes back still blocked)
+  checkPermissionRef.current = () => {
+    void checkPermission();
+  };
+
+  useEffect(() => {
+    const onFocus = () => {
+      if (hasPermission === true) return;
+      checkPermissionRef.current?.();
+    };
+
+    const onVisibilityChange = () => {
+      if (hasPermission === true) return;
+      if (document.visibilityState === 'visible') {
+        checkPermissionRef.current?.();
+      }
+    };
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [hasPermission]);
+
   // If permission is granted or still checking, don't show blocker
   if (checking) {
     return (
@@ -198,6 +251,13 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
             <p className="text-muted-foreground mt-1">
               Without location permission, you cannot access the dashboard, tasks, or SOS features.
             </p>
+            {Capacitor.isNativePlatform() && permissionDebug.includes('prompt') && (
+              <p className="text-muted-foreground mt-2">
+                iOS is currently set to <span className="font-medium">Ask Next Time / When I Share</span>. Tap{' '}
+                <span className="font-medium">Enable Location</span> to trigger the prompt, and choose{' '}
+                <span className="font-medium">While Using the App</span> for reliable tracking.
+              </p>
+            )}
           </div>
         </div>
 
@@ -246,6 +306,13 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
         <p className="text-xs text-muted-foreground">
           Your location is only shared with your fleet administrator while you're on duty.
         </p>
+
+        {/* Lightweight diagnostics (helps debug stuck permission state on iOS devices/simulator) */}
+        {permissionDebug && (
+          <p className="text-[11px] text-muted-foreground break-words">
+            Permission: {permissionDebug}
+          </p>
+        )}
       </div>
     </div>
   );
