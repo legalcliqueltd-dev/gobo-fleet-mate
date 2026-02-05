@@ -250,14 +250,17 @@ export default function CreateTask() {
 
                 <div>
                   <Label htmlFor="driver">Assign to Driver *</Label>
-                  <Select value={assignedDriverId} onValueChange={setAssignedDriverId}>
+                  <Select value={assignedDriverId} onValueChange={handleDriverSelect}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select driver" />
                     </SelectTrigger>
                     <SelectContent>
                       {drivers.map((driver) => (
-                        <SelectItem key={driver.id} value={driver.id}>
-                          {driver.full_name || driver.email}
+                        <SelectItem key={driver.driver_id} value={driver.driver_id}>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${driver.status === 'active' ? 'bg-green-500' : 'bg-gray-400'}`} />
+                            {driver.driver_name || driver.driver_id}
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>

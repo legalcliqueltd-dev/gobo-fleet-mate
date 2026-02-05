@@ -135,7 +135,7 @@ export default function DriverAppTasks() {
                         
                         <Button
                           size="sm"
-                          onClick={() => navigate(`/tasks/${task.id}/complete`)}
+                          onClick={() => navigate(`/app/tasks/${task.id}/complete`)}
                         >
                           Complete
                         </Button>
