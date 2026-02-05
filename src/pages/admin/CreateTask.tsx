@@ -170,7 +170,9 @@ export default function CreateTask() {
     try {
       const taskData = {
         created_by: user.id,
-        assigned_user_id: assignedDriverId,
+        assigned_user_id: user.id, // Keep for RLS compatibility
+        assigned_driver_id: assignedDriverId, // Text-based driver ID for mobile app
+        admin_code: selectedAdminCode, // Link to admin for filtering
         title: title.trim(),
         description: description.trim() || null,
         pickup_lat: pickupLat ? parseFloat(pickupLat) : null,
