@@ -1,205 +1,174 @@
 
-# Implementation Plan: Task System & SOS Admin Notifications
+# Implementation Plan: Admin UI Enhancements, SOS Improvements & Task System Optimization
 
 ## Overview
 
-This plan addresses four key issues:
-1. Fix task assignment to work with mobile drivers (using `drivers` table)
-2. Add in-app notification for drivers when new tasks are assigned
-3. Enable screenshot/proof upload for completed tasks in mobile app
-4. Add Tasks to admin navigation bar
-5. Fix SOS notification bell visibility for admins
+This plan addresses the following requirements:
+1. **Navigation bar UI adjustment** - Polish the floating nav appearance
+2. **SOS driver identification** - Display driver name and code on SOS events
+3. **Overall UI improvements** - Enhance nav bar, SOS, and task sections
+4. **SOS map features** - Zoom to exact location, satellite view, delete resolved SOS
+5. **Task system optimization** - Focus on assigning tasks (admin sends), support media uploads (photos, videos <5MB)
 
 ---
 
-## Issue Analysis
+## Phase 1: Navigation Bar UI Improvements
 
-### Current Architecture Mismatch
+### Current Issues
+- The floating nav bar on desktop has 4 items but could use better visual polish
+- Mobile nav menu doesn't match the main nav items
 
-The task system has a critical disconnect:
-- **Admin CreateTask**: Loads drivers from `driver_connections` table (UUID-based auth users)
-- **Mobile App**: Uses text-based `driver_id` from `drivers` table
-- **Tasks Table**: Uses `assigned_user_id` (UUID) which doesn't match mobile driver IDs
+### Changes to `src/components/layout/AppLayout.tsx`
 
-This means tasks created by admins will NOT appear for mobile drivers.
+1. **Polish the floating nav bar design**:
+   - Add subtle shadow and better contrast
+   - Improve icon sizing and spacing
+   - Add subtle hover animations
 
----
+2. **Sync mobile menu with desktop nav**:
+   - Show same 4 items: Home, Tasks, SOS, Settings
+   - Add Tasks link to mobile menu
 
-## Phase 1: Database Schema Updates
-
-### 1.1 Add `assigned_driver_id` to Tasks Table
-
-Add a new column to link tasks to mobile drivers:
-
-```sql
-ALTER TABLE public.tasks 
-ADD COLUMN IF NOT EXISTS assigned_driver_id TEXT 
-REFERENCES public.drivers(driver_id);
-
-ALTER TABLE public.tasks 
-ADD COLUMN IF NOT EXISTS admin_code TEXT;
-
-CREATE INDEX IF NOT EXISTS tasks_assigned_driver_id_idx 
-ON public.tasks(assigned_driver_id);
-
-CREATE INDEX IF NOT EXISTS tasks_admin_code_idx 
-ON public.tasks(admin_code);
-```
-
-### 1.2 Ensure Admin Role Exists
-
-Grant admin role to device owners:
-
-```sql
--- Add admin role for users who own devices
-INSERT INTO public.user_roles (user_id, role)
-SELECT DISTINCT user_id, 'admin'::app_role 
-FROM public.devices 
-WHERE user_id IS NOT NULL
-ON CONFLICT (user_id, role) DO NOTHING;
-```
+3. **Visual refinements**:
+   - Slightly larger nav bar with better rounded corners
+   - Better active state indicator animation
 
 ---
 
-## Phase 2: Admin Task Assignment
+## Phase 2: SOS System Enhancements
 
-### 2.1 Update CreateTask.tsx
+### 2.1 Display Driver Name & Code in SOS Events
 
-**Current Problem**: Loads drivers from `driver_connections` which uses UUID auth users.
+**Changes to `src/pages/ops/Incidents.tsx`**:
 
-**Solution**: Load drivers from the `drivers` table instead, filtered by admin's device connection codes.
+1. **Fetch driver code along with driver info**:
+   - Query the `drivers` table to get `driver_id` (the connection code) alongside the driver name
+   - If `user_id` in SOS event is a text-based driver_id, look up from `drivers` table
+   - Display format: "Driver Name (CODE123)"
 
-**Changes to `src/pages/admin/CreateTask.tsx`**:
+2. **Update the SOS event card UI**:
+   - Add driver code badge below driver name
+   - Make it visually prominent with a monospace font
 
-1. Update `loadDrivers()` function:
-   - Get admin's devices and their connection codes
-   - Query `drivers` table where `admin_code` matches any of the admin's device codes
-   - Display driver names with their connection status
+3. **Update selected event details panel**:
+   - Show driver code clearly
+   - Include admin_code for reference
 
-2. Update task creation:
-   - Set `assigned_driver_id` (text) instead of `assigned_user_id` (UUID)
-   - Set `admin_code` for task isolation
+### 2.2 Map Zoom & Satellite View
 
-**Driver Type Update**:
-```typescript
-type Driver = {
-  driver_id: string;    // TEXT from drivers table
-  driver_name: string;
-  admin_code: string;
-  status: string;
-  last_seen_at: string | null;
-};
-```
+**Changes to `src/pages/ops/Incidents.tsx`**:
 
----
+1. **Add "Zoom to Location" button**:
+   - When SOS is selected, add a button to zoom map to zoom level 18 (street level)
+   - Pan and zoom animation
 
-## Phase 3: Mobile Driver Task Notifications
+2. **Add Satellite/Hybrid view toggle**:
+   - Add a map type toggle button overlay
+   - Options: Roadmap, Satellite, Hybrid
+   - Store preference in local state
 
-### 3.1 Create Task Notification Hook
+3. **Improve marker visibility on satellite**:
+   - Add white stroke/shadow to markers for visibility on dark satellite imagery
 
-**New File**: `src/hooks/useTaskNotifications.ts`
+### 2.3 Delete Resolved/Seen SOS Events
 
-Features:
-- Subscribe to real-time changes on `tasks` table filtered by driver's ID
-- Play audio alert when new task is assigned
-- Show toast notification with task title
-- Return unread task count for badge display
+**Changes to `src/pages/ops/Incidents.tsx`**:
 
-### 3.2 Update DriverAppLayout
+1. **Add delete functionality**:
+   - Add a trash icon button next to resolved SOS events
+   - Only show for resolved/cancelled status
+   - Confirmation dialog before deletion
 
-Add notification badge to Tasks icon in bottom nav showing unread task count.
+2. **Add "Clear All Resolved" button**:
+   - Bulk delete option for resolved events
+   - Confirmation modal
 
-### 3.3 Update DriverAppTasks Query
-
-Change from:
-```typescript
-.eq('assigned_user_id', session.driverId)
-```
-
-To:
-```typescript
-.eq('assigned_driver_id', session.driverId)
-```
+3. **Database operation**:
+   - Delete from `sos_events` table (admin only)
 
 ---
 
-## Phase 4: Task Proof Upload (Screenshots)
+## Phase 3: Task System Optimization
 
-### 4.1 Create Mobile Task Completion Page
+### 3.1 Admin Task Management Page
 
-**New File**: `src/pages/app/DriverAppCompleteTask.tsx`
+The current `CreateTask.tsx` is for creating tasks. We need a proper task list view for admins.
 
-A mobile-optimized task completion flow:
+**Create new file: `src/pages/admin/TaskList.tsx`**
 
-1. **Photo Capture**:
-   - Camera button to take photos
-   - Gallery of captured photos
-   - Upload to `proofs` storage bucket
+This page will show:
+1. **All tasks created by admin** - Organized by status
+2. **Task assignment focus** - Quick assign to drivers
+3. **Feedback from drivers** - View proofs, photos, notes
 
-2. **Notes**:
-   - Optional text notes about completion
+**Key sections**:
+- Pending/Assigned tasks (waiting for driver action)
+- In Progress tasks (driver en route)
+- Completed tasks (with proof attachments)
+- Status filters and search
 
-3. **Submit**:
-   - Create task_report entry
-   - Update task status to 'delivered'
-   - Navigate back to tasks list
+### 3.2 Support for Screenshots, Photos & Short Videos
 
-**Key Components**:
-- File input with `capture="environment"` for camera access
-- Progress indicator during upload
-- Success confirmation
+**Changes to `src/pages/app/DriverAppCompleteTask.tsx`**:
 
-### 4.2 Update DriverAppTasks
+1. **Accept video files**:
+   - Update file input to accept `video/*` in addition to `image/*`
+   - Add file size validation (max 5MB per file)
+   - Show file type indicator (photo vs video)
 
-Change the "Complete" button to navigate to the new mobile completion page:
-```typescript
-onClick={() => navigate(`/app/tasks/${task.id}/complete`)}
-```
+2. **Video preview**:
+   - Show video thumbnail/player for uploaded videos
+   - Display file size warning if over limit
 
-### 4.3 Add Route in App.tsx
+3. **Storage bucket update**:
+   - Videos will be stored in the same `proofs` bucket
+   - Add content-type header for proper playback
 
-Add new route under `/app/*`:
-```typescript
-<Route path="/tasks/:taskId/complete" element={
-  <DriverProtectedRoute>
-    <DriverAppCompleteTask />
-  </DriverProtectedRoute>
-} />
-```
+**Changes to admin task view**:
+- Display video proofs with playback controls
+- Thumbnail grid for photos
 
----
+### 3.3 Update Navigation Route
 
-## Phase 5: Admin Navigation Updates
-
-### 5.1 Update AppLayout.tsx
-
-Add Tasks and SOS to the navigation bar:
-
-```typescript
-const navItems = [
-  { path: '/dashboard', icon: Home, label: 'Home' },
-  { path: '/admin/tasks', icon: ClipboardList, label: 'Tasks' },
-  { path: '/ops/incidents', icon: AlertTriangle, label: 'SOS' },
-  { path: '/settings', icon: Settings, label: 'Settings' },
-];
-```
+**Changes to `src/App.tsx`**:
+- Ensure `/admin/tasks` route shows the task list (not create)
+- Add `/admin/tasks/new` for creating tasks
 
 ---
 
-## Phase 6: Fix SOS Bell Visibility
+## Phase 4: UI Polish & Visual Improvements
 
-### 6.1 Auto-Grant Admin Role
+### 4.1 SOS Page Visual Overhaul
 
-The SOS bell requires `admin` role in `user_roles`. We need to ensure device owners have this role.
+**Key improvements to `src/pages/ops/Incidents.tsx`**:
 
-**Option A** (Recommended): Database trigger on device creation
-**Option B**: Update the `useSOSNotifications` hook to check device ownership instead of role
+1. **Header section**:
+   - More prominent active incident counter
+   - Quick actions (export, filter)
 
-For immediate fix, run the SQL from Phase 1.2 to grant admin role to existing device owners.
+2. **Event cards**:
+   - Larger driver avatar area
+   - More visible driver code (monospace, badge style)
+   - Time since alert (more prominent)
 
-### 6.2 Verify SOS Query Includes admin_code
+3. **Map overlay panel**:
+   - Cleaner design with clear sections
+   - Action buttons with better hierarchy
+   - "Open in Google Maps" link
 
-The `useSOSNotifications` hook already filters by `admin_code`, which was added in the previous update. Verify this is working correctly.
+### 4.2 Task Section Polish
+
+**Key improvements**:
+
+1. **Admin create task page**:
+   - Better map instructions
+   - Driver selection with status indicators
+   - Preview before creating
+
+2. **Driver app tasks**:
+   - Cleaner card design
+   - Progress indicators
+   - Better status colors
 
 ---
 
@@ -208,56 +177,126 @@ The `useSOSNotifications` hook already filters by `admin_code`, which was added 
 ### New Files
 | File | Purpose |
 |------|---------|
-| `src/pages/app/DriverAppCompleteTask.tsx` | Mobile task completion with photo upload |
-| `src/hooks/useTaskNotifications.ts` | Real-time task assignment notifications |
+| `src/pages/admin/TaskList.tsx` | Admin task list with filtering and feedback view |
 
 ### Modified Files
 | File | Changes |
 |------|---------|
-| `src/pages/admin/CreateTask.tsx` | Load drivers from `drivers` table, use `assigned_driver_id` |
-| `src/pages/app/DriverAppTasks.tsx` | Query by `assigned_driver_id`, update Complete navigation |
-| `src/components/layout/AppLayout.tsx` | Add Tasks and SOS to nav |
-| `src/components/layout/DriverAppLayout.tsx` | Add task notification badge |
-| `src/App.tsx` | Add task completion route |
-
-### Database Migrations
-| Migration | Purpose |
-|-----------|---------|
-| Add `assigned_driver_id` column | Link tasks to mobile drivers |
-| Add `admin_code` column to tasks | Task isolation by admin |
-| Insert admin roles | Enable SOS bell visibility |
+| `src/components/layout/AppLayout.tsx` | Nav bar UI polish, sync mobile menu |
+| `src/pages/ops/Incidents.tsx` | Driver code display, satellite view, zoom, delete SOS |
+| `src/pages/app/DriverAppCompleteTask.tsx` | Video support, 5MB limit validation |
+| `src/pages/admin/CreateTask.tsx` | UI improvements |
+| `src/App.tsx` | Add /admin/tasks route for TaskList |
+| `src/hooks/useSOSNotifications.ts` | Include driver_id in enriched data |
 
 ---
 
 ## Technical Details
 
-### Task Assignment Flow (After Fix)
+### SOS Driver Identification Logic
 
-```
-1. Admin opens CreateTask
-2. System fetches admin's device connection codes
-3. System queries drivers table where admin_code IN (admin's codes)
-4. Admin selects driver and creates task
-5. Task saved with assigned_driver_id (text) and admin_code
-6. Mobile app receives real-time notification
-7. Driver sees task in their list
-8. Driver completes with photo proof
-9. Admin sees proof in ops console
-```
+The challenge is that `sos_events.user_id` may contain either:
+- A UUID (Supabase auth user) - look up in `profiles`
+- A text driver_id - look up in `drivers`
 
-### Storage Structure for Proofs
-
-```
-proofs/
-  {driver_id}/
-    {task_id}/
-      {timestamp}_photo1.jpg
-      {timestamp}_photo2.jpg
+Solution: Check the format of `user_id`:
+```typescript
+// If user_id looks like a UUID, query profiles
+// If it's a short code, query drivers table
+const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-/.test(event.user_id);
 ```
 
-### Notification Sound
+Or simpler: Query both and use whichever returns data.
 
-Reuse the existing audio alert pattern from SOS notifications - a double beep using Web Audio API.
+### Video Upload File Size Check
+
+```typescript
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+const handleMediaCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const files = e.target.files;
+  if (!files) return;
+
+  for (const file of files) {
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error(`${file.name} is too large. Maximum 5MB allowed.`);
+      continue;
+    }
+    // Add to upload queue
+  }
+};
+```
+
+### Map Satellite Toggle
+
+```typescript
+const [mapType, setMapType] = useState<'roadmap' | 'satellite' | 'hybrid'>('roadmap');
+
+<GoogleMap
+  options={{
+    mapTypeId: mapType,
+    mapTypeControl: false, // Hide default, use custom
+  }}
+/>
+
+// Custom toggle button overlay
+<div className="absolute top-4 right-4">
+  <Button onClick={() => setMapType(t => t === 'roadmap' ? 'satellite' : 'roadmap')}>
+    {mapType === 'roadmap' ? 'Satellite' : 'Map'}
+  </Button>
+</div>
+```
+
+### Delete SOS Event
+
+```typescript
+const deleteEvent = async (eventId: string) => {
+  if (!confirm('Are you sure you want to delete this SOS event?')) return;
+  
+  const { error } = await supabase
+    .from('sos_events')
+    .delete()
+    .eq('id', eventId);
+
+  if (!error) {
+    toast.success('SOS event deleted');
+    loadEvents();
+    if (selectedEvent?.id === eventId) {
+      setSelectedEvent(null);
+    }
+  }
+};
+```
+
+---
+
+## UI Design Specifications
+
+### Floating Nav Bar (Desktop)
+```
+- Background: white/95 dark:slate-900/95 with backdrop-blur-lg
+- Border: subtle border with 50% opacity
+- Padding: px-5 py-2.5 (slightly larger)
+- Border radius: rounded-2xl (more rounded)
+- Shadow: shadow-lg (more prominent)
+- Active indicator: bg-primary/20 (more visible)
+```
+
+### SOS Event Card
+```
+- Driver name: font-semibold text-base
+- Driver code: font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded
+- Hazard badge: larger emoji, uppercase type
+- Time: prominent with relative format
+```
+
+### Task Completion Media
+```
+- Accept: image/*, video/mp4, video/quicktime
+- Max size: 5MB per file
+- Grid: 3 columns for photos, full width for videos
+- Video preview: max-h-48 with play button overlay
+```
 
 ---
 
@@ -265,21 +304,26 @@ Reuse the existing audio alert pattern from SOS notifications - a double beep us
 
 After implementation:
 
-1. **Admin Task Creation**:
-   - [ ] CreateTask shows drivers from `drivers` table
-   - [ ] Task created with `assigned_driver_id` 
+1. **Navigation**:
+   - [ ] Floating nav bar shows all 4 items properly
+   - [ ] Mobile menu matches desktop nav
+   - [ ] Active state indicator works
 
-2. **Mobile Driver**:
-   - [ ] Tasks appear in driver app
-   - [ ] Notification appears when new task assigned
-   - [ ] Can upload photos to complete task
-   - [ ] Task shows as delivered after completion
+2. **SOS System**:
+   - [ ] Driver name AND code visible in SOS events
+   - [ ] Zoom to location works
+   - [ ] Satellite view toggle works
+   - [ ] Delete resolved SOS works
+   - [ ] Delete confirmation appears
 
-3. **SOS System**:
-   - [ ] Bell icon visible in admin header
-   - [ ] SOS alerts show for admin's drivers only
-   - [ ] Audio plays on new SOS
+3. **Task System**:
+   - [ ] Admin can create and assign tasks
+   - [ ] Admin can view task list with feedback
+   - [ ] Driver can upload photos AND videos
+   - [ ] 5MB limit enforced with error message
+   - [ ] Videos play back in admin view
 
-4. **Navigation**:
-   - [ ] Tasks link in admin nav bar
-   - [ ] SOS link in admin nav bar
+4. **Overall UI**:
+   - [ ] Polish looks clean on desktop
+   - [ ] Mobile views work properly
+   - [ ] Dark mode works for all changes
