@@ -612,6 +612,8 @@ export type Database = {
       }
       tasks: {
         Row: {
+          admin_code: string | null
+          assigned_driver_id: string | null
           assigned_user_id: string
           created_at: string | null
           created_by: string
@@ -633,6 +635,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          admin_code?: string | null
+          assigned_driver_id?: string | null
           assigned_user_id: string
           created_at?: string | null
           created_by: string
@@ -654,6 +658,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          admin_code?: string | null
+          assigned_driver_id?: string | null
           assigned_user_id?: string
           created_at?: string | null
           created_by?: string
