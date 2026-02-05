@@ -1,234 +1,285 @@
 
-# Implementation Plan: iOS Location, Background Tracking & SOS Notifications
+# Implementation Plan: Task System & SOS Admin Notifications
 
 ## Overview
 
-This plan addresses three critical issues:
-1. **Location accuracy**: iOS driver location showing in wrong city on admin map
-2. **Background tracking**: Continuous tracking when device is locked/app closed
-3. **SOS admin notifications**: In-app bell + email alerts with location links
+This plan addresses four key issues:
+1. Fix task assignment to work with mobile drivers (using `drivers` table)
+2. Add in-app notification for drivers when new tasks are assigned
+3. Enable screenshot/proof upload for completed tasks in mobile app
+4. Add Tasks to admin navigation bar
+5. Fix SOS notification bell visibility for admins
 
 ---
 
-## Issue 1: Location Accuracy - iOS Driver Shows in Wrong City
+## Issue Analysis
 
-### Root Cause Analysis
+### Current Architecture Mismatch
 
-The iOS app is sending location updates via the `connect-driver` edge function, but there's a disconnect:
+The task system has a critical disconnect:
+- **Admin CreateTask**: Loads drivers from `driver_connections` table (UUID-based auth users)
+- **Mobile App**: Uses text-based `driver_id` from `drivers` table
+- **Tasks Table**: Uses `assigned_user_id` (UUID) which doesn't match mobile driver IDs
 
-1. **Coordinate mismatch**: The iOS app may be sending coordinates from a previous location or simulator default
-2. **Accuracy filtering too strict or not working**: The edge function filters locations with accuracy > 1500m, but coordinates could still be cached/stale
-3. **Data flow check needed**: Verify the `driver_locations` table is receiving fresh iOS coordinates
-
-### Technical Fix
-
-**A. Add debug logging to verify actual coordinates being sent:**
-
-Update `DriverAppDashboard.tsx` to show coordinates being tracked and synced, plus add a "Last synced" timestamp with actual lat/lng values.
-
-**B. Ensure Capacitor Geolocation returns fresh, accurate positions:**
-
-- Force `maximumAge: 0` to prevent cached positions
-- Add GPS accuracy indicator on mobile map
-- Only sync locations with accuracy < 100m (per existing memory constraint)
-
-**C. Update connect-driver edge function to log received coordinates:**
-
-Add better logging to trace the exact values being stored.
-
-### Files to Modify
-- `src/pages/app/DriverAppDashboard.tsx` - Add coordinate debug display
-- `supabase/functions/connect-driver/index.ts` - Improve logging
-- `src/hooks/useBackgroundLocationTracking.ts` - Force fresh position, reduce accuracy threshold
+This means tasks created by admins will NOT appear for mobile drivers.
 
 ---
 
-## Issue 2: Background Tracking on iOS
+## Phase 1: Database Schema Updates
 
-### Current Limitation
+### 1.1 Add `assigned_driver_id` to Tasks Table
 
-Standard `Geolocation.watchPosition()` stops when:
-- The app is backgrounded
-- The screen is locked
-- The device is powered off
-
-### Solution: Capacitor Background Geolocation Plugin
-
-The recommended approach is to use a dedicated background location plugin:
-
-**Plugin: `@transistorsoft/capacitor-background-geolocation`**
-
-This plugin:
-- Continues tracking in background
-- Works when screen is locked
-- Handles OS-level location persistence
-- Auto-restarts on device reboot (with proper configuration)
-
-### Technical Implementation
-
-**A. Install the background geolocation plugin:**
-```bash
-npm install @transistorsoft/capacitor-background-geolocation
-npx cap sync
-```
-
-**B. Create a new tracking hook:**
-- `src/hooks/useIOSBackgroundTracking.ts`
-- Configure for always-on tracking
-- Handle battery optimization
-
-**C. Update iOS Info.plist entries (already in post-sync script):**
-- `UIBackgroundModes: location`
-- `NSLocationAlwaysAndWhenInUseUsageDescription`
-
-**D. Configure in DriverAppDashboard:**
-- Replace `useBackgroundLocationTracking` with the native background version when on iOS
-- Fall back to browser geolocation on web
-
-### Alternative: Store Last Known Location
-
-Even with background tracking limitations, ensure:
-- When the app goes to background/closes, store the LAST known location
-- When driver goes offline, the admin dashboard shows "Last known location" with timestamp
-- This provides fallback data even if continuous tracking fails
-
-### Files to Create/Modify
-- `src/hooks/useIOSBackgroundTracking.ts` (new)
-- `src/pages/app/DriverAppDashboard.tsx` - Use native tracking on iOS
-- `scripts/ios-post-sync.sh` - Ensure all required plist entries
-- `capacitor.config.ts` - Add plugin configuration
-
----
-
-## Issue 3: SOS Admin Notifications - Email & In-App
-
-### Current State Analysis
-
-1. **SOS Bell**: `SOSNotificationBell.tsx` exists but only shows for users with `admin` role in `user_roles` table
-2. **SOS Events**: Currently linked via `user_id` (UUID) which expects auth users, but drivers use `driver_id` (text)
-3. **Email notifications**: Edge function `sos-dispatch` exists but isn't triggered and has no email implementation
-
-### Problems Identified
-
-1. **SOS bell not visible**: Admin may not have `admin` role in `user_roles` table
-2. **SOS events not linking to driver's admin**: No `admin_code` column in `sos_events` to filter by owner
-3. **Email not implemented**: The edge function logs but doesn't send actual emails
-
-### Technical Solution
-
-**A. Fix SOS event creation to include admin_code:**
-
-Update `DriverAppSOS.tsx` to include the driver's `admin_code` when creating SOS events. This links the SOS to the correct admin.
-
-**B. Add admin_code column to sos_events table (SQL migration):**
-```sql
-ALTER TABLE public.sos_events ADD COLUMN IF NOT EXISTS admin_code TEXT;
-CREATE INDEX IF NOT EXISTS sos_events_admin_code_idx ON public.sos_events(admin_code);
-```
-
-**C. Update SOS notifications hook to filter by admin_code:**
-
-Modify `useSOSNotifications.ts` to only show SOS events for drivers connected to the current admin's devices.
-
-**D. Implement email notifications using Resend:**
-
-Since you need a free option, **Brevo (formerly Sendinblue)** offers 300 free emails/day. Alternatively, we can use a simple webhook to an SMTP service.
-
-For email, create an edge function that:
-- Triggers when SOS is created
-- Looks up the admin's email from their `admin_code` (via devices -> user_id -> profiles)
-- Sends email with Google Maps link to exact SOS location
-
-**E. Add "offline alert" system:**
-
-When a driver goes offline (no heartbeat for 5+ minutes):
-1. Store their last known location in `driver_location_history`
-2. Optionally trigger an email alert to admin
-3. Show on dashboard with "Last seen: [location link]"
-
-### Email Content Template
-```
-Subject: 🚨 SOS Alert from [Driver Name]
-
-[Driver Name] has triggered an emergency SOS alert.
-
-📍 Location: [Google Maps Link]
-⏰ Time: [Timestamp]
-🚨 Type: [Hazard Type]
-💬 Message: [Driver message if any]
-
-Click here to view on dashboard: [Dashboard Link]
-```
-
-### Files to Create/Modify
-- `src/pages/app/DriverAppSOS.tsx` - Include admin_code in SOS creation
-- `src/hooks/useSOSNotifications.ts` - Filter by admin_code
-- `supabase/functions/sos-dispatch/index.ts` - Implement Resend email sending
-- SQL migration for admin_code column
-- `src/components/sos/SOSNotificationBell.tsx` - Ensure visibility for admins
-
----
-
-## Implementation Priority
-
-### Phase 1: Quick Fixes (High Impact, Low Effort)
-1. Add `admin` role to user if missing (SQL)
-2. Add admin_code to sos_events and update DriverAppSOS.tsx
-3. Fix SOS notifications to filter by admin's drivers
-
-### Phase 2: Location Accuracy
-1. Debug coordinate logging in mobile app
-2. Force fresh GPS position (maximumAge: 0)
-3. Add visible coordinate display for debugging
-
-### Phase 3: Background Tracking
-1. Install and configure background geolocation plugin
-2. Update iOS post-sync script
-3. Test on physical device
-
-### Phase 4: Email Notifications
-1. Set up Resend or Brevo account
-2. Implement email sending in sos-dispatch
-3. Add offline driver alert emails
-
----
-
-## Email Provider Recommendation: Free Options
-
-| Provider | Free Tier | Best For |
-|----------|-----------|----------|
-| **Resend** | 3,000/month | Simple API, modern |
-| **Brevo** | 300/day | More generous daily limit |
-| **Mailgun** | 1,000/month (sandbox) | Established provider |
-
-**Recommendation**: Brevo offers 9,000 free emails/month (300/day) which should cover SOS and offline alerts easily.
-
----
-
-## Database Changes Required
+Add a new column to link tasks to mobile drivers:
 
 ```sql
--- 1. Add admin_code to sos_events
-ALTER TABLE public.sos_events ADD COLUMN IF NOT EXISTS admin_code TEXT;
-CREATE INDEX IF NOT EXISTS sos_events_admin_code_idx ON public.sos_events(admin_code);
+ALTER TABLE public.tasks 
+ADD COLUMN IF NOT EXISTS assigned_driver_id TEXT 
+REFERENCES public.drivers(driver_id);
 
--- 2. Grant admin role to your user (replace with your actual user ID)
--- First, find your user ID:
--- SELECT id, email FROM auth.users WHERE email = 'your@email.com';
--- Then:
--- INSERT INTO public.user_roles (user_id, role) VALUES ('YOUR_USER_ID', 'admin');
+ALTER TABLE public.tasks 
+ADD COLUMN IF NOT EXISTS admin_code TEXT;
+
+CREATE INDEX IF NOT EXISTS tasks_assigned_driver_id_idx 
+ON public.tasks(assigned_driver_id);
+
+CREATE INDEX IF NOT EXISTS tasks_admin_code_idx 
+ON public.tasks(admin_code);
+```
+
+### 1.2 Ensure Admin Role Exists
+
+Grant admin role to device owners:
+
+```sql
+-- Add admin role for users who own devices
+INSERT INTO public.user_roles (user_id, role)
+SELECT DISTINCT user_id, 'admin'::app_role 
+FROM public.devices 
+WHERE user_id IS NOT NULL
+ON CONFLICT (user_id, role) DO NOTHING;
 ```
 
 ---
 
-## Summary
+## Phase 2: Admin Task Assignment
 
-| Issue | Root Cause | Solution |
-|-------|------------|----------|
-| Wrong location on map | Stale/cached GPS data | Force fresh position, add debug logging |
-| No background tracking | iOS kills app tracking | Use Capacitor background geolocation plugin |
-| SOS bell not visible | Admin role missing | Add role to user_roles table |
-| SOS not reaching admin | No admin_code linkage | Add admin_code to sos_events |
-| No email notifications | Edge function not implemented | Implement Resend/Brevo email sending |
-| Offline location lost | No storage on disconnect | Store last location, trigger offline alert |
+### 2.1 Update CreateTask.tsx
 
+**Current Problem**: Loads drivers from `driver_connections` which uses UUID auth users.
+
+**Solution**: Load drivers from the `drivers` table instead, filtered by admin's device connection codes.
+
+**Changes to `src/pages/admin/CreateTask.tsx`**:
+
+1. Update `loadDrivers()` function:
+   - Get admin's devices and their connection codes
+   - Query `drivers` table where `admin_code` matches any of the admin's device codes
+   - Display driver names with their connection status
+
+2. Update task creation:
+   - Set `assigned_driver_id` (text) instead of `assigned_user_id` (UUID)
+   - Set `admin_code` for task isolation
+
+**Driver Type Update**:
+```typescript
+type Driver = {
+  driver_id: string;    // TEXT from drivers table
+  driver_name: string;
+  admin_code: string;
+  status: string;
+  last_seen_at: string | null;
+};
+```
+
+---
+
+## Phase 3: Mobile Driver Task Notifications
+
+### 3.1 Create Task Notification Hook
+
+**New File**: `src/hooks/useTaskNotifications.ts`
+
+Features:
+- Subscribe to real-time changes on `tasks` table filtered by driver's ID
+- Play audio alert when new task is assigned
+- Show toast notification with task title
+- Return unread task count for badge display
+
+### 3.2 Update DriverAppLayout
+
+Add notification badge to Tasks icon in bottom nav showing unread task count.
+
+### 3.3 Update DriverAppTasks Query
+
+Change from:
+```typescript
+.eq('assigned_user_id', session.driverId)
+```
+
+To:
+```typescript
+.eq('assigned_driver_id', session.driverId)
+```
+
+---
+
+## Phase 4: Task Proof Upload (Screenshots)
+
+### 4.1 Create Mobile Task Completion Page
+
+**New File**: `src/pages/app/DriverAppCompleteTask.tsx`
+
+A mobile-optimized task completion flow:
+
+1. **Photo Capture**:
+   - Camera button to take photos
+   - Gallery of captured photos
+   - Upload to `proofs` storage bucket
+
+2. **Notes**:
+   - Optional text notes about completion
+
+3. **Submit**:
+   - Create task_report entry
+   - Update task status to 'delivered'
+   - Navigate back to tasks list
+
+**Key Components**:
+- File input with `capture="environment"` for camera access
+- Progress indicator during upload
+- Success confirmation
+
+### 4.2 Update DriverAppTasks
+
+Change the "Complete" button to navigate to the new mobile completion page:
+```typescript
+onClick={() => navigate(`/app/tasks/${task.id}/complete`)}
+```
+
+### 4.3 Add Route in App.tsx
+
+Add new route under `/app/*`:
+```typescript
+<Route path="/tasks/:taskId/complete" element={
+  <DriverProtectedRoute>
+    <DriverAppCompleteTask />
+  </DriverProtectedRoute>
+} />
+```
+
+---
+
+## Phase 5: Admin Navigation Updates
+
+### 5.1 Update AppLayout.tsx
+
+Add Tasks and SOS to the navigation bar:
+
+```typescript
+const navItems = [
+  { path: '/dashboard', icon: Home, label: 'Home' },
+  { path: '/admin/tasks', icon: ClipboardList, label: 'Tasks' },
+  { path: '/ops/incidents', icon: AlertTriangle, label: 'SOS' },
+  { path: '/settings', icon: Settings, label: 'Settings' },
+];
+```
+
+---
+
+## Phase 6: Fix SOS Bell Visibility
+
+### 6.1 Auto-Grant Admin Role
+
+The SOS bell requires `admin` role in `user_roles`. We need to ensure device owners have this role.
+
+**Option A** (Recommended): Database trigger on device creation
+**Option B**: Update the `useSOSNotifications` hook to check device ownership instead of role
+
+For immediate fix, run the SQL from Phase 1.2 to grant admin role to existing device owners.
+
+### 6.2 Verify SOS Query Includes admin_code
+
+The `useSOSNotifications` hook already filters by `admin_code`, which was added in the previous update. Verify this is working correctly.
+
+---
+
+## File Changes Summary
+
+### New Files
+| File | Purpose |
+|------|---------|
+| `src/pages/app/DriverAppCompleteTask.tsx` | Mobile task completion with photo upload |
+| `src/hooks/useTaskNotifications.ts` | Real-time task assignment notifications |
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/pages/admin/CreateTask.tsx` | Load drivers from `drivers` table, use `assigned_driver_id` |
+| `src/pages/app/DriverAppTasks.tsx` | Query by `assigned_driver_id`, update Complete navigation |
+| `src/components/layout/AppLayout.tsx` | Add Tasks and SOS to nav |
+| `src/components/layout/DriverAppLayout.tsx` | Add task notification badge |
+| `src/App.tsx` | Add task completion route |
+
+### Database Migrations
+| Migration | Purpose |
+|-----------|---------|
+| Add `assigned_driver_id` column | Link tasks to mobile drivers |
+| Add `admin_code` column to tasks | Task isolation by admin |
+| Insert admin roles | Enable SOS bell visibility |
+
+---
+
+## Technical Details
+
+### Task Assignment Flow (After Fix)
+
+```
+1. Admin opens CreateTask
+2. System fetches admin's device connection codes
+3. System queries drivers table where admin_code IN (admin's codes)
+4. Admin selects driver and creates task
+5. Task saved with assigned_driver_id (text) and admin_code
+6. Mobile app receives real-time notification
+7. Driver sees task in their list
+8. Driver completes with photo proof
+9. Admin sees proof in ops console
+```
+
+### Storage Structure for Proofs
+
+```
+proofs/
+  {driver_id}/
+    {task_id}/
+      {timestamp}_photo1.jpg
+      {timestamp}_photo2.jpg
+```
+
+### Notification Sound
+
+Reuse the existing audio alert pattern from SOS notifications - a double beep using Web Audio API.
+
+---
+
+## Testing Checklist
+
+After implementation:
+
+1. **Admin Task Creation**:
+   - [ ] CreateTask shows drivers from `drivers` table
+   - [ ] Task created with `assigned_driver_id` 
+
+2. **Mobile Driver**:
+   - [ ] Tasks appear in driver app
+   - [ ] Notification appears when new task assigned
+   - [ ] Can upload photos to complete task
+   - [ ] Task shows as delivered after completion
+
+3. **SOS System**:
+   - [ ] Bell icon visible in admin header
+   - [ ] SOS alerts show for admin's drivers only
+   - [ ] Audio plays on new SOS
+
+4. **Navigation**:
+   - [ ] Tasks link in admin nav bar
+   - [ ] SOS link in admin nav bar
