@@ -171,10 +171,10 @@ export const useBackgroundLocationTracking = (
 
         // Start watching position using Capacitor Geolocation
         const watchId = await Geolocation.watchPosition(
-          {
-            enableHighAccuracy,
-            timeout: 10000,
-            maximumAge,
+        {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0, // Force fresh position, no caching
           },
           (position, err) => {
             if (err) {
