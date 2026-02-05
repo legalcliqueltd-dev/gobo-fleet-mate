@@ -338,7 +338,7 @@ export default function Incidents() {
   const resolvedEvents = events.filter(e => e.status === 'resolved' || e.status === 'cancelled');
 
   return (
-    <div className="h-[calc(100dvh-200px)] flex flex-col">
+    <div className="h-[calc(100dvh-140px)] flex flex-col">
       <div className="flex items-center justify-between mb-3 sm:mb-4 px-1">
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Incident Management</h1>
