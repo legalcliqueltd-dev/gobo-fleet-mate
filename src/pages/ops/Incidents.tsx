@@ -338,7 +338,7 @@ export default function Incidents() {
   const resolvedEvents = events.filter(e => e.status === 'resolved' || e.status === 'cancelled');
 
   return (
-    <div className="h-[calc(100dvh-200px)] flex flex-col">
+    <div className="h-[calc(100dvh-140px)] flex flex-col">
       <div className="flex items-center justify-between mb-3 sm:mb-4 px-1">
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Incident Management</h1>
@@ -351,7 +351,7 @@ export default function Incidents() {
       {/* Mobile: Map first, then list. Desktop: Side-by-side */}
       <div className="flex-1 flex flex-col lg:grid lg:grid-cols-3 gap-3 sm:gap-4 min-h-0">
         {/* Map - Full width on mobile, 2 cols on desktop */}
-        <div className="order-1 lg:order-2 lg:col-span-2 glass-card rounded-xl overflow-hidden relative h-[40vh] sm:h-[45vh] lg:h-full min-h-[250px]">
+        <div className="order-1 lg:order-2 lg:col-span-2 glass-card rounded-xl overflow-hidden relative h-[60vh] sm:h-[65vh] lg:h-full min-h-[350px]">
           {!isLoaded ? (
             <div className="flex items-center justify-center h-full">
               <p className="text-muted-foreground">Loading map...</p>
@@ -596,7 +596,7 @@ export default function Incidents() {
         </div>
 
         {/* Events List - Below map on mobile, left side on desktop */}
-        <div className="order-2 lg:order-1 glass-card rounded-xl p-3 sm:p-4 overflow-y-auto flex-1 lg:flex-none lg:max-h-full min-h-[200px] max-h-[35vh] lg:max-h-none">
+        <div className="order-2 lg:order-1 glass-card rounded-xl p-3 sm:p-4 overflow-y-auto flex-1 lg:flex-none lg:max-h-full min-h-[120px] max-h-[30vh] sm:max-h-[25vh] lg:max-h-none">
           <h2 className="font-semibold mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
             <AlertTriangle className="h-4 w-4 text-destructive" />
             Active Incidents ({activeEvents.length})
