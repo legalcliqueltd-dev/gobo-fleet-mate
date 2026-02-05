@@ -148,11 +148,11 @@ Deno.serve(async (req) => {
             server_time: serverTime,
             // Configuration for mobile app
             config: {
-              locationUpdateIntervalMs: 15000,  // 15 seconds when moving
+              locationUpdateIntervalMs: 10000,  // 10 seconds when moving
               heartbeatIntervalMs: 30000,       // 30 seconds
               stationaryIntervalMs: 60000,      // 60 seconds when stationary
               lowBatteryIntervalMs: 120000,     // 2 minutes when battery < 20%
-              accuracyThresholdM: 50,           // Max accuracy for storing location (50m for precision)
+              accuracyThresholdM: 30,           // 30m for high precision
             }
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
