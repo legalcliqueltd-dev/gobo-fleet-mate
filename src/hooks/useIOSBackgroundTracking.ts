@@ -35,7 +35,6 @@ export const useIOSBackgroundTracking = (
   const [lastLocation, setLastLocation] = useState<LocationData | null>(null);
   const [batteryLevel, setBatteryLevel] = useState<number>(100);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const deviceIdRef = useRef<string | null>(null);
   const lastSentRef = useRef<number>(0);
   const isConfiguredRef = useRef(false);
 
