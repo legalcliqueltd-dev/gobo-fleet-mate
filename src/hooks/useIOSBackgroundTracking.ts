@@ -27,7 +27,7 @@ export const useIOSBackgroundTracking = (
 ) => {
   const {
     updateIntervalMs = 30000,
-    distanceFilter = 10, // meters
+    distanceFilter = 5, // meters - tighter filter for accuracy
     enableHighAccuracy = true,
   } = options;
 

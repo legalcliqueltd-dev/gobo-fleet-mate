@@ -408,9 +408,9 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Filter out poor accuracy locations (> 1500m) for better tracking
+      // Filter out poor accuracy locations (> 50m) for precise tracking
       const accuracyValue = accuracy || 0;
-      const isAccurate = accuracyValue <= 1500;
+      const isAccurate = accuracyValue <= 50;
       
       console.log('Location update - Driver:', driverId, 
         'Lat:', latitude, 'Lng:', longitude, 
