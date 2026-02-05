@@ -1,84 +1,115 @@
 
 
-# Fix: SOS Details Panel Obstructing Map
+# Fix: Maximize Map Visibility on Incidents Page
 
 ## Problem
 
-The selected SOS event details panel is positioned at the bottom of the map with `left-4 right-4`, covering a large portion of the map view and obscuring the incident location.
+The current map height is limited to `40vh` on mobile and `45vh` on tablet, which doesn't provide enough visibility for incident locations.
+
+---
 
 ## Solution
 
-Reposition the details panel to be a **side drawer on the right** that overlays less of the map, with a more compact design.
+Make the map the dominant element on the page by:
+1. Increasing map height significantly on all breakpoints
+2. Making the events list collapsible/smaller on mobile
+3. Keeping the layout map-first on all devices
 
 ---
 
 ## Changes to `src/pages/ops/Incidents.tsx`
 
-### Line 544-687: Reposition Details Panel
+### 1. Increase Map Height
 
-**Current positioning:**
+**Line 354** - Change map container heights:
+
+| Breakpoint | Current | New |
+|------------|---------|-----|
+| Mobile | `h-[40vh]` | `h-[60vh]` |
+| Tablet (sm) | `h-[45vh]` | `h-[65vh]` |
+| Desktop (lg) | `lg:h-full` | `lg:h-full` (unchanged) |
+
+Also increase `min-h-[250px]` to `min-h-[350px]`.
+
+### 2. Reduce Events List Size on Mobile
+
+**Lines 598-700** - Make the events list more compact:
+- Reduce header section size
+- Make event cards smaller on mobile
+- Add max-height with scroll for the list
+
+### 3. Adjust Overall Container
+
+**Line 341** - Increase available height:
 ```tsx
-className="absolute bottom-4 left-4 right-4 glass-card rounded-xl p-4 max-w-lg max-h-[60%] overflow-y-auto shadow-2xl"
+// From:
+className="h-[calc(100dvh-200px)] flex flex-col"
+
+// To:
+className="h-[calc(100dvh-140px)] flex flex-col"
 ```
 
-**New positioning - Side panel on right:**
-```tsx
-className="absolute top-16 right-4 w-80 glass-card rounded-xl p-4 max-h-[calc(100%-5rem)] overflow-y-auto shadow-2xl"
-```
-
-### Key Changes:
-
-1. **Position**: Move from bottom overlay to right side panel
-   - `top-16` (below the map type toggle buttons)
-   - `right-4` (aligned to right edge)
-   - Remove `left-4` and `bottom-4`
-
-2. **Size**: Fixed width instead of spanning full width
-   - `w-80` (320px fixed width)
-   - `max-h-[calc(100%-5rem)]` (full height minus padding)
-
-3. **Compact driver info**: Reduce avatar size and tighten spacing
-
-4. **Smaller action buttons**: More compact layout
-
----
-
-## Visual Result
-
-```
-+------------------+------------------+
-| Events List      |    MAP           |   <- Map type toggle top-right
-|                  |                  |   <- Details panel right side
-| Active (3)       |        [Pin]     |      below toggle
-|  - Driver A      |                  |   +-------------+
-|  - Driver B      |                  |   | Driver Name |
-|                  |                  |   | Code: XXX   |
-| Resolved (2)     |                  |   | HAZARD      |
-|  - Driver C      |                  |   | [Zoom][Maps]|
-|                  |                  |   +-------------+
-+------------------+------------------+
-```
-
-The panel will be positioned on the right side of the map, leaving the center clear to view incident locations.
+This gives ~60px more vertical space for the map.
 
 ---
 
 ## Technical Details
 
-The fix requires modifying the CSS classes on line 546 of `Incidents.tsx`:
-
-**From:**
 ```tsx
-<div className="absolute bottom-4 left-4 right-4 glass-card rounded-xl p-4 max-w-lg max-h-[60%] overflow-y-auto shadow-2xl">
+{/* Map Container - Line 354 */}
+<div className="
+  order-1 lg:order-2 lg:col-span-2 
+  glass-card rounded-xl overflow-hidden relative 
+  h-[60vh] sm:h-[65vh] lg:h-full 
+  min-h-[350px]
+">
 ```
 
-**To:**
 ```tsx
-<div className="absolute top-16 right-4 w-80 glass-card rounded-xl p-4 max-h-[calc(100%-5rem)] overflow-y-auto shadow-2xl border border-border/50">
+{/* Events List - Constrained height on mobile */}
+<div className="
+  order-2 lg:order-1 lg:col-span-1 
+  glass-card rounded-xl overflow-hidden 
+  flex flex-col
+  max-h-[30vh] sm:max-h-[25vh] lg:max-h-none
+">
 ```
 
-Additional UI refinements:
-- Reduce avatar container from `w-12 h-12` to `w-10 h-10`
-- Make action buttons stack vertically for better fit
-- Reduce padding slightly
+---
+
+## Visual Result
+
+### Mobile Layout (Before vs After)
+
+```
+BEFORE:                    AFTER:
++------------------+      +------------------+
+| Header           |      | Header (compact) |
++------------------+      +------------------+
+|                  |      |                  |
+|  MAP (40vh)      |      |                  |
+|                  |      |     MAP (60vh)   |
++------------------+      |                  |
+|                  |      |                  |
+|  Events List     |      +------------------+
+|  (long scroll)   |      | Events (compact) |
+|                  |      | (scrollable)     |
++------------------+      +------------------+
+```
+
+### Desktop Layout
+
+Desktop remains largely unchanged with the 3-column grid (1/3 list, 2/3 map), but the overall height increases.
+
+---
+
+## Summary of Changes
+
+| Element | Change |
+|---------|--------|
+| Page container | Increase from `100dvh-200px` to `100dvh-140px` |
+| Map mobile | From `h-[40vh]` to `h-[60vh]` |
+| Map tablet | From `h-[45vh]` to `h-[65vh]` |
+| Map min-height | From `min-h-[250px]` to `min-h-[350px]` |
+| Events list | Add `max-h-[30vh]` on mobile to prevent overflow |
 
