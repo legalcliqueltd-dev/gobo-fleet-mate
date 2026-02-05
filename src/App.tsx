@@ -30,6 +30,7 @@ import OpsTasks from './pages/ops/OpsTasks';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import DriversManagement from './pages/admin/DriversManagement';
 import CreateTask from './pages/admin/CreateTask';
+import TaskList from './pages/admin/TaskList';
 import LocationSimulator from './pages/app/LocationSimulator';
 import TempShare from './pages/TempShare';
 import TempTracking from './pages/TempTracking';
@@ -284,7 +285,7 @@ export default function App() {
                   path="/admin/tasks"
                   element={
                     <ProtectedRoute>
-                      <OpsTasks />
+                      <TaskList />
                     </ProtectedRoute>
                   }
                 />

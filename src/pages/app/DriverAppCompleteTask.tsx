@@ -6,10 +6,11 @@ import DriverAppLayout from '@/components/layout/DriverAppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { Camera, X, Upload, CheckCircle2, MapPin, Loader2 } from 'lucide-react';
+import { Camera, X, CheckCircle2, MapPin, Loader2, Video, FileWarning, Play } from 'lucide-react';
 import { toast } from 'sonner';
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 type Task = {
   id: string;
@@ -18,6 +19,12 @@ type Task = {
   dropoff_lat: number | null;
   dropoff_lng: number | null;
   admin_code: string | null;
+};
+
+type MediaFile = {
+  file: File;
+  url: string;
+  type: 'image' | 'video';
 };
 
 export default function DriverAppCompleteTask() {
@@ -29,8 +36,7 @@ export default function DriverAppCompleteTask() {
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [photos, setPhotos] = useState<File[]>([]);
-  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [notes, setNotes] = useState('');
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -76,49 +82,73 @@ export default function DriverAppCompleteTask() {
     }
   };
 
-  const handlePhotoCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMediaCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
-    const newFiles = Array.from(files);
-    setPhotos(prev => [...prev, ...newFiles]);
+    const newFiles: MediaFile[] = [];
     
-    // Create preview URLs
-    newFiles.forEach(file => {
+    Array.from(files).forEach(file => {
+      // Check file size
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`${file.name} is too large. Maximum 5MB allowed.`);
+        return;
+      }
+
+      const isVideo = file.type.startsWith('video/');
+      const isImage = file.type.startsWith('image/');
+
+      if (!isVideo && !isImage) {
+        toast.error(`${file.name} is not a supported format.`);
+        return;
+      }
+
       const url = URL.createObjectURL(file);
-      setPhotoUrls(prev => [...prev, url]);
+      newFiles.push({
+        file,
+        url,
+        type: isVideo ? 'video' : 'image',
+      });
     });
+
+    setMediaFiles(prev => [...prev, ...newFiles]);
+    
+    // Reset the input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
-  const removePhoto = (index: number) => {
-    setPhotos(prev => prev.filter((_, i) => i !== index));
-    setPhotoUrls(prev => {
-      URL.revokeObjectURL(prev[index]);
+  const removeMedia = (index: number) => {
+    setMediaFiles(prev => {
+      URL.revokeObjectURL(prev[index].url);
       return prev.filter((_, i) => i !== index);
     });
   };
 
-  const uploadPhotos = async (): Promise<string[]> => {
-    if (photos.length === 0) return [];
+  const uploadMedia = async (): Promise<string[]> => {
+    if (mediaFiles.length === 0) return [];
 
     const uploadedUrls: string[] = [];
-    const totalPhotos = photos.length;
+    const totalFiles = mediaFiles.length;
 
-    for (let i = 0; i < photos.length; i++) {
-      const file = photos[i];
+    for (let i = 0; i < mediaFiles.length; i++) {
+      const { file } = mediaFiles[i];
       const timestamp = Date.now();
-      const filePath = `${session?.driverId}/${taskId}/${timestamp}_${file.name}`;
+      const ext = file.name.split('.').pop() || 'jpg';
+      const filePath = `${session?.driverId}/${taskId}/${timestamp}_${i}.${ext}`;
 
       const { data, error } = await supabase.storage
         .from('proofs')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false,
+          contentType: file.type,
         });
 
       if (error) {
         console.error('Upload error:', error);
-        throw new Error(`Failed to upload photo: ${error.message}`);
+        throw new Error(`Failed to upload file: ${error.message}`);
       }
 
       // Get public URL
@@ -127,7 +157,7 @@ export default function DriverAppCompleteTask() {
         .getPublicUrl(data.path);
 
       uploadedUrls.push(urlData.publicUrl);
-      setUploadProgress(((i + 1) / totalPhotos) * 100);
+      setUploadProgress(((i + 1) / totalFiles) * 100);
     }
 
     return uploadedUrls;
@@ -152,8 +182,8 @@ export default function DriverAppCompleteTask() {
   const handleSubmit = async () => {
     if (!task || !session) return;
 
-    if (photos.length === 0) {
-      toast.error('Please add at least one photo as proof');
+    if (mediaFiles.length === 0) {
+      toast.error('Please add at least one photo or video as proof');
       return;
     }
 
@@ -161,28 +191,13 @@ export default function DriverAppCompleteTask() {
     setUploadProgress(0);
 
     try {
-      // Upload photos first
-      const uploadedPhotoUrls = await uploadPhotos();
+      // Upload media first
+      const uploadedMediaUrls = await uploadMedia();
 
       // Calculate distance to dropoff
       const distanceToDropoff = calculateDistance();
 
-      // Create task report - using a placeholder UUID for reporter_user_id
-      // since mobile drivers don't have Supabase auth
-      const reportData = {
-        task_id: task.id,
-        reporter_user_id: '00000000-0000-0000-0000-000000000000', // Placeholder
-        delivered: true,
-        photos: uploadedPhotoUrls,
-        note: notes.trim() || null,
-        latitude: currentLocation?.lat || null,
-        longitude: currentLocation?.lng || null,
-        distance_to_dropoff_m: distanceToDropoff,
-        verified_by: 'photo',
-      };
-
-      // Insert report via edge function or direct insert
-      // For now, update task status directly
+      // Update task status
       const { error: updateError } = await supabase
         .from('tasks')
         .update({ 
@@ -192,6 +207,21 @@ export default function DriverAppCompleteTask() {
         .eq('id', task.id);
 
       if (updateError) throw updateError;
+
+      // Create task report
+      const reportData = {
+        task_id: task.id,
+        reporter_user_id: '00000000-0000-0000-0000-000000000000', // Placeholder for mobile drivers
+        delivered: true,
+        photos: uploadedMediaUrls,
+        note: notes.trim() || null,
+        latitude: currentLocation?.lat || null,
+        longitude: currentLocation?.lng || null,
+        distance_to_dropoff_m: distanceToDropoff,
+        verified_by: 'photo',
+      };
+
+      await supabase.from('task_reports').insert(reportData);
 
       toast.success('Task completed successfully!');
       navigate('/app/tasks');
@@ -224,11 +254,13 @@ export default function DriverAppCompleteTask() {
   }
 
   const distance = calculateDistance();
+  const totalSize = mediaFiles.reduce((acc, m) => acc + m.file.size, 0);
+  const sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
 
   return (
     <DriverAppLayout>
-      <div className="p-4 space-y-4 pb-24">
-        <Card>
+      <div className="p-4 space-y-4 pb-32">
+        <Card className="border-primary/20">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">{task.title}</CardTitle>
             {task.description && (
@@ -245,56 +277,87 @@ export default function DriverAppCompleteTask() {
           </CardContent>
         </Card>
 
-        {/* Photo Capture */}
+        {/* Media Capture */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Camera className="h-5 w-5" />
-              Proof Photos *
+              Proof (Photos/Videos) *
             </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Max 5MB per file • Photos and short videos accepted
+            </p>
           </CardHeader>
           <CardContent className="space-y-4">
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/*,video/mp4,video/quicktime,video/webm"
               capture="environment"
               multiple
-              onChange={handlePhotoCapture}
+              onChange={handleMediaCapture}
               className="hidden"
             />
             
             <Button
               variant="outline"
-              className="w-full h-24 border-dashed"
+              className="w-full h-24 border-dashed border-2"
               onClick={() => fileInputRef.current?.click()}
             >
               <div className="flex flex-col items-center gap-2">
-                <Camera className="h-8 w-8 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Tap to take photo</span>
+                <div className="flex gap-2">
+                  <Camera className="h-6 w-6 text-muted-foreground" />
+                  <Video className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <span className="text-sm text-muted-foreground">Tap to capture photo or video</span>
               </div>
             </Button>
 
-            {/* Photo Grid */}
-            {photoUrls.length > 0 && (
-              <div className="grid grid-cols-3 gap-2">
-                {photoUrls.map((url, index) => (
-                  <div key={index} className="relative aspect-square rounded-lg overflow-hidden">
-                    <img
-                      src={url}
-                      alt={`Proof ${index + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removePhoto(index)}
-                      className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
+            {/* Media Grid */}
+            {mediaFiles.length > 0 && (
+              <>
+                <div className="grid grid-cols-3 gap-2">
+                  {mediaFiles.map((media, index) => (
+                    <div key={index} className="relative aspect-square rounded-lg overflow-hidden border">
+                      {media.type === 'image' ? (
+                        <img
+                          src={media.url}
+                          alt={`Proof ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="relative w-full h-full bg-black flex items-center justify-center">
+                          <video
+                            src={media.url}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <Play className="h-8 w-8 text-white" />
+                          </div>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeMedia(index)}
+                        className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 shadow-lg"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                      {media.type === 'video' && (
+                        <span className="absolute bottom-1 left-1 text-[10px] bg-black/70 text-white px-1.5 py-0.5 rounded">
+                          VIDEO
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{mediaFiles.length} file{mediaFiles.length > 1 ? 's' : ''}</span>
+                  <span className={totalSize > MAX_FILE_SIZE * mediaFiles.length ? 'text-destructive' : ''}>
+                    {sizeMB} MB total
+                  </span>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -316,17 +379,25 @@ export default function DriverAppCompleteTask() {
 
         {/* Upload Progress */}
         {submitting && uploadProgress > 0 && (
-          <Card>
+          <Card className="border-primary">
             <CardContent className="py-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span>Uploading photos...</span>
+                  <span>Uploading files...</span>
                   <span>{Math.round(uploadProgress)}%</span>
                 </div>
                 <Progress value={uploadProgress} />
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* File Size Warning */}
+        {mediaFiles.some(m => m.file.size > MAX_FILE_SIZE * 0.8) && (
+          <div className="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm text-yellow-600 dark:text-yellow-400">
+            <FileWarning className="h-4 w-4 flex-shrink-0" />
+            <span>Some files are close to the 5MB limit. Consider using lower quality settings.</span>
+          </div>
         )}
 
         {/* Actions */}
@@ -343,7 +414,7 @@ export default function DriverAppCompleteTask() {
             <Button
               className="flex-1"
               onClick={handleSubmit}
-              disabled={submitting || photos.length === 0}
+              disabled={submitting || mediaFiles.length === 0}
             >
               {submitting ? (
                 <>
