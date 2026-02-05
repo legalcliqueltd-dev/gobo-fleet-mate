@@ -3,8 +3,10 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, ClipboardList, AlertTriangle, Settings } from 'lucide-react';
 import logo from '@/assets/logo.webp';
 import { cn } from '@/lib/utils';
+import { useDriverSession } from '@/contexts/DriverSessionContext';
+import { useTaskNotifications } from '@/hooks/useTaskNotifications';
 
-const navItems = [
+const baseNavItems = [
   { path: '/app/dashboard', icon: Home, label: 'Home' },
   { path: '/app/tasks', icon: ClipboardList, label: 'Tasks' },
   { path: '/app/sos', icon: AlertTriangle, label: 'SOS' },
