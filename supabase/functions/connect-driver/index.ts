@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
             heartbeatIntervalMs: 30000,
             stationaryIntervalMs: 60000,
             lowBatteryIntervalMs: 120000,
-            accuracyThresholdM: 1500,
+            accuracyThresholdM: 50,
           }
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
