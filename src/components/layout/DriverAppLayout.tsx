@@ -15,6 +15,8 @@ const baseNavItems = [
 
 export default function DriverAppLayout({ children }: PropsWithChildren) {
   const location = useLocation();
+  const { session } = useDriverSession();
+  const { unreadCount } = useTaskNotifications(session?.driverId);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
