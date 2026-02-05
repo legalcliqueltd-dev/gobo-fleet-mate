@@ -130,8 +130,8 @@ export const useIOSBackgroundTracking = (
     setLastLocation(locationData);
     setLastUpdate(new Date());
 
-    // Check if accuracy is acceptable (< 100m)
-    if (location.coords.accuracy > 100) {
+    // Check if accuracy is acceptable (< 50m for precise tracking)
+    if (location.coords.accuracy > 50) {
       console.log('[BackgroundGeolocation] Skipping low accuracy location:', location.coords.accuracy);
       return;
     }
@@ -145,7 +145,8 @@ export const useIOSBackgroundTracking = (
     await sendLocationUpdate(
       location.coords.latitude,
       location.coords.longitude,
-      location.coords.speed !== undefined ? location.coords.speed * 3.6 : null
+      location.coords.speed !== undefined ? location.coords.speed * 3.6 : null,
+      location.coords.accuracy
     );
   };
 
