@@ -285,7 +285,7 @@ export default function App() {
                   path="/admin/tasks"
                   element={
                     <ProtectedRoute>
-                      <OpsTasks />
+                      <TaskList />
                     </ProtectedRoute>
                   }
                 />
