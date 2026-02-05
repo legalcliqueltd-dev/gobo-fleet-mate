@@ -351,7 +351,7 @@ export default function Incidents() {
       {/* Mobile: Map first, then list. Desktop: Side-by-side */}
       <div className="flex-1 flex flex-col lg:grid lg:grid-cols-3 gap-3 sm:gap-4 min-h-0">
         {/* Map - Full width on mobile, 2 cols on desktop */}
-        <div className="order-1 lg:order-2 lg:col-span-2 glass-card rounded-xl overflow-hidden relative h-[40vh] sm:h-[45vh] lg:h-full min-h-[250px]">
+        <div className="order-1 lg:order-2 lg:col-span-2 glass-card rounded-xl overflow-hidden relative h-[60vh] sm:h-[65vh] lg:h-full min-h-[350px]">
           {!isLoaded ? (
             <div className="flex items-center justify-center h-full">
               <p className="text-muted-foreground">Loading map...</p>
