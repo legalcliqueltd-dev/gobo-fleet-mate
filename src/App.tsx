@@ -70,6 +70,11 @@ export default function App() {
                     <DriverAppTasks />
                   </DriverProtectedRoute>
                 } />
+                <Route path="/tasks/:taskId/complete" element={
+                  <DriverProtectedRoute>
+                    <DriverAppCompleteTask />
+                  </DriverProtectedRoute>
+                } />
                 <Route path="/sos" element={
                   <DriverProtectedRoute>
                     <DriverAppSOS />
