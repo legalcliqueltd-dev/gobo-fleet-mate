@@ -218,11 +218,11 @@ Deno.serve(async (req) => {
           server_time: serverTime,
           // Configuration for mobile app
           config: {
-            locationUpdateIntervalMs: 15000,
+            locationUpdateIntervalMs: 10000,
             heartbeatIntervalMs: 30000,
             stationaryIntervalMs: 60000,
             lowBatteryIntervalMs: 120000,
-            accuracyThresholdM: 50,
+            accuracyThresholdM: 30,
           }
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
