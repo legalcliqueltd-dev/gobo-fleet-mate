@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
               heartbeatIntervalMs: 30000,       // 30 seconds
               stationaryIntervalMs: 60000,      // 60 seconds when stationary
               lowBatteryIntervalMs: 120000,     // 2 minutes when battery < 20%
-              accuracyThresholdM: 1500,         // Max accuracy for storing location
+              accuracyThresholdM: 50,           // Max accuracy for storing location (50m for precision)
             }
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
