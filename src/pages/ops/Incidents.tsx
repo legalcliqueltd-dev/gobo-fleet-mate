@@ -541,76 +541,73 @@ export default function Incidents() {
             </Button>
           </div>
 
-          {/* Selected Event Details Panel */}
+          {/* Selected Event Details Panel - Right Side Drawer */}
           {selectedEvent && (
-            <div className="absolute bottom-4 left-4 right-4 glass-card rounded-xl p-4 max-w-lg max-h-[60%] overflow-y-auto shadow-2xl">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="h-6 w-6 text-primary" />
+            <div className="absolute top-16 right-4 w-80 glass-card rounded-xl p-3 max-h-[calc(100%-5rem)] overflow-y-auto shadow-2xl border border-border/50">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <User className="h-5 w-5 text-primary" />
                   </div>
-                  <div>
-                    <h3 className="font-bold text-lg">{selectedEvent.driver_name}</h3>
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-sm truncate">{selectedEvent.driver_name}</h3>
                     {selectedEvent.driver_code && (
-                      <p className="text-xs font-mono bg-muted px-2 py-0.5 rounded inline-block">
-                        Code: {selectedEvent.driver_code}
+                      <p className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded inline-block">
+                        {selectedEvent.driver_code}
                       </p>
-                    )}
-                    {selectedEvent.driver_email && (
-                      <p className="text-xs text-muted-foreground">{selectedEvent.driver_email}</p>
                     )}
                   </div>
                 </div>
                 <button
                   onClick={() => setSelectedEvent(null)}
-                  className="text-muted-foreground hover:text-foreground text-2xl font-light"
+                  className="text-muted-foreground hover:text-foreground text-xl font-light shrink-0"
                 >
                   ×
                 </button>
               </div>
 
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-3xl">{hazardEmoji(selectedEvent.hazard)}</span>
-                <span className="font-semibold text-lg">{selectedEvent.hazard.toUpperCase()}</span>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-2xl">{hazardEmoji(selectedEvent.hazard)}</span>
+                <span className="font-semibold text-sm">{selectedEvent.hazard.toUpperCase()}</span>
                 {statusBadge(selectedEvent.status)}
               </div>
 
-              <div className="text-sm text-muted-foreground mb-3 flex flex-wrap items-center gap-4">
+              <div className="text-xs text-muted-foreground mb-2 space-y-1">
                 <span className="flex items-center gap-1">
-                  <Calendar className="h-4 w-4" />
+                  <Calendar className="h-3 w-3" />
                   {new Date(selectedEvent.created_at).toLocaleString()}
                 </span>
                 {selectedEvent.latitude && selectedEvent.longitude && (
                   <span className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" />
-                    {selectedEvent.latitude.toFixed(5)}, {selectedEvent.longitude.toFixed(5)}
+                    <MapPin className="h-3 w-3" />
+                    {selectedEvent.latitude.toFixed(4)}, {selectedEvent.longitude.toFixed(4)}
                   </span>
                 )}
               </div>
 
-              {/* Map Action Buttons */}
+              {/* Map Action Buttons - Stacked */}
               {selectedEvent.latitude && selectedEvent.longitude && (
-                <div className="flex gap-2 mb-3">
-                  <Button size="sm" variant="outline" onClick={zoomToLocation}>
-                    <ZoomIn className="h-4 w-4 mr-1" />
+                <div className="flex flex-col gap-1.5 mb-2">
+                  <Button size="sm" variant="outline" onClick={zoomToLocation} className="w-full justify-start h-8 text-xs">
+                    <ZoomIn className="h-3.5 w-3.5 mr-1.5" />
                     Zoom to Location
                   </Button>
-                  <Button size="sm" variant="outline" onClick={openInGoogleMaps}>
-                    <ExternalLink className="h-4 w-4 mr-1" />
-                    Open in Maps
+                  <Button size="sm" variant="outline" onClick={openInGoogleMaps} className="w-full justify-start h-8 text-xs">
+                    <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                    Open in Google Maps
                   </Button>
                 </div>
               )}
 
               {selectedEvent.message && (
-                <div className="p-3 bg-muted rounded-lg mb-3">
-                  <p className="text-sm">{selectedEvent.message}</p>
+                <div className="p-2 bg-muted rounded-lg mb-2">
+                  <p className="text-xs">{selectedEvent.message}</p>
                 </div>
               )}
 
               {/* Photo Evidence */}
               {selectedEvent.photo_url && (
-                <div className="mb-3">
+                <div className="mb-2">
                   <p className="text-xs font-medium mb-1 flex items-center gap-1">
                     <Image className="h-3 w-3" />
                     Photo Evidence
@@ -618,7 +615,7 @@ export default function Incidents() {
                   <img
                     src={selectedEvent.photo_url}
                     alt="Evidence"
-                    className="w-full max-h-40 object-cover rounded-lg cursor-pointer hover:opacity-90 transition"
+                    className="w-full max-h-32 object-cover rounded-lg cursor-pointer hover:opacity-90 transition"
                     onClick={() => setPhotoModalOpen(true)}
                   />
                 </div>
@@ -626,7 +623,7 @@ export default function Incidents() {
 
               {/* Position Trail Info */}
               {positionTrail.length > 0 && (
-                <p className="text-xs text-muted-foreground mb-3">
+                <p className="text-xs text-muted-foreground mb-2">
                   📍 {positionTrail.length} position update{positionTrail.length > 1 ? 's' : ''} tracked
                 </p>
               )}
@@ -636,37 +633,38 @@ export default function Incidents() {
                 <Button
                   size="sm"
                   onClick={() => acknowledgeEvent(selectedEvent.id)}
-                  className="w-full mb-2"
+                  className="w-full mb-1.5 h-8 text-xs"
                 >
-                  <Clock className="h-4 w-4 mr-2" />
+                  <Clock className="h-3.5 w-3.5 mr-1.5" />
                   Acknowledge
                 </Button>
               )}
 
               {selectedEvent.status === 'acknowledged' && (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Textarea
                     placeholder="Resolution note..."
                     value={resolveNote}
                     onChange={(e) => setResolveNote(e.target.value)}
                     rows={2}
+                    className="text-xs"
                   />
                   <Button
                     size="sm"
                     onClick={() => resolveEvent(selectedEvent.id)}
-                    className="w-full"
+                    className="w-full h-8 text-xs"
                     variant="default"
                   >
-                    <CheckCircle className="h-4 w-4 mr-2" />
+                    <CheckCircle className="h-3.5 w-3.5 mr-1.5" />
                     Resolve
                   </Button>
                 </div>
               )}
 
               {selectedEvent.resolved_note && (
-                <div className="mt-3 p-2 bg-green-500/10 rounded-lg">
+                <div className="mt-2 p-2 bg-green-500/10 rounded-lg">
                   <p className="text-xs font-medium text-green-600 dark:text-green-400">
-                    ✓ Resolved: {selectedEvent.resolved_note}
+                    ✓ {selectedEvent.resolved_note}
                   </p>
                 </div>
               )}
@@ -677,9 +675,9 @@ export default function Incidents() {
                   size="sm"
                   variant="destructive"
                   onClick={() => handleDeleteClick(selectedEvent.id)}
-                  className="w-full mt-3"
+                  className="w-full mt-2 h-8 text-xs"
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                   Delete Event
                 </Button>
               )}
