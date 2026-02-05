@@ -1,7 +1,7 @@
 import { PropsWithChildren, useState, useRef, useEffect } from 'react';
-import { Menu, X, Home, Settings as SettingsIcon, ClipboardList, AlertTriangle } from 'lucide-react';
+import { Menu, X, Home, Settings as SettingsIcon, ClipboardList, AlertTriangle, Plus } from 'lucide-react';
 import logo from '@/assets/logo.webp';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
@@ -13,6 +13,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
   const { user, signOut, loading } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const [indicatorStyle, setIndicatorStyle] = useState({ width: 0, left: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const btnRefs = useRef<(HTMLAnchorElement | null)[]>([]);
@@ -103,29 +104,28 @@ export default function AppLayout({ children }: PropsWithChildren) {
           {mobileMenuOpen && (
             <nav className="md:hidden mt-4 pb-4 border-t border-white/10 dark:border-slate-800/60 pt-4 animate-fade-in">
               <div className="flex flex-col gap-2">
-                <Link 
-                  to="/dashboard" 
-                  className="px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition"
-                  onClick={closeMobileMenu}
-                >
-                  Dashboard
-                </Link>
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname.startsWith(item.path);
+                  return (
+                    <Link 
+                      key={item.path}
+                      to={item.path} 
+                      className={clsx(
+                        "px-3 py-2.5 rounded-md transition flex items-center gap-3",
+                        isActive 
+                          ? "bg-primary/10 text-primary font-medium" 
+                          : "hover:bg-slate-100 dark:hover:bg-slate-800"
+                      )}
+                      onClick={closeMobileMenu}
+                    >
+                      <Icon className="h-5 w-5" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
                 {user && (
                   <>
-                    <Link 
-                      to="/ops/incidents" 
-                      className="px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition"
-                      onClick={closeMobileMenu}
-                    >
-                      SOS Incidents
-                    </Link>
-                    <Link 
-                      to="/settings" 
-                      className="px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition"
-                      onClick={closeMobileMenu}
-                    >
-                      Settings
-                    </Link>
                     <div className="border-t border-white/10 dark:border-slate-800/60 my-2"></div>
                     <div className="px-3 py-2 text-sm text-slate-600 dark:text-slate-400">{user.email}</div>
                     <Button 
@@ -163,12 +163,12 @@ export default function AppLayout({ children }: PropsWithChildren) {
       </header>
       <main className="mx-auto max-w-7xl px-3 xs:px-4 py-6 md:py-8 mb-24">{children}</main>
       
-      {/* Floating Navigation - Desktop (simplified with just 2 items) */}
+      {/* Floating Navigation - Desktop */}
       {user && (
-        <div className="hidden md:block fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-md px-4">
+        <div className="hidden md:block fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-4">
           <div
             ref={containerRef}
-            className="relative flex items-center justify-center gap-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-lg shadow-lg rounded-full px-4 py-2 border border-slate-200/50 dark:border-slate-700/50"
+            className="relative flex items-center justify-between bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-xl shadow-black/10 dark:shadow-black/30 rounded-2xl px-3 py-2.5 border border-slate-200/60 dark:border-slate-700/60"
           >
             {navItems.map((item, index) => {
               const Icon = item.icon;
@@ -179,24 +179,33 @@ export default function AppLayout({ children }: PropsWithChildren) {
                   to={item.path}
                   ref={(el) => (btnRefs.current[index] = el)}
                   className={clsx(
-                    "relative flex items-center justify-center gap-2 px-6 py-2 text-sm font-medium transition-colors rounded-full",
+                    "relative flex items-center justify-center gap-2.5 px-5 py-2.5 text-sm font-medium transition-all duration-200 rounded-xl",
                     isActive 
                       ? "text-primary" 
-                      : "text-muted-foreground hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-slate-100/50 dark:hover:bg-slate-800/50"
                   )}
                 >
                   <Icon className="h-5 w-5 z-10" />
-                  <span className="z-10">{item.label}</span>
+                  <span className="z-10 hidden sm:inline">{item.label}</span>
                 </Link>
               );
             })}
+
+            {/* Quick Create Task Button */}
+            <button
+              onClick={() => navigate('/admin/tasks/new')}
+              className="flex items-center justify-center p-2.5 ml-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors shadow-lg"
+              title="Create Task"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
 
             {/* Sliding Active Indicator */}
             {activeIndex >= 0 && (
               <motion.div
                 animate={indicatorStyle}
                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                className="absolute top-1 bottom-1 rounded-full bg-primary/15 dark:bg-primary/25"
+                className="absolute top-1.5 bottom-1.5 rounded-xl bg-primary/15 dark:bg-primary/20"
               />
             )}
           </div>

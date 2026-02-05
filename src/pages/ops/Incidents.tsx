@@ -1,19 +1,30 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '../../contexts/AuthContext';
-import { GoogleMap, Marker, useJsApiLoader, InfoWindow, Polyline } from '@react-google-maps/api';
+import { GoogleMap, Marker, useJsApiLoader, Polyline } from '@react-google-maps/api';
 import { GOOGLE_MAPS_API_KEY } from '../../lib/googleMapsConfig';
-import { AlertTriangle, CheckCircle, Clock, Phone, MapPin, Image, User, Calendar } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, MapPin, Image, User, Calendar, ZoomIn, Map, Satellite, Trash2, ExternalLink } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
 import { toast } from 'sonner';
 import { Badge } from '../../components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type SOSEvent = {
   id: string;
   user_id: string;
   device_id: string | null;
+  admin_code: string | null;
   hazard: string;
   message: string | null;
   photo_url: string | null;
@@ -29,6 +40,7 @@ type SOSEvent = {
   // Enriched fields
   driver_name?: string;
   driver_email?: string;
+  driver_code?: string;
 };
 
 type PositionUpdate = {
@@ -47,6 +59,10 @@ export default function Incidents() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [positionTrail, setPositionTrail] = useState<PositionUpdate[]>([]);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [mapType, setMapType] = useState<'roadmap' | 'satellite' | 'hybrid'>('roadmap');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<string | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -96,6 +112,23 @@ export default function Incidents() {
       // Enrich events with driver info
       const enrichedEvents: SOSEvent[] = await Promise.all(
         rawEvents.map(async (event) => {
+          // First try to get driver from drivers table using user_id as driver_id
+          const { data: driver } = await supabase
+            .from('drivers')
+            .select('driver_id, driver_name, admin_code')
+            .eq('driver_id', event.user_id)
+            .single();
+
+          if (driver) {
+            return {
+              ...event,
+              driver_name: driver.driver_name || 'Unknown Driver',
+              driver_code: driver.admin_code,
+              driver_email: '',
+            };
+          }
+
+          // Fallback to profiles table for UUID-based users
           const { data: profile } = await supabase
             .from('profiles')
             .select('full_name, email')
@@ -106,6 +139,7 @@ export default function Incidents() {
             ...event,
             driver_name: profile?.full_name || 'Unknown Driver',
             driver_email: profile?.email || '',
+            driver_code: event.admin_code || '',
           };
         })
       );
@@ -208,6 +242,46 @@ export default function Incidents() {
     }
   };
 
+  const deleteEvent = async (eventId: string) => {
+    const { error } = await supabase
+      .from('sos_events')
+      .delete()
+      .eq('id', eventId);
+
+    if (!error) {
+      toast.success('SOS event deleted');
+      if (selectedEvent?.id === eventId) {
+        setSelectedEvent(null);
+      }
+      loadEvents();
+    } else {
+      toast.error('Failed to delete event');
+    }
+    setDeleteDialogOpen(false);
+    setEventToDelete(null);
+  };
+
+  const handleDeleteClick = (eventId: string) => {
+    setEventToDelete(eventId);
+    setDeleteDialogOpen(true);
+  };
+
+  const zoomToLocation = useCallback(() => {
+    if (mapRef.current && selectedEvent?.latitude && selectedEvent?.longitude) {
+      mapRef.current.panTo({ lat: selectedEvent.latitude, lng: selectedEvent.longitude });
+      mapRef.current.setZoom(18);
+    }
+  }, [selectedEvent]);
+
+  const openInGoogleMaps = useCallback(() => {
+    if (selectedEvent?.latitude && selectedEvent?.longitude) {
+      window.open(
+        `https://www.google.com/maps?q=${selectedEvent.latitude},${selectedEvent.longitude}`,
+        '_blank'
+      );
+    }
+  }, [selectedEvent]);
+
   const centerLocation = useMemo(() => {
     if (selectedEvent && selectedEvent.latitude && selectedEvent.longitude) {
       return { latitude: selectedEvent.latitude, longitude: selectedEvent.longitude, zoom: 15 };
@@ -266,17 +340,19 @@ export default function Incidents() {
   return (
     <div className="h-[calc(100vh-200px)]">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-3xl font-bold">Incident Management</h1>
-        <Badge variant={activeEvents.length > 0 ? 'destructive' : 'secondary'} className="text-sm px-3 py-1">
-          {activeEvents.length} Active
-        </Badge>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-bold">Incident Management</h1>
+          <Badge variant={activeEvents.length > 0 ? 'destructive' : 'secondary'} className="text-sm px-3 py-1">
+            {activeEvents.length} Active
+          </Badge>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-full">
         {/* Events List */}
         <div className="glass-card rounded-xl p-4 overflow-y-auto max-h-[calc(100vh-280px)]">
           <h2 className="font-semibold mb-3 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-red-500" />
+            <AlertTriangle className="h-4 w-4 text-destructive" />
             Active Incidents ({activeEvents.length})
           </h2>
           {loading ? (
@@ -284,29 +360,34 @@ export default function Incidents() {
           ) : activeEvents.length === 0 ? (
             <p className="text-sm text-muted-foreground">No active incidents</p>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {activeEvents.map((evt) => (
                 <div
                   key={evt.id}
                   onClick={() => setSelectedEvent(evt)}
-                  className={`p-3 rounded-lg border-2 cursor-pointer transition ${
+                  className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${
                     selectedEvent?.id === evt.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-primary/50'
+                      ? 'border-primary bg-primary/5 shadow-lg'
+                      : 'border-border hover:border-primary/50 hover:shadow-md'
                   }`}
                 >
-                  <div className="flex items-start justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{hazardEmoji(evt.hazard)}</span>
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{hazardEmoji(evt.hazard)}</span>
                       <div>
-                        <p className="font-medium text-sm">{evt.driver_name}</p>
-                        <p className="text-xs text-muted-foreground">{evt.hazard.toUpperCase()}</p>
+                        <p className="font-semibold text-base">{evt.driver_name}</p>
+                        {evt.driver_code && (
+                          <p className="text-xs font-mono bg-muted px-2 py-0.5 rounded inline-block mt-0.5">
+                            {evt.driver_code}
+                          </p>
+                        )}
                       </div>
                     </div>
                     {statusBadge(evt.status)}
                   </div>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                    <Calendar className="h-3 w-3" />
+                  <p className="text-xs text-muted-foreground uppercase font-medium mb-1">{evt.hazard}</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
                     {formatDistanceToNow(new Date(evt.created_at), { addSuffix: true })}
                   </p>
                   {evt.photo_url && (
@@ -314,7 +395,7 @@ export default function Incidents() {
                       <img
                         src={evt.photo_url}
                         alt="Evidence"
-                        className="w-full h-16 object-cover rounded"
+                        className="w-full h-16 object-cover rounded-lg"
                       />
                     </div>
                   )}
@@ -330,17 +411,34 @@ export default function Incidents() {
                 Resolved ({resolvedEvents.length})
               </h2>
               <div className="space-y-2">
-                {resolvedEvents.slice(0, 5).map((evt) => (
+                {resolvedEvents.slice(0, 10).map((evt) => (
                   <div
                     key={evt.id}
                     onClick={() => setSelectedEvent(evt)}
-                    className={`p-2 rounded-lg border cursor-pointer transition opacity-60 hover:opacity-100 ${
-                      selectedEvent?.id === evt.id ? 'border-primary' : 'border-border'
+                    className={`p-3 rounded-lg border cursor-pointer transition opacity-70 hover:opacity-100 flex items-center justify-between ${
+                      selectedEvent?.id === evt.id ? 'border-primary bg-primary/5' : 'border-border'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm">{evt.driver_name}</span>
+                    <div>
+                      <span className="text-sm font-medium">{evt.driver_name}</span>
+                      {evt.driver_code && (
+                        <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded ml-2">
+                          {evt.driver_code}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
                       {statusBadge(evt.status)}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteClick(evt.id);
+                        }}
+                        className="p-1 text-muted-foreground hover:text-destructive transition"
+                        title="Delete"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -360,11 +458,13 @@ export default function Incidents() {
               mapContainerStyle={{ width: '100%', height: '100%' }}
               center={{ lat: centerLocation.latitude, lng: centerLocation.longitude }}
               zoom={centerLocation.zoom}
+              onLoad={(map) => { mapRef.current = map; }}
               options={{
                 zoomControl: true,
                 streetViewControl: false,
                 mapTypeControl: false,
                 fullscreenControl: true,
+                mapTypeId: mapType,
               }}
             >
               {/* SOS Event Markers */}
@@ -419,48 +519,91 @@ export default function Incidents() {
             </GoogleMap>
           )}
 
+          {/* Map Type Toggle */}
+          <div className="absolute top-4 right-4 flex gap-2">
+            <Button
+              size="sm"
+              variant={mapType === 'roadmap' ? 'default' : 'secondary'}
+              onClick={() => setMapType('roadmap')}
+              className="shadow-lg"
+            >
+              <Map className="h-4 w-4 mr-1" />
+              Map
+            </Button>
+            <Button
+              size="sm"
+              variant={mapType === 'satellite' ? 'default' : 'secondary'}
+              onClick={() => setMapType('satellite')}
+              className="shadow-lg"
+            >
+              <Satellite className="h-4 w-4 mr-1" />
+              Satellite
+            </Button>
+          </div>
+
           {/* Selected Event Details Panel */}
           {selectedEvent && (
-            <div className="absolute bottom-4 left-4 right-4 glass-card rounded-xl p-4 max-w-lg max-h-[60%] overflow-y-auto">
+            <div className="absolute bottom-4 left-4 right-4 glass-card rounded-xl p-4 max-w-lg max-h-[60%] overflow-y-auto shadow-2xl">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="h-5 w-5 text-primary" />
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold">{selectedEvent.driver_name}</h3>
-                    <p className="text-xs text-muted-foreground">{selectedEvent.driver_email}</p>
+                    <h3 className="font-bold text-lg">{selectedEvent.driver_name}</h3>
+                    {selectedEvent.driver_code && (
+                      <p className="text-xs font-mono bg-muted px-2 py-0.5 rounded inline-block">
+                        Code: {selectedEvent.driver_code}
+                      </p>
+                    )}
+                    {selectedEvent.driver_email && (
+                      <p className="text-xs text-muted-foreground">{selectedEvent.driver_email}</p>
+                    )}
                   </div>
                 </div>
                 <button
                   onClick={() => setSelectedEvent(null)}
-                  className="text-muted-foreground hover:text-foreground text-xl"
+                  className="text-muted-foreground hover:text-foreground text-2xl font-light"
                 >
                   ×
                 </button>
               </div>
 
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-2xl">{hazardEmoji(selectedEvent.hazard)}</span>
-                <span className="font-medium">{selectedEvent.hazard.toUpperCase()}</span>
+                <span className="text-3xl">{hazardEmoji(selectedEvent.hazard)}</span>
+                <span className="font-semibold text-lg">{selectedEvent.hazard.toUpperCase()}</span>
                 {statusBadge(selectedEvent.status)}
               </div>
 
-              <div className="text-xs text-muted-foreground mb-3 flex items-center gap-4">
+              <div className="text-sm text-muted-foreground mb-3 flex flex-wrap items-center gap-4">
                 <span className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
+                  <Calendar className="h-4 w-4" />
                   {new Date(selectedEvent.created_at).toLocaleString()}
                 </span>
                 {selectedEvent.latitude && selectedEvent.longitude && (
                   <span className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
-                    {selectedEvent.latitude.toFixed(4)}, {selectedEvent.longitude.toFixed(4)}
+                    <MapPin className="h-4 w-4" />
+                    {selectedEvent.latitude.toFixed(5)}, {selectedEvent.longitude.toFixed(5)}
                   </span>
                 )}
               </div>
 
+              {/* Map Action Buttons */}
+              {selectedEvent.latitude && selectedEvent.longitude && (
+                <div className="flex gap-2 mb-3">
+                  <Button size="sm" variant="outline" onClick={zoomToLocation}>
+                    <ZoomIn className="h-4 w-4 mr-1" />
+                    Zoom to Location
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={openInGoogleMaps}>
+                    <ExternalLink className="h-4 w-4 mr-1" />
+                    Open in Maps
+                  </Button>
+                </div>
+              )}
+
               {selectedEvent.message && (
-                <div className="p-2 bg-muted rounded-lg mb-3">
+                <div className="p-3 bg-muted rounded-lg mb-3">
                   <p className="text-sm">{selectedEvent.message}</p>
                 </div>
               )}
@@ -475,7 +618,7 @@ export default function Incidents() {
                   <img
                     src={selectedEvent.photo_url}
                     alt="Evidence"
-                    className="w-full max-h-32 object-cover rounded-lg cursor-pointer hover:opacity-90 transition"
+                    className="w-full max-h-40 object-cover rounded-lg cursor-pointer hover:opacity-90 transition"
                     onClick={() => setPhotoModalOpen(true)}
                   />
                 </div>
@@ -527,6 +670,19 @@ export default function Incidents() {
                   </p>
                 </div>
               )}
+
+              {/* Delete Button for resolved events */}
+              {(selectedEvent.status === 'resolved' || selectedEvent.status === 'cancelled') && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => handleDeleteClick(selectedEvent.id)}
+                  className="w-full mt-3"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Event
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -553,6 +709,27 @@ export default function Incidents() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete SOS Event?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The SOS event and all associated data will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => eventToDelete && deleteEvent(eventToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
