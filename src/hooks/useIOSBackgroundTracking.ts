@@ -137,9 +137,9 @@ export const useIOSBackgroundTracking = (
     setLastLocation(locationData);
     setLastUpdate(new Date());
 
-    // Check if accuracy is acceptable (< 50m for precise tracking)
-    if (location.coords.accuracy > 50) {
-      console.log('[BackgroundGeolocation] Skipping low accuracy location:', location.coords.accuracy);
+    // Check if accuracy is acceptable (< 30m for maximum precision)
+    if (location.coords.accuracy > 30) {
+      console.log('[BackgroundGeolocation] Skipping low accuracy location:', location.coords.accuracy, 'm (threshold: 30m)');
       return;
     }
 
