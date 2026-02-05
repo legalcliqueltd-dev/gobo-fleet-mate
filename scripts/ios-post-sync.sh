@@ -23,9 +23,13 @@ else
 <string>FleetTrackMate needs your location to share your position with your fleet manager.</string>\
 <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>\
 <string>FleetTrackMate needs continuous location access to track your position even when the app is in the background.</string>\
+<key>NSMotionUsageDescription</key>\
+<string>FleetTrackMate uses motion data to optimize battery usage during location tracking.</string>\
 <key>UIBackgroundModes</key>\
 <array>\
 <string>location</string>\
+<string>fetch</string>\
+<string>processing</string>\
 </array>\
 </dict>|' "$PLIST_PATH"
 
