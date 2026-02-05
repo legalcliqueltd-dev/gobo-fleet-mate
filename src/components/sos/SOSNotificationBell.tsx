@@ -70,14 +70,13 @@ export default function SOSNotificationBell() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const previousCountRef = useRef(openSOSCount);
 
-  // Only show for admins
-  if (!isAdmin) return null;
-
   const activeEvents = recentSOS.filter(e => e.status !== 'resolved' && e.status !== 'cancelled');
   const hasUnread = unreadIds.size > 0 || openSOSCount > 0;
 
   // Play alert sound and show toast when new SOS arrives
   useEffect(() => {
+    if (!isAdmin) return; // Guard inside hook
+    
     if (openSOSCount > previousCountRef.current && openSOSCount > 0) {
       // New SOS arrived
       toast.error('🚨 New SOS Alert!', {
@@ -96,7 +95,10 @@ export default function SOSNotificationBell() {
       }
     }
     previousCountRef.current = openSOSCount;
-  }, [openSOSCount]);
+  }, [openSOSCount, isAdmin]);
+
+  // Only show for admins - after all hooks
+  if (!isAdmin) return null;
 
   return (
     <>
