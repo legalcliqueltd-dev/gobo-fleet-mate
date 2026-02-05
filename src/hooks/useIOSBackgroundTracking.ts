@@ -179,9 +179,11 @@ export const useIOSBackgroundTracking = (
     if (BackgroundGeolocation) {
       try {
         const location = await BackgroundGeolocation.getCurrentPosition({
-          maximumAge: 0,
+          maximumAge: 0, // Always get fresh location
           timeout: 30000,
-          desiredAccuracy: 10,
+          desiredAccuracy: 5, // 5 meter accuracy target
+          samples: 3, // Take 3 samples and return best
+          persist: true, // Persist to database
         });
         await onLocation(location);
       } catch (error) {
