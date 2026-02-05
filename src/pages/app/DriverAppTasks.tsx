@@ -42,7 +42,7 @@ export default function DriverAppTasks() {
     const { data, error } = await supabase
       .from('tasks')
       .select('id, title, description, dropoff_lat, dropoff_lng, status, due_at')
-      .eq('assigned_user_id', session.driverId)
+      .eq('assigned_driver_id', session.driverId)
       .in('status', ['assigned', 'en_route', 'completed'])
       .order('due_at', { ascending: true });
 
