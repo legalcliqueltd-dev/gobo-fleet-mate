@@ -94,11 +94,27 @@ export function useSOSNotifications(): UseSOSNotificationsReturn {
   const fetchSOSEvents = useCallback(async () => {
     if (!user) return;
 
-    const { data: events, error } = await supabase
+    // First get the admin's connection codes (devices they own)
+    const { data: adminDevices } = await supabase
+      .from('devices')
+      .select('connection_code')
+      .eq('user_id', user.id);
+
+    const adminCodes = adminDevices?.map(d => d.connection_code).filter(Boolean) || [];
+
+    // Fetch SOS events - filter by admin_code if admin has devices
+    let query = supabase
       .from('sos_events')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(20);
+
+    // If admin has devices, only show SOS events from their drivers
+    if (adminCodes.length > 0) {
+      query = query.in('admin_code', adminCodes);
+    }
+
+    const { data: events, error } = await query;
 
     if (error) {
       console.error('Error fetching SOS events:', error);

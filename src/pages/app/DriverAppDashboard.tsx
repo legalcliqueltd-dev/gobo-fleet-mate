@@ -151,9 +151,9 @@ export default function DriverAppDashboard() {
         console.error('Location watch error:', err);
       },
       {
-        enableHighAccuracy: localStorage.getItem('highAccuracyMode') !== 'false',
-        maximumAge: 5000,
-        timeout: 10000,
+        enableHighAccuracy: true, // Always use high accuracy
+        maximumAge: 0, // Force fresh position, no caching
+        timeout: 15000,
       }
     );
 

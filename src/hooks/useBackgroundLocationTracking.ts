@@ -171,10 +171,10 @@ export const useBackgroundLocationTracking = (
 
         // Start watching position using Capacitor Geolocation
         const watchId = await Geolocation.watchPosition(
-          {
-            enableHighAccuracy,
-            timeout: 10000,
-            maximumAge,
+        {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0, // Force fresh position, no caching
           },
           (position, err) => {
             if (err) {
@@ -209,11 +209,16 @@ export const useBackgroundLocationTracking = (
         // Check/request permission via getCurrentPosition (triggers browser prompt)
         const watchId = navigator.geolocation.watchPosition(
           (position) => {
-            handlePositionUpdate(
-              position.coords.latitude,
-              position.coords.longitude,
-              position.coords.speed
-            );
+            // Only process if accuracy is acceptable (< 100m per memory constraint)
+            if (position.coords.accuracy <= 100) {
+              handlePositionUpdate(
+                position.coords.latitude,
+                position.coords.longitude,
+                position.coords.speed
+              );
+            } else {
+              console.log('Skipping low-accuracy position:', position.coords.accuracy, 'm');
+            }
           },
           (error) => {
             console.error('Location tracking error:', error);
@@ -223,9 +228,9 @@ export const useBackgroundLocationTracking = (
             }
           },
           {
-            enableHighAccuracy,
-            timeout: 10000,
-            maximumAge,
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0, // Force fresh position, no caching
           }
         );
 

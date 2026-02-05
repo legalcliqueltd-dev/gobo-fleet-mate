@@ -60,13 +60,15 @@ export default function DriverAppSOS() {
       };
       setCurrentLocation(location);
 
-      // Create SOS event using driver_id instead of user_id
+      // Create SOS event with driver_id AND admin_code for proper routing
       const { error } = await supabase.from('sos_events').insert({
         user_id: session?.driverId, // Use driver_id for code-based drivers
+        admin_code: session?.adminCode, // Link to the driver's admin for filtering
         latitude: location.lat,
         longitude: location.lng,
         message: message || 'Emergency SOS triggered',
         status: 'open',
+        hazard: 'other', // Default hazard type
       });
 
       if (error) throw error;
