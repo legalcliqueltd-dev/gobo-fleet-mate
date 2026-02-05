@@ -1,152 +1,99 @@
 
+# Fix iOS Build Error: Missing Background Fetch Dependency
 
-# Fix: Accurate iOS Location Tracking & Driver Map Display
+## Problem Summary
+The Xcode build fails with:
+```
+Undefined symbols for architecture arm64:
+  "_OBJC_CLASS_$_TSBackgroundFetch", referenced from: ...
+```
 
-## Problems Identified
+This error occurs because `@transistorsoft/capacitor-background-geolocation` requires a peer dependency (`@transistorsoft/capacitor-background-fetch`) that is not in your `package.json`. Without this package, the iOS native linker cannot find the `TSBackgroundFetch` class.
 
-### 1. iOS Background Tracking Sends to Wrong Table
-The `useIOSBackgroundTracking.ts` hook inserts locations into the `locations` table (device-based system), but the admin dashboard reads from `driver_locations` table (driver-based system). This is why connected drivers don't appear on the map.
+## Root Cause
+According to the official Transistorsoft documentation, **both packages must be installed together**:
+```bash
+npm install @transistorsoft/capacitor-background-geolocation --save
+npm install @transistorsoft/capacitor-background-fetch --save
+npx cap sync
+```
 
-### 2. Location Accuracy Threshold Too Lenient
-- Current iOS threshold: 100m (good)
-- Current backend threshold: 1500m (too lenient for precise tracking)
-- Recommendation: Tighten to 50m for high-accuracy tracking
-
-### 3. Missing Integration
-The iOS hook doesn't call the `update-location` edge function which properly populates `driver_locations`.
+Your `package.json` only has the first one.
 
 ---
 
 ## Solution
 
-### Phase 1: Fix iOS Tracking to Use Driver System
+### Step 1: Add the Missing Dependency
+I will add `@transistorsoft/capacitor-background-fetch` version `^7.1.0` (compatible with Capacitor 7.x) to the project's `package.json`.
 
-**File: `src/hooks/useIOSBackgroundTracking.ts`**
+### Step 2: You Rebuild Locally
+After I add the dependency, you'll need to:
 
-Change the `sendLocationUpdate` function to call the `connect-driver` edge function with `action: 'update-location'` instead of direct database insert:
+1. **Pull the updated code**:
+   ```bash
+   git pull
+   ```
 
-| Current | New |
-|---------|-----|
-| Insert to `locations` table via device ID | Call `connect-driver` edge function with driver ID |
-| Uses `connected_driver_id` lookup | Uses `DriverSessionContext` for driver ID |
+2. **Verify the dependency is present**:
+   ```bash
+   cat package.json | grep "capacitor-background-fetch"
+   ```
+   This should now output a line like:
+   ```
+   "@transistorsoft/capacitor-background-fetch": "^7.1.0"
+   ```
 
-### Phase 2: Tighten Accuracy Filter
+3. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
-**File: `src/hooks/useIOSBackgroundTracking.ts`**
+4. **Full iOS platform reset** (recommended for clean slate):
+   ```bash
+   rm -rf ios
+   npx cap add ios
+   ./scripts/ios-post-sync.sh
+   npx cap sync ios
+   ```
 
-| Setting | Current | New |
-|---------|---------|-----|
-| Accuracy threshold | 100m | 50m |
-| High accuracy mode | DESIRED_ACCURACY_HIGH | Keep same |
-| Distance filter | 10m | 5m (tighter) |
+5. **Open the correct Xcode file** (critical!):
+   ```bash
+   npx cap open ios
+   ```
+   This opens `ios/App/App.xcworkspace`. If you open `App.xcodeproj` instead, CocoaPods dependencies won't link and you'll get the same error.
 
-**File: `supabase/functions/connect-driver/index.ts`**
-
-| Setting | Current | New |
-|---------|---------|-----|
-| Accuracy threshold | 1500m | 50m |
-| Config sent to app | accuracyThresholdM: 1500 | accuracyThresholdM: 50 |
-
-### Phase 3: Add Driver Session Integration
-
-**File: `src/hooks/useIOSBackgroundTracking.ts`**
-
-- Import and use `DriverSessionContext` to get current driver ID
-- Pass driver ID to edge function instead of looking up device ID
+6. **Clean and rebuild in Xcode**:
+   - Press **⇧⌘K** (Shift+Command+K) to Clean Build Folder
+   - Press **⌘R** (Command+R) to Build and Run
 
 ---
 
-## Technical Changes
+## Technical Details
 
-### 1. `src/hooks/useIOSBackgroundTracking.ts`
+### Files Changed
 
-```typescript
-// Change sendLocationUpdate to use edge function
-const sendLocationUpdate = async (
-  latitude: number,
-  longitude: number,
-  speed: number | null,
-  accuracy: number | null
-) => {
-  // Get driver ID from session storage
-  const driverId = localStorage.getItem('driverId');
-  if (!driverId) return;
-
-  try {
-    const { data, error } = await supabase.functions.invoke('connect-driver', {
-      body: {
-        action: 'update-location',
-        driverId,
-        latitude,
-        longitude,
-        speed: speed || 0,
-        accuracy: accuracy || 0,
-        isBackground: true,
-      }
-    });
-
-    if (error) throw error;
-    lastSentRef.current = Date.now();
-  } catch (error) {
-    console.error('Error sending location update:', error);
-  }
-};
+```text
+package.json
+  └── Add "@transistorsoft/capacitor-background-fetch": "^7.1.0"
 ```
 
-### 2. Tighten accuracy filter in `onLocation`:
+### Why This Fixes It
+The `capacitor-background-fetch` package provides the native iOS framework containing `TSBackgroundFetch.h` and its implementation. When CocoaPods runs during `npx cap sync ios`, it installs this framework into the Xcode workspace. Without the npm package, CocoaPods doesn't know to fetch it, so the linker fails.
 
-```typescript
-// Line 133-137: Change from 100m to 50m
-if (location.coords.accuracy > 50) {
-  console.log('[BackgroundGeolocation] Skipping low accuracy location:', location.coords.accuracy);
-  return;
-}
-```
-
-### 3. `supabase/functions/connect-driver/index.ts`
-
-Update the `update-location` action:
-
-```typescript
-// Line 413: Change from 1500 to 50
-const isAccurate = accuracyValue <= 50;
-
-// Lines 151-156 and 221-226: Update config
-config: {
-  locationUpdateIntervalMs: 15000,
-  heartbeatIntervalMs: 30000,
-  stationaryIntervalMs: 60000,
-  lowBatteryIntervalMs: 120000,
-  accuracyThresholdM: 50,  // Changed from 1500
-}
-```
+### Version Compatibility
+- `capacitor-background-geolocation@8.0.1` requires Capacitor 5+
+- `capacitor-background-fetch@7.1.0` is compatible with Capacitor 5-7
+- Your project uses Capacitor 7.4.x - compatible with both
 
 ---
 
-## Why Only "John" Shows
+## Verification Checklist
 
-Looking at the database:
-- **John** has location in `driver_locations`: lat 4.8156, lng 7.0498
-- **Duye** and others have `NULL` latitude/longitude in `driver_locations`
+After completing the rebuild:
 
-This happens because their iOS app isn't sending locations via the `connect-driver` edge function - it's using the old device-based system.
-
----
-
-## Summary of Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/hooks/useIOSBackgroundTracking.ts` | Use edge function, tighten accuracy to 50m, use driver ID from localStorage |
-| `supabase/functions/connect-driver/index.ts` | Tighten accuracy threshold from 1500m to 50m in all places |
-
----
-
-## Expected Result
-
-After these changes:
-1. iOS app will send accurate locations (< 50m accuracy) to `driver_locations`
-2. All connected drivers will appear on the admin map
-3. Location data will be precise and reliable
-4. Battery and background status will be preserved
-
+1. Xcode build completes without "TSBackgroundFetch" errors
+2. App launches on iOS simulator or device
+3. Location permission prompt appears when opening the driver app
+4. After granting permission, the blue location indicator bar appears in iOS status bar
+5. Driver appears on the admin dashboard map with live location updates
