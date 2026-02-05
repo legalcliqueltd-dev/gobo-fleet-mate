@@ -19,10 +19,13 @@ import {
 import { Package, MapPin, Calendar, User } from 'lucide-react';
 import { toast } from 'sonner';
 
+// Driver type matching the drivers table (mobile app drivers)
 type Driver = {
-  id: string;
-  email: string;
-  full_name: string | null;
+  driver_id: string;
+  driver_name: string | null;
+  admin_code: string;
+  status: string | null;
+  last_seen_at: string | null;
 };
 
 type LocationMarker = {
@@ -39,6 +42,7 @@ export default function CreateTask() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assignedDriverId, setAssignedDriverId] = useState('');
+  const [selectedAdminCode, setSelectedAdminCode] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [pickupLat, setPickupLat] = useState('');
   const [pickupLng, setPickupLng] = useState('');
@@ -78,28 +82,48 @@ export default function CreateTask() {
   const loadDrivers = async () => {
     if (!user) return;
 
-    // Get connected drivers
-    const { data: connections } = await supabase
-      .from('driver_connections')
-      .select('driver_user_id')
-      .eq('admin_user_id', user.id)
-      .eq('status', 'active');
+    // Get admin's devices to find their connection codes
+    const { data: devices } = await supabase
+      .from('devices')
+      .select('connection_code')
+      .eq('user_id', user.id)
+      .not('connection_code', 'is', null);
 
-    if (!connections || connections.length === 0) {
-      toast.error('No active drivers connected');
+    if (!devices || devices.length === 0) {
+      toast.error('No devices with connection codes found');
       return;
     }
 
-    const driverIds = connections.map(c => c.driver_user_id);
+    const connectionCodes = devices
+      .map(d => d.connection_code)
+      .filter((code): code is string => code !== null);
 
-    // Get driver profiles
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, email, full_name')
-      .in('id', driverIds);
+    // Get drivers from drivers table where admin_code matches any of the admin's codes
+    const { data: driversData, error } = await supabase
+      .from('drivers')
+      .select('driver_id, driver_name, admin_code, status, last_seen_at')
+      .in('admin_code', connectionCodes);
 
-    if (profiles) {
-      setDrivers(profiles);
+    if (error) {
+      console.error('Error loading drivers:', error);
+      toast.error('Failed to load drivers');
+      return;
+    }
+
+    if (!driversData || driversData.length === 0) {
+      toast.info('No drivers connected yet. Share your connection code with drivers.');
+      return;
+    }
+
+    setDrivers(driversData);
+  };
+
+  const handleDriverSelect = (driverId: string) => {
+    setAssignedDriverId(driverId);
+    // Also store the admin_code for the selected driver
+    const selectedDriver = drivers.find(d => d.driver_id === driverId);
+    if (selectedDriver) {
+      setSelectedAdminCode(selectedDriver.admin_code);
     }
   };
 
