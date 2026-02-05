@@ -64,24 +64,32 @@ export const useIOSBackgroundTracking = (
         return;
       }
 
-      // Configure the plugin
+      // Configure the plugin with maximum accuracy settings
       const state = await BackgroundGeolocation.ready({
-        // Location Config
-        desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_HIGH,
-        distanceFilter: distanceFilter,
+        // Location Config - Maximum accuracy
+        desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_NAVIGATION, // Best possible accuracy
+        distanceFilter: 3, // 3 meters - very tight filter for precision
+        stationaryRadius: 10, // 10 meters - detect stationary state quickly
         stopOnTerminate: false, // Continue tracking when app is terminated
         startOnBoot: true, // Auto-start on device boot
         
         // Activity Recognition
-        stopTimeout: 5, // Minutes to wait before aggressive location tracking stops
+        stopTimeout: 3, // 3 minutes - faster transition to stationary
+        activityRecognitionInterval: 5000, // Check activity every 5 seconds
         
         // Application config
         debug: false, // Disable debug sounds/notifications in production
         logLevel: BackgroundGeolocation.LOG_LEVEL_WARNING,
         
-        // iOS specific
+        // iOS specific - Maximum accuracy options
         preventSuspend: true, // Prevent iOS from suspending the app
         pausesLocationUpdatesAutomatically: false,
+        locationAuthorizationRequest: 'Always', // Request always-on permission
+        showsBackgroundLocationIndicator: true, // Show blue bar when tracking
+        
+        // Accuracy improvements
+        locationUpdateInterval: 10000, // Request location every 10 seconds
+        fastestLocationUpdateInterval: 5000, // Accept updates as fast as 5 seconds
         
         // Heartbeat interval (for periodic updates even when stationary)
         heartbeatInterval: Math.floor(updateIntervalMs / 1000),
@@ -129,9 +137,9 @@ export const useIOSBackgroundTracking = (
     setLastLocation(locationData);
     setLastUpdate(new Date());
 
-    // Check if accuracy is acceptable (< 50m for precise tracking)
-    if (location.coords.accuracy > 50) {
-      console.log('[BackgroundGeolocation] Skipping low accuracy location:', location.coords.accuracy);
+    // Check if accuracy is acceptable (< 30m for maximum precision)
+    if (location.coords.accuracy > 30) {
+      console.log('[BackgroundGeolocation] Skipping low accuracy location:', location.coords.accuracy, 'm (threshold: 30m)');
       return;
     }
 
@@ -171,9 +179,11 @@ export const useIOSBackgroundTracking = (
     if (BackgroundGeolocation) {
       try {
         const location = await BackgroundGeolocation.getCurrentPosition({
-          maximumAge: 0,
+          maximumAge: 0, // Always get fresh location
           timeout: 30000,
-          desiredAccuracy: 10,
+          desiredAccuracy: 5, // 5 meter accuracy target
+          samples: 3, // Take 3 samples and return best
+          persist: true, // Persist to database
         });
         await onLocation(location);
       } catch (error) {
