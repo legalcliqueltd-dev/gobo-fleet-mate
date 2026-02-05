@@ -27,7 +27,7 @@ export const useIOSBackgroundTracking = (
 ) => {
   const {
     updateIntervalMs = 30000,
-    distanceFilter = 10, // meters
+    distanceFilter = 5, // meters - tighter filter for accuracy
     enableHighAccuracy = true,
   } = options;
 
@@ -35,7 +35,6 @@ export const useIOSBackgroundTracking = (
   const [lastLocation, setLastLocation] = useState<LocationData | null>(null);
   const [batteryLevel, setBatteryLevel] = useState<number>(100);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const deviceIdRef = useRef<string | null>(null);
   const lastSentRef = useRef<number>(0);
   const isConfiguredRef = useRef(false);
 
@@ -130,8 +129,8 @@ export const useIOSBackgroundTracking = (
     setLastLocation(locationData);
     setLastUpdate(new Date());
 
-    // Check if accuracy is acceptable (< 100m)
-    if (location.coords.accuracy > 100) {
+    // Check if accuracy is acceptable (< 50m for precise tracking)
+    if (location.coords.accuracy > 50) {
       console.log('[BackgroundGeolocation] Skipping low accuracy location:', location.coords.accuracy);
       return;
     }
@@ -145,7 +144,8 @@ export const useIOSBackgroundTracking = (
     await sendLocationUpdate(
       location.coords.latitude,
       location.coords.longitude,
-      location.coords.speed !== undefined ? location.coords.speed * 3.6 : null
+      location.coords.speed !== undefined ? location.coords.speed * 3.6 : null,
+      location.coords.accuracy
     );
   };
 
@@ -182,53 +182,36 @@ export const useIOSBackgroundTracking = (
     }
   };
 
-  const getOrCreateDevice = async (): Promise<string | null> => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return null;
-      }
-
-      const { data: connectedDevice } = await supabase
-        .from('devices')
-        .select('id')
-        .eq('connected_driver_id', user.id)
-        .maybeSingle();
-
-      if (connectedDevice) {
-        return connectedDevice.id;
-      }
-
-      return null;
-    } catch (error) {
-      console.error('Error getting device:', error);
-      return null;
-    }
-  };
-
   const sendLocationUpdate = async (
     latitude: number,
     longitude: number,
-    speed: number | null
+    speed: number | null,
+    accuracy: number | null
   ) => {
-    if (!deviceIdRef.current) {
-      deviceIdRef.current = await getOrCreateDevice();
-      if (!deviceIdRef.current) return;
+    // Get driver ID from localStorage (set by DriverSessionContext)
+    const driverId = localStorage.getItem('ftm_driver_id');
+    if (!driverId) {
+      console.log('[BackgroundGeolocation] No driver ID found, skipping location update');
+      return;
     }
 
     try {
-      const { error } = await supabase.from('locations').insert({
-        device_id: deviceIdRef.current,
-        latitude,
-        longitude,
-        speed: speed || 0,
-        timestamp: new Date().toISOString(),
+      const { data, error } = await supabase.functions.invoke('connect-driver', {
+        body: {
+          action: 'update-location',
+          driverId,
+          latitude,
+          longitude,
+          speed: speed || 0,
+          accuracy: accuracy || 0,
+          isBackground: true,
+        }
       });
 
       if (error) throw error;
 
       lastSentRef.current = Date.now();
-      console.log('[BackgroundGeolocation] Location synced to database');
+      console.log('[BackgroundGeolocation] Location synced via edge function');
     } catch (error) {
       console.error('Error sending location update:', error);
     }

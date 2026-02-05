@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
               heartbeatIntervalMs: 30000,       // 30 seconds
               stationaryIntervalMs: 60000,      // 60 seconds when stationary
               lowBatteryIntervalMs: 120000,     // 2 minutes when battery < 20%
-              accuracyThresholdM: 1500,         // Max accuracy for storing location
+              accuracyThresholdM: 50,           // Max accuracy for storing location (50m for precision)
             }
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
             heartbeatIntervalMs: 30000,
             stationaryIntervalMs: 60000,
             lowBatteryIntervalMs: 120000,
-            accuracyThresholdM: 1500,
+            accuracyThresholdM: 50,
           }
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -408,9 +408,9 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Filter out poor accuracy locations (> 1500m) for better tracking
+      // Filter out poor accuracy locations (> 50m) for precise tracking
       const accuracyValue = accuracy || 0;
-      const isAccurate = accuracyValue <= 1500;
+      const isAccurate = accuracyValue <= 50;
       
       console.log('Location update - Driver:', driverId, 
         'Lat:', latitude, 'Lng:', longitude, 
