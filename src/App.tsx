@@ -46,6 +46,7 @@ import DriverApp from './pages/app/DriverApp';
 import DriverAppConnect from './pages/app/DriverAppConnect';
 import DriverAppDashboard from './pages/app/DriverAppDashboard';
 import DriverAppTasks from './pages/app/DriverAppTasks';
+import DriverAppCompleteTask from './pages/app/DriverAppCompleteTask';
 import DriverAppSOS from './pages/app/DriverAppSOS';
 import DriverAppSettings from './pages/app/DriverAppSettings';
 
@@ -68,6 +69,11 @@ export default function App() {
                 <Route path="/tasks" element={
                   <DriverProtectedRoute>
                     <DriverAppTasks />
+                  </DriverProtectedRoute>
+                } />
+                <Route path="/tasks/:taskId/complete" element={
+                  <DriverProtectedRoute>
+                    <DriverAppCompleteTask />
                   </DriverProtectedRoute>
                 } />
                 <Route path="/sos" element={

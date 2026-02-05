@@ -1,5 +1,5 @@
 import { PropsWithChildren, useState, useRef, useEffect } from 'react';
-import { Menu, X, Home, Settings as SettingsIcon } from 'lucide-react';
+import { Menu, X, Home, Settings as SettingsIcon, ClipboardList, AlertTriangle } from 'lucide-react';
 import logo from '@/assets/logo.webp';
 import { Link, useLocation } from 'react-router-dom';
 import clsx from 'clsx';
@@ -17,9 +17,11 @@ export default function AppLayout({ children }: PropsWithChildren) {
   const containerRef = useRef<HTMLDivElement>(null);
   const btnRefs = useRef<(HTMLAnchorElement | null)[]>([]);
 
-  // Simplified nav - only Home and Settings
+  // Navigation items including Tasks and SOS
   const navItems = [
     { path: '/dashboard', icon: Home, label: 'Home' },
+    { path: '/admin/tasks', icon: ClipboardList, label: 'Tasks' },
+    { path: '/ops/incidents', icon: AlertTriangle, label: 'SOS' },
     { path: '/settings', icon: SettingsIcon, label: 'Settings' },
   ];
 

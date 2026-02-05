@@ -3,8 +3,10 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, ClipboardList, AlertTriangle, Settings } from 'lucide-react';
 import logo from '@/assets/logo.webp';
 import { cn } from '@/lib/utils';
+import { useDriverSession } from '@/contexts/DriverSessionContext';
+import { useTaskNotifications } from '@/hooks/useTaskNotifications';
 
-const navItems = [
+const baseNavItems = [
   { path: '/app/dashboard', icon: Home, label: 'Home' },
   { path: '/app/tasks', icon: ClipboardList, label: 'Tasks' },
   { path: '/app/sos', icon: AlertTriangle, label: 'SOS' },
@@ -13,6 +15,8 @@ const navItems = [
 
 export default function DriverAppLayout({ children }: PropsWithChildren) {
   const location = useLocation();
+  const { session } = useDriverSession();
+  const { unreadCount } = useTaskNotifications(session?.driverId);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -34,28 +38,36 @@ export default function DriverAppLayout({ children }: PropsWithChildren) {
       {/* Bottom Navigation */}
       <nav className="sticky bottom-0 z-30 bg-background/95 backdrop-blur border-t border-border safe-area-pb">
         <div className="flex items-center justify-around py-2 px-4">
-          {navItems.map((item) => {
+          {baseNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path || 
               (item.path === '/app/dashboard' && location.pathname === '/app');
             const isSOS = item.path === '/app/sos';
+            const isTasksWithBadge = item.path === '/app/tasks' && unreadCount > 0;
             
             return (
               <Link
                 key={item.path}
                 to={item.path}
                 className={cn(
-                  "flex flex-col items-center gap-1 py-2 px-4 rounded-xl transition-all",
+                  "relative flex flex-col items-center gap-1 py-2 px-4 rounded-xl transition-all",
                   isSOS && "text-destructive",
                   isActive && !isSOS && "text-primary bg-primary/10",
                   isActive && isSOS && "bg-destructive/10",
                   !isActive && !isSOS && "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <Icon className={cn(
-                  "h-5 w-5",
-                  isSOS && "animate-pulse"
-                )} />
+                <div className="relative">
+                  <Icon className={cn(
+                    "h-5 w-5",
+                    isSOS && "animate-pulse"
+                  )} />
+                  {isTasksWithBadge && (
+                    <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </div>
                 <span className="text-xs font-medium">{item.label}</span>
               </Link>
             );
