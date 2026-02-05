@@ -596,7 +596,7 @@ export default function Incidents() {
         </div>
 
         {/* Events List - Below map on mobile, left side on desktop */}
-        <div className="order-2 lg:order-1 glass-card rounded-xl p-3 sm:p-4 overflow-y-auto flex-1 lg:flex-none lg:max-h-full min-h-[200px] max-h-[35vh] lg:max-h-none">
+        <div className="order-2 lg:order-1 glass-card rounded-xl p-3 sm:p-4 overflow-y-auto flex-1 lg:flex-none lg:max-h-full min-h-[120px] max-h-[30vh] sm:max-h-[25vh] lg:max-h-none">
           <h2 className="font-semibold mb-2 sm:mb-3 flex items-center gap-2 text-sm sm:text-base">
             <AlertTriangle className="h-4 w-4 text-destructive" />
             Active Incidents ({activeEvents.length})
