@@ -439,16 +439,15 @@ export default function CompleteTask() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Photos</label>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              capture="environment"
-              onChange={handlePhotoCapture}
-              className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-            />
+            <div>
+              <label className="block text-sm font-medium mb-2">Photos</label>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handlePhotoCapture}
+                className="block w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+              />
             {photos.length > 0 && (
               <p className="text-sm text-muted-foreground mt-2">{photos.length} photo(s) selected</p>
             )}

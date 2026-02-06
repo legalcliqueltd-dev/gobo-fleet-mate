@@ -22,7 +22,8 @@ import {
 
 type SOSEvent = {
   id: string;
-  user_id: string;
+  user_id: string | null; // auth user UUID (nullable for code-based drivers)
+  driver_id?: string | null; // code-based driver ID
   device_id: string | null;
   admin_code: string | null;
   hazard: string;
@@ -49,6 +50,10 @@ type PositionUpdate = {
   longitude: number;
   timestamp: string;
 };
+
+const isUuid = (value: string | null | undefined) =>
+  !!value &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
 export default function Incidents() {
   const { user } = useAuth();
@@ -111,43 +116,54 @@ export default function Incidents() {
     if (rawEvents) {
       // Enrich events with driver info
       const enrichedEvents: SOSEvent[] = await Promise.all(
-        rawEvents.map(async (event) => {
-          // First try to get driver from drivers table using user_id as driver_id
-          const { data: driver } = await supabase
-            .from('drivers')
-            .select('driver_id, driver_name, admin_code')
-            .eq('driver_id', event.user_id)
-            .single();
+        rawEvents.map(async (event: any) => {
+          const driverLookupId: string | null = event.driver_id || event.user_id || null;
 
-          if (driver) {
-            return {
-              ...event,
-              driver_name: driver.driver_name || 'Unknown Driver',
-              driver_code: driver.admin_code,
-              driver_email: '',
-            };
+          if (driverLookupId) {
+            const { data: driver } = await supabase
+              .from('drivers')
+              .select('driver_id, driver_name, admin_code')
+              .eq('driver_id', driverLookupId)
+              .single();
+
+            if (driver) {
+              return {
+                ...event,
+                driver_name: driver.driver_name || 'Unknown Driver',
+                driver_code: driver.admin_code,
+                driver_email: '',
+              } as SOSEvent;
+            }
           }
 
-          // Fallback to profiles table for UUID-based users
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name, email')
-            .eq('id', event.user_id)
-            .single();
+          if (isUuid(event.user_id)) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('full_name, email')
+              .eq('id', event.user_id)
+              .single();
+
+            return {
+              ...event,
+              driver_name: profile?.full_name || 'Unknown Driver',
+              driver_email: profile?.email || '',
+              driver_code: event.admin_code || '',
+            } as SOSEvent;
+          }
 
           return {
             ...event,
-            driver_name: profile?.full_name || 'Unknown Driver',
-            driver_email: profile?.email || '',
+            driver_name: 'Unknown Driver',
+            driver_email: '',
             driver_code: event.admin_code || '',
-          };
+          } as SOSEvent;
         })
       );
 
       setEvents(enrichedEvents);
-      
+
       // Auto-select first open event
-      const firstOpen = enrichedEvents.find(e => e.status === 'open');
+      const firstOpen = enrichedEvents.find((e) => e.status === 'open');
       if (firstOpen && !selectedEvent) {
         setSelectedEvent(firstOpen);
       }
