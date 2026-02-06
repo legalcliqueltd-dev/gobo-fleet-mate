@@ -16,8 +16,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Package, MapPin, Calendar, User } from 'lucide-react';
+import { Package, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
+
+// Google Maps libraries - must be constant to avoid re-renders
+const LIBRARIES: ('places')[] = ['places'];
 
 // Driver type matching the drivers table (mobile app drivers)
 type Driver = {
@@ -44,25 +48,49 @@ export default function CreateTask() {
   const [assignedDriverId, setAssignedDriverId] = useState('');
   const [selectedAdminCode, setSelectedAdminCode] = useState('');
   const [dueDate, setDueDate] = useState('');
-  const [pickupLat, setPickupLat] = useState('');
-  const [pickupLng, setPickupLng] = useState('');
-  const [dropoffLat, setDropoffLat] = useState('');
-  const [dropoffLng, setDropoffLng] = useState('');
+  
+  // Address-based location state
+  const [pickupAddress, setPickupAddress] = useState('');
+  const [pickupLat, setPickupLat] = useState<number | null>(null);
+  const [pickupLng, setPickupLng] = useState<number | null>(null);
+  const [dropoffAddress, setDropoffAddress] = useState('');
+  const [dropoffLat, setDropoffLat] = useState<number | null>(null);
+  const [dropoffLng, setDropoffLng] = useState<number | null>(null);
   const [dropoffRadius, setDropoffRadius] = useState('150');
+  
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [markers, setMarkers] = useState<LocationMarker[]>([]);
-  const [markerMode, setMarkerMode] = useState<'pickup' | 'dropoff' | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: LIBRARIES,
   });
 
   useEffect(() => {
     checkAdminAccess();
     loadDrivers();
   }, []);
+
+  // Update markers when locations change
+  useEffect(() => {
+    const newMarkers: LocationMarker[] = [];
+    if (pickupLat && pickupLng) {
+      newMarkers.push({ lat: pickupLat, lng: pickupLng, type: 'pickup' });
+    }
+    if (dropoffLat && dropoffLng) {
+      newMarkers.push({ lat: dropoffLat, lng: dropoffLng, type: 'dropoff' });
+    }
+    setMarkers(newMarkers);
+
+    // Pan to the most recent marker
+    if (mapRef.current && newMarkers.length > 0) {
+      const lastMarker = newMarkers[newMarkers.length - 1];
+      mapRef.current.panTo({ lat: lastMarker.lat, lng: lastMarker.lng });
+      mapRef.current.setZoom(14);
+    }
+  }, [pickupLat, pickupLng, dropoffLat, dropoffLng]);
 
   const checkAdminAccess = async () => {
     if (!user) return;
@@ -127,23 +155,16 @@ export default function CreateTask() {
     }
   };
 
-  const handleMapClick = (e: google.maps.MapMouseEvent) => {
-    if (!markerMode || !e.latLng) return;
+  const handlePickupAddressChange = (address: string, lat: number, lng: number) => {
+    setPickupAddress(address);
+    setPickupLat(lat);
+    setPickupLng(lng);
+  };
 
-    const lat = e.latLng.lat();
-    const lng = e.latLng.lng();
-
-    if (markerMode === 'pickup') {
-      setPickupLat(lat.toFixed(6));
-      setPickupLng(lng.toFixed(6));
-      setMarkers(prev => [...prev.filter(m => m.type !== 'pickup'), { lat, lng, type: 'pickup' }]);
-    } else {
-      setDropoffLat(lat.toFixed(6));
-      setDropoffLng(lng.toFixed(6));
-      setMarkers(prev => [...prev.filter(m => m.type !== 'dropoff'), { lat, lng, type: 'dropoff' }]);
-    }
-
-    setMarkerMode(null);
+  const handleDropoffAddressChange = (address: string, lat: number, lng: number) => {
+    setDropoffAddress(address);
+    setDropoffLat(lat);
+    setDropoffLng(lng);
   };
 
   const handleCreateTask = async () => {
@@ -175,10 +196,10 @@ export default function CreateTask() {
         admin_code: selectedAdminCode, // Link to admin for filtering
         title: title.trim(),
         description: description.trim() || null,
-        pickup_lat: pickupLat ? parseFloat(pickupLat) : null,
-        pickup_lng: pickupLng ? parseFloat(pickupLng) : null,
-        dropoff_lat: parseFloat(dropoffLat),
-        dropoff_lng: parseFloat(dropoffLng),
+        pickup_lat: pickupLat,
+        pickup_lng: pickupLng,
+        dropoff_lat: dropoffLat,
+        dropoff_lng: dropoffLng,
         dropoff_radius_m: parseInt(dropoffRadius) || 150,
         due_at: dueDate ? new Date(dueDate).toISOString() : null,
         status: 'assigned',
@@ -279,63 +300,45 @@ export default function CreateTask() {
               </CardContent>
             </Card>
 
-            {/* Locations */}
+            {/* Locations - Address Search */}
             <Card className="bg-background/50 backdrop-blur border border-border">
               <CardHeader>
                 <h2 className="text-lg font-semibold">Locations</h2>
                 <p className="text-sm text-muted-foreground">
-                  Click markers on map or enter coordinates
+                  Search and select addresses for pickup and dropoff
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <Label>Pickup Location (Optional)</Label>
-                  <div className="flex gap-2 mt-2">
-                    <Input
-                      placeholder="Latitude"
-                      value={pickupLat}
-                      onChange={(e) => setPickupLat(e.target.value)}
-                    />
-                    <Input
-                      placeholder="Longitude"
-                      value={pickupLng}
-                      onChange={(e) => setPickupLng(e.target.value)}
+                  <Label>Pickup Address (Optional)</Label>
+                  <div className="mt-2">
+                    <AddressAutocomplete
+                      value={pickupAddress}
+                      onChange={handlePickupAddressChange}
+                      placeholder="Search pickup location..."
                     />
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full mt-2"
-                    onClick={() => setMarkerMode(markerMode === 'pickup' ? null : 'pickup')}
-                  >
-                    <MapPin className="h-4 w-4 mr-2" />
-                    {markerMode === 'pickup' ? 'Cancel' : 'Click on Map'}
-                  </Button>
+                  {pickupLat && pickupLng && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      📍 {pickupLat.toFixed(6)}, {pickupLng.toFixed(6)}
+                    </p>
+                  )}
                 </div>
 
                 <div>
-                  <Label>Dropoff Location *</Label>
-                  <div className="flex gap-2 mt-2">
-                    <Input
-                      placeholder="Latitude"
-                      value={dropoffLat}
-                      onChange={(e) => setDropoffLat(e.target.value)}
-                    />
-                    <Input
-                      placeholder="Longitude"
-                      value={dropoffLng}
-                      onChange={(e) => setDropoffLng(e.target.value)}
+                  <Label>Dropoff Address *</Label>
+                  <div className="mt-2">
+                    <AddressAutocomplete
+                      value={dropoffAddress}
+                      onChange={handleDropoffAddressChange}
+                      placeholder="Search dropoff location..."
                     />
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full mt-2"
-                    onClick={() => setMarkerMode(markerMode === 'dropoff' ? null : 'dropoff')}
-                  >
-                    <MapPin className="h-4 w-4 mr-2" />
-                    {markerMode === 'dropoff' ? 'Cancel' : 'Click on Map'}
-                  </Button>
+                  {dropoffLat && dropoffLng && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      📍 {dropoffLat.toFixed(6)}, {dropoffLng.toFixed(6)}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -373,18 +376,6 @@ export default function CreateTask() {
 
       {/* Right Panel - Map */}
       <div className="flex-1 relative">
-        {markerMode && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
-            <Card className="bg-background/50 backdrop-blur border border-border">
-              <CardContent className="p-3">
-                <p className="text-sm font-medium">
-                  Click on the map to set {markerMode} location
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
         <GoogleMap
           mapContainerStyle={{ width: '100%', height: '100%' }}
           center={{ lat: 0, lng: 0 }}
@@ -392,7 +383,6 @@ export default function CreateTask() {
           onLoad={(map) => {
             mapRef.current = map;
           }}
-          onClick={handleMapClick}
           options={{
             disableDefaultUI: false,
             zoomControl: true,

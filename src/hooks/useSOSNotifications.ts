@@ -122,9 +122,25 @@ export function useSOSNotifications(): UseSOSNotificationsReturn {
     }
 
     if (events) {
-      // Enrich with driver names from profiles
+      // Enrich with driver names - first try drivers table (code-based), then profiles (auth-based)
       const enrichedEvents: SOSEventWithDriver[] = await Promise.all(
         events.map(async (event) => {
+          // First check if user_id matches a driver_id in the drivers table
+          const { data: driver } = await supabase
+            .from('drivers')
+            .select('driver_id, driver_name, admin_code')
+            .eq('driver_id', event.user_id)
+            .single();
+
+          if (driver) {
+            return {
+              ...event,
+              driver_name: driver.driver_name || driver.driver_id || 'Unknown Driver',
+              driver_phone: driver.admin_code,
+            };
+          }
+
+          // Fallback to profiles table for UUID-based auth users
           const { data: profile } = await supabase
             .from('profiles')
             .select('full_name, email')

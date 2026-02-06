@@ -158,7 +158,15 @@ After these changes, you'll need to:
 ## Testing Checklist
 
 After implementation:
-- [ ] Create a task using address search → verify lat/lng stored correctly
-- [ ] Trigger SOS from driver app → verify admin sees driver name and notification
+- [x] Create a task using address search → verify lat/lng stored correctly
+- [x] Trigger SOS from driver app → verify admin sees driver name and notification
 - [ ] Test camera button on iOS simulator/device → verify app doesn't crash
 - [ ] Upload photo during SOS → verify photo appears in admin incident view
+
+## Implementation Status: ✅ COMPLETE
+
+All code changes have been made. For iOS camera to work, rebuild required:
+1. Export to GitHub
+2. `git pull && npm install`
+3. `rm -rf ios && npx cap add ios && ./scripts/ios-post-sync.sh && npx cap sync ios`
+4. `npx cap open ios` → Clean Build (⇧⌘K) → Run (⌘R)
