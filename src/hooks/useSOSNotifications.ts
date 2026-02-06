@@ -5,7 +5,8 @@ import { toast } from 'sonner';
 
 export interface SOSEventWithDriver {
   id: string;
-  user_id: string;
+  user_id: string | null; // auth user UUID (nullable for code-based drivers)
+  driver_id?: string | null; // code-based driver id
   device_id: string | null;
   hazard: string;
   message: string | null;
@@ -19,6 +20,7 @@ export interface SOSEventWithDriver {
   resolved_at: string | null;
   resolved_note: string | null;
   status: string;
+  admin_code?: string | null;
   driver_name?: string;
   driver_phone?: string;
 }
@@ -32,27 +34,29 @@ interface UseSOSNotificationsReturn {
   unreadIds: Set<string>;
 }
 
+const isUuid = (value: string | null | undefined) =>
+  !!value &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
 // Audio alert for new SOS
 const playSOSAlert = () => {
   try {
-    // Create a simple beep sound using Web Audio API
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
-    
+
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
-    
-    oscillator.frequency.value = 800; // Frequency in Hz
+
+    oscillator.frequency.value = 800;
     oscillator.type = 'sine';
-    
+
     gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-    
+
     oscillator.start(audioContext.currentTime);
     oscillator.stop(audioContext.currentTime + 0.5);
-    
-    // Play a second beep
+
     setTimeout(() => {
       const osc2 = audioContext.createOscillator();
       const gain2 = audioContext.createGain();
@@ -65,8 +69,8 @@ const playSOSAlert = () => {
       osc2.start();
       osc2.stop(audioContext.currentTime + 0.5);
     }, 200);
-  } catch (error) {
-    console.log('Audio alert not supported');
+  } catch {
+    // ignore
   }
 };
 
@@ -75,43 +79,46 @@ export function useSOSNotifications(): UseSOSNotificationsReturn {
   const [isAdmin, setIsAdmin] = useState(false);
   const [recentSOS, setRecentSOS] = useState<SOSEventWithDriver[]>([]);
   const [unreadIds, setUnreadIds] = useState<Set<string>>(new Set());
-  const previousOpenCountRef = useRef<number>(0);
+
+  const hasFetchedOnceRef = useRef(false);
+  const previousOpenIdsRef = useRef<Set<string>>(new Set());
 
   const checkAdmin = useCallback(async () => {
     if (!user) {
       setIsAdmin(false);
       return;
     }
+
     const { data } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
       .eq('role', 'admin')
       .single();
+
     setIsAdmin(!!data);
   }, [user]);
 
   const fetchSOSEvents = useCallback(async () => {
     if (!user) return;
 
-    // First get the admin's connection codes (devices they own)
+    // Get the admin's connection codes (devices they own)
     const { data: adminDevices } = await supabase
       .from('devices')
       .select('connection_code')
       .eq('user_id', user.id);
 
-    const adminCodes = adminDevices?.map(d => d.connection_code).filter(Boolean) || [];
+    const adminCodes = adminDevices?.map((d) => d.connection_code).filter(Boolean) || [];
 
-    // Fetch SOS events - filter by admin_code if admin has devices
     let query = supabase
       .from('sos_events')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(20);
 
-    // If admin has devices, only show SOS events from their drivers
+    // Only show SOS events from their drivers (if they have device codes)
     if (adminCodes.length > 0) {
-      query = query.in('admin_code', adminCodes);
+      query = query.in('admin_code', adminCodes as string[]);
     }
 
     const { data: events, error } = await query;
@@ -121,15 +128,18 @@ export function useSOSNotifications(): UseSOSNotificationsReturn {
       return;
     }
 
-    if (events) {
-      // Enrich with driver names - first try drivers table (code-based), then profiles (auth-based)
-      const enrichedEvents: SOSEventWithDriver[] = await Promise.all(
-        events.map(async (event) => {
-          // First check if user_id matches a driver_id in the drivers table
+    if (!events) return;
+
+    // Enrich with driver names - first try drivers table (code-based), then profiles (auth-based)
+    const enrichedEvents: SOSEventWithDriver[] = await Promise.all(
+      events.map(async (event: any) => {
+        const driverLookupId: string | null = event.driver_id || event.user_id || null;
+
+        if (driverLookupId) {
           const { data: driver } = await supabase
             .from('drivers')
             .select('driver_id, driver_name, admin_code')
-            .eq('driver_id', event.user_id)
+            .eq('driver_id', driverLookupId)
             .single();
 
           if (driver) {
@@ -137,10 +147,11 @@ export function useSOSNotifications(): UseSOSNotificationsReturn {
               ...event,
               driver_name: driver.driver_name || driver.driver_id || 'Unknown Driver',
               driver_phone: driver.admin_code,
-            };
+            } as SOSEventWithDriver;
           }
+        }
 
-          // Fallback to profiles table for UUID-based auth users
+        if (isUuid(event.user_id)) {
           const { data: profile } = await supabase
             .from('profiles')
             .select('full_name, email')
@@ -150,45 +161,52 @@ export function useSOSNotifications(): UseSOSNotificationsReturn {
           return {
             ...event,
             driver_name: profile?.full_name || profile?.email || 'Unknown Driver',
-          };
-        })
-      );
-
-      // Check for new open SOS events
-      const currentOpenCount = enrichedEvents.filter(e => e.status === 'open').length;
-      const newOpenEvents = enrichedEvents.filter(
-        e => e.status === 'open' && !previousOpenCountRef.current
-      );
-
-      if (currentOpenCount > previousOpenCountRef.current && previousOpenCountRef.current > 0) {
-        // New SOS received!
-        playSOSAlert();
-        const newest = enrichedEvents.find(e => e.status === 'open');
-        if (newest) {
-          toast.error(
-            `🚨 New SOS Alert: ${newest.hazard.toUpperCase()} from ${newest.driver_name}`,
-            {
-              duration: 10000,
-              action: {
-                label: 'View',
-                onClick: () => window.location.href = '/ops/incidents',
-              },
-            }
-          );
-          setUnreadIds(prev => new Set(prev).add(newest.id));
+          } as SOSEventWithDriver;
         }
-      }
 
-      previousOpenCountRef.current = currentOpenCount;
-      setRecentSOS(enrichedEvents);
+        return {
+          ...event,
+          driver_name: 'Unknown Driver',
+        } as SOSEventWithDriver;
+      })
+    );
+
+    // Detect newly opened SOS (avoid firing on first load)
+    const currentOpen = enrichedEvents.filter((e) => e.status === 'open');
+    const currentOpenIds = new Set(currentOpen.map((e) => e.id));
+
+    if (hasFetchedOnceRef.current) {
+      const newlyOpened = currentOpen.filter((e) => !previousOpenIdsRef.current.has(e.id));
+
+      if (newlyOpened.length > 0) {
+        playSOSAlert();
+
+        // list is already ordered desc by created_at, so the first newly-opened is typically the newest
+        const newest = newlyOpened[0];
+        toast.error(`New SOS Alert: ${String(newest.hazard || 'SOS').toUpperCase()} from ${newest.driver_name}`,
+          {
+            duration: 10000,
+            action: {
+              label: 'View',
+              onClick: () => (window.location.href = '/ops/incidents'),
+            },
+          }
+        );
+        setUnreadIds((prev) => new Set(prev).add(newest.id));
+      }
     }
+
+    previousOpenIdsRef.current = currentOpenIds;
+    hasFetchedOnceRef.current = true;
+
+    setRecentSOS(enrichedEvents);
   }, [user]);
 
   const markAsRead = useCallback((sosId: string) => {
-    setUnreadIds(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(sosId);
-      return newSet;
+    setUnreadIds((prev) => {
+      const next = new Set(prev);
+      next.delete(sosId);
+      return next;
     });
   }, []);
 
@@ -196,7 +214,6 @@ export function useSOSNotifications(): UseSOSNotificationsReturn {
     checkAdmin();
     fetchSOSEvents();
 
-    // Subscribe to real-time updates
     const channel = supabase
       .channel('sos-notifications')
       .on(
@@ -212,7 +229,6 @@ export function useSOSNotifications(): UseSOSNotificationsReturn {
       )
       .subscribe();
 
-    // Refresh every 30 seconds
     const interval = setInterval(fetchSOSEvents, 30000);
 
     return () => {
@@ -221,7 +237,7 @@ export function useSOSNotifications(): UseSOSNotificationsReturn {
     };
   }, [checkAdmin, fetchSOSEvents]);
 
-  const openSOSCount = recentSOS.filter(e => e.status === 'open' || e.status === 'acknowledged').length;
+  const openSOSCount = recentSOS.filter((e) => e.status === 'open' || e.status === 'acknowledged').length;
 
   return {
     openSOSCount,

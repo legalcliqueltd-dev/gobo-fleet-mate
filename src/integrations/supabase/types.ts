@@ -458,6 +458,7 @@ export type Database = {
           admin_code: string | null
           created_at: string | null
           device_id: string | null
+          driver_id: string | null
           hazard: string | null
           id: string
           latitude: number | null
@@ -468,7 +469,7 @@ export type Database = {
           resolved_by: string | null
           resolved_note: string | null
           status: string | null
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           acknowledged_at?: string | null
@@ -476,6 +477,7 @@ export type Database = {
           admin_code?: string | null
           created_at?: string | null
           device_id?: string | null
+          driver_id?: string | null
           hazard?: string | null
           id?: string
           latitude?: number | null
@@ -486,7 +488,7 @@ export type Database = {
           resolved_by?: string | null
           resolved_note?: string | null
           status?: string | null
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           acknowledged_at?: string | null
@@ -494,6 +496,7 @@ export type Database = {
           admin_code?: string | null
           created_at?: string | null
           device_id?: string | null
+          driver_id?: string | null
           hazard?: string | null
           id?: string
           latitude?: number | null
@@ -504,7 +507,7 @@ export type Database = {
           resolved_by?: string | null
           resolved_note?: string | null
           status?: string | null
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {

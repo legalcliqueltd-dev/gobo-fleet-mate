@@ -140,6 +140,11 @@ export default function DriverAppCompleteTask() {
     }
   };
 
+  const handleAddFromDevice = () => {
+    // Use the system picker (supports photo and video); avoids iOS WebView capture quirks
+    fileInputRef.current?.click();
+  };
+
   const removeMedia = (index: number) => {
     setMediaFiles(prev => {
       URL.revokeObjectURL(prev[index].url);
@@ -314,25 +319,34 @@ export default function DriverAppCompleteTask() {
               ref={fileInputRef}
               type="file"
               accept="image/*,video/mp4,video/quicktime,video/webm"
-              capture="environment"
               multiple
               onChange={handleMediaCapture}
               className="hidden"
             />
             
-            <Button
-              variant="outline"
-              className="w-full h-24 border-dashed border-2"
-              onClick={handleNativeCameraCapture}
-            >
-              <div className="flex flex-col items-center gap-2">
-                <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                className="h-24 border-dashed border-2"
+                onClick={handleNativeCameraCapture}
+              >
+                <div className="flex flex-col items-center gap-2">
                   <Camera className="h-6 w-6 text-muted-foreground" />
-                  <Video className="h-6 w-6 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Take photo</span>
                 </div>
-                <span className="text-sm text-muted-foreground">Tap to capture photo or video</span>
-              </div>
-            </Button>
+              </Button>
+
+              <Button
+                variant="outline"
+                className="h-24 border-dashed border-2"
+                onClick={handleAddFromDevice}
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <Video className="h-6 w-6 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Add photo/video</span>
+                </div>
+              </Button>
+            </div>
 
             {/* Media Grid */}
             {mediaFiles.length > 0 && (
