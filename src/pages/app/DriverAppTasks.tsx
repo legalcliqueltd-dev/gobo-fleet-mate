@@ -4,8 +4,9 @@ import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Package, MapPin, Clock, CheckCircle2 } from 'lucide-react';
+import { Package, MapPin, Clock, CheckCircle2, Navigation } from 'lucide-react';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
+import TaskNavigationMap from '@/components/map/TaskNavigationMap';
 
 type Task = {
   id: string;
@@ -22,6 +23,7 @@ export default function DriverAppTasks() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [navigatingTask, setNavigatingTask] = useState<Task | null>(null);
 
   useEffect(() => {
     loadTasks();
@@ -76,6 +78,16 @@ export default function DriverAppTasks() {
 
   return (
     <DriverAppLayout>
+      {/* Navigation Map Overlay */}
+      {navigatingTask && navigatingTask.dropoff_lat && navigatingTask.dropoff_lng && (
+        <TaskNavigationMap
+          dropoffLat={navigatingTask.dropoff_lat}
+          dropoffLng={navigatingTask.dropoff_lng}
+          taskTitle={navigatingTask.title}
+          onClose={() => setNavigatingTask(null)}
+        />
+      )}
+
       <div className="p-4 space-y-6">
         <h1 className="text-2xl font-bold">My Tasks</h1>
 
@@ -133,12 +145,26 @@ export default function DriverAppTasks() {
                           </div>
                         </div>
                         
-                        <Button
-                          size="sm"
-                          onClick={() => navigate(`/app/tasks/${task.id}/complete`)}
-                        >
-                          Complete
-                        </Button>
+                        <div className="flex gap-2">
+                          {task.dropoff_lat && task.dropoff_lng && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setNavigatingTask(task);
+                              }}
+                            >
+                              <Navigation className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            onClick={() => navigate(`/app/tasks/${task.id}/complete`)}
+                          >
+                            Complete
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

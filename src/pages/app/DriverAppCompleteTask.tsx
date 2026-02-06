@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
-import { Camera, X, CheckCircle2, MapPin, Loader2, Video, FileWarning, Play } from 'lucide-react';
+import { Camera, X, CheckCircle2, MapPin, Loader2, Video, FileWarning, Play, Navigation } from 'lucide-react';
+import TaskNavigationMap from '@/components/map/TaskNavigationMap';
 import { toast } from 'sonner';
 import { isNativePlatform, capturePhotoAsFile } from '@/utils/nativeCamera';
 
@@ -41,6 +42,7 @@ export default function DriverAppCompleteTask() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [notes, setNotes] = useState('');
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [showNavigation, setShowNavigation] = useState(false);
 
   useEffect(() => {
     loadTask();
@@ -208,10 +210,7 @@ export default function DriverAppCompleteTask() {
   const handleSubmit = async () => {
     if (!task || !session) return;
 
-    if (mediaFiles.length === 0) {
-      toast.error('Please add at least one photo or video as proof');
-      return;
-    }
+    // Photos are now optional - no validation needed
 
     setSubmitting(true);
     setUploadProgress(0);
@@ -239,12 +238,12 @@ export default function DriverAppCompleteTask() {
         task_id: task.id,
         reporter_user_id: '00000000-0000-0000-0000-000000000000', // Placeholder for mobile drivers
         delivered: true,
-        photos: uploadedMediaUrls,
+        photos: uploadedMediaUrls.length > 0 ? uploadedMediaUrls : null,
         note: notes.trim() || null,
         latitude: currentLocation?.lat || null,
         longitude: currentLocation?.lng || null,
         distance_to_dropoff_m: distanceToDropoff,
-        verified_by: 'photo',
+        verified_by: uploadedMediaUrls.length > 0 ? 'photo' : (distanceToDropoff !== null && distanceToDropoff < 100 ? 'geofence' : 'none'),
       };
 
       await supabase.from('task_reports').insert(reportData);
@@ -285,6 +284,16 @@ export default function DriverAppCompleteTask() {
 
   return (
     <DriverAppLayout>
+      {/* Navigation Map Overlay */}
+      {showNavigation && task?.dropoff_lat && task?.dropoff_lng && (
+        <TaskNavigationMap
+          dropoffLat={task.dropoff_lat}
+          dropoffLng={task.dropoff_lng}
+          taskTitle={task.title}
+          onClose={() => setShowNavigation(false)}
+        />
+      )}
+
       <div className="p-4 space-y-4 pb-32">
         <Card className="border-primary/20">
           <CardHeader className="pb-2">
@@ -293,12 +302,23 @@ export default function DriverAppCompleteTask() {
               <p className="text-sm text-muted-foreground">{task.description}</p>
             )}
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             {distance !== null && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <MapPin className="h-4 w-4" />
                 <span>{distance < 1000 ? `${distance}m` : `${(distance / 1000).toFixed(1)}km`} from dropoff</span>
               </div>
+            )}
+            {task.dropoff_lat && task.dropoff_lng && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowNavigation(true)}
+                className="w-full"
+              >
+                <Navigation className="h-4 w-4 mr-2" />
+                View Route
+              </Button>
             )}
           </CardContent>
         </Card>
@@ -308,7 +328,8 @@ export default function DriverAppCompleteTask() {
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Camera className="h-5 w-5" />
-              Proof (Photos/Videos) *
+              Proof (Photos/Videos)
+              <span className="text-xs font-normal text-muted-foreground">(Optional)</span>
             </CardTitle>
             <p className="text-xs text-muted-foreground">
               Max 5MB per file • Photos and short videos accepted
@@ -449,7 +470,7 @@ export default function DriverAppCompleteTask() {
             <Button
               className="flex-1"
               onClick={handleSubmit}
-              disabled={submitting || mediaFiles.length === 0}
+              disabled={submitting}
             >
               {submitting ? (
                 <>
