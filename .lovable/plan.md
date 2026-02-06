@@ -1,99 +1,164 @@
 
-# Fix iOS Build Error: Missing Background Fetch Dependency
+# Implementation Plan: Task Addresses, SOS Notifications & Camera Access
 
-## Problem Summary
-The Xcode build fails with:
-```
-Undefined symbols for architecture arm64:
-  "_OBJC_CLASS_$_TSBackgroundFetch", referenced from: ...
-```
+## Overview
 
-This error occurs because `@transistorsoft/capacitor-background-geolocation` requires a peer dependency (`@transistorsoft/capacitor-background-fetch`) that is not in your `package.json`. Without this package, the iOS native linker cannot find the `TSBackgroundFetch` class.
-
-## Root Cause
-According to the official Transistorsoft documentation, **both packages must be installed together**:
-```bash
-npm install @transistorsoft/capacitor-background-geolocation --save
-npm install @transistorsoft/capacitor-background-fetch --save
-npx cap sync
-```
-
-Your `package.json` only has the first one.
+This plan addresses three key feature requests:
+1. **Task Location by Address**: Replace coordinate inputs with Google Places Autocomplete for address-based location selection
+2. **SOS Admin Notifications**: Fix the disconnect between driver SOS events and admin notifications
+3. **iOS Camera Access**: Add Capacitor Camera plugin for native camera access in the driver app
 
 ---
 
-## Solution
+## 1. Task Location by Address (Google Places Autocomplete)
 
-### Step 1: Add the Missing Dependency
-I will add `@transistorsoft/capacitor-background-fetch` version `^7.1.0` (compatible with Capacitor 7.x) to the project's `package.json`.
+### Current State
+- CreateTask page uses manual latitude/longitude coordinate inputs
+- Users can click on a map to set locations
+- No address search functionality exists
 
-### Step 2: You Rebuild Locally
-After I add the dependency, you'll need to:
+### Solution
+Replace the coordinate-based inputs with Google Places Autocomplete text inputs that:
+- Allow typing an address and auto-suggesting matching places
+- Automatically convert the selected address to lat/lng coordinates
+- Display a formatted address instead of coordinates
+- Update map markers when an address is selected
 
-1. **Pull the updated code**:
-   ```bash
-   git pull
-   ```
+### Technical Changes
 
-2. **Verify the dependency is present**:
-   ```bash
-   cat package.json | grep "capacitor-background-fetch"
-   ```
-   This should now output a line like:
-   ```
-   "@transistorsoft/capacitor-background-fetch": "^7.1.0"
-   ```
+**File: `src/pages/admin/CreateTask.tsx`**
+- Load the Google Maps `places` library alongside the maps library
+- Create a reusable `AddressInput` component using the Places Autocomplete Service
+- Replace the latitude/longitude input fields with address text inputs
+- Add state for pickup and dropoff addresses
+- Add geocoding to convert selected places to coordinates
+- Remove the "Click on Map" buttons (per user preference for address-only)
+- Keep markers on map to show selected locations visually
 
-3. **Install dependencies**:
-   ```bash
-   npm install
-   ```
+**Required Google Maps Library Update:**
+```typescript
+const { isLoaded } = useJsApiLoader({
+  id: 'google-map-script',
+  googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+  libraries: ['places'], // Add places library
+});
+```
 
-4. **Full iOS platform reset** (recommended for clean slate):
-   ```bash
-   rm -rf ios
-   npx cap add ios
-   ./scripts/ios-post-sync.sh
-   npx cap sync ios
-   ```
-
-5. **Open the correct Xcode file** (critical!):
-   ```bash
-   npx cap open ios
-   ```
-   This opens `ios/App/App.xcworkspace`. If you open `App.xcodeproj` instead, CocoaPods dependencies won't link and you'll get the same error.
-
-6. **Clean and rebuild in Xcode**:
-   - Press **⇧⌘K** (Shift+Command+K) to Clean Build Folder
-   - Press **⌘R** (Command+R) to Build and Run
+### Database Impact
+- No schema changes required
+- Tasks table already stores `pickup_lat`, `pickup_lng`, `dropoff_lat`, `dropoff_lng`
 
 ---
 
-## Technical Details
+## 2. SOS Admin Notifications Fix
 
-### Files Changed
+### Current State
+- Driver app (`DriverAppSOS.tsx`) creates SOS events with `user_id` set to `session?.driverId` (a text string like "john_driver")
+- Admin notification hook (`useSOSNotifications.ts`) looks up driver info from `profiles` table using `user_id` as a UUID
+- The mismatch causes "Unknown Driver" to appear and potentially missing events
 
+### Root Cause
+The mobile driver system uses text-based `driver_id` (from the `drivers` table), but the SOS notification system expects UUID-based `user_id` (from the `profiles` table).
+
+### Solution
+Update the notification system to properly fetch driver information from the `drivers` table when the `user_id` is a text-based driver ID.
+
+### Technical Changes
+
+**File: `src/hooks/useSOSNotifications.ts`**
+- Update `fetchSOSEvents` to first try looking up driver info from the `drivers` table
+- Fall back to `profiles` table for authenticated users
+- Add proper type handling for text-based driver IDs
+
+**File: `src/pages/ops/Incidents.tsx`**
+- Similar update to the `loadEvents` function
+- Ensure driver names are properly resolved from the `drivers` table
+
+### The lookup logic should be:
 ```text
-package.json
-  └── Add "@transistorsoft/capacitor-background-fetch": "^7.1.0"
+1. First check if event.user_id matches a driver_id in drivers table
+2. If found, use driver_name from drivers table
+3. If not found, check profiles table (for authenticated users)
+4. Display admin_code alongside driver name for identification
 ```
-
-### Why This Fixes It
-The `capacitor-background-fetch` package provides the native iOS framework containing `TSBackgroundFetch.h` and its implementation. When CocoaPods runs during `npx cap sync ios`, it installs this framework into the Xcode workspace. Without the npm package, CocoaPods doesn't know to fetch it, so the linker fails.
-
-### Version Compatibility
-- `capacitor-background-geolocation@8.0.1` requires Capacitor 5+
-- `capacitor-background-fetch@7.1.0` is compatible with Capacitor 5-7
-- Your project uses Capacitor 7.4.x - compatible with both
 
 ---
 
-## Verification Checklist
+## 3. iOS Camera Access (Capacitor Camera Plugin)
 
-After completing the rebuild:
+### Current State
+- Driver SOS page uses HTML `<input type="file" capture="environment">` for camera access
+- This causes the app to crash/exit on iOS when tapping the camera button
+- No Capacitor Camera plugin is installed
 
-1. Xcode build completes without "TSBackgroundFetch" errors
-2. App launches on iOS simulator or device
-3. Location permission prompt appears when opening the driver app
-4. After granting permission, the blue location indicator bar appears in iOS status bar
-5. Driver appears on the admin dashboard map with live location updates
+### Root Cause
+The HTML file input with `capture` attribute doesn't work reliably in Capacitor WebView on iOS. Native camera access requires the Capacitor Camera plugin.
+
+### Solution
+Install and integrate the Capacitor Camera plugin for native camera access with proper platform detection.
+
+### Technical Changes
+
+**Package Installation:**
+- Add `@capacitor/camera` dependency
+
+**File: `src/pages/Driver.tsx`** (web SOS page)
+- Add platform detection using Capacitor
+- Use native camera API on iOS/Android
+- Fall back to HTML file input on web
+
+**File: `src/pages/app/DriverAppCompleteTask.tsx`** (driver app task completion)
+- Same camera integration pattern
+- Use Capacitor Camera for photo/video capture on native platforms
+
+**New Utility File: `src/utils/nativeCamera.ts`**
+- Create a wrapper function for camera access that handles both platforms
+- Encapsulate platform detection logic
+- Provide consistent API for image capture
+
+**iOS Configuration Updates (post-sync):**
+Update `scripts/ios-post-sync.sh` to include:
+- `NSCameraUsageDescription` - Required iOS permission string
+- `NSPhotoLibraryUsageDescription` - For gallery access
+- `NSPhotoLibraryAddUsageDescription` - For saving photos
+
+### Rebuild Requirements
+After these changes, you'll need to:
+1. Export to GitHub
+2. `git pull && npm install`
+3. `rm -rf ios && npx cap add ios && ./scripts/ios-post-sync.sh && npx cap sync ios`
+4. `npx cap open ios` → Clean Build (⇧⌘K) → Run (⌘R)
+
+---
+
+## Implementation Order
+
+1. **SOS Notifications Fix** - Highest priority (core functionality broken)
+2. **Task Address Input** - UX improvement
+3. **Camera Access** - Requires iOS rebuild
+
+---
+
+## Files to Create/Modify
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/hooks/useSOSNotifications.ts` | Modify | Fix driver lookup logic |
+| `src/pages/ops/Incidents.tsx` | Modify | Fix driver lookup logic |
+| `src/pages/admin/CreateTask.tsx` | Modify | Add Places Autocomplete for addresses |
+| `src/components/AddressAutocomplete.tsx` | Create | Reusable address input component |
+| `src/utils/nativeCamera.ts` | Create | Camera utility with platform detection |
+| `src/pages/Driver.tsx` | Modify | Integrate native camera |
+| `src/pages/app/DriverAppCompleteTask.tsx` | Modify | Integrate native camera |
+| `scripts/ios-post-sync.sh` | Modify | Add camera permission strings |
+| `package.json` | Modify | Add @capacitor/camera dependency |
+
+---
+
+## Testing Checklist
+
+After implementation:
+- [ ] Create a task using address search → verify lat/lng stored correctly
+- [ ] Trigger SOS from driver app → verify admin sees driver name and notification
+- [ ] Test camera button on iOS simulator/device → verify app doesn't crash
+- [ ] Upload photo during SOS → verify photo appears in admin incident view
