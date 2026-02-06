@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.create-paystack-checkout]
 verify_jwt = false
+
+[functions.sos-create]
+verify_jwt = false
