@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
+import { useAdminTaskNotifications } from '@/hooks/useAdminTaskNotifications';
 
 type Task = {
   id: string;
@@ -44,6 +45,9 @@ export default function TaskList() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+  // Subscribe to task completion alerts
+  useAdminTaskNotifications();
 
   useEffect(() => {
     loadTasks();
