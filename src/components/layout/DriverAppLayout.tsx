@@ -35,8 +35,8 @@ export default function DriverAppLayout({ children }: PropsWithChildren) {
         {children}
       </main>
 
-      {/* Bottom Navigation */}
-      <nav className="sticky bottom-0 z-30 bg-background/95 backdrop-blur border-t border-border safe-area-pb">
+      {/* Bottom Navigation - with safe area inset for iOS */}
+      <nav className="sticky bottom-0 z-30 bg-background/95 backdrop-blur border-t border-border" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex items-center justify-around py-2 px-4">
           {baseNavItems.map((item) => {
             const Icon = item.icon;

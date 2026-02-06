@@ -149,28 +149,27 @@ export default function DriverAppSOS() {
       };
       setCurrentLocation(location);
 
-      // Code-based driver SOS: user_id must be NULL; identity lives in driver_id.
-      const { data, error } = await supabase
-        .from('sos_events')
-        .insert(({
-          user_id: null,
-          driver_id: session.driverId,
-          admin_code: session.adminCode,
+      // Use edge function to bypass RLS for code-based drivers
+      const { data, error } = await supabase.functions.invoke('sos-create', {
+        body: {
+          driverId: session.driverId,
+          adminCode: session.adminCode,
           latitude: location.lat,
           longitude: location.lng,
           message: message || 'Emergency SOS triggered',
-          status: 'open',
           hazard: hazard,
-        } as any))
-        .select()
-        .single();
+        },
+      });
 
       if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Failed to create SOS');
 
-      if (photoFile && data) {
-        const photoUrl = await uploadPhoto(data.id);
+      // Upload photo if provided
+      if (photoFile && data.sosId) {
+        const photoUrl = await uploadPhoto(data.sosId);
         if (photoUrl) {
-          await supabase.from('sos_events').update({ photo_url: photoUrl }).eq('id', data.id);
+          // Update SOS with photo URL via edge function or direct update
+          await supabase.from('sos_events').update({ photo_url: photoUrl }).eq('id', data.sosId);
         }
       }
 

@@ -4,11 +4,16 @@ import { toast } from 'sonner';
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
 
+// Accuracy threshold in meters - only accept high-precision locations
+const ACCURACY_THRESHOLD_M = 30;
+
 export interface LocationTrackingOptions {
   updateIntervalMs?: number;
   enableHighAccuracy?: boolean;
   maximumAge?: number;
   batterySavingMode?: boolean;
+  driverId?: string;
+  adminCode?: string;
 }
 
 export const useBackgroundLocationTracking = (
@@ -20,16 +25,26 @@ export const useBackgroundLocationTracking = (
     enableHighAccuracy = true,
     maximumAge = 5000,
     batterySavingMode = false,
+    driverId,
+    adminCode,
   } = options;
 
   const [isTracking, setIsTracking] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [batteryLevel, setBatteryLevel] = useState<number>(100);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
   // Union type to handle both Capacitor (string) and browser (number) watch IDs
   const watchIdRef = useRef<string | number | null>(null);
-  const deviceIdRef = useRef<string | null>(null);
   const lastSentRef = useRef<number>(0);
   const batteryCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const driverIdRef = useRef<string | undefined>(driverId);
+  const adminCodeRef = useRef<string | undefined>(adminCode);
+
+  // Update refs when props change
+  useEffect(() => {
+    driverIdRef.current = driverId;
+    adminCodeRef.current = adminCode;
+  }, [driverId, adminCode]);
 
   useEffect(() => {
     if (!enabled) {
@@ -46,59 +61,43 @@ export const useBackgroundLocationTracking = (
     };
   }, [enabled, updateIntervalMs, enableHighAccuracy, batterySavingMode]);
 
-  const getOrCreateDevice = async (): Promise<string | null> => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error('Please log in first');
-        return null;
-      }
-
-      // ONLY check for device connected to this driver (no fallback!)
-      const { data: connectedDevice, error: connectedError } = await supabase
-        .from('devices')
-        .select('id')
-        .eq('connected_driver_id', user.id)
-        .maybeSingle();
-
-      if (connectedError) throw connectedError;
-
-      if (connectedDevice) {
-        return connectedDevice.id;
-      }
-
-      // No connected device found - driver must connect first
-      toast.error('No connected device. Please connect using a connection code first.');
-      return null;
-    } catch (error) {
-      console.error('Error getting device:', error);
-      toast.error('Failed to get connected device');
-      return null;
-    }
-  };
-
   const sendLocationUpdate = async (
     latitude: number,
     longitude: number,
-    speed: number | null
+    speed: number | null,
+    accuracyM: number
   ) => {
-    if (!deviceIdRef.current) {
-      deviceIdRef.current = await getOrCreateDevice();
-      if (!deviceIdRef.current) return;
+    const currentDriverId = driverIdRef.current;
+    
+    if (!currentDriverId) {
+      console.log('No driver ID available for location update');
+      return;
     }
 
     try {
-      const { error } = await supabase.from('locations').insert({
-        device_id: deviceIdRef.current,
-        latitude,
-        longitude,
-        speed: speed || 0,
-        timestamp: new Date().toISOString(),
+      // Use connect-driver edge function for location updates (correct approach)
+      const { data, error } = await supabase.functions.invoke('connect-driver', {
+        body: {
+          action: 'update-location',
+          driverId: currentDriverId,
+          latitude,
+          longitude,
+          speed: speed || 0,
+          accuracy: accuracyM,
+          batteryLevel,
+        },
       });
 
       if (error) throw error;
+      
+      // Check if driver needs to re-login
+      if (data?.requiresRelogin) {
+        toast.error('Session expired. Please reconnect.');
+        return;
+      }
 
       setLastUpdate(new Date());
+      setAccuracy(accuracyM);
       lastSentRef.current = Date.now();
     } catch (error) {
       console.error('Error sending location update:', error);
@@ -114,7 +113,12 @@ export const useBackgroundLocationTracking = (
     return updateIntervalMs;
   };
 
-  const handlePositionUpdate = (latitude: number, longitude: number, speed: number | null) => {
+  const handlePositionUpdate = (
+    latitude: number, 
+    longitude: number, 
+    speed: number | null,
+    accuracyM: number
+  ) => {
     const now = Date.now();
     const effectiveInterval = getEffectiveInterval();
     
@@ -123,8 +127,14 @@ export const useBackgroundLocationTracking = (
       return;
     }
 
+    // Filter out low-accuracy positions (> 30m threshold)
+    if (accuracyM > ACCURACY_THRESHOLD_M) {
+      console.log(`Skipping low-accuracy position: ${accuracyM}m (threshold: ${ACCURACY_THRESHOLD_M}m)`);
+      return;
+    }
+
     const speedKmh = speed !== null ? speed * 3.6 : null; // Convert m/s to km/h
-    sendLocationUpdate(latitude, longitude, speedKmh);
+    sendLocationUpdate(latitude, longitude, speedKmh, accuracyM);
   };
 
   const startBatteryMonitoring = async () => {
@@ -190,7 +200,8 @@ export const useBackgroundLocationTracking = (
               handlePositionUpdate(
                 position.coords.latitude,
                 position.coords.longitude,
-                position.coords.speed
+                position.coords.speed,
+                position.coords.accuracy || 0
               );
             }
           }
@@ -209,16 +220,13 @@ export const useBackgroundLocationTracking = (
         // Check/request permission via getCurrentPosition (triggers browser prompt)
         const watchId = navigator.geolocation.watchPosition(
           (position) => {
-            // Only process if accuracy is acceptable (< 100m per memory constraint)
-            if (position.coords.accuracy <= 100) {
-              handlePositionUpdate(
-                position.coords.latitude,
-                position.coords.longitude,
-                position.coords.speed
-              );
-            } else {
-              console.log('Skipping low-accuracy position:', position.coords.accuracy, 'm');
-            }
+            // Process with accuracy value for filtering
+            handlePositionUpdate(
+              position.coords.latitude,
+              position.coords.longitude,
+              position.coords.speed,
+              position.coords.accuracy
+            );
           },
           (error) => {
             console.error('Location tracking error:', error);
@@ -272,6 +280,7 @@ export const useBackgroundLocationTracking = (
     isTracking,
     lastUpdate,
     batteryLevel,
+    accuracy,
     startTracking,
     stopTracking,
   };
