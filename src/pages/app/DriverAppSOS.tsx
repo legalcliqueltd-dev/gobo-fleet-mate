@@ -2,22 +2,31 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertTriangle, Phone, MessageSquare } from 'lucide-react';
+import { AlertTriangle, Phone, MessageSquare, Camera, X, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
+import { isNativePlatform, capturePhotoAsFile } from '@/utils/nativeCamera';
+
+type Hazard = 'accident' | 'medical' | 'robbery' | 'breakdown' | 'other';
 
 export default function DriverAppSOS() {
   const { session } = useDriverSession();
   const navigate = useNavigate();
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState('');
+  const [hazard, setHazard] = useState<Hazard>('other');
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [sosActive, setSosActive] = useState(false);
   const [sosHolding, setSosHolding] = useState(false);
   const [countdown, setCountdown] = useState(3);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const countdownRef = useRef<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleSOSPress = () => {
     setSosHolding(true);
@@ -41,6 +50,98 @@ export default function DriverAppSOS() {
     setCountdown(3);
   };
 
+  const processPhotoFile = (file: File) => {
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Photo must be less than 5MB');
+      return;
+    }
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processPhotoFile(file);
+    }
+  };
+
+  const handleCameraCapture = async () => {
+    if (isNativePlatform()) {
+      try {
+        const file = await capturePhotoAsFile('camera');
+        if (file) {
+          processPhotoFile(file);
+        }
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to capture photo');
+      }
+    } else {
+      // Fallback to HTML input for web
+      cameraInputRef.current?.click();
+    }
+  };
+
+  const handleGallerySelect = async () => {
+    if (isNativePlatform()) {
+      try {
+        const file = await capturePhotoAsFile('gallery');
+        if (file) {
+          processPhotoFile(file);
+        }
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to select photo');
+      }
+    } else {
+      // Fallback to HTML input for web
+      fileInputRef.current?.click();
+    }
+  };
+
+  const removePhoto = () => {
+    setPhotoFile(null);
+    if (photoPreview) {
+      URL.revokeObjectURL(photoPreview);
+    }
+    setPhotoPreview(null);
+  };
+
+  const uploadPhoto = async (sosId: string): Promise<string | null> => {
+    if (!photoFile || !session?.driverId) return null;
+    
+    setUploadingPhoto(true);
+    try {
+      const fileExt = photoFile.name.split('.').pop() || 'jpg';
+      const fileName = `${session.driverId}/${sosId}/${Date.now()}.${fileExt}`;
+      
+      const { data, error } = await supabase.storage
+        .from('sos-evidence')
+        .upload(fileName, photoFile, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (error) {
+        console.error('Photo upload error:', error);
+        toast.error('Failed to upload photo');
+        return null;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('sos-evidence')
+        .getPublicUrl(fileName);
+
+      return urlData.publicUrl;
+    } catch (err: any) {
+      console.error('Photo upload exception:', err);
+      return null;
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const triggerSOS = async () => {
     setSosHolding(false);
     setSending(true);
@@ -61,17 +162,28 @@ export default function DriverAppSOS() {
       setCurrentLocation(location);
 
       // Create SOS event with driver_id AND admin_code for proper routing
-      const { error } = await supabase.from('sos_events').insert({
+      const { data, error } = await supabase.from('sos_events').insert({
         user_id: session?.driverId, // Use driver_id for code-based drivers
         admin_code: session?.adminCode, // Link to the driver's admin for filtering
         latitude: location.lat,
         longitude: location.lng,
         message: message || 'Emergency SOS triggered',
         status: 'open',
-        hazard: 'other', // Default hazard type
-      });
+        hazard: hazard,
+      }).select().single();
 
       if (error) throw error;
+
+      // Upload photo if present
+      if (photoFile && data) {
+        const photoUrl = await uploadPhoto(data.id);
+        if (photoUrl) {
+          await supabase
+            .from('sos_events')
+            .update({ photo_url: photoUrl })
+            .eq('id', data.id);
+        }
+      }
 
       setSosActive(true);
       toast.success('SOS alert sent! Help is on the way.');
@@ -86,6 +198,8 @@ export default function DriverAppSOS() {
   const cancelSOS = async () => {
     setSosActive(false);
     setMessage('');
+    setHazard('other');
+    removePhoto();
     toast.info('SOS cancelled');
   };
 
@@ -137,7 +251,7 @@ export default function DriverAppSOS() {
   return (
     <DriverAppLayout>
       <div className="p-4 h-full flex flex-col">
-        <h1 className="text-2xl font-bold mb-6 text-center">Emergency SOS</h1>
+        <h1 className="text-2xl font-bold mb-4 text-center">Emergency SOS</h1>
 
         {/* SOS Button */}
         <div className="flex-1 flex flex-col items-center justify-center">
@@ -170,8 +284,87 @@ export default function DriverAppSOS() {
           </p>
         </div>
 
+        {/* Hazard Type Selection */}
+        <div className="space-y-3 mt-4">
+          <label className="block text-sm font-medium">Hazard Type</label>
+          <div className="grid grid-cols-3 gap-2">
+            {(['accident', 'medical', 'robbery', 'breakdown', 'other'] as Hazard[]).map((h) => (
+              <button
+                key={h}
+                onClick={() => setHazard(h)}
+                className={`px-2 py-2 rounded-lg border text-xs font-medium transition ${
+                  hazard === h
+                    ? 'border-red-500 bg-red-500/10 text-red-600 dark:text-red-400'
+                    : 'border-border hover:border-red-500/50'
+                }`}
+              >
+                {h.charAt(0).toUpperCase() + h.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Photo Evidence */}
+        <div className="space-y-3 mt-4">
+          <label className="block text-sm font-medium">Photo Evidence (Optional)</label>
+          {photoPreview ? (
+            <div className="relative">
+              <img
+                src={photoPreview}
+                alt="Preview"
+                className="w-full max-h-32 object-cover rounded-lg"
+              />
+              <button
+                onClick={removePhoto}
+                className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={handleCameraCapture}
+              >
+                <Camera className="h-4 w-4 mr-2" />
+                Camera
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={handleGallerySelect}
+              >
+                <Image className="h-4 w-4 mr-2" />
+                Gallery
+              </Button>
+            </div>
+          )}
+          {/* Hidden inputs for web fallback */}
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handlePhotoChange}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handlePhotoChange}
+          />
+        </div>
+
         {/* Optional Message */}
-        <div className="space-y-3 mt-6">
+        <div className="space-y-3 mt-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <MessageSquare className="h-4 w-4" />
             <span>Add a message (optional)</span>
@@ -186,7 +379,7 @@ export default function DriverAppSOS() {
         </div>
 
         {/* Quick Actions */}
-        <div className="mt-6 space-y-2">
+        <div className="mt-4 space-y-2">
           <Button variant="outline" className="w-full gap-2" asChild>
             <a href="tel:112">
               <Phone className="h-4 w-4" />

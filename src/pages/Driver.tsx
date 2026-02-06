@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '../contexts/AuthContext';
-import { AlertTriangle, Camera, MapPin, X, Upload, Image } from 'lucide-react';
+import { AlertTriangle, Camera, MapPin, X, Image } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Textarea } from '../components/ui/textarea';
 import { toast } from 'sonner';
+import { isNativePlatform, capturePhotoAsFile } from '@/utils/nativeCamera';
 
 type Hazard = 'accident' | 'medical' | 'robbery' | 'breakdown' | 'other';
 
@@ -114,13 +115,49 @@ export default function Driver() {
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Check file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Photo must be less than 5MB');
-        return;
+      processPhotoFile(file);
+    }
+  };
+
+  const processPhotoFile = (file: File) => {
+    // Check file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Photo must be less than 5MB');
+      return;
+    }
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const handleCameraCapture = async () => {
+    if (isNativePlatform()) {
+      try {
+        const file = await capturePhotoAsFile('camera');
+        if (file) {
+          processPhotoFile(file);
+        }
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to capture photo');
       }
-      setPhotoFile(file);
-      setPhotoPreview(URL.createObjectURL(file));
+    } else {
+      // Fallback to HTML input for web
+      cameraInputRef.current?.click();
+    }
+  };
+
+  const handleGallerySelect = async () => {
+    if (isNativePlatform()) {
+      try {
+        const file = await capturePhotoAsFile('gallery');
+        if (file) {
+          processPhotoFile(file);
+        }
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to select photo');
+      }
+    } else {
+      // Fallback to HTML input for web
+      fileInputRef.current?.click();
     }
   };
 
@@ -379,7 +416,7 @@ export default function Driver() {
                   type="button"
                   variant="outline"
                   className="flex-1"
-                  onClick={() => cameraInputRef.current?.click()}
+                  onClick={handleCameraCapture}
                 >
                   <Camera className="h-4 w-4 mr-2" />
                   Camera
@@ -388,13 +425,14 @@ export default function Driver() {
                   type="button"
                   variant="outline"
                   className="flex-1"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={handleGallerySelect}
                 >
                   <Image className="h-4 w-4 mr-2" />
                   Gallery
                 </Button>
               </div>
             )}
+            {/* Hidden inputs for web fallback */}
             <input
               ref={cameraInputRef}
               type="file"

@@ -25,6 +25,12 @@ else
 <string>FleetTrackMate needs continuous location access to track your position even when the app is in the background.</string>\
 <key>NSMotionUsageDescription</key>\
 <string>FleetTrackMate uses motion data to optimize battery usage during location tracking.</string>\
+<key>NSCameraUsageDescription</key>\
+<string>FleetTrackMate needs camera access to capture photos for emergency reports and delivery proof.</string>\
+<key>NSPhotoLibraryUsageDescription</key>\
+<string>FleetTrackMate needs photo library access to select photos for emergency reports and delivery proof.</string>\
+<key>NSPhotoLibraryAddUsageDescription</key>\
+<string>FleetTrackMate needs permission to save captured photos to your library.</string>\
 <key>UIBackgroundModes</key>\
 <array>\
 <string>location</string>\

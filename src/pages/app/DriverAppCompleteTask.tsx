@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import { Camera, X, CheckCircle2, MapPin, Loader2, Video, FileWarning, Play } from 'lucide-react';
 import { toast } from 'sonner';
+import { isNativePlatform, capturePhotoAsFile } from '@/utils/nativeCamera';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -86,9 +87,18 @@ export default function DriverAppCompleteTask() {
     const files = e.target.files;
     if (!files) return;
 
+    processFiles(Array.from(files));
+    
+    // Reset the input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const processFiles = (files: File[]) => {
     const newFiles: MediaFile[] = [];
     
-    Array.from(files).forEach(file => {
+    files.forEach(file => {
       // Check file size
       if (file.size > MAX_FILE_SIZE) {
         toast.error(`${file.name} is too large. Maximum 5MB allowed.`);
@@ -112,10 +122,21 @@ export default function DriverAppCompleteTask() {
     });
 
     setMediaFiles(prev => [...prev, ...newFiles]);
-    
-    // Reset the input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+  };
+
+  const handleNativeCameraCapture = async () => {
+    if (isNativePlatform()) {
+      try {
+        const file = await capturePhotoAsFile('camera');
+        if (file) {
+          processFiles([file]);
+        }
+      } catch (error: any) {
+        toast.error(error.message || 'Failed to capture photo');
+      }
+    } else {
+      // Fallback to HTML input for web
+      fileInputRef.current?.click();
     }
   };
 
@@ -302,7 +323,7 @@ export default function DriverAppCompleteTask() {
             <Button
               variant="outline"
               className="w-full h-24 border-dashed border-2"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={handleNativeCameraCapture}
             >
               <div className="flex flex-col items-center gap-2">
                 <div className="flex gap-2">
