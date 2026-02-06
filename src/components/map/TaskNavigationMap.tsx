@@ -23,6 +23,7 @@ export default function TaskNavigationMap({
   onClose,
 }: TaskNavigationMapProps) {
   const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
   });
 
