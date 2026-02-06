@@ -1,192 +1,160 @@
 
-# Comprehensive Codebase Audit & Improvement Plan
+# Comprehensive Fix: Location Tracking, UI Improvements & Backend Fixes
 
-## Executive Summary
+## Critical Issues Found
 
-After a thorough analysis of the backend, driver app, admin dashboard, and SOS system, I've identified **5 critical issues** and **several UI/UX improvements** needed:
+### Issue #1: Location Not Recording (Root Cause Identified!)
 
----
+**Problem**: The `useBackgroundLocationTracking` hook is NOT receiving the `driverId` parameter.
 
-## 🚨 Critical Issue #1: SOS Insert Blocked by RLS Policy
+**Evidence**:
+| Table | John's `updated_at` | Status |
+|-------|---------------------|--------|
+| `drivers.last_seen_at` | Today (Feb 6, 2026) | ✅ Working |
+| `driver_locations.updated_at` | Dec 1, 2025 | ❌ Broken - 2 months stale |
 
-### The Problem
-Database logs show repeated RLS violations:
-```
-new row violates row-level security policy for table "sos_events"
-```
-
-The current RLS policy for inserting SOS events requires **either**:
-- An authenticated user (`auth.uid() IS NOT NULL`) with matching `user_id`, **OR**
-- A code-based driver with `auth.uid() IS NULL`
-
-However, **code-based drivers using the driver app ARE authenticated via the anon key**, meaning `auth.uid()` returns a value (the anon key's session), causing the insert to fail.
-
-### The Solution
-Create a new edge function `sos-create` that uses the service role to bypass RLS, similar to `connect-driver`. This allows code-based drivers to create SOS events without RLS conflicts.
-
-### Files to Create/Modify
-1. **Create**: `supabase/functions/sos-create/index.ts` - New edge function for SOS creation
-2. **Modify**: `supabase/config.toml` - Add `[functions.sos-create]` with `verify_jwt = false`
-3. **Modify**: `src/pages/app/DriverAppSOS.tsx` - Call edge function instead of direct insert
-
----
-
-## 🚨 Critical Issue #2: Location Accuracy on Admin Map
-
-### The Problem
-The driver location data shows accuracy of **50m** which is above the 30m threshold required for high-precision tracking. Additionally, the last location update was from **December 2025** (2 months old), indicating location syncing is not working correctly.
-
-Looking at `driver_locations` table:
-- Driver "John" has accuracy: 50m (above 30m threshold)  
-- Location updated: December 1, 2025 (very stale)
-- Most drivers have `NULL` location data
-
-### The Solution
-1. The iOS background tracking hook already enforces 30m accuracy filtering
-2. Need to ensure the web/Android tracking also enforces the 30m threshold
-3. Add stale location warnings on the admin map
-
-### Files to Modify
-1. **Modify**: `src/hooks/useBackgroundLocationTracking.ts` - Enforce 30m accuracy filter
-2. **Modify**: `src/components/map/LiveDriverMap.tsx` - Add stale data indicators
-
----
-
-## 🚨 Critical Issue #3: iOS Zoom/Pinch Prevention
-
-### The Problem
-The `index.html` viewport meta tag doesn't allow users to zoom back out after the UI expands on screen rotation:
-```html
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-```
-
-### The Solution
-Update the viewport meta tag to allow user scaling:
-```html
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
-```
-
-### Files to Modify
-1. **Modify**: `index.html` - Update viewport meta tag
-
----
-
-## 🚨 Critical Issue #4: SOS-Dispatch Not Triggered
-
-### The Problem
-The `sos-dispatch` edge function exists but:
-1. It's designed to be triggered by a database webhook that doesn't appear to be configured
-2. It's not being called when SOS events are created (because SOS events aren't being created - see Issue #1)
-3. Even if called, it only logs notifications rather than sending them
-
-### The Solution
-1. After fixing SOS creation (Issue #1), have the `sos-create` function call `sos-dispatch` or inline the notification logic
-2. For admin notifications, use the existing Supabase Realtime subscription with audio alerts (already implemented in `useSOSNotifications.ts`)
-
-### Files to Modify
-1. **Modify**: `supabase/functions/sos-create/index.ts` - Trigger dispatch after creation
-
----
-
-## 🚨 Critical Issue #5: Driver Location Not Syncing to Admin Map
-
-### The Problem
-The `useBackgroundLocationTracking.ts` hook sends locations to the legacy `locations` table instead of `driver_locations` table. This is why drivers don't appear on the admin map.
-
-Looking at the code:
+**Root Cause** (in `DriverAppDashboard.tsx` line 84-88):
 ```typescript
-// Current - writes to wrong table!
-await supabase.from('locations').insert({...})
+// CURRENT - BROKEN: driverId is NOT passed!
+const { isTracking, batteryLevel, lastUpdate } = useBackgroundLocationTracking(
+  onDuty && locationPermissionGranted, 
+  {
+    updateIntervalMs: 30000,
+    batterySavingMode: localStorage.getItem('batterySavingMode') === 'true',
+    enableHighAccuracy: localStorage.getItem('highAccuracyMode') !== 'false',
+    // ❌ MISSING: driverId: session?.driverId
+  }
+);
 ```
 
-But the `useIOSBackgroundTracking.ts` correctly uses:
+**Why it fails**: Inside the hook, `sendLocationUpdate()` checks `driverIdRef.current` and silently returns if it's undefined:
 ```typescript
-// Correct - uses edge function
-await supabase.functions.invoke('connect-driver', { body: { action: 'update-location', ... }})
+if (!currentDriverId) {
+  console.log('No driver ID available for location update');
+  return; // ← All location updates are skipped!
+}
 ```
 
-### The Solution
-Update `useBackgroundLocationTracking.ts` to use the `connect-driver` edge function with `action: 'update-location'` like the iOS hook does.
-
-### Files to Modify
-1. **Modify**: `src/hooks/useBackgroundLocationTracking.ts` - Use edge function for location updates
+**Fix**: Pass the `driverId` from the session context.
 
 ---
 
-## UI/UX Improvements
+### Issue #2: Driver App UI - Missing Back/Exit Buttons
 
-### Driver App Enhancements
-| Improvement | Description |
-|-------------|-------------|
-| GPS accuracy indicator | Already implemented ✅ |
-| Battery saving mode | Already implemented ✅ |
-| Trail visualization | Already implemented ✅ |
-| Safe area padding | Add safe-area-inset-bottom to nav |
+**Problem**: Pages like Tasks, SOS, and Settings lack a visible back button at the top.
 
-### Admin Dashboard Enhancements
-| Improvement | Description |
-|-------------|-------------|
-| Stale location warning | Add visual indicator when location data is old |
-| Driver count badge | Already implemented ✅ |
-| Connection status | Already implemented ✅ |
+**Solution**: Add a global back button in the header that shows contextually based on current route.
+
+---
+
+### Issue #3: Admin Map - Drivers Without Location Data
+
+**Problem**: Only John has a record in `driver_locations` table. Other connected drivers (Duye, James, etc.) show in the list but have no location data.
+
+**Solution**: 
+1. Add "No location data" indicator in DriversList
+2. Add stale data warnings (> 5 minutes old)
+3. Fix the tracking so new location data flows correctly
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Fix SOS System (Critical)
-```
-1. supabase/functions/sos-create/index.ts     [NEW]
-2. supabase/config.toml                        [ADD sos-create entry]
-3. src/pages/app/DriverAppSOS.tsx              [MODIFY - use edge function]
-```
+### Phase 1: Fix Location Tracking (Critical)
 
-### Phase 2: Fix Location Tracking
-```
-4. src/hooks/useBackgroundLocationTracking.ts  [MODIFY - use connect-driver edge function]
-5. index.html                                  [MODIFY - viewport zoom fix]
-```
+**File: `src/pages/app/DriverAppDashboard.tsx`**
 
-### Phase 3: UI Polish
-```
-6. src/components/layout/DriverAppLayout.tsx   [MODIFY - add safe area bottom]
+Add `driverId` to the tracking hook options:
+
+```typescript
+const { session } = useDriverSession(); // Already present at line 36
+
+const { isTracking, batteryLevel, lastUpdate } = useBackgroundLocationTracking(
+  onDuty && locationPermissionGranted, 
+  {
+    updateIntervalMs: 30000,
+    batterySavingMode: localStorage.getItem('batterySavingMode') === 'true',
+    enableHighAccuracy: localStorage.getItem('highAccuracyMode') !== 'false',
+    driverId: session?.driverId,  // ← ADD THIS
+    adminCode: session?.adminCode, // ← ADD THIS
+  }
+);
 ```
 
 ---
 
-## Technical Changes Summary
+### Phase 2: Driver App UI - Add Back Button
 
-### New Files
-| File | Purpose |
-|------|---------|
-| `supabase/functions/sos-create/index.ts` | Edge function to create SOS events using service role |
+**File: `src/components/layout/DriverAppLayout.tsx`**
 
-### Modified Files
-| File | Changes |
-|------|---------|
-| `supabase/config.toml` | Add sos-create function config |
-| `src/pages/app/DriverAppSOS.tsx` | Call sos-create edge function |
-| `src/hooks/useBackgroundLocationTracking.ts` | Use connect-driver edge function, enforce 30m accuracy |
-| `index.html` | Add user-scalable viewport settings |
-| `src/components/layout/DriverAppLayout.tsx` | Add safe-area-inset-bottom padding |
+Add imports and back button logic:
+
+```typescript
+import { ArrowLeft, Home, ClipboardList, AlertTriangle, Settings } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+
+// In component:
+const navigate = useNavigate();
+const isHomePage = location.pathname === '/app' || location.pathname === '/app/dashboard';
+
+// In header:
+<header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+  <div className="px-4 py-3 flex items-center">
+    {!isHomePage && (
+      <button 
+        onClick={() => navigate(-1)}
+        className="mr-3 p-1.5 rounded-lg hover:bg-muted transition-colors"
+      >
+        <ArrowLeft className="h-5 w-5" />
+      </button>
+    )}
+    <Link to="/app" className="flex items-center gap-2 flex-1 justify-center">
+      <img src={logo} alt="FleetTrackMate" className="h-8 w-8 rounded-lg" />
+      <span className="font-heading font-semibold text-lg">Driver</span>
+    </Link>
+    {!isHomePage && <div className="w-8" />} {/* Spacer for centering */}
+  </div>
+</header>
+```
 
 ---
 
-## Database Status Summary
+### Phase 3: Admin Dashboard - Stale Location Warnings
 
-| Table | Status | Issue |
-|-------|--------|-------|
-| `sos_events` | Empty | RLS blocking inserts |
-| `driver_locations` | 2 records, stale | Web tracking not syncing |
-| `drivers` | 6 records | Working correctly |
-| `devices` | Working | Connection codes functional |
+**File: `src/components/DriversList.tsx`**
+
+Add indicators for drivers with missing or stale location data:
+
+1. Show "No location" badge for drivers with `latitude === 0`
+2. Show "Stale" warning for locations older than 5 minutes
+3. Add tooltip explaining why driver may not appear on map
 
 ---
 
-## Post-Implementation Testing
+## Files to Modify
 
-After implementing:
-1. **SOS Test**: Initiate SOS from driver app → verify it appears in `/ops/incidents`
-2. **Location Test**: Connect driver app → verify real-time location on admin map
-3. **Zoom Test**: On iOS, rotate screen and verify pinch-to-zoom works
-4. **Accuracy Test**: Verify only locations with ≤30m accuracy are stored
+| File | Change |
+|------|--------|
+| `src/pages/app/DriverAppDashboard.tsx` | Pass `driverId` and `adminCode` to tracking hook |
+| `src/components/layout/DriverAppLayout.tsx` | Add back button, safe area top padding |
+| `src/components/DriversList.tsx` | Add stale/no-location indicators |
+
+---
+
+## Expected Outcomes
+
+After these changes:
+
+1. **Location Tracking Fixed**: John's (and all drivers') locations will sync to admin map in real-time
+2. **Back Navigation**: Clear back button on all inner pages for easy navigation
+3. **Transparency**: Admins can see why certain drivers don't appear on the map (no location data / stale data)
+
+---
+
+## Testing Checklist
+
+1. Open driver app as John → verify location updates appear in console logs
+2. Check admin map → John should show with live location (not Dec 2025)
+3. Tap Tasks → verify back button appears → tap it → returns to dashboard
+4. Check DriversList → drivers without location show warning badge
