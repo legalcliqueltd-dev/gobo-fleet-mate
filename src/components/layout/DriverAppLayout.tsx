@@ -1,6 +1,6 @@
 import { PropsWithChildren } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Home, ClipboardList, AlertTriangle, Settings } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Home, ClipboardList, AlertTriangle, Settings, ArrowLeft } from 'lucide-react';
 import logo from '@/assets/logo.webp';
 import { cn } from '@/lib/utils';
 import { useDriverSession } from '@/contexts/DriverSessionContext';
@@ -15,18 +15,43 @@ const baseNavItems = [
 
 export default function DriverAppLayout({ children }: PropsWithChildren) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { session } = useDriverSession();
   const { unreadCount } = useTaskNotifications(session?.driverId);
+  
+  // Check if on home page
+  const isHomePage = location.pathname === '/app' || location.pathname === '/app/dashboard';
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Minimal Header */}
-      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border px-4 py-3">
-        <div className="flex items-center justify-center">
-          <Link to="/app" className="flex items-center gap-2">
+      {/* Header with back button */}
+      <header 
+        className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      >
+        <div className="px-4 py-3 flex items-center">
+          {/* Back button - only show on non-home pages */}
+          {!isHomePage && (
+            <button 
+              onClick={() => navigate(-1)}
+              className="mr-3 p-1.5 rounded-lg hover:bg-muted transition-colors"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+          )}
+          
+          {/* Centered logo */}
+          <Link to="/app" className={cn(
+            "flex items-center gap-2",
+            isHomePage ? "mx-auto" : "flex-1 justify-center"
+          )}>
             <img src={logo} alt="FleetTrackMate" className="h-8 w-8 rounded-lg" />
             <span className="font-heading font-semibold text-lg">Driver</span>
           </Link>
+          
+          {/* Spacer for centering when back button is shown */}
+          {!isHomePage && <div className="w-10" />}
         </div>
       </header>
 

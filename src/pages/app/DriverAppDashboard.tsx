@@ -85,6 +85,8 @@ export default function DriverAppDashboard() {
     updateIntervalMs: 30000,
     batterySavingMode: localStorage.getItem('batterySavingMode') === 'true',
     enableHighAccuracy: localStorage.getItem('highAccuracyMode') !== 'false',
+    driverId: session?.driverId,
+    adminCode: session?.adminCode,
   });
 
   const { isLoaded } = useJsApiLoader({

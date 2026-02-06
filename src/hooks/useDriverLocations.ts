@@ -13,6 +13,7 @@ export type DriverLocation = {
   status: string | null;
   last_seen_at: string | null;
   connected_at: string | null;
+  updated_at: string | null; // Location last updated timestamp
 };
 
 export function useDriverLocations() {
@@ -87,6 +88,7 @@ export function useDriverLocations() {
           status: driver.status,
           last_seen_at: driver.last_seen_at,
           connected_at: driver.connected_at,
+          updated_at: location?.updated_at ?? null,
         };
       });
 
