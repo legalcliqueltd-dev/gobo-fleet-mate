@@ -1,6 +1,8 @@
 import { useDriverLocations, DriverLocation } from '@/hooks/useDriverLocations';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Clock, MapPin, Navigation, User, Wifi, WifiOff, ExternalLink, Trash2, Unlink } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Clock, MapPin, Navigation, User, Wifi, WifiOff, ExternalLink, Trash2, Unlink, AlertTriangle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -10,6 +12,32 @@ import { useRef } from 'react';
 type Props = {
   onDriverSelect?: (driver: DriverLocation) => void;
   selectedDriverId?: string | null;
+};
+
+// Get location data status for a driver
+const getLocationStatus = (driver: DriverLocation) => {
+  // Check if no location data
+  if (!driver.latitude || driver.latitude === 0) {
+    return { status: 'no-location', label: 'No location', color: 'bg-muted text-muted-foreground' };
+  }
+  
+  const lastUpdate = driver.updated_at ? new Date(driver.updated_at) : null;
+  if (!lastUpdate) return { status: 'unknown', label: 'Unknown', color: 'bg-muted text-muted-foreground' };
+  
+  const minutesAgo = (Date.now() - lastUpdate.getTime()) / 60000;
+  
+  if (minutesAgo > 1440) { // > 24 hours
+    const daysAgo = Math.floor(minutesAgo / 1440);
+    return { status: 'very-stale', label: `${daysAgo}d stale`, color: 'bg-destructive/20 text-destructive' };
+  }
+  if (minutesAgo > 60) { // > 1 hour
+    const hoursAgo = Math.floor(minutesAgo / 60);
+    return { status: 'stale', label: `${hoursAgo}h stale`, color: 'bg-warning/20 text-warning' };
+  }
+  if (minutesAgo > 5) { // > 5 minutes
+    return { status: 'idle', label: `${Math.floor(minutesAgo)}m ago`, color: 'bg-muted text-muted-foreground' };
+  }
+  return { status: 'active', label: 'Live', color: 'bg-success/20 text-success' };
 };
 
 export default function DriversList({ onDriverSelect, selectedDriverId }: Props) {
@@ -189,12 +217,49 @@ export default function DriversList({ onDriverSelect, selectedDriverId }: Props)
                           )}>
                             {online ? 'Online' : recentlyActive ? 'Away' : 'Offline'}
                           </span>
+                          
+                          {/* Location data status badge */}
+                          {(() => {
+                            const locStatus = getLocationStatus(driver);
+                            if (locStatus.status === 'no-location' || locStatus.status === 'very-stale' || locStatus.status === 'stale') {
+                              return (
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className={clsx(
+                                        'text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1',
+                                        locStatus.color
+                                      )}>
+                                        <AlertTriangle className="h-2.5 w-2.5" />
+                                        {locStatus.label}
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p className="text-xs">
+                                        {locStatus.status === 'no-location' 
+                                          ? 'Driver needs to open app to sync location' 
+                                          : 'Location data is outdated - driver may not appear on map'}
+                                      </p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                         <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {driver.latitude.toFixed(4)}, {driver.longitude.toFixed(4)}
-                          </span>
+                          {driver.latitude && driver.latitude !== 0 ? (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              {driver.latitude.toFixed(4)}, {driver.longitude.toFixed(4)}
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-muted-foreground/60 italic">
+                              <MapPin className="h-3 w-3" />
+                              No coordinates
+                            </span>
+                          )}
                           {driver.speed !== null && driver.speed > 0 && (
                             <span className="flex items-center gap-1 text-success">
                               <Navigation className="h-3 w-3" />
