@@ -875,6 +875,16 @@ export type Database = {
           device_id: string
         }[]
       }
+      get_driver_emergency_contacts: {
+        Args: { p_admin_code: string }
+        Returns: {
+          contact_name: string
+          contact_phone: string
+          contact_role: string
+          contact_type: string
+          id: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -894,6 +904,10 @@ export type Database = {
           p_driver_id: string
           p_driver_name: string
         }
+        Returns: Json
+      }
+      set_admin_as_emergency_contact: {
+        Args: { p_admin_code: string; p_admin_user_id: string }
         Returns: Json
       }
       update_driver_heartbeat: {
