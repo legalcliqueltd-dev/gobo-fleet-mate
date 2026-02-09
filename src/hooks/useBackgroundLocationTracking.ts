@@ -127,10 +127,10 @@ export const useBackgroundLocationTracking = (
       return;
     }
 
-    // Filter out low-accuracy positions (> 30m threshold)
+    // Log accuracy but let the server decide whether to store
+    // Server enforces 30m threshold; client sends all positions so heartbeat stays alive
     if (accuracyM > ACCURACY_THRESHOLD_M) {
-      console.log(`Skipping low-accuracy position: ${accuracyM}m (threshold: ${ACCURACY_THRESHOLD_M}m)`);
-      return;
+      console.log(`Low accuracy position: ${accuracyM}m (server will filter if > ${ACCURACY_THRESHOLD_M}m)`);
     }
 
     const speedKmh = speed !== null ? speed * 3.6 : null; // Convert m/s to km/h
