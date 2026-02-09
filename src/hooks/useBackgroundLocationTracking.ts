@@ -228,6 +228,10 @@ export const useBackgroundLocationTracking = (
       return; // Already tracking
     }
 
+    // Get an initial high-accuracy fix before starting watchPosition
+    // This ensures the first map position is accurate (like SOS does)
+    await requestAccuratePosition();
+
     try {
       if (Capacitor.isNativePlatform()) {
         // Native platform - use Capacitor Geolocation
