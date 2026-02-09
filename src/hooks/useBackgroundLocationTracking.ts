@@ -41,6 +41,8 @@ export const useBackgroundLocationTracking = (
   const batteryCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const driverIdRef = useRef<string | undefined>(driverId);
   const adminCodeRef = useRef<string | undefined>(adminCode);
+  const lowAccuracyCountRef = useRef<number>(0);
+  const isFetchingAccurateRef = useRef<boolean>(false);
 
   // Update refs when props change
   useEffect(() => {
