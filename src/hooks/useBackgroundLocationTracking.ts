@@ -6,6 +6,8 @@ import { Capacitor } from '@capacitor/core';
 
 // Accuracy threshold in meters - only accept high-precision locations
 const ACCURACY_THRESHOLD_M = 30;
+// How many consecutive low-accuracy readings before forcing a fresh GPS fix
+const MAX_LOW_ACCURACY_COUNT = 2;
 
 export interface LocationTrackingOptions {
   updateIntervalMs?: number;
