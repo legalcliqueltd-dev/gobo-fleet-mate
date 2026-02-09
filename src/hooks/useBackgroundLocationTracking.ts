@@ -131,14 +131,72 @@ export const useBackgroundLocationTracking = (
       return;
     }
 
-    // Log accuracy but let the server decide whether to store
-    // Server enforces 30m threshold; client sends all positions so heartbeat stays alive
+    // If accuracy is poor, try to get a better fix via getCurrentPosition
     if (accuracyM > ACCURACY_THRESHOLD_M) {
-      console.log(`Low accuracy position: ${accuracyM}m (server will filter if > ${ACCURACY_THRESHOLD_M}m)`);
+      lowAccuracyCountRef.current++;
+      console.log(`Low accuracy position: ${accuracyM}m (attempt ${lowAccuracyCountRef.current}/${MAX_LOW_ACCURACY_COUNT})`);
+      
+      if (lowAccuracyCountRef.current >= MAX_LOW_ACCURACY_COUNT && !isFetchingAccurateRef.current) {
+        requestAccuratePosition();
+      }
+      // Still send to server for heartbeat (server will filter for map storage)
+      const speedKmh = speed !== null ? speed * 3.6 : null;
+      sendLocationUpdate(latitude, longitude, speedKmh, accuracyM);
+      return;
     }
 
+    // Good accuracy - reset counter
+    lowAccuracyCountRef.current = 0;
     const speedKmh = speed !== null ? speed * 3.6 : null; // Convert m/s to km/h
     sendLocationUpdate(latitude, longitude, speedKmh, accuracyM);
+  };
+
+  /**
+   * Force a high-accuracy GPS fix using getCurrentPosition.
+   * Unlike watchPosition (which fires immediately with whatever is available),
+   * getCurrentPosition waits for a proper GPS satellite lock.
+   */
+  const requestAccuratePosition = async () => {
+    if (isFetchingAccurateRef.current) return;
+    isFetchingAccurateRef.current = true;
+    console.log('[LocationTracking] Requesting fresh high-accuracy GPS fix...');
+
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const position = await Geolocation.getCurrentPosition({
+          enableHighAccuracy: true,
+          timeout: 20000,
+          maximumAge: 0,
+        });
+        if (position) {
+          const acc = position.coords.accuracy || 0;
+          console.log(`[LocationTracking] Fresh GPS fix accuracy: ${acc}m`);
+          if (acc <= ACCURACY_THRESHOLD_M) {
+            lowAccuracyCountRef.current = 0;
+            const speedKmh = position.coords.speed !== null ? position.coords.speed * 3.6 : null;
+            sendLocationUpdate(position.coords.latitude, position.coords.longitude, speedKmh, acc);
+          }
+        }
+      } else if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const acc = position.coords.accuracy;
+            console.log(`[LocationTracking] Fresh GPS fix accuracy: ${acc}m`);
+            if (acc <= ACCURACY_THRESHOLD_M) {
+              lowAccuracyCountRef.current = 0;
+              const speedKmh = position.coords.speed !== null ? position.coords.speed * 3.6 : null;
+              sendLocationUpdate(position.coords.latitude, position.coords.longitude, speedKmh, acc);
+            }
+          },
+          (error) => console.error('[LocationTracking] Fresh GPS fix failed:', error),
+          { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+        );
+      }
+    } catch (error) {
+      console.error('[LocationTracking] requestAccuratePosition error:', error);
+    } finally {
+      isFetchingAccurateRef.current = false;
+    }
   };
 
   const startBatteryMonitoring = async () => {
