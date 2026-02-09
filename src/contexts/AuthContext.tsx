@@ -109,13 +109,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   }, [session, loading, checkSubscription]);
 
-  // Refresh subscription periodically (every 60 seconds)
+  // Refresh subscription periodically (every 5 minutes)
   useEffect(() => {
     if (!session) return;
 
     const interval = setInterval(() => {
       checkSubscription();
-    }, 60000);
+    }, 300000);
 
     return () => clearInterval(interval);
   }, [session, checkSubscription]);
