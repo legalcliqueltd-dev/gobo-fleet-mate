@@ -3,6 +3,7 @@ import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useBackgroundLocationTracking } from '@/hooks/useBackgroundLocationTracking';
+import { useIOSBackgroundTracking } from '@/hooks/useIOSBackgroundTracking';
 import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 import { Crosshair, Map, Package, Wifi, Signal } from 'lucide-react';
