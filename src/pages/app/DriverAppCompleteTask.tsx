@@ -49,23 +49,34 @@ export default function DriverAppCompleteTask() {
     getCurrentLocation();
   }, [taskId]);
 
+  // Load task via edge function (bypasses RLS)
   const loadTask = async () => {
-    if (!taskId) return;
+    if (!taskId || !session?.driverId || !session?.adminCode) return;
 
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('id, title, description, dropoff_lat, dropoff_lng, admin_code')
-      .eq('id', taskId)
-      .single();
+    try {
+      const { data, error } = await supabase.functions.invoke('connect-driver', {
+        body: {
+          action: 'get-task',
+          taskId,
+          driverId: session.driverId,
+          adminCode: session.adminCode,
+        },
+      });
 
-    if (error) {
-      toast.error('Task not found');
+      if (error || !data?.task) {
+        toast.error('Task not found');
+        navigate('/app/tasks');
+        return;
+      }
+
+      setTask(data.task);
+    } catch (err) {
+      console.error('Failed to load task:', err);
+      toast.error('Failed to load task');
       navigate('/app/tasks');
-      return;
+    } finally {
+      setLoading(false);
     }
-
-    setTask(data);
-    setLoading(false);
   };
 
   const getCurrentLocation = () => {
@@ -88,41 +99,25 @@ export default function DriverAppCompleteTask() {
   const handleMediaCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-
     processFiles(Array.from(files));
-    
-    // Reset the input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const processFiles = (files: File[]) => {
     const newFiles: MediaFile[] = [];
-    
     files.forEach(file => {
-      // Check file size
       if (file.size > MAX_FILE_SIZE) {
         toast.error(`${file.name} is too large. Maximum 5MB allowed.`);
         return;
       }
-
       const isVideo = file.type.startsWith('video/');
       const isImage = file.type.startsWith('image/');
-
       if (!isVideo && !isImage) {
         toast.error(`${file.name} is not a supported format.`);
         return;
       }
-
-      const url = URL.createObjectURL(file);
-      newFiles.push({
-        file,
-        url,
-        type: isVideo ? 'video' : 'image',
-      });
+      newFiles.push({ file, url: URL.createObjectURL(file), type: isVideo ? 'video' : 'image' });
     });
-
     setMediaFiles(prev => [...prev, ...newFiles]);
   };
 
@@ -130,20 +125,16 @@ export default function DriverAppCompleteTask() {
     if (isNativePlatform()) {
       try {
         const file = await capturePhotoAsFile('camera');
-        if (file) {
-          processFiles([file]);
-        }
+        if (file) processFiles([file]);
       } catch (error: any) {
         toast.error(error.message || 'Failed to capture photo');
       }
     } else {
-      // Fallback to HTML input for web
       fileInputRef.current?.click();
     }
   };
 
   const handleAddFromDevice = () => {
-    // Use the system picker (supports photo and video); avoids iOS WebView capture quirks
     fileInputRef.current?.click();
   };
 
@@ -156,97 +147,61 @@ export default function DriverAppCompleteTask() {
 
   const uploadMedia = async (): Promise<string[]> => {
     if (mediaFiles.length === 0) return [];
-
     const uploadedUrls: string[] = [];
-    const totalFiles = mediaFiles.length;
-
     for (let i = 0; i < mediaFiles.length; i++) {
       const { file } = mediaFiles[i];
       const timestamp = Date.now();
       const ext = file.name.split('.').pop() || 'jpg';
       const filePath = `${session?.driverId}/${taskId}/${timestamp}_${i}.${ext}`;
-
       const { data, error } = await supabase.storage
         .from('proofs')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: file.type,
-        });
-
-      if (error) {
-        console.error('Upload error:', error);
-        throw new Error(`Failed to upload file: ${error.message}`);
-      }
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('proofs')
-        .getPublicUrl(data.path);
-
+        .upload(filePath, file, { cacheControl: '3600', upsert: false, contentType: file.type });
+      if (error) throw new Error(`Failed to upload file: ${error.message}`);
+      const { data: urlData } = supabase.storage.from('proofs').getPublicUrl(data.path);
       uploadedUrls.push(urlData.publicUrl);
-      setUploadProgress(((i + 1) / totalFiles) * 100);
+      setUploadProgress(((i + 1) / mediaFiles.length) * 100);
     }
-
     return uploadedUrls;
   };
 
   const calculateDistance = (): number | null => {
     if (!currentLocation || !task?.dropoff_lat || !task?.dropoff_lng) return null;
-
-    const R = 6371000; // Earth's radius in meters
+    const R = 6371000;
     const lat1 = currentLocation.lat * Math.PI / 180;
     const lat2 = task.dropoff_lat * Math.PI / 180;
     const dLat = (task.dropoff_lat - currentLocation.lat) * Math.PI / 180;
     const dLon = (task.dropoff_lng - currentLocation.lng) * Math.PI / 180;
-
-    const a = Math.sin(dLat / 2) ** 2 + 
-              Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-    return Math.round(R * c);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+    return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
   };
 
   const handleSubmit = async () => {
     if (!task || !session) return;
-
-    // Photos are now optional - no validation needed
-
     setSubmitting(true);
     setUploadProgress(0);
 
     try {
-      // Upload media first
       const uploadedMediaUrls = await uploadMedia();
-
-      // Calculate distance to dropoff
       const distanceToDropoff = calculateDistance();
 
-      // Update task status
-      const { error: updateError } = await supabase
-        .from('tasks')
-        .update({ 
-          status: 'completed',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', task.id);
+      // Submit task report and update status via edge function
+      const { error } = await supabase.functions.invoke('connect-driver', {
+        body: {
+          action: 'submit-task-report',
+          taskId: task.id,
+          driverId: session.driverId,
+          adminCode: session.adminCode,
+          delivered: true,
+          photos: uploadedMediaUrls.length > 0 ? uploadedMediaUrls : null,
+          note: notes.trim() || null,
+          latitude: currentLocation?.lat || null,
+          longitude: currentLocation?.lng || null,
+          distance_to_dropoff_m: distanceToDropoff,
+          verified_by: uploadedMediaUrls.length > 0 ? 'photo' : (distanceToDropoff !== null && distanceToDropoff < 100 ? 'geofence' : 'none'),
+        },
+      });
 
-      if (updateError) throw updateError;
-
-      // Create task report
-      const reportData = {
-        task_id: task.id,
-        reporter_user_id: '00000000-0000-0000-0000-000000000000', // Placeholder for mobile drivers
-        delivered: true,
-        photos: uploadedMediaUrls.length > 0 ? uploadedMediaUrls : null,
-        note: notes.trim() || null,
-        latitude: currentLocation?.lat || null,
-        longitude: currentLocation?.lng || null,
-        distance_to_dropoff_m: distanceToDropoff,
-        verified_by: uploadedMediaUrls.length > 0 ? 'photo' : (distanceToDropoff !== null && distanceToDropoff < 100 ? 'geofence' : 'none'),
-      };
-
-      await supabase.from('task_reports').insert(reportData);
+      if (error) throw error;
 
       toast.success('Task completed successfully!');
       navigate('/app/tasks');
@@ -284,7 +239,6 @@ export default function DriverAppCompleteTask() {
 
   return (
     <DriverAppLayout>
-      {/* Navigation Map Overlay */}
       {showNavigation && task?.dropoff_lat && task?.dropoff_lng && (
         <TaskNavigationMap
           dropoffLat={task.dropoff_lat}
@@ -310,12 +264,7 @@ export default function DriverAppCompleteTask() {
               </div>
             )}
             {task.dropoff_lat && task.dropoff_lng && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setShowNavigation(true)}
-                className="w-full"
-              >
+              <Button variant="outline" size="sm" onClick={() => setShowNavigation(true)} className="w-full">
                 <Navigation className="h-4 w-4 mr-2" />
                 View Route
               </Button>
@@ -323,7 +272,6 @@ export default function DriverAppCompleteTask() {
           </CardContent>
         </Card>
 
-        {/* Media Capture */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -331,37 +279,18 @@ export default function DriverAppCompleteTask() {
               Proof (Photos/Videos)
               <span className="text-xs font-normal text-muted-foreground">(Optional)</span>
             </CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Max 5MB per file • Photos and short videos accepted
-            </p>
+            <p className="text-xs text-muted-foreground">Max 5MB per file • Photos and short videos accepted</p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,video/mp4,video/quicktime,video/webm"
-              multiple
-              onChange={handleMediaCapture}
-              className="hidden"
-            />
-            
+            <input ref={fileInputRef} type="file" accept="image/*,video/mp4,video/quicktime,video/webm" multiple onChange={handleMediaCapture} className="hidden" />
             <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant="outline"
-                className="h-24 border-dashed border-2"
-                onClick={handleNativeCameraCapture}
-              >
+              <Button variant="outline" className="h-24 border-dashed border-2" onClick={handleNativeCameraCapture}>
                 <div className="flex flex-col items-center gap-2">
                   <Camera className="h-6 w-6 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Take photo</span>
                 </div>
               </Button>
-
-              <Button
-                variant="outline"
-                className="h-24 border-dashed border-2"
-                onClick={handleAddFromDevice}
-              >
+              <Button variant="outline" className="h-24 border-dashed border-2" onClick={handleAddFromDevice}>
                 <div className="flex flex-col items-center gap-2">
                   <Video className="h-6 w-6 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Add photo/video</span>
@@ -369,71 +298,48 @@ export default function DriverAppCompleteTask() {
               </Button>
             </div>
 
-            {/* Media Grid */}
             {mediaFiles.length > 0 && (
               <>
                 <div className="grid grid-cols-3 gap-2">
                   {mediaFiles.map((media, index) => (
                     <div key={index} className="relative aspect-square rounded-lg overflow-hidden border">
                       {media.type === 'image' ? (
-                        <img
-                          src={media.url}
-                          alt={`Proof ${index + 1}`}
-                          className="w-full h-full object-cover"
-                        />
+                        <img src={media.url} alt={`Proof ${index + 1}`} className="w-full h-full object-cover" />
                       ) : (
                         <div className="relative w-full h-full bg-black flex items-center justify-center">
-                          <video
-                            src={media.url}
-                            className="w-full h-full object-cover"
-                          />
+                          <video src={media.url} className="w-full h-full object-cover" />
                           <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                             <Play className="h-8 w-8 text-white" />
                           </div>
                         </div>
                       )}
-                      <button
-                        type="button"
-                        onClick={() => removeMedia(index)}
-                        className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 shadow-lg"
-                      >
+                      <button type="button" onClick={() => removeMedia(index)} className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 shadow-lg">
                         <X className="h-4 w-4" />
                       </button>
                       {media.type === 'video' && (
-                        <span className="absolute bottom-1 left-1 text-[10px] bg-black/70 text-white px-1.5 py-0.5 rounded">
-                          VIDEO
-                        </span>
+                        <span className="absolute bottom-1 left-1 text-[10px] bg-black/70 text-white px-1.5 py-0.5 rounded">VIDEO</span>
                       )}
                     </div>
                   ))}
                 </div>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{mediaFiles.length} file{mediaFiles.length > 1 ? 's' : ''}</span>
-                  <span className={totalSize > MAX_FILE_SIZE * mediaFiles.length ? 'text-destructive' : ''}>
-                    {sizeMB} MB total
-                  </span>
+                  <span className={totalSize > MAX_FILE_SIZE * mediaFiles.length ? 'text-destructive' : ''}>{sizeMB} MB total</span>
                 </div>
               </>
             )}
           </CardContent>
         </Card>
 
-        {/* Notes */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Notes (Optional)</CardTitle>
           </CardHeader>
           <CardContent>
-            <Textarea
-              placeholder="Add any notes about the delivery..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-            />
+            <Textarea placeholder="Add any notes about the delivery..." value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} />
           </CardContent>
         </Card>
 
-        {/* Upload Progress */}
         {submitting && uploadProgress > 0 && (
           <Card className="border-primary">
             <CardContent className="py-4">
@@ -448,7 +354,6 @@ export default function DriverAppCompleteTask() {
           </Card>
         )}
 
-        {/* File Size Warning */}
         {mediaFiles.some(m => m.file.size > MAX_FILE_SIZE * 0.8) && (
           <div className="flex items-center gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg text-sm text-yellow-600 dark:text-yellow-400">
             <FileWarning className="h-4 w-4 flex-shrink-0" />
@@ -456,32 +361,14 @@ export default function DriverAppCompleteTask() {
           </div>
         )}
 
-        {/* Actions */}
         <div className="fixed bottom-20 left-0 right-0 p-4 bg-background/95 backdrop-blur border-t">
           <div className="flex gap-3 max-w-lg mx-auto">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => navigate('/app/tasks')}
-              disabled={submitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="flex-1"
-              onClick={handleSubmit}
-              disabled={submitting}
-            >
+            <Button variant="outline" className="flex-1" onClick={() => navigate('/app/tasks')} disabled={submitting}>Cancel</Button>
+            <Button className="flex-1" onClick={handleSubmit} disabled={submitting}>
               {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Submitting...
-                </>
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Submitting...</>
               ) : (
-                <>
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Complete Task
-                </>
+                <><CheckCircle2 className="h-4 w-4 mr-2" />Complete Task</>
               )}
             </Button>
           </div>
