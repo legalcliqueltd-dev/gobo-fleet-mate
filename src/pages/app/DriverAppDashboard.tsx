@@ -90,6 +90,11 @@ export default function DriverAppDashboard() {
     adminCode: session?.adminCode,
   });
 
+  // Native iOS: use transistorsoft plugin for persistent background tracking
+  const iosTracking = useIOSBackgroundTracking(onDuty && locationPermissionGranted, {
+    updateIntervalMs: 30000,
+  });
+
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
