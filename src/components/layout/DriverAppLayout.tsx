@@ -18,7 +18,7 @@ export default function DriverAppLayout({ children }: PropsWithChildren) {
   const location = useLocation();
   const navigate = useNavigate();
   const { session } = useDriverSession();
-  const { unreadCount } = useTaskNotifications(session?.driverId);
+  const { unreadCount } = useTaskNotifications(session?.driverId, session?.adminCode);
   
   // Check if on home page
   const isHomePage = location.pathname === '/app' || location.pathname === '/app/dashboard';

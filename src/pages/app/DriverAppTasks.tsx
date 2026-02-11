@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,32 +25,39 @@ export default function DriverAppTasks() {
   const [loading, setLoading] = useState(true);
   const [navigatingTask, setNavigatingTask] = useState<Task | null>(null);
 
+  const loadTasks = useCallback(async () => {
+    if (!session?.driverId || !session?.adminCode) return;
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('connect-driver', {
+        body: {
+          action: 'get-tasks',
+          driverId: session.driverId,
+          adminCode: session.adminCode,
+          statuses: ['assigned', 'en_route', 'completed'],
+        },
+      });
+
+      if (error) throw error;
+      if (data?.tasks) setTasks(data.tasks);
+    } catch (err) {
+      console.error('Failed to load tasks:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [session?.driverId, session?.adminCode]);
+
   useEffect(() => {
     loadTasks();
-    
-    const channel = supabase
-      .channel('driver-app-tasks-list')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, loadTasks)
-      .subscribe();
-
+    // Poll every 15 seconds
+    const interval = setInterval(loadTasks, 15000);
+    const handleVisibility = () => { if (document.visibilityState === 'visible') loadTasks(); };
+    document.addEventListener('visibilitychange', handleVisibility);
     return () => {
-      supabase.removeChannel(channel);
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [session?.driverId]);
-
-  const loadTasks = async () => {
-    if (!session?.driverId) return;
-    
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('id, title, description, dropoff_lat, dropoff_lng, status, due_at')
-      .eq('assigned_driver_id', session.driverId)
-      .in('status', ['assigned', 'en_route', 'completed'])
-      .order('due_at', { ascending: true });
-
-    if (data) setTasks(data);
-    setLoading(false);
-  };
+  }, [loadTasks]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -78,7 +85,6 @@ export default function DriverAppTasks() {
 
   return (
     <DriverAppLayout>
-      {/* Navigation Map Overlay */}
       {navigatingTask && navigatingTask.dropoff_lat && navigatingTask.dropoff_lng && (
         <TaskNavigationMap
           dropoffLat={navigatingTask.dropoff_lat}
@@ -107,7 +113,6 @@ export default function DriverAppTasks() {
           </Card>
         ) : (
           <>
-            {/* Active Tasks */}
             {activeTasks.length > 0 && (
               <div className="space-y-3">
                 <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
@@ -172,7 +177,6 @@ export default function DriverAppTasks() {
               </div>
             )}
 
-            {/* Completed Tasks */}
             {completedTasks.length > 0 && (
               <div className="space-y-3">
                 <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">

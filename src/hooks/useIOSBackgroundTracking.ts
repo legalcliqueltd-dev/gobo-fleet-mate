@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { queueOfflineAction } from '@/components/OfflineQueue';
 
 // Dynamic import for background geolocation (only available on native)
 let BackgroundGeolocation: any = null;
@@ -11,6 +9,8 @@ interface BackgroundTrackingOptions {
   updateIntervalMs?: number;
   distanceFilter?: number;
   enableHighAccuracy?: boolean;
+  driverId?: string;
+  adminCode?: string;
 }
 
 interface LocationData {
@@ -22,25 +22,36 @@ interface LocationData {
   timestamp: Date;
 }
 
+const SUPABASE_FUNCTIONS_URL = 'https://invbnyxieoyohahqhbir.supabase.co/functions/v1/connect-driver';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImludmJueXhpZW95b2hhaHFoYmlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyNTAxMDUsImV4cCI6MjA3NzgyNjEwNX0.bOHyM6iexSMj-EtMoyjMEm92ydF5Yy-J7DHgocn4AKI';
+
 export const useIOSBackgroundTracking = (
   enabled: boolean = true,
   options: BackgroundTrackingOptions = {}
 ) => {
   const {
     updateIntervalMs = 30000,
-    distanceFilter = 5, // meters - tighter filter for accuracy
-    enableHighAccuracy = true,
+    distanceFilter = 5,
+    driverId,
+    adminCode,
   } = options;
 
   const [isTracking, setIsTracking] = useState(false);
   const [lastLocation, setLastLocation] = useState<LocationData | null>(null);
   const [batteryLevel, setBatteryLevel] = useState<number>(100);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const lastSentRef = useRef<number>(0);
   const isConfiguredRef = useRef(false);
+  const driverIdRef = useRef<string | undefined>(driverId);
+  const adminCodeRef = useRef<string | undefined>(adminCode);
 
   // Check if we're on native iOS
   const isNativeIOS = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+
+  // Keep refs updated
+  useEffect(() => {
+    driverIdRef.current = driverId;
+    adminCodeRef.current = adminCode;
+  }, [driverId, adminCode]);
 
   useEffect(() => {
     if (!enabled || !isNativeIOS) {
@@ -56,7 +67,6 @@ export const useIOSBackgroundTracking = (
 
   const initializeBackgroundTracking = async () => {
     try {
-      // Dynamically import the background geolocation plugin
       const module = await import('@transistorsoft/capacitor-background-geolocation');
       BackgroundGeolocation = module.default;
 
@@ -65,43 +75,64 @@ export const useIOSBackgroundTracking = (
         return;
       }
 
-      // Configure the plugin with maximum accuracy settings
+      const currentDriverId = driverIdRef.current || localStorage.getItem('ftm_driver_id');
+      const currentAdminCode = adminCodeRef.current || localStorage.getItem('ftm_admin_code');
+
+      // Configure with native HTTP service for offline persistence
       const state = await BackgroundGeolocation.ready({
-        // Location Config - Maximum accuracy
-        desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_NAVIGATION, // Best possible accuracy
-        distanceFilter: 3, // 3 meters - very tight filter for precision
-        stationaryRadius: 10, // 10 meters - detect stationary state quickly
-        stopOnTerminate: false, // Continue tracking when app is terminated
-        startOnBoot: true, // Auto-start on device boot
+        // Location Config
+        desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_NAVIGATION,
+        distanceFilter: 3,
+        stationaryRadius: 10,
+        stopOnTerminate: false,
+        startOnBoot: true,
         
         // Activity Recognition
-        stopTimeout: 3, // 3 minutes - faster transition to stationary
-        activityRecognitionInterval: 5000, // Check activity every 5 seconds
+        stopTimeout: 3,
+        activityRecognitionInterval: 5000,
         
         // Application config
-        debug: false, // Disable debug sounds/notifications in production
+        debug: false,
         logLevel: BackgroundGeolocation.LOG_LEVEL_WARNING,
         
-        // iOS specific - Maximum accuracy options
-        preventSuspend: true, // Prevent iOS from suspending the app
+        // iOS specific
+        preventSuspend: true,
         pausesLocationUpdatesAutomatically: false,
-        locationAuthorizationRequest: 'Always', // Request always-on permission
-        showsBackgroundLocationIndicator: true, // Show blue bar when tracking
+        locationAuthorizationRequest: 'Always',
+        showsBackgroundLocationIndicator: true,
         
-        // Accuracy improvements
-        locationUpdateInterval: 10000, // Request location every 10 seconds
-        fastestLocationUpdateInterval: 5000, // Accept updates as fast as 5 seconds
+        // Location update intervals
+        locationUpdateInterval: 10000,
+        fastestLocationUpdateInterval: 5000,
         
-        // Heartbeat interval (for periodic updates even when stationary)
+        // Heartbeat
         heartbeatInterval: Math.floor(updateIntervalMs / 1000),
         
         // Background fetch
         enableHeadless: true,
+
+        // === NATIVE HTTP SERVICE (persists offline, syncs automatically) ===
+        url: SUPABASE_FUNCTIONS_URL,
+        method: 'POST',
+        autoSync: true,
+        autoSyncThreshold: 1, // Upload as soon as 1 location is available
+        batchSync: false, // Send individual locations for simplicity
+        maxBatchSize: 50,
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        params: {
+          action: 'update-location',
+          driverId: currentDriverId || '',
+          adminCode: currentAdminCode || '',
+          isBackground: true,
+        },
       });
 
       console.log('[BackgroundGeolocation] Ready:', state);
 
-      // Listen for location updates
+      // Listen for location updates (UI state only — native HTTP handles server sync)
       BackgroundGeolocation.onLocation(onLocation, onLocationError);
       
       // Listen for motion changes
@@ -113,6 +144,14 @@ export const useIOSBackgroundTracking = (
       // Listen for heartbeat events
       BackgroundGeolocation.onHeartbeat(onHeartbeat);
 
+      // Listen for HTTP responses to monitor sync health
+      BackgroundGeolocation.onHttp((response: any) => {
+        console.log('[BackgroundGeolocation] HTTP response:', response.status, response.responseText?.substring(0, 200));
+        if (response.success) {
+          setLastUpdate(new Date());
+        }
+      });
+
       isConfiguredRef.current = true;
 
       // Start tracking
@@ -123,13 +162,13 @@ export const useIOSBackgroundTracking = (
     }
   };
 
-  const onLocation = async (location: any) => {
+  const onLocation = (location: any) => {
     console.log('[BackgroundGeolocation] Location:', location.coords);
     
     const locationData: LocationData = {
       latitude: location.coords.latitude,
       longitude: location.coords.longitude,
-      speed: location.coords.speed !== undefined ? location.coords.speed * 3.6 : null, // Convert m/s to km/h
+      speed: location.coords.speed !== undefined ? location.coords.speed * 3.6 : null,
       accuracy: location.coords.accuracy,
       heading: location.coords.heading,
       timestamp: new Date(location.timestamp),
@@ -138,24 +177,10 @@ export const useIOSBackgroundTracking = (
     setLastLocation(locationData);
     setLastUpdate(new Date());
 
-    // Check if accuracy is acceptable (< 30m for maximum precision)
-    if (location.coords.accuracy > 30) {
-      console.log('[BackgroundGeolocation] Skipping low accuracy location:', location.coords.accuracy, 'm (threshold: 30m)');
-      return;
+    // Update battery from plugin data
+    if (location.battery?.level != null) {
+      setBatteryLevel(Math.round(location.battery.level * 100));
     }
-
-    // Throttle database updates
-    const now = Date.now();
-    if (now - lastSentRef.current < updateIntervalMs) {
-      return;
-    }
-
-    await sendLocationUpdate(
-      location.coords.latitude,
-      location.coords.longitude,
-      location.coords.speed !== undefined ? location.coords.speed * 3.6 : null,
-      location.coords.accuracy
-    );
   };
 
   const onLocationError = (error: any) => {
@@ -176,66 +201,20 @@ export const useIOSBackgroundTracking = (
   const onHeartbeat = async (event: any) => {
     console.log('[BackgroundGeolocation] Heartbeat:', event);
     
-    // On heartbeat, get current location and send update
     if (BackgroundGeolocation) {
       try {
         const location = await BackgroundGeolocation.getCurrentPosition({
-          maximumAge: 0, // Always get fresh location
+          maximumAge: 0,
           timeout: 30000,
-          desiredAccuracy: 5, // 5 meter accuracy target
-          samples: 3, // Take 3 samples and return best
-          persist: true, // Persist to database
+          desiredAccuracy: 5,
+          samples: 3,
+          persist: true, // This will trigger native HTTP upload
         });
-        await onLocation(location);
+        // Update UI state
+        onLocation(location);
       } catch (error) {
         console.error('[BackgroundGeolocation] Heartbeat getCurrentPosition error:', error);
       }
-    }
-  };
-
-  const sendLocationUpdate = async (
-    latitude: number,
-    longitude: number,
-    speed: number | null,
-    accuracy: number | null
-  ) => {
-    const driverId = localStorage.getItem('ftm_driver_id');
-    if (!driverId) {
-      console.log('[BackgroundGeolocation] No driver ID found, skipping location update');
-      return;
-    }
-
-    const locationPayload = {
-      driverId,
-      latitude,
-      longitude,
-      speed: speed || 0,
-      accuracy: accuracy || 0,
-      isBackground: true,
-    };
-
-    if (!navigator.onLine) {
-      queueOfflineAction('location', locationPayload);
-      lastSentRef.current = Date.now();
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase.functions.invoke('connect-driver', {
-        body: {
-          action: 'update-location',
-          ...locationPayload,
-        }
-      });
-
-      if (error) throw error;
-
-      lastSentRef.current = Date.now();
-      console.log('[BackgroundGeolocation] Location synced via edge function');
-    } catch (error) {
-      console.error('Error sending location update, queueing offline:', error);
-      queueOfflineAction('location', locationPayload);
-      lastSentRef.current = Date.now();
     }
   };
 

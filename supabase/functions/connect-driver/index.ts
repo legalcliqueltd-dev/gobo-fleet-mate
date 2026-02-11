@@ -63,6 +63,203 @@ Deno.serve(async (req) => {
       return speed === undefined || (speed >= 0 && speed <= 500);
     };
 
+    // === HELPER: Validate driver identity ===
+    const validateDriverIdentity = async (did: string, acode: string) => {
+      const { data: driver } = await supabaseAdmin
+        .from('drivers')
+        .select('driver_id, admin_code, driver_name, status')
+        .eq('driver_id', did)
+        .eq('admin_code', acode)
+        .maybeSingle();
+      return driver;
+    };
+
+    // ========================================
+    // ACTION: get-tasks
+    // ========================================
+    if (action === 'get-tasks') {
+      const { adminCode, statuses } = body;
+      if (!driverId || !adminCode) {
+        return new Response(
+          JSON.stringify({ error: 'driverId and adminCode are required', server_time: serverTime }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const driver = await validateDriverIdentity(driverId, adminCode);
+      if (!driver) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid driver identity', server_time: serverTime }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const statusFilter = statuses || ['assigned', 'en_route', 'completed'];
+      const { data: tasks, error: tasksError } = await supabaseAdmin
+        .from('tasks')
+        .select('id, title, description, dropoff_lat, dropoff_lng, pickup_lat, pickup_lng, status, due_at, admin_code')
+        .eq('assigned_driver_id', driverId)
+        .in('status', statusFilter)
+        .order('due_at', { ascending: true });
+
+      if (tasksError) {
+        console.error('Tasks query error:', tasksError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to fetch tasks', server_time: serverTime }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ tasks: tasks || [], server_time: serverTime }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ========================================
+    // ACTION: get-task
+    // ========================================
+    if (action === 'get-task') {
+      const { taskId, adminCode } = body;
+      if (!driverId || !adminCode || !taskId) {
+        return new Response(
+          JSON.stringify({ error: 'driverId, adminCode and taskId are required', server_time: serverTime }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const driver = await validateDriverIdentity(driverId, adminCode);
+      if (!driver) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid driver identity', server_time: serverTime }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: task, error: taskError } = await supabaseAdmin
+        .from('tasks')
+        .select('id, title, description, dropoff_lat, dropoff_lng, pickup_lat, pickup_lng, status, due_at, admin_code')
+        .eq('id', taskId)
+        .eq('assigned_driver_id', driverId)
+        .maybeSingle();
+
+      if (taskError) {
+        console.error('Task query error:', taskError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to fetch task', server_time: serverTime }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (!task) {
+        return new Response(
+          JSON.stringify({ error: 'Task not found', server_time: serverTime }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ task, server_time: serverTime }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ========================================
+    // ACTION: update-task-status
+    // ========================================
+    if (action === 'update-task-status') {
+      const { taskId, adminCode, status } = body;
+      if (!driverId || !adminCode || !taskId || !status) {
+        return new Response(
+          JSON.stringify({ error: 'driverId, adminCode, taskId and status are required', server_time: serverTime }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const driver = await validateDriverIdentity(driverId, adminCode);
+      if (!driver) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid driver identity', server_time: serverTime }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { error: updateError } = await supabaseAdmin
+        .from('tasks')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', taskId)
+        .eq('assigned_driver_id', driverId);
+
+      if (updateError) {
+        console.error('Task update error:', updateError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to update task', server_time: serverTime }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, server_time: serverTime }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ========================================
+    // ACTION: submit-task-report
+    // ========================================
+    if (action === 'submit-task-report') {
+      const { taskId, adminCode, delivered, photos, note, latitude, longitude, distance_to_dropoff_m, verified_by } = body;
+      if (!driverId || !adminCode || !taskId) {
+        return new Response(
+          JSON.stringify({ error: 'driverId, adminCode and taskId are required', server_time: serverTime }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const driver = await validateDriverIdentity(driverId, adminCode);
+      if (!driver) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid driver identity', server_time: serverTime }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Insert the task report using service role
+      const { error: reportError } = await supabaseAdmin
+        .from('task_reports')
+        .insert({
+          task_id: taskId,
+          reporter_user_id: '00000000-0000-0000-0000-000000000000',
+          delivered: delivered ?? true,
+          photos: photos || null,
+          note: note || null,
+          latitude: latitude || null,
+          longitude: longitude || null,
+          distance_to_dropoff_m: distance_to_dropoff_m || null,
+          verified_by: verified_by || 'none',
+        });
+
+      if (reportError) {
+        console.error('Task report insert error:', reportError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to submit report', server_time: serverTime }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Update task status to completed
+      await supabaseAdmin
+        .from('tasks')
+        .update({ status: 'completed', updated_at: new Date().toISOString() })
+        .eq('id', taskId)
+        .eq('assigned_driver_id', driverId);
+
+      return new Response(
+        JSON.stringify({ success: true, server_time: serverTime }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (action === 'connect') {
       // Validate connection code format
       const codeError = validateConnectionCode(code);
@@ -146,13 +343,12 @@ Deno.serve(async (req) => {
             reconnected: true,
             existingDriverName: existingDriver.driver_name,
             server_time: serverTime,
-            // Configuration for mobile app
             config: {
-              locationUpdateIntervalMs: 10000,  // 10 seconds when moving
-              heartbeatIntervalMs: 30000,       // 30 seconds
-              stationaryIntervalMs: 60000,      // 60 seconds when stationary
-              lowBatteryIntervalMs: 120000,     // 2 minutes when battery < 20%
-              accuracyThresholdM: 30,           // 30m for high precision
+              locationUpdateIntervalMs: 10000,
+              heartbeatIntervalMs: 30000,
+              stationaryIntervalMs: 60000,
+              lowBatteryIntervalMs: 120000,
+              accuracyThresholdM: 30,
             }
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -162,7 +358,6 @@ Deno.serve(async (req) => {
       let finalDriverId: string;
 
       if (isReconnecting) {
-        // Same driver reconnecting - update their status
         console.log('Same driver reconnecting:', driverId);
         finalDriverId = driverId;
         
@@ -176,7 +371,6 @@ Deno.serve(async (req) => {
           })
           .eq('driver_id', driverId);
       } else {
-        // New driver connecting - generate new ID
         finalDriverId = generateDriverId();
         console.log('Creating new driver:', finalDriverId, 'with code:', code);
         
@@ -216,7 +410,6 @@ Deno.serve(async (req) => {
           driverId: finalDriverId,
           device: { id: device.id, name: device.name },
           server_time: serverTime,
-          // Configuration for mobile app
           config: {
             locationUpdateIntervalMs: 10000,
             heartbeatIntervalMs: 30000,
@@ -237,13 +430,11 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Update driver status
       await supabaseAdmin
         .from('drivers')
         .update({ status: 'offline', last_seen_at: new Date().toISOString() })
         .eq('driver_id', driverId);
 
-      // Disconnect from device
       await supabaseAdmin
         .from('devices')
         .update({
@@ -267,7 +458,6 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Get driver's current connection
       const { data: driver } = await supabaseAdmin
         .from('drivers')
         .select('admin_code, driver_name, status')
@@ -281,7 +471,6 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Find associated device
       const { data: device } = await supabaseAdmin
         .from('devices')
         .select('id, name')
@@ -307,7 +496,6 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Validate driver exists before updating
       const { data: driver } = await supabaseAdmin
         .from('drivers')
         .select('driver_id')
@@ -315,7 +503,6 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (!driver) {
-        console.log('Driver not found for update-status:', driverId);
         return new Response(
           JSON.stringify({ error: 'Driver not found', requiresRelogin: true, server_time: serverTime }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -324,13 +511,11 @@ Deno.serve(async (req) => {
 
       const { status, batteryLevel } = body;
       
-      // Update driver with optional device info including battery
       const updateData: any = { 
         status: status || 'active',
         last_seen_at: new Date().toISOString() 
       };
       
-      // Store battery info in device_info JSON if provided
       if (batteryLevel !== undefined) {
         updateData.device_info = { batteryLevel, lastBatteryUpdate: serverTime };
       }
@@ -382,18 +567,120 @@ Deno.serve(async (req) => {
         );
       }
 
-      const { latitude, longitude, speed, accuracy, bearing, batteryLevel, isBackground } = body;
-      
-      // Diagnostic logging for debugging coordinate issues
+      // === Parse location from either flat payload or Transistorsoft plugin format ===
+      let latitude = body.latitude;
+      let longitude = body.longitude;
+      let speed = body.speed;
+      let accuracyVal = body.accuracy;
+      let bearing = body.bearing;
+      let batteryLevel = body.batteryLevel;
+      const isBackground = body.isBackground;
+
+      // Transistorsoft single-location payload: { location: { coords: {...}, battery: {...} } }
+      if (body.location?.coords) {
+        const coords = body.location.coords;
+        latitude = coords.latitude;
+        longitude = coords.longitude;
+        speed = coords.speed != null ? coords.speed * 3.6 : null; // m/s -> km/h
+        accuracyVal = coords.accuracy;
+        bearing = coords.heading;
+        if (body.location.battery?.level != null) {
+          batteryLevel = Math.round(body.location.battery.level * 100); // 0-1 -> 0-100
+        }
+      }
+
+      // Transistorsoft batch payload: { locations: [...] }
+      if (Array.isArray(body.locations) && body.locations.length > 0) {
+        console.log(`[Batch] Processing ${body.locations.length} locations`);
+        
+        // Get driver's admin_code once
+        const { data: batchDriver } = await supabaseAdmin
+          .from('drivers')
+          .select('admin_code, device_info')
+          .eq('driver_id', driverId)
+          .maybeSingle();
+
+        if (!batchDriver) {
+          return new Response(
+            JSON.stringify({ error: 'Driver not found', requiresRelogin: true, server_time: serverTime }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        let newestAccurateLocation: any = null;
+        const historyRows: any[] = [];
+
+        for (const loc of body.locations) {
+          const c = loc.coords || loc;
+          const lat = c.latitude;
+          const lng = c.longitude;
+          const spd = c.speed != null ? c.speed * 3.6 : null;
+          const acc = c.accuracy || 0;
+
+          if (!validateLatitude(lat) || !validateLongitude(lng)) continue;
+          
+          if (acc <= 30) {
+            historyRows.push({
+              driver_id: driverId,
+              admin_code: batchDriver.admin_code,
+              latitude: lat,
+              longitude: lng,
+              speed: spd,
+              accuracy: acc,
+              recorded_at: loc.timestamp ? new Date(loc.timestamp).toISOString() : new Date().toISOString(),
+            });
+
+            if (!newestAccurateLocation || (loc.timestamp && new Date(loc.timestamp) > new Date(newestAccurateLocation.timestamp))) {
+              newestAccurateLocation = { latitude: lat, longitude: lng, speed: spd, accuracy: acc, timestamp: loc.timestamp };
+            }
+          }
+        }
+
+        // Insert history rows (limit to last 50)
+        if (historyRows.length > 0) {
+          const toInsert = historyRows.slice(-50);
+          const { error: histErr } = await supabaseAdmin.from('driver_location_history').insert(toInsert);
+          if (histErr) console.error('Batch history insert error:', histErr);
+        }
+
+        // Update current location with newest accurate point
+        if (newestAccurateLocation) {
+          await supabaseAdmin.from('driver_locations').upsert({
+            driver_id: driverId,
+            admin_code: batchDriver.admin_code,
+            latitude: newestAccurateLocation.latitude,
+            longitude: newestAccurateLocation.longitude,
+            speed: newestAccurateLocation.speed,
+            accuracy: newestAccurateLocation.accuracy,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'driver_id' });
+        }
+
+        // Update heartbeat
+        let bBattery = batteryLevel;
+        if (!bBattery && body.locations[body.locations.length - 1]?.battery?.level != null) {
+          bBattery = Math.round(body.locations[body.locations.length - 1].battery.level * 100);
+        }
+        const batchDriverUpdate: any = { status: 'active', last_seen_at: new Date().toISOString() };
+        if (bBattery !== undefined) {
+          batchDriverUpdate.device_info = { ...(batchDriver.device_info || {}), batteryLevel: bBattery, lastUpdate: serverTime };
+        }
+        await supabaseAdmin.from('drivers').update(batchDriverUpdate).eq('driver_id', driverId);
+
+        return new Response(
+          JSON.stringify({ success: true, stored: historyRows.length, server_time: serverTime }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Diagnostic logging
       console.log('Raw location payload - lat:', latitude, '(type:', typeof latitude, ') lng:', longitude, '(type:', typeof longitude, ')');
       
-      // Check if coordinates are valid numbers
       const hasValidCoords = validateLatitude(latitude) && validateLongitude(longitude);
       
       if (!hasValidCoords) {
         console.log('Invalid/missing coordinates - updating heartbeat only. lat:', latitude, 'lng:', longitude);
         
-        // Still update heartbeat so driver stays "active"
         const { data: driver } = await supabaseAdmin
           .from('drivers')
           .select('admin_code')
@@ -423,7 +710,6 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Validate battery level if provided
       if (!validateBatteryLevel(batteryLevel)) {
         return new Response(
           JSON.stringify({ error: 'Invalid battery level. Must be 0-100', server_time: serverTime }),
@@ -431,7 +717,6 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Validate speed if provided
       if (!validateSpeed(speed)) {
         return new Response(
           JSON.stringify({ error: 'Invalid speed. Must be 0-500 km/h', server_time: serverTime }),
@@ -439,8 +724,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Filter out poor accuracy locations (> 30m) for high-precision tracking
-      const accuracyValue = accuracy || 0;
+      const accuracyValue = accuracyVal || 0;
       const isAccurate = accuracyValue <= 30;
       
       console.log('Location update - Driver:', driverId, 
@@ -449,7 +733,6 @@ Deno.serve(async (req) => {
         'Accuracy:', accuracyValue, 'Accurate:', isAccurate,
         'Battery:', batteryLevel, 'Background:', isBackground);
 
-      // Get driver's admin_code
       const { data: driver } = await supabaseAdmin
         .from('drivers')
         .select('admin_code, device_info')
@@ -464,13 +747,11 @@ Deno.serve(async (req) => {
         );
       }
 
-      // Update driver's last_seen_at and device info
       const driverUpdate: any = { 
         status: 'active',
         last_seen_at: new Date().toISOString() 
       };
       
-      // Merge device info
       if (batteryLevel !== undefined || bearing !== undefined) {
         driverUpdate.device_info = {
           ...(driver.device_info || {}),
@@ -486,9 +767,7 @@ Deno.serve(async (req) => {
         .update(driverUpdate)
         .eq('driver_id', driverId);
 
-      // Only store location if accuracy is good
       if (isAccurate) {
-        // Upsert current location
         const { error: locationError } = await supabaseAdmin
           .from('driver_locations')
           .upsert({
@@ -505,7 +784,6 @@ Deno.serve(async (req) => {
           console.error('Location update error:', locationError);
         }
 
-        // Also store in location history for tracking movement
         const { error: historyError } = await supabaseAdmin
           .from('driver_location_history')
           .insert({
@@ -528,14 +806,12 @@ Deno.serve(async (req) => {
             stored: true, 
             accuracy: accuracyValue,
             server_time: serverTime,
-            // Return next update interval based on battery
             nextUpdateMs: batteryLevel && batteryLevel < 20 ? 120000 : 
                           speed && speed > 5 ? 15000 : 60000
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       } else {
-        // Location too inaccurate, skip storing but still acknowledge
         console.log('Skipping inaccurate location - accuracy:', accuracyValue, 'm');
         return new Response(
           JSON.stringify({ 
@@ -544,7 +820,7 @@ Deno.serve(async (req) => {
             accuracy: accuracyValue, 
             reason: 'accuracy_too_low',
             server_time: serverTime,
-            nextUpdateMs: 15000 // Try again in 15 seconds
+            nextUpdateMs: 15000
           }),
           { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
