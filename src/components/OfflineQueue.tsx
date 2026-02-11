@@ -19,6 +19,7 @@ export default function OfflineQueue() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [queue, setQueue] = useState<QueuedAction[]>([]);
   const [syncing, setSyncing] = useState(false);
+  const syncQueueRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     loadQueue();
