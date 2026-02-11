@@ -79,23 +79,33 @@ export const useBackgroundLocationTracking = (
       return;
     }
 
+    const locationPayload = {
+      driverId: currentDriverId,
+      latitude,
+      longitude,
+      speed: speed || 0,
+      accuracy: accuracyM,
+      batteryLevel,
+    };
+
+    // If offline, queue immediately instead of attempting network call
+    if (!navigator.onLine) {
+      queueOfflineAction('location', locationPayload);
+      setLastUpdate(new Date());
+      lastSentRef.current = Date.now();
+      return;
+    }
+
     try {
-      // Use connect-driver edge function for location updates (correct approach)
       const { data, error } = await supabase.functions.invoke('connect-driver', {
         body: {
           action: 'update-location',
-          driverId: currentDriverId,
-          latitude,
-          longitude,
-          speed: speed || 0,
-          accuracy: accuracyM,
-          batteryLevel,
+          ...locationPayload,
         },
       });
 
       if (error) throw error;
       
-      // Check if driver needs to re-login
       if (data?.requiresRelogin) {
         toast.error('Session expired. Please reconnect.');
         return;
@@ -105,7 +115,10 @@ export const useBackgroundLocationTracking = (
       setAccuracy(accuracyM);
       lastSentRef.current = Date.now();
     } catch (error) {
-      console.error('Error sending location update:', error);
+      console.error('Error sending location update, queueing offline:', error);
+      queueOfflineAction('location', locationPayload);
+      setLastUpdate(new Date());
+      lastSentRef.current = Date.now();
     }
   };
 

@@ -199,10 +199,24 @@ export const useIOSBackgroundTracking = (
     speed: number | null,
     accuracy: number | null
   ) => {
-    // Get driver ID from localStorage (set by DriverSessionContext)
     const driverId = localStorage.getItem('ftm_driver_id');
     if (!driverId) {
       console.log('[BackgroundGeolocation] No driver ID found, skipping location update');
+      return;
+    }
+
+    const locationPayload = {
+      driverId,
+      latitude,
+      longitude,
+      speed: speed || 0,
+      accuracy: accuracy || 0,
+      isBackground: true,
+    };
+
+    if (!navigator.onLine) {
+      queueOfflineAction('location', locationPayload);
+      lastSentRef.current = Date.now();
       return;
     }
 
@@ -210,12 +224,7 @@ export const useIOSBackgroundTracking = (
       const { data, error } = await supabase.functions.invoke('connect-driver', {
         body: {
           action: 'update-location',
-          driverId,
-          latitude,
-          longitude,
-          speed: speed || 0,
-          accuracy: accuracy || 0,
-          isBackground: true,
+          ...locationPayload,
         }
       });
 
@@ -224,7 +233,9 @@ export const useIOSBackgroundTracking = (
       lastSentRef.current = Date.now();
       console.log('[BackgroundGeolocation] Location synced via edge function');
     } catch (error) {
-      console.error('Error sending location update:', error);
+      console.error('Error sending location update, queueing offline:', error);
+      queueOfflineAction('location', locationPayload);
+      lastSentRef.current = Date.now();
     }
   };
 
