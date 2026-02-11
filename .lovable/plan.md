@@ -1,160 +1,65 @@
 
-# Comprehensive Fix: Location Tracking, UI Improvements & Backend Fixes
 
-## Critical Issues Found
+## Fix Offline Tracking and Enable Trail Testing for Driver Pat
 
-### Issue #1: Location Not Recording (Root Cause Identified!)
+### Current Situation
 
-**Problem**: The `useBackgroundLocationTracking` hook is NOT receiving the `driverId` parameter.
+Pat (driver `661b4ce7`) is marked "active" but has not sent any location data in the last 6 hours. Only 3 location records exist in the entire history. The offline queue system exists in code but is completely disconnected -- failed location sends are silently discarded, and the OfflineQueue component is never rendered.
 
-**Evidence**:
-| Table | John's `updated_at` | Status |
-|-------|---------------------|--------|
-| `drivers.last_seen_at` | Today (Feb 6, 2026) | ✅ Working |
-| `driver_locations.updated_at` | Dec 1, 2025 | ❌ Broken - 2 months stale |
+### Plan
 
-**Root Cause** (in `DriverAppDashboard.tsx` line 84-88):
-```typescript
-// CURRENT - BROKEN: driverId is NOT passed!
-const { isTracking, batteryLevel, lastUpdate } = useBackgroundLocationTracking(
-  onDuty && locationPermissionGranted, 
-  {
-    updateIntervalMs: 30000,
-    batterySavingMode: localStorage.getItem('batterySavingMode') === 'true',
-    enableHighAccuracy: localStorage.getItem('highAccuracyMode') !== 'false',
-    // ❌ MISSING: driverId: session?.driverId
-  }
-);
-```
+#### 1. Wire Offline Queueing into Location Tracking Hooks
 
-**Why it fails**: Inside the hook, `sendLocationUpdate()` checks `driverIdRef.current` and silently returns if it's undefined:
-```typescript
-if (!currentDriverId) {
-  console.log('No driver ID available for location update');
-  return; // ← All location updates are skipped!
-}
-```
+**File: `src/hooks/useBackgroundLocationTracking.ts`**
+- Import `queueOfflineAction` from `OfflineQueue`
+- In the `sendLocationUpdate` catch block, instead of just logging the error, call `queueOfflineAction('location', { driverId, latitude, longitude, speed, accuracy, batteryLevel })` to persist the failed send in localStorage
 
-**Fix**: Pass the `driverId` from the session context.
+**File: `src/hooks/useIOSBackgroundTracking.ts`**
+- Same change: import `queueOfflineAction` and queue failed sends in the catch block of `sendLocationUpdate`
 
----
+#### 2. Implement Real Supabase Sync in OfflineQueue
 
-### Issue #2: Driver App UI - Missing Back/Exit Buttons
+**File: `src/components/OfflineQueue.tsx`**
+- Replace the `console.log` stubs in `syncQueue()` with actual Supabase edge function calls:
+  - `location` type: invoke `connect-driver` with `action: 'update-location'`
+  - `task_update` type: invoke Supabase table update
+  - `sos` type: invoke `sos-create` edge function
+  - `photo_upload` type: upload to Supabase storage
+- Add a listener for the `offline-queue-updated` custom event so the component re-renders when new items are queued
 
-**Problem**: Pages like Tasks, SOS, and Settings lack a visible back button at the top.
-
-**Solution**: Add a global back button in the header that shows contextually based on current route.
-
----
-
-### Issue #3: Admin Map - Drivers Without Location Data
-
-**Problem**: Only John has a record in `driver_locations` table. Other connected drivers (Duye, James, etc.) show in the list but have no location data.
-
-**Solution**: 
-1. Add "No location data" indicator in DriversList
-2. Add stale data warnings (> 5 minutes old)
-3. Fix the tracking so new location data flows correctly
-
----
-
-## Implementation Plan
-
-### Phase 1: Fix Location Tracking (Critical)
-
-**File: `src/pages/app/DriverAppDashboard.tsx`**
-
-Add `driverId` to the tracking hook options:
-
-```typescript
-const { session } = useDriverSession(); // Already present at line 36
-
-const { isTracking, batteryLevel, lastUpdate } = useBackgroundLocationTracking(
-  onDuty && locationPermissionGranted, 
-  {
-    updateIntervalMs: 30000,
-    batterySavingMode: localStorage.getItem('batterySavingMode') === 'true',
-    enableHighAccuracy: localStorage.getItem('highAccuracyMode') !== 'false',
-    driverId: session?.driverId,  // ← ADD THIS
-    adminCode: session?.adminCode, // ← ADD THIS
-  }
-);
-```
-
----
-
-### Phase 2: Driver App UI - Add Back Button
+#### 3. Mount OfflineQueue in the Driver App Layout
 
 **File: `src/components/layout/DriverAppLayout.tsx`**
+- Import and render `<OfflineQueue />` above the bottom navigation bar
+- This makes the sync status visible to the driver at all times
 
-Add imports and back button logic:
+#### 4. Add Network-Aware Location Sending
 
-```typescript
-import { ArrowLeft, Home, ClipboardList, AlertTriangle, Settings } from 'lucide-react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+**File: `src/hooks/useBackgroundLocationTracking.ts`**
+- Before calling the edge function, check `navigator.onLine`
+- If offline, immediately queue the location data instead of attempting and failing
+- This prevents unnecessary network timeouts and ensures instant queueing
 
-// In component:
-const navigate = useNavigate();
-const isHomePage = location.pathname === '/app' || location.pathname === '/app/dashboard';
+#### 5. Database: Verify Pat's Tracking Pipeline
 
-// In header:
-<header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border"
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
-  <div className="px-4 py-3 flex items-center">
-    {!isHomePage && (
-      <button 
-        onClick={() => navigate(-1)}
-        className="mr-3 p-1.5 rounded-lg hover:bg-muted transition-colors"
-      >
-        <ArrowLeft className="h-5 w-5" />
-      </button>
-    )}
-    <Link to="/app" className="flex items-center gap-2 flex-1 justify-center">
-      <img src={logo} alt="FleetTrackMate" className="h-8 w-8 rounded-lg" />
-      <span className="font-heading font-semibold text-lg">Driver</span>
-    </Link>
-    {!isHomePage && <div className="w-8" />} {/* Spacer for centering */}
-  </div>
-</header>
-```
+Run a diagnostic query to confirm Pat's driver session data matches what the tracking hooks expect (driverId and adminCode in localStorage). The edge function logs show Pat's `update-location` calls are firing every ~15 seconds, but the last location record is 6+ hours old. This suggests:
+- Pat's phone may have lost GPS signal or the app was backgrounded/killed on web
+- The connect-driver edge function may be filtering out locations (accuracy > 30m)
 
----
+No database migration is needed for this fix.
 
-### Phase 3: Admin Dashboard - Stale Location Warnings
+### Technical Details
 
-**File: `src/components/DriversList.tsx`**
+**Files to modify:**
+1. `src/hooks/useBackgroundLocationTracking.ts` -- add offline queueing in catch block + online check
+2. `src/hooks/useIOSBackgroundTracking.ts` -- add offline queueing in catch block
+3. `src/components/OfflineQueue.tsx` -- replace console.log stubs with real Supabase calls, add event listener
+4. `src/components/layout/DriverAppLayout.tsx` -- mount OfflineQueue component
 
-Add indicators for drivers with missing or stale location data:
+**Testing the trail:**
+After these changes, Pat's driver app will:
+- Queue locations when offline and sync them when back online
+- Show a visible sync queue indicator in the driver UI
+- The trail polyline on the driver dashboard map will populate as location data flows in
+- On the admin side, the Driver Details page will show Pat's location history trail
 
-1. Show "No location" badge for drivers with `latitude === 0`
-2. Show "Stale" warning for locations older than 5 minutes
-3. Add tooltip explaining why driver may not appear on map
-
----
-
-## Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/pages/app/DriverAppDashboard.tsx` | Pass `driverId` and `adminCode` to tracking hook |
-| `src/components/layout/DriverAppLayout.tsx` | Add back button, safe area top padding |
-| `src/components/DriversList.tsx` | Add stale/no-location indicators |
-
----
-
-## Expected Outcomes
-
-After these changes:
-
-1. **Location Tracking Fixed**: John's (and all drivers') locations will sync to admin map in real-time
-2. **Back Navigation**: Clear back button on all inner pages for easy navigation
-3. **Transparency**: Admins can see why certain drivers don't appear on the map (no location data / stale data)
-
----
-
-## Testing Checklist
-
-1. Open driver app as John → verify location updates appear in console logs
-2. Check admin map → John should show with live location (not Dec 2025)
-3. Tap Tasks → verify back button appears → tap it → returns to dashboard
-4. Check DriversList → drivers without location show warning badge
