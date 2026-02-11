@@ -5,6 +5,7 @@ import logo from '@/assets/logo.webp';
 import { cn } from '@/lib/utils';
 import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { useTaskNotifications } from '@/hooks/useTaskNotifications';
+import OfflineQueue from '@/components/OfflineQueue';
 
 const baseNavItems = [
   { path: '/app/dashboard', icon: Home, label: 'Home' },
