@@ -384,11 +384,42 @@ Deno.serve(async (req) => {
 
       const { latitude, longitude, speed, accuracy, bearing, batteryLevel, isBackground } = body;
       
-      // Validate latitude and longitude
-      if (!validateLatitude(latitude) || !validateLongitude(longitude)) {
+      // Diagnostic logging for debugging coordinate issues
+      console.log('Raw location payload - lat:', latitude, '(type:', typeof latitude, ') lng:', longitude, '(type:', typeof longitude, ')');
+      
+      // Check if coordinates are valid numbers
+      const hasValidCoords = validateLatitude(latitude) && validateLongitude(longitude);
+      
+      if (!hasValidCoords) {
+        console.log('Invalid/missing coordinates - updating heartbeat only. lat:', latitude, 'lng:', longitude);
+        
+        // Still update heartbeat so driver stays "active"
+        const { data: driver } = await supabaseAdmin
+          .from('drivers')
+          .select('admin_code')
+          .eq('driver_id', driverId)
+          .maybeSingle();
+        
+        if (driver) {
+          await supabaseAdmin
+            .from('drivers')
+            .update({ 
+              status: 'active', 
+              last_seen_at: new Date().toISOString(),
+              ...(batteryLevel !== undefined ? { device_info: { batteryLevel, lastUpdate: serverTime } } : {}),
+            })
+            .eq('driver_id', driverId);
+        }
+        
         return new Response(
-          JSON.stringify({ error: 'Invalid coordinates. Latitude must be -90 to 90, longitude -180 to 180', server_time: serverTime }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ 
+            success: true, 
+            stored: false, 
+            warning: 'Invalid coordinates - heartbeat updated only',
+            server_time: serverTime,
+            nextUpdateMs: 15000,
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 

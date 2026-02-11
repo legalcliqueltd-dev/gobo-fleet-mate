@@ -72,6 +72,12 @@ export const useBackgroundLocationTracking = (
     speed: number | null,
     accuracyM: number
   ) => {
+    // Guard: skip if coordinates are not valid numbers
+    if (typeof latitude !== 'number' || isNaN(latitude) || typeof longitude !== 'number' || isNaN(longitude)) {
+      console.warn('[LocationTracking] Skipping invalid coordinates:', latitude, longitude);
+      return;
+    }
+
     const currentDriverId = driverIdRef.current;
     
     if (!currentDriverId) {
