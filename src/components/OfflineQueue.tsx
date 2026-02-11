@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { Wifi, WifiOff, RefreshCw, Trash2, CheckCircle } from 'lucide-react';
+import { Wifi, WifiOff, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 type QueuedAction = {
   id: string;
