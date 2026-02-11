@@ -61,8 +61,8 @@ export default function OfflineQueue() {
     setQueue(newQueue);
   };
 
-  const syncQueue = async () => {
-    if (!isOnline || queue.length === 0 || syncing) return;
+  const syncQueue = useCallback(async () => {
+    if (!navigator.onLine || queue.length === 0 || syncing) return;
 
     setSyncing(true);
     const updatedQueue = [...queue];
@@ -72,40 +72,52 @@ export default function OfflineQueue() {
       const action = updatedQueue[i];
       if (action.status === 'syncing') continue;
 
-      updatedQueue[i].status = 'syncing';
+      updatedQueue[i] = { ...updatedQueue[i], status: 'syncing' };
       saveQueue(updatedQueue);
 
       try {
-        // Process the action based on type
         switch (action.type) {
-          case 'location':
-            // await supabase.from('locations').insert(action.data);
-            console.log('Syncing location:', action.data);
+          case 'location': {
+            const { error } = await supabase.functions.invoke('connect-driver', {
+              body: { action: 'update-location', ...action.data },
+            });
+            if (error) throw error;
             break;
-          case 'task_update':
-            // await supabase.from('tasks').update(action.data.updates).eq('id', action.data.taskId);
-            console.log('Syncing task update:', action.data);
+          }
+          case 'task_update': {
+            const { error } = await supabase
+              .from('tasks')
+              .update(action.data.updates)
+              .eq('id', action.data.taskId);
+            if (error) throw error;
             break;
-          case 'sos':
-            // await supabase.from('sos_events').insert(action.data);
-            console.log('Syncing SOS:', action.data);
+          }
+          case 'sos': {
+            const { error } = await supabase.functions.invoke('sos-create', {
+              body: action.data,
+            });
+            if (error) throw error;
             break;
-          case 'photo_upload':
-            // Upload photo to storage
-            console.log('Syncing photo:', action.data);
+          }
+          case 'photo_upload': {
+            const { error } = await supabase.storage
+              .from(action.data.bucket || 'proofs')
+              .upload(action.data.path, action.data.file);
+            if (error) throw error;
             break;
+          }
         }
 
-        // Remove from queue on success
         updatedQueue.splice(i, 1);
-        i--; // Adjust index after removal
+        i--;
         syncedCount++;
       } catch (error) {
         console.error('Error syncing action:', error);
-        updatedQueue[i].status = 'failed';
-        updatedQueue[i].retries = (updatedQueue[i].retries || 0) + 1;
-
-        // Remove if too many retries
+        updatedQueue[i] = {
+          ...updatedQueue[i],
+          status: 'failed',
+          retries: (updatedQueue[i].retries || 0) + 1,
+        };
         if (updatedQueue[i].retries >= 3) {
           updatedQueue.splice(i, 1);
           i--;
@@ -119,7 +131,10 @@ export default function OfflineQueue() {
     if (syncedCount > 0) {
       toast.success(`Synced ${syncedCount} action${syncedCount !== 1 ? 's' : ''}`);
     }
-  };
+  }, [queue, syncing]);
+
+  const syncQueueRef = useRef(syncQueue);
+  useEffect(() => { syncQueueRef.current = syncQueue; }, [syncQueue]);
 
   const clearQueue = () => {
     if (confirm('Clear all queued actions? This cannot be undone.')) {

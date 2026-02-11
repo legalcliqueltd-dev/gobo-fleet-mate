@@ -61,6 +61,9 @@ export default function DriverAppLayout({ children }: PropsWithChildren) {
         {children}
       </main>
 
+      {/* Offline Sync Queue */}
+      <OfflineQueue />
+
       {/* Bottom Navigation - with safe area inset for iOS */}
       <nav className="sticky bottom-0 z-30 bg-background/95 backdrop-blur border-t border-border" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="flex items-center justify-around py-2 px-4">
