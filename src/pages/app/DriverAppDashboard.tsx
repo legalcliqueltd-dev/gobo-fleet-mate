@@ -183,7 +183,7 @@ export default function DriverAppDashboard() {
     const { data } = await supabase
       .from('tasks')
       .select('id, title, dropoff_lat, dropoff_lng, status')
-      .eq('assigned_user_id', session.driverId)
+      .eq('assigned_driver_id', session.driverId)
       .in('status', ['assigned', 'en_route']);
     if (data) setTasks(data);
   };
