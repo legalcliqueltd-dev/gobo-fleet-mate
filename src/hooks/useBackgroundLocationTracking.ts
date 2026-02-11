@@ -248,6 +248,14 @@ export const useBackgroundLocationTracking = (
       return; // Already tracking
     }
 
+    // On native iOS, skip browser-based tracking — useIOSBackgroundTracking handles it
+    const isNativeIOS = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+    if (isNativeIOS) {
+      console.log('[LocationTracking] Native iOS detected — deferring to useIOSBackgroundTracking');
+      setIsTracking(true);
+      return;
+    }
+
     // Get an initial high-accuracy fix before starting watchPosition
     // This ensures the first map position is accurate (like SOS does)
     await requestAccuratePosition();

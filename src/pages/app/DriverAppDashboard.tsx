@@ -3,6 +3,7 @@ import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useBackgroundLocationTracking } from '@/hooks/useBackgroundLocationTracking';
+import { useIOSBackgroundTracking } from '@/hooks/useIOSBackgroundTracking';
 import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 import { Crosshair, Map, Package, Wifi, Signal } from 'lucide-react';
@@ -87,6 +88,11 @@ export default function DriverAppDashboard() {
     enableHighAccuracy: localStorage.getItem('highAccuracyMode') !== 'false',
     driverId: session?.driverId,
     adminCode: session?.adminCode,
+  });
+
+  // Native iOS: use transistorsoft plugin for persistent background tracking
+  const iosTracking = useIOSBackgroundTracking(onDuty && locationPermissionGranted, {
+    updateIntervalMs: 30000,
   });
 
   const { isLoaded } = useJsApiLoader({
@@ -182,7 +188,7 @@ export default function DriverAppDashboard() {
     const { data } = await supabase
       .from('tasks')
       .select('id, title, dropoff_lat, dropoff_lng, status')
-      .eq('assigned_user_id', session.driverId)
+      .eq('assigned_driver_id', session.driverId)
       .in('status', ['assigned', 'en_route']);
     if (data) setTasks(data);
   };
