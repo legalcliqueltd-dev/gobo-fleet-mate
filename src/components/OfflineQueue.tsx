@@ -21,27 +21,27 @@ export default function OfflineQueue() {
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    // Load queue from localStorage
     loadQueue();
 
-    // Listen for online/offline events
     const handleOnline = () => {
       setIsOnline(true);
       toast.success('Back online - syncing queued actions');
-      syncQueue();
+      syncQueueRef.current();
     };
-
     const handleOffline = () => {
       setIsOnline(false);
       toast.error('You are offline - actions will be queued');
     };
+    const handleQueueUpdated = () => loadQueue();
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    window.addEventListener('offline-queue-updated', handleQueueUpdated);
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('offline-queue-updated', handleQueueUpdated);
     };
   }, []);
 
