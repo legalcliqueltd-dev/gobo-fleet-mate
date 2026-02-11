@@ -143,9 +143,9 @@ export default function DriverSettings() {
         // Register push subscription
         try {
           const registration = await navigator.serviceWorker.ready;
-          const subscription = await registration.pushManager.subscribe({
+          const subscription = await (registration as any).pushManager?.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: 'YOUR_VAPID_PUBLIC_KEY', // Replace with actual key
+            applicationServerKey: 'YOUR_VAPID_PUBLIC_KEY',
           });
           
           // Save subscription to database

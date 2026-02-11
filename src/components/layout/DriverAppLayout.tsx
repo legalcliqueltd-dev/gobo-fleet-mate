@@ -5,6 +5,7 @@ import logo from '@/assets/logo.webp';
 import { cn } from '@/lib/utils';
 import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { useTaskNotifications } from '@/hooks/useTaskNotifications';
+import OfflineQueue from '@/components/OfflineQueue';
 
 const baseNavItems = [
   { path: '/app/dashboard', icon: Home, label: 'Home' },
@@ -59,6 +60,9 @@ export default function DriverAppLayout({ children }: PropsWithChildren) {
       <main className="flex-1 overflow-auto">
         {children}
       </main>
+
+      {/* Offline Sync Queue */}
+      <OfflineQueue />
 
       {/* Bottom Navigation - with safe area inset for iOS */}
       <nav className="sticky bottom-0 z-30 bg-background/95 backdrop-blur border-t border-border" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
