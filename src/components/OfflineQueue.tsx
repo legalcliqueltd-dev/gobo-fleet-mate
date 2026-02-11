@@ -134,7 +134,6 @@ export default function OfflineQueue() {
     }
   }, [queue, syncing]);
 
-  const syncQueueRef = useRef(syncQueue);
   useEffect(() => { syncQueueRef.current = syncQueue; }, [syncQueue]);
 
   const clearQueue = () => {
