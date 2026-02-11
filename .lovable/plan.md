@@ -1,65 +1,83 @@
-## Fix Pat's Location Tracking + Admin Trail View
 
-### The Problem
 
-Pat's phone sends `update-location` every ~15 seconds, but **all requests fail with HTTP 400** because `latitude` and `longitude` arrive as `undefined`. The edge function rejects the entire request, so even the heartbeat (`last_seen_at`) stops updating after a while. Only 3 location history points exist total.
+## Fix Tasks Not Showing + Always-On Background Tracking
 
-### Root Cause
+### Problem 1: Tasks Not Showing for Pat
 
-Pat's app runs the **published production code** (from `fleettrackmate.com`), which has an older version of the tracking hooks where `watchPosition` fires but coordinates aren't properly passed through. The recent accuracy and offline fixes haven't been published yet.
+**Root Cause:** Column mismatch in two files.
+
+- `DriverAppTasks.tsx` (line 47) queries `.eq('assigned_driver_id', session.driverId)` -- this is CORRECT
+- `DriverAppDashboard.tsx` (line 185) queries `.eq('assigned_user_id', session.driverId)` -- this is WRONG
+
+The `assigned_user_id` column holds the Supabase auth UUID, but `session.driverId` from the driver app is the text-based `driver_id` from the `drivers` table. Pat's task "Dr. Ian" is assigned via `assigned_driver_id = '661b4ce7-aa59-4479-9854-d72490ef3bfc'`, so the Dashboard query returns nothing because it's looking at the wrong column.
+
+**Fix:** Change `DriverAppDashboard.tsx` line 185 from `assigned_user_id` to `assigned_driver_id`.
+
+---
+
+### Problem 2: Location Turns Off When App Is Backgrounded/Closed
+
+**Root Cause:** The driver dashboard only uses `useBackgroundLocationTracking`, which relies on `navigator.geolocation.watchPosition` (browser API). This API stops working when:
+- The app goes to the background
+- The user switches to another app  
+- The phone screen locks
+- The app is closed/killed
+
+The `useIOSBackgroundTracking` hook exists with the transistorsoft background geolocation plugin (which survives all of the above), but it is **never imported or used anywhere in the app**.
+
+**Fix:** Integrate `useIOSBackgroundTracking` into the Driver Dashboard so it activates on native iOS, while the existing browser-based tracking remains as fallback for web.
+
+---
 
 ### Plan
 
-#### 1. Make Edge Function Resilient (server-side fix, deploys immediately)
+#### Step 1: Fix Task Column in Dashboard
 
-**File: `supabase/functions/connect-driver/index.ts**`
+**File: `src/pages/app/DriverAppDashboard.tsx`**
 
-Change the `update-location` handler so that when coordinates are invalid:
-
-- Still update `last_seen_at` (heartbeat) to keep Pat showing as "active"
-- Add diagnostic logging of raw coordinate values and their types
-- Return HTTP 200 with a `warning` flag instead of HTTP 400
-- Only skip storing the location in `driver_locations` and `driver_location_history`
-
-This means even Pat's current (old) app will stop getting 400 errors and will properly maintain the heartbeat. Once the app code is published, valid coordinates will flow through.
-
-#### 2. Add Client-Side Coordinate Guard
-
-**File: `src/hooks/useBackgroundLocationTracking.ts**`
-
-Add a check in `sendLocationUpdate` to skip sending if coordinates are not valid numbers:
-
+Change line 185:
 ```
-if (typeof latitude !== 'number' || isNaN(latitude) || typeof longitude !== 'number' || isNaN(longitude)) {
-  console.warn('Skipping invalid coordinates');
-  return;
-}
+.eq('assigned_user_id', session.driverId)
+```
+to:
+```
+.eq('assigned_driver_id', session.driverId)
 ```
 
-This prevents the client from spamming the edge function with invalid payloads.
+#### Step 2: Integrate iOS Background Tracking into Dashboard
 
-#### 3. Ensure "Today" Time Range on Admin Trail
+**File: `src/pages/app/DriverAppDashboard.tsx`**
 
-**File: `src/pages/DriverDetails.tsx**`
+- Import `useIOSBackgroundTracking` 
+- Call it alongside the existing `useBackgroundLocationTracking`
+- On native iOS, the transistorsoft plugin handles persistent background tracking (survives app close, phone lock, reboot)
+- On web, the existing browser `watchPosition` remains as fallback
+- Wire the iOS tracking's location data into the dashboard's `currentLocation`, `speed`, `heading`, and `accuracy` state
 
-The admin Driver Details page already has a Trail/History tab with time range selectors (1h, 4h, 12h, 24h, 3d, 7d). The "24h" range covers today. No changes needed here -- once Pat starts sending valid locations, the trail will populate automatically.
+#### Step 3: Ensure iOS Hook Passes Driver Identity
+
+**File: `src/hooks/useIOSBackgroundTracking.ts`**
+
+The hook currently reads `driverId` from `localStorage.getItem('ftm_driver_id')` which is correct (set by DriverSessionContext). Verify this works and add the offline queueing that was recently added to `useBackgroundLocationTracking`.
+
+#### Step 4: Update useBackgroundLocationTracking to Skip on Native iOS
+
+**File: `src/hooks/useBackgroundLocationTracking.ts`**
+
+Add a check: if running on native iOS, skip `watchPosition` to avoid duplicate tracking. Let `useIOSBackgroundTracking` handle it exclusively on native.
+
+---
 
 ### Files to Modify
 
-1. `supabase/functions/connect-driver/index.ts` -- resilient coordinate handling + diagnostic logging
-2. `src/hooks/useBackgroundLocationTracking.ts` -- client-side coordinate validation guard
+1. `src/pages/app/DriverAppDashboard.tsx` -- fix task column + integrate iOS background tracking
+2. `src/hooks/useBackgroundLocationTracking.ts` -- skip on native iOS to avoid duplicates  
+3. `src/hooks/useIOSBackgroundTracking.ts` -- ensure offline queueing is wired in (already done in prior fix)
 
-### Do You Need to Update the App?
+### After Implementation
 
-**Yes, but it's automatic.** After I make these changes:
+- You must **Publish** for Pat's app to pick up these changes
+- Pat will then see assigned tasks on the dashboard and tasks page
+- Location tracking will persist through app backgrounding, switching apps, and screen lock on iOS
+- On device reboot, tracking auto-starts (configured with `startOnBoot: true` in the plugin)
 
-1. The **edge function** deploys immediately -- Pat's 400 errors will stop right away
-2. You need to **publish** from Lovable so the production site (`fleettrackmate.com`) gets the new client code
-3. Pat just needs to **reopen the app** (or it will refresh on its own) -- no reinstall needed
-4. Locations will start flowing and the trail will appear on the admin Driver Details page
-
-### Expected Outcome
-
-- Pat's heartbeat stays alive even with bad coordinates (immediate, via edge function)
-- After publishing, Pat's app sends valid coordinates with high accuracy
-- Admin can view Pat's trail on the Driver Details page under the "Trail/History" tab using the 24h time range
