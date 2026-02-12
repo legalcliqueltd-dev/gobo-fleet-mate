@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Package, MapPin, Clock, FileText, Download, Plus, User, Play } from 'lucide-react';
+import { Package, MapPin, Clock, FileText, Download, Plus, User, Play, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +10,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { useAdminTaskNotifications } from '@/hooks/useAdminTaskNotifications';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type Task = {
   id: string;
@@ -45,6 +55,9 @@ export default function TaskList() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Subscribe to task completion alerts
   useAdminTaskNotifications();
@@ -184,9 +197,94 @@ export default function TaskList() {
     toast.success('CSV exported');
   };
 
+  const handleDeleteTask = async () => {
+    if (!taskToDelete) return;
+    setDeleting(true);
+    try {
+      // Delete associated reports first (cascade)
+      await supabase.from('task_reports').delete().eq('task_id', taskToDelete);
+      // Then delete the task
+      const { error } = await supabase.from('tasks').delete().eq('id', taskToDelete);
+      if (error) throw error;
+      toast.success('Task deleted');
+      if (selectedTask?.id === taskToDelete) setSelectedTask(null);
+      loadTasks();
+    } catch (err: any) {
+      console.error('Error deleting task:', err);
+      toast.error('Failed to delete task');
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+      setTaskToDelete(null);
+    }
+  };
+
+  const openDeleteDialog = (taskId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setTaskToDelete(taskId);
+    setDeleteDialogOpen(true);
+  };
+
   const pendingTasks = tasks.filter(t => t.status === 'assigned');
   const inProgressTasks = tasks.filter(t => t.status === 'en_route');
   const completedTasks = tasks.filter(t => t.status === 'completed' || t.status === 'delivered');
+
+  const TaskCard = ({ task, showReport = false }: { task: Task; showReport?: boolean }) => {
+    const report = reports[task.id];
+    return (
+      <Card 
+        key={task.id} 
+        className={`cursor-pointer transition hover:shadow-lg ${selectedTask?.id === task.id ? 'ring-2 ring-primary' : ''}`}
+        onClick={() => setSelectedTask(task)}
+      >
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between mb-2">
+            <p className="font-medium flex-1 mr-2">{task.title}</p>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {showReport ? (
+                <Badge variant="outline" className="text-green-600">✓ Done</Badge>
+              ) : (
+                <Badge variant={getStatusColor(task.status)}>{task.status.replace('_', ' ')}</Badge>
+              )}
+              <button
+                onClick={(e) => openDeleteDialog(task.id, e)}
+                className="p-1 text-muted-foreground hover:text-destructive transition rounded"
+                title="Delete task"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+          {task.driver_name && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <User className="h-3 w-3" />
+              {task.driver_name}
+            </div>
+          )}
+          {showReport && report?.photos && report.photos.length > 0 && (
+            <div className="flex gap-1.5 mt-2">
+              {report.photos.slice(0, 3).map((url, idx) => {
+                const isVideo = url.includes('.mp4') || url.includes('.mov') || url.includes('.webm');
+                return isVideo ? (
+                  <div key={idx} className="relative w-12 h-12 bg-black rounded-md overflow-hidden">
+                    <Play className="absolute inset-0 m-auto h-4 w-4 text-white" />
+                  </div>
+                ) : (
+                  <img key={idx} src={url} alt="" className="w-12 h-12 object-cover rounded-md border border-border" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                );
+              })}
+              {report.photos.length > 3 && (
+                <div className="w-10 h-10 bg-muted rounded flex items-center justify-center text-xs">+{report.photos.length - 3}</div>
+              )}
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground mt-1">
+            {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -210,12 +308,10 @@ export default function TaskList() {
             </SelectContent>
           </Select>
           <Button variant="outline" onClick={exportToCSV}>
-            <Download className="h-4 w-4 mr-2" />
-            Export
+            <Download className="h-4 w-4 mr-2" /> Export
           </Button>
           <Button onClick={() => navigate('/admin/tasks/new')}>
-            <Plus className="h-4 w-4 mr-2" />
-            New Task
+            <Plus className="h-4 w-4 mr-2" /> New Task
           </Button>
         </div>
       </div>
@@ -228,8 +324,7 @@ export default function TaskList() {
             <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground mb-4">No tasks yet</p>
             <Button onClick={() => navigate('/admin/tasks/new')}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create First Task
+              <Plus className="h-4 w-4 mr-2" /> Create First Task
             </Button>
           </CardContent>
         </Card>
@@ -242,29 +337,7 @@ export default function TaskList() {
               Pending ({pendingTasks.length})
             </h2>
             <div className="space-y-3">
-              {pendingTasks.map(task => (
-                <Card 
-                  key={task.id} 
-                  className={`cursor-pointer transition hover:shadow-lg ${selectedTask?.id === task.id ? 'ring-2 ring-primary' : ''}`}
-                  onClick={() => setSelectedTask(task)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <p className="font-medium">{task.title}</p>
-                      <Badge variant={getStatusColor(task.status)}>{task.status}</Badge>
-                    </div>
-                    {task.driver_name && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                        <User className="h-3 w-3" />
-                        {task.driver_name}
-                      </div>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
+              {pendingTasks.map(task => <TaskCard key={task.id} task={task} />)}
               {pendingTasks.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">No pending tasks</p>
               )}
@@ -278,29 +351,7 @@ export default function TaskList() {
               In Progress ({inProgressTasks.length})
             </h2>
             <div className="space-y-3">
-              {inProgressTasks.map(task => (
-                <Card 
-                  key={task.id}
-                  className={`cursor-pointer transition hover:shadow-lg ${selectedTask?.id === task.id ? 'ring-2 ring-primary' : ''}`}
-                  onClick={() => setSelectedTask(task)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <p className="font-medium">{task.title}</p>
-                      <Badge variant="secondary">{task.status.replace('_', ' ')}</Badge>
-                    </div>
-                    {task.driver_name && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                        <User className="h-3 w-3" />
-                        {task.driver_name}
-                      </div>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
+              {inProgressTasks.map(task => <TaskCard key={task.id} task={task} />)}
               {inProgressTasks.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">No tasks in progress</p>
               )}
@@ -314,48 +365,7 @@ export default function TaskList() {
               Completed ({completedTasks.length})
             </h2>
             <div className="space-y-3 max-h-[600px] overflow-y-auto">
-              {completedTasks.map(task => {
-                const report = reports[task.id];
-                return (
-                  <Card 
-                    key={task.id}
-                    className={`cursor-pointer transition hover:shadow-lg ${selectedTask?.id === task.id ? 'ring-2 ring-primary' : ''}`}
-                    onClick={() => setSelectedTask(task)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <p className="font-medium">{task.title}</p>
-                        <Badge variant="outline" className="text-green-600">✓ Done</Badge>
-                      </div>
-                      {task.driver_name && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                          <User className="h-3 w-3" />
-                          {task.driver_name}
-                        </div>
-                      )}
-                      {report?.photos && report.photos.length > 0 && (
-                        <div className="flex gap-1.5 mt-2">
-                          {report.photos.slice(0, 3).map((url, idx) => {
-                            const isVideo = url.includes('.mp4') || url.includes('.mov') || url.includes('.webm');
-                            return isVideo ? (
-                              <div key={idx} className="relative w-12 h-12 bg-black rounded-md overflow-hidden">
-                                <Play className="absolute inset-0 m-auto h-4 w-4 text-white" />
-                              </div>
-                            ) : (
-                              <img key={idx} src={url} alt="" className="w-12 h-12 object-cover rounded-md border border-border" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                            );
-                          })}
-                          {report.photos.length > 3 && (
-                            <div className="w-10 h-10 bg-muted rounded flex items-center justify-center text-xs">
-                              +{report.photos.length - 3}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                );
-              })}
+              {completedTasks.map(task => <TaskCard key={task.id} task={task} showReport />)}
               {completedTasks.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-4">No completed tasks</p>
               )}
@@ -370,12 +380,16 @@ export default function TaskList() {
           <CardHeader className="pb-2">
             <div className="flex items-start justify-between">
               <CardTitle className="text-lg">{selectedTask.title}</CardTitle>
-              <button 
-                onClick={() => setSelectedTask(null)}
-                className="text-muted-foreground hover:text-foreground text-xl"
-              >
-                ×
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => openDeleteDialog(selectedTask.id)}
+                  className="p-1.5 text-muted-foreground hover:text-destructive transition rounded"
+                  title="Delete task"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+                <button onClick={() => setSelectedTask(null)} className="text-muted-foreground hover:text-foreground text-xl">×</button>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -386,8 +400,7 @@ export default function TaskList() {
               <Badge variant={getStatusColor(selectedTask.status)}>{selectedTask.status}</Badge>
               {selectedTask.driver_name && (
                 <span className="flex items-center gap-1 text-muted-foreground">
-                  <User className="h-3 w-3" />
-                  {selectedTask.driver_name}
+                  <User className="h-3 w-3" /> {selectedTask.driver_name}
                 </span>
               )}
             </div>
@@ -435,6 +448,28 @@ export default function TaskList() {
           </CardContent>
         </Card>
       )}
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Task?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this task and all associated reports/evidence. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTask}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

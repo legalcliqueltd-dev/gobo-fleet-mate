@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { 
   ArrowLeft, MapPin, Clock, Navigation, Trash2, Unlink, 
   User, Activity, Calendar as CalendarIcon, Signal, AlertTriangle, Pencil, Check, X,
-  Route, Gauge, Timer, TrendingUp
+  Route, Gauge, Timer, TrendingUp, ClipboardList
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -316,6 +316,14 @@ export default function DriverDetails() {
         </div>
         
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => navigate(`/admin/tasks/new?driver=${driver.driver_id}&code=${driver.admin_code}`)}
+            className="text-primary border-primary/50 hover:bg-primary/10"
+          >
+            <ClipboardList className="h-4 w-4 mr-2" />
+            Assign Task
+          </Button>
           <Button 
             variant="outline" 
             onClick={handleDisconnect}

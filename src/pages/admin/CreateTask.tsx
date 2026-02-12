@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
@@ -41,6 +41,7 @@ type LocationMarker = {
 export default function CreateTask() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const mapRef = useRef<google.maps.Map | null>(null);
 
   const [title, setTitle] = useState('');
@@ -72,6 +73,16 @@ export default function CreateTask() {
     checkAdminAccess();
     loadDrivers();
   }, []);
+
+  // Pre-select driver from URL params
+  useEffect(() => {
+    const driverParam = searchParams.get('driver');
+    const codeParam = searchParams.get('code');
+    if (driverParam && drivers.length > 0) {
+      setAssignedDriverId(driverParam);
+      if (codeParam) setSelectedAdminCode(codeParam);
+    }
+  }, [searchParams, drivers]);
 
   // Update markers when locations change
   useEffect(() => {
