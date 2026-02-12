@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Route, Routes, Navigate } from 'react-router-dom';
 import AppLayout from './components/layout/AppLayout';
 import Landing from './pages/Landing';
@@ -52,6 +53,16 @@ import DriverAppSOS from './pages/app/DriverAppSOS';
 import DriverAppSettings from './pages/app/DriverAppSettings';
 
 export default function App() {
+  // Global handler for unhandled promise rejections to prevent blank screens
+  useEffect(() => {
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      console.error('Unhandled rejection:', event.reason);
+      event.preventDefault();
+    };
+    window.addEventListener('unhandledrejection', handleRejection);
+    return () => window.removeEventListener('unhandledrejection', handleRejection);
+  }, []);
+
   return (
     <ThemeProvider>
       <AuthProvider>
