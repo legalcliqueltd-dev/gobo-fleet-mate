@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, Polyline, InfoWindow } from '@react-google-maps/api';
 import { GOOGLE_MAPS_API_KEY } from '../../lib/googleMapsConfig';
-import { MapPin, Navigation, Clock, Crosshair } from 'lucide-react';
+import { MapPin, Navigation, Clock, Crosshair, Flag, CircleDot } from 'lucide-react';
 import clsx from 'clsx';
 
 type LocationPoint = {
@@ -41,19 +41,48 @@ const createDriverIcon = (isOnline: boolean) => {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 };
 
-// Create history point icon
-const createHistoryIcon = (index: number, total: number) => {
-  const opacity = Math.max(0.3, 1 - (index / total) * 0.7);
-  const size = Math.max(8, 12 - (index / total) * 6);
-  
+// Start marker (green flag)
+const createStartIcon = () => {
   const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${size * 2}" height="${size * 2}" viewBox="0 0 ${size * 2} ${size * 2}">
-      <circle cx="${size}" cy="${size}" r="${size - 1}" fill="hsl(217 91% 60%)" fill-opacity="${opacity}" stroke="white" stroke-width="1"/>
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+      <circle cx="16" cy="16" r="14" fill="#10b981" stroke="white" stroke-width="2"/>
+      <text x="16" y="20" font-family="sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">S</text>
     </svg>
   `;
-  
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 };
+
+// End marker (red flag)
+const createEndIcon = () => {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+      <circle cx="16" cy="16" r="14" fill="#ef4444" stroke="white" stroke-width="2"/>
+      <text x="16" y="20" font-family="sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">E</text>
+    </svg>
+  `;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+};
+
+// Direction arrow icon
+const createArrowIcon = (bearing: number) => {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
+      <g transform="rotate(${bearing}, 10, 10)">
+        <polygon points="10,2 14,14 10,11 6,14" fill="#3b82f6" stroke="white" stroke-width="1"/>
+      </g>
+    </svg>
+  `;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+};
+
+// Calculate bearing between two points
+function calculateBearing(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const y = Math.sin(dLng) * Math.cos(lat2 * Math.PI / 180);
+  const x = Math.cos(lat1 * Math.PI / 180) * Math.sin(lat2 * Math.PI / 180) -
+    Math.sin(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.cos(dLng);
+  return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
+}
 
 export default function DriverLocationMap({ driverName, currentLocation, locationHistory, isOnline }: Props) {
   const mapRef = useRef<google.maps.Map | null>(null);
@@ -68,7 +97,7 @@ export default function DriverLocationMap({ driverName, currentLocation, locatio
     if (currentLocation && currentLocation.latitude !== 0) {
       return { lat: currentLocation.latitude, lng: currentLocation.longitude };
     }
-    return { lat: 9.0820, lng: 8.6753 }; // Nigeria default
+    return { lat: 9.0820, lng: 8.6753 };
   }, [currentLocation]);
 
   // Path for polyline (from oldest to newest)
@@ -79,7 +108,23 @@ export default function DriverLocationMap({ driverName, currentLocation, locatio
       .map(loc => ({ lat: loc.latitude, lng: loc.longitude }));
   }, [locationHistory]);
 
-  // Fit bounds to show all history points - only on initial load
+  // Direction arrows along the path (every ~5th point)
+  const directionArrows = useMemo(() => {
+    if (path.length < 3) return [];
+    const arrows: { position: google.maps.LatLngLiteral; bearing: number }[] = [];
+    const step = Math.max(3, Math.floor(path.length / 10));
+    for (let i = step; i < path.length - 1; i += step) {
+      const bearing = calculateBearing(path[i].lat, path[i].lng, path[i + 1].lat, path[i + 1].lng);
+      arrows.push({ position: path[i], bearing });
+    }
+    return arrows;
+  }, [path]);
+
+  // Start and end points
+  const startPoint = useMemo(() => path.length > 1 ? path[0] : null, [path]);
+  const endPoint = useMemo(() => path.length > 1 ? path[path.length - 1] : null, [path]);
+
+  // Fit bounds only on initial load
   const hasFittedBounds = useRef(false);
   useEffect(() => {
     if (mapRef.current && path.length > 1 && !hasFittedBounds.current) {
@@ -92,7 +137,7 @@ export default function DriverLocationMap({ driverName, currentLocation, locatio
 
   if (!GOOGLE_MAPS_API_KEY) {
     return (
-      <div className="h-[500px] rounded-xl border-2 border-dashed border-muted flex items-center justify-center bg-muted/20">
+      <div className="h-[600px] rounded-xl border-2 border-dashed border-muted flex items-center justify-center bg-muted/20">
         <div className="text-center">
           <MapPin className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">Map unavailable</p>
@@ -103,7 +148,7 @@ export default function DriverLocationMap({ driverName, currentLocation, locatio
 
   if (!isLoaded) {
     return (
-      <div className="h-[500px] rounded-xl border-2 border-border bg-card flex items-center justify-center">
+      <div className="h-[600px] rounded-xl border-2 border-border bg-card flex items-center justify-center">
         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
       </div>
     );
@@ -111,7 +156,7 @@ export default function DriverLocationMap({ driverName, currentLocation, locatio
 
   if (!currentLocation || currentLocation.latitude === 0) {
     return (
-      <div className="h-[500px] rounded-xl border-2 border-dashed border-warning/50 flex items-center justify-center bg-warning/5">
+      <div className="h-[600px] rounded-xl border-2 border-dashed border-warning/50 flex items-center justify-center bg-warning/5">
         <div className="text-center">
           <MapPin className="h-8 w-8 text-warning mx-auto mb-2" />
           <p className="text-sm text-warning font-medium">No location data</p>
@@ -122,7 +167,7 @@ export default function DriverLocationMap({ driverName, currentLocation, locatio
   }
 
   return (
-    <div className="relative h-[500px] rounded-xl overflow-hidden border-2 border-border">
+    <div className="relative h-[600px] rounded-xl overflow-hidden border-2 border-border">
       <GoogleMap
         mapContainerStyle={{ width: '100%', height: '100%' }}
         center={center}
@@ -132,41 +177,63 @@ export default function DriverLocationMap({ driverName, currentLocation, locatio
           zoomControl: true,
           streetViewControl: false,
           mapTypeControl: false,
-          fullscreenControl: false,
+          fullscreenControl: true,
+          gestureHandling: 'greedy',
           styles: [
             { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] },
             { featureType: "transit", stylers: [{ visibility: "off" }] },
           ]
         }}
       >
-        {/* History path polyline */}
+        {/* History path polyline with arrow symbols */}
         {path.length > 1 && (
           <Polyline
             path={path}
             options={{
               strokeColor: '#3b82f6',
-              strokeOpacity: 0.6,
-              strokeWeight: 3,
+              strokeOpacity: 0.8,
+              strokeWeight: 4,
               geodesic: true,
+              icons: [{
+                icon: {
+                  path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                  scale: 3,
+                  strokeColor: '#1d4ed8',
+                  fillColor: '#3b82f6',
+                  fillOpacity: 1,
+                },
+                offset: '0',
+                repeat: '100px',
+              }],
             }}
           />
         )}
 
-        {/* History markers (skip first which is current) */}
-        {locationHistory.slice(1).map((loc, idx) => (
-          loc.latitude !== 0 && (
-            <Marker
-              key={idx}
-              position={{ lat: loc.latitude, lng: loc.longitude }}
-              icon={{
-                url: createHistoryIcon(idx, locationHistory.length),
-                anchor: new google.maps.Point(6, 6),
-              }}
-              onClick={() => setHoveredIndex(idx + 1)}
-              zIndex={1}
-            />
-          )
-        ))}
+        {/* Start marker */}
+        {startPoint && (
+          <Marker
+            position={startPoint}
+            icon={{
+              url: createStartIcon(),
+              anchor: new google.maps.Point(16, 16),
+            }}
+            zIndex={50}
+            title="Start"
+          />
+        )}
+
+        {/* End marker (only if different from current) */}
+        {endPoint && path.length > 2 && (
+          <Marker
+            position={endPoint}
+            icon={{
+              url: createEndIcon(),
+              anchor: new google.maps.Point(16, 16),
+            }}
+            zIndex={50}
+            title="End"
+          />
+        )}
 
         {/* Current location marker */}
         <Marker
@@ -223,13 +290,21 @@ export default function DriverLocationMap({ driverName, currentLocation, locatio
             <span className="text-muted-foreground">Current</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="h-2 w-2 rounded-full bg-primary/60" />
-            <span className="text-muted-foreground">History</span>
+            <div className="h-3 w-3 rounded-full bg-emerald-500" />
+            <span className="text-muted-foreground">Start</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-3 w-3 rounded-full bg-red-500" />
+            <span className="text-muted-foreground">End</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="h-1 w-6 bg-primary rounded" />
+            <span className="text-muted-foreground">Trail</span>
           </div>
         </div>
       </div>
 
-      {/* Current Location Button - Bottom Right */}
+      {/* Current Location Button */}
       <button
         onClick={() => {
           if (mapRef.current && currentLocation) {

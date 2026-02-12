@@ -6,12 +6,16 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { 
   ArrowLeft, MapPin, Clock, Navigation, Trash2, Unlink, 
-  User, Activity, Calendar, Signal, AlertTriangle, Pencil, Check, X,
+  User, Activity, Calendar as CalendarIcon, Signal, AlertTriangle, Pencil, Check, X,
   Route, Gauge, Timer, TrendingUp
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import clsx from 'clsx';
 import DriverLocationMap from '@/components/map/DriverLocationMap';
 import { useDriverInsights, getTimeRange } from '@/hooks/useDriverInsights';
@@ -43,12 +47,12 @@ type CurrentLocation = {
 };
 
 const TIME_RANGES = [
-  { value: '1h', label: '1 Hour' },
-  { value: '4h', label: '4 Hours' },
-  { value: '12h', label: '12 Hours' },
-  { value: '24h', label: '24 Hours' },
-  { value: '3d', label: '3 Days' },
-  { value: '7d', label: '7 Days' },
+  { value: '1h', label: '1H' },
+  { value: '4h', label: '4H' },
+  { value: '12h', label: '12H' },
+  { value: '24h', label: '24H' },
+  { value: '3d', label: '3D' },
+  { value: '7d', label: '7D' },
 ];
 
 export default function DriverDetails() {
@@ -63,6 +67,13 @@ export default function DriverDetails() {
   const [disconnecting, setDisconnecting] = useState(false);
   const [selectedTimeRange, setSelectedTimeRange] = useState('24h');
   
+  // Calendar date picker state
+  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
+    from: undefined,
+    to: undefined,
+  });
+  const [useCustomDate, setUseCustomDate] = useState(false);
+  
   // Name editing state
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
@@ -71,7 +82,7 @@ export default function DriverDetails() {
   // Insights data
   const { data: insights, isLoading: insightsLoading } = useDriverInsights(
     driverId,
-    getTimeRange(selectedTimeRange)
+    useCustomDate && dateRange.from ? dateRange.from : getTimeRange(selectedTimeRange)
   );
 
   useEffect(() => {
@@ -89,7 +100,6 @@ export default function DriverDetails() {
         setDriver(driverData as DriverDetail);
         setEditedName(driverData.driver_name || '');
 
-        // Fetch current location from driver_locations
         const { data: currentLocData } = await supabase
           .from('driver_locations')
           .select('latitude, longitude, speed, accuracy, updated_at')
@@ -110,14 +120,29 @@ export default function DriverDetails() {
     fetchDriver();
   }, [driverId, user]);
 
-  // Fetch location history based on time range
+  // Fetch location history based on time range or custom date
   useEffect(() => {
     if (!driverId) return;
 
     const fetchHistory = async () => {
-      const since = getTimeRange(selectedTimeRange);
+      let since: Date;
+      let until: Date | undefined;
       
-      const { data: historyData } = await supabase
+      if (useCustomDate && dateRange.from) {
+        since = new Date(dateRange.from);
+        since.setHours(0, 0, 0, 0);
+        if (dateRange.to) {
+          until = new Date(dateRange.to);
+          until.setHours(23, 59, 59, 999);
+        } else {
+          until = new Date(dateRange.from);
+          until.setHours(23, 59, 59, 999);
+        }
+      } else {
+        since = getTimeRange(selectedTimeRange);
+      }
+      
+      let query = supabase
         .from('driver_location_history')
         .select('latitude, longitude, speed, accuracy, recorded_at')
         .eq('driver_id', driverId)
@@ -125,26 +150,29 @@ export default function DriverDetails() {
         .order('recorded_at', { ascending: false })
         .limit(500);
 
+      if (until) {
+        query = query.lte('recorded_at', until.toISOString());
+      }
+
+      const { data: historyData } = await query;
+
       if (historyData) {
         setLocationHistory(historyData as LocationHistory[]);
       }
     };
 
     fetchHistory();
-  }, [driverId, selectedTimeRange]);
+  }, [driverId, selectedTimeRange, useCustomDate, dateRange]);
 
   const handleSaveName = async () => {
     if (!driver) return;
     setSavingName(true);
-
     try {
       const { error } = await supabase
         .from('drivers')
         .update({ driver_name: editedName.trim() || null })
         .eq('driver_id', driver.driver_id);
-
       if (error) throw error;
-
       setDriver({ ...driver, driver_name: editedName.trim() || null });
       setIsEditingName(false);
       toast.success('Driver name updated');
@@ -164,13 +192,11 @@ export default function DriverDetails() {
   const handleDisconnect = async () => {
     if (!driver) return;
     setDisconnecting(true);
-
     try {
       const { error } = await supabase
         .from('drivers')
         .update({ status: 'disconnected' })
         .eq('driver_id', driver.driver_id);
-
       if (error) throw error;
       toast.success('Driver disconnected successfully');
       navigate('/dashboard');
@@ -184,19 +210,15 @@ export default function DriverDetails() {
 
   const handleDelete = async () => {
     if (!driver) return;
-    
     const confirmed = window.confirm(
       `Are you sure you want to delete ${driver.driver_name || 'this driver'}? This will also delete all their location history.`
     );
-    
     if (!confirmed) return;
     setDeleting(true);
-
     try {
       await supabase.from('driver_locations').delete().eq('driver_id', driver.driver_id);
       await supabase.from('driver_location_history').delete().eq('driver_id', driver.driver_id);
       const { error } = await supabase.from('drivers').delete().eq('driver_id', driver.driver_id);
-
       if (error) throw error;
       toast.success('Driver deleted successfully');
       navigate('/dashboard');
@@ -206,6 +228,18 @@ export default function DriverDetails() {
     } finally {
       setDeleting(false);
     }
+  };
+
+  const handleDateSelect = (range: { from?: Date; to?: Date } | undefined) => {
+    if (range) {
+      setDateRange({ from: range.from, to: range.to });
+      setUseCustomDate(true);
+    }
+  };
+
+  const clearCustomDate = () => {
+    setDateRange({ from: undefined, to: undefined });
+    setUseCustomDate(false);
   };
 
   const isOnline = driver?.last_seen_at 
@@ -302,25 +336,71 @@ export default function DriverDetails() {
         </div>
       </div>
 
-      {/* Time Range Selector */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2">
-        <span className="text-sm text-muted-foreground whitespace-nowrap">Time Range:</span>
+      {/* Time Range Selector + Calendar */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm text-muted-foreground whitespace-nowrap">Range:</span>
         <div className="flex gap-1">
           {TIME_RANGES.map((range) => (
             <Button
               key={range.value}
-              variant={selectedTimeRange === range.value ? 'default' : 'outline'}
+              variant={!useCustomDate && selectedTimeRange === range.value ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setSelectedTimeRange(range.value)}
-              className="whitespace-nowrap"
+              onClick={() => {
+                setSelectedTimeRange(range.value);
+                clearCustomDate();
+              }}
+              className="whitespace-nowrap px-2.5"
             >
               {range.label}
             </Button>
           ))}
         </div>
+        
+        {/* Calendar Date Picker */}
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant={useCustomDate ? 'default' : 'outline'}
+              size="sm"
+              className={cn(
+                "gap-1.5",
+                useCustomDate && "bg-primary text-primary-foreground"
+              )}
+            >
+              <CalendarIcon className="h-3.5 w-3.5" />
+              {useCustomDate && dateRange.from ? (
+                dateRange.to ? (
+                  <span>{format(dateRange.from, 'MMM d')} - {format(dateRange.to, 'MMM d')}</span>
+                ) : (
+                  <span>{format(dateRange.from, 'MMM d, yyyy')}</span>
+                )
+              ) : (
+                <span>Pick Date</span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="range"
+              selected={dateRange as any}
+              onSelect={handleDateSelect as any}
+              disabled={(date) => date > new Date()}
+              numberOfMonths={1}
+              initialFocus
+              className={cn("p-3 pointer-events-auto")}
+            />
+            {useCustomDate && (
+              <div className="p-2 border-t">
+                <Button variant="ghost" size="sm" onClick={clearCustomDate} className="w-full text-xs">
+                  Clear custom date
+                </Button>
+              </div>
+            )}
+          </PopoverContent>
+        </Popover>
       </div>
 
-      {/* Tabs for different views */}
+      {/* Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -331,7 +411,6 @@ export default function DriverDetails() {
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
-          {/* Stats Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20">
               <CardContent className="p-4">
@@ -354,7 +433,7 @@ export default function DriverDetails() {
                     <Navigation className="h-5 w-5 text-success" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Current Speed</p>
+                    <p className="text-xs text-muted-foreground">Speed</p>
                     <p className="font-semibold">
                       {currentLocation?.speed 
                         ? `${Math.round(currentLocation.speed)} km/h` 
@@ -369,7 +448,7 @@ export default function DriverDetails() {
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-lg bg-warning/20">
-                    <Calendar className="h-5 w-5 text-warning" />
+                    <CalendarIcon className="h-5 w-5 text-warning" />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Connected</p>
@@ -390,7 +469,7 @@ export default function DriverDetails() {
                     <Activity className="h-5 w-5 text-fleet-blue" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Location Points</p>
+                    <p className="text-xs text-muted-foreground">Points</p>
                     <p className="font-semibold">{locationHistory.length}</p>
                   </div>
                 </div>
@@ -398,7 +477,6 @@ export default function DriverDetails() {
             </Card>
           </div>
 
-          {/* Map */}
           <Card className="border-2 border-border">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -433,7 +511,7 @@ export default function DriverDetails() {
                   <div className="p-1.5 rounded-lg bg-primary/20">
                     <Route className="h-4 w-4 text-primary" />
                   </div>
-                  Location Trail ({TIME_RANGES.find(r => r.value === selectedTimeRange)?.label})
+                  Location Trail
                 </h3>
                 <span className="text-sm text-muted-foreground">
                   {locationHistory.length} points
@@ -451,7 +529,6 @@ export default function DriverDetails() {
                 isOnline={isOnline}
               />
               
-              {/* Location stats */}
               {currentLocation && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t border-border">
                   <div>
@@ -625,14 +702,13 @@ export default function DriverDetails() {
             </Card>
           </div>
 
-          {/* Summary */}
           <Card className="border-2 border-border">
             <CardHeader className="pb-3">
               <h3 className="font-heading font-semibold flex items-center gap-2 text-lg">
                 <div className="p-1.5 rounded-lg bg-primary/20">
                   <Activity className="h-4 w-4 text-primary" />
                 </div>
-                Activity Summary ({TIME_RANGES.find(r => r.value === selectedTimeRange)?.label})
+                Activity Summary
               </h3>
             </CardHeader>
             <CardContent>
@@ -647,13 +723,13 @@ export default function DriverDetails() {
                   <p className="text-3xl font-bold text-success">
                     {insightsLoading ? '...' : `${(insights?.distance_km || 0).toFixed(1)}`}
                   </p>
-                  <p className="text-sm text-muted-foreground mt-1">Kilometers Traveled</p>
+                  <p className="text-sm text-muted-foreground mt-1">Kilometers</p>
                 </div>
                 <div className="text-center">
                   <p className="text-3xl font-bold text-warning">
                     {insightsLoading ? '...' : `${Math.round((insights?.active_minutes || 0) + (insights?.idle_minutes || 0))}`}
                   </p>
-                  <p className="text-sm text-muted-foreground mt-1">Total Minutes Tracked</p>
+                  <p className="text-sm text-muted-foreground mt-1">Total Minutes</p>
                 </div>
                 <div className="text-center">
                   <p className="text-3xl font-bold text-fleet-blue">
