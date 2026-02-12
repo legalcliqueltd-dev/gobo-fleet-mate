@@ -281,6 +281,14 @@ export default function Incidents() {
     setDeleteDialogOpen(true);
   };
 
+  const selectAndZoom = useCallback((evt: SOSEvent) => {
+    setSelectedEvent(evt);
+    if (mapRef.current && evt.latitude && evt.longitude) {
+      mapRef.current.panTo({ lat: evt.latitude, lng: evt.longitude });
+      mapRef.current.setZoom(16);
+    }
+  }, []);
+
   const zoomToLocation = useCallback(() => {
     if (mapRef.current && selectedEvent?.latitude && selectedEvent?.longitude) {
       mapRef.current.panTo({ lat: selectedEvent.latitude, lng: selectedEvent.longitude });
@@ -388,7 +396,7 @@ export default function Incidents() {
                   return (
                     <button
                       key={evt.id}
-                      onClick={() => setSelectedEvent(evt)}
+                      onClick={() => selectAndZoom(evt)}
                       className={`w-full text-left p-2 rounded-lg border transition-all ${
                         isSelected
                           ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
@@ -436,7 +444,7 @@ export default function Incidents() {
                   return (
                     <div
                       key={evt.id}
-                      onClick={() => setSelectedEvent(evt)}
+                      onClick={() => selectAndZoom(evt)}
                       className={`flex items-center gap-2 p-1.5 rounded-lg border cursor-pointer transition opacity-60 hover:opacity-100 ${
                         isSelected ? 'border-primary bg-primary/5 opacity-100' : 'border-transparent hover:border-border'
                       }`}
@@ -507,7 +515,7 @@ export default function Incidents() {
                     <Marker
                       key={evt.id}
                       position={{ lat: evt.latitude!, lng: evt.longitude! }}
-                      onClick={() => setSelectedEvent(evt)}
+                      onClick={() => selectAndZoom(evt)}
                       icon={{
                         url: createSOSMarkerIcon(markerNum, evt.status, isSelected),
                         anchor: isSelected ? new google.maps.Point(22, 22) : new google.maps.Point(16, 16),
