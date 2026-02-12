@@ -1,203 +1,137 @@
 
-Goal: Fix (1) Pat not receiving tasks in the Driver App and (2) iOS “offline/background” tracking reliability.
 
-What’s happening (confirmed from code + DB)
-1) Tasks not showing on driver app:
-- The driver app uses the Supabase anon client with no Supabase Auth session (by design).
-- The `tasks` table has RLS policies that only allow SELECT when `assigned_user_id = auth.uid()` or admin role.
-- Pat’s driver app has no `auth.uid()`, so every `supabase.from('tasks').select(...)` returns 0 rows (or a permission error), even though the tasks exist in DB.
-- Verified tasks exist for Pat:
-  - `public.tasks` rows where `assigned_driver_id='661b4ce7-aa59-4479-9854-d72490ef3bfc'` are present with `status='assigned'`.
+## Fix 5 Driver App Issues
 
-2) iOS offline/background tracking:
-- `useIOSBackgroundTracking` currently sends locations via JS (`supabase.functions.invoke`) and queues to `OfflineQueue` when it detects offline/failure.
-- This approach breaks in the exact scenarios you care about:
-  - When the app is backgrounded/terminated, JS may not run reliably.
-  - “Offline tracking” needs native persistence + native retry, not localStorage queueing.
-- Transistorsoft BG Geo already includes a native SQLite buffer + native HTTP service that:
-  - stores locations while offline,
-  - retries on connectivity changes / heartbeat / iOS background fetch,
-  - can keep working when the UI is not open.
+### Issue 1: SOS Photo Not Uploading
 
-Important limitation (so expectations are correct)
-- No app can track location when the phone is fully powered off (battery removed / shutdown).
-- We can track when the screen is off, when the app is in the background, and (within iOS limits) after the user swipes away the app, as long as:
-  - Location permission is set to “Always”
-  - Background modes are enabled
-  - The OS does not aggressively suspend due to permissions/settings
+**Root Cause:** The `sos-evidence` storage bucket is **private** and requires `auth.role() = 'authenticated'` for INSERT. The driver app has **no Supabase Auth session** (code-based drivers), so the upload at line 106 of `DriverAppSOS.tsx` fails silently.
 
---------------------------------------------------------------------------------
-Implementation plan (step-by-step)
---------------------------------------------------------------------------------
+**Fix:** Move SOS photo upload to the `connect-driver` edge function (which uses the service role). The driver app will send the photo as base64 or a FormData blob to the edge function, which uploads it to storage and updates the `sos_events.photo_url` column.
 
-A) Fix tasks for driver app without weakening security (RLS-safe)
-1) Extend the existing Edge Function `connect-driver` with new actions:
-   - `action: "get-tasks"`
-     - Input: `driverId`, `adminCode`, optional `statuses` list
-     - Server validates:
-       - driver exists
-       - driver.admin_code matches adminCode
-     - Server returns tasks filtered by:
-       - `assigned_driver_id = driverId`
-       - `admin_code = adminCode`
-       - status filter (default: `['assigned','en_route','completed']`)
-   - `action: "get-task"`
-     - Input: `taskId`, `driverId`, `adminCode`
-     - Same validation; returns a single task row (minimal fields needed in driver UI)
+Alternatively (simpler): Add an **anonymous INSERT policy** on the `sos-evidence` storage bucket so unauthenticated drivers can upload. Then the existing client-side upload code works.
 
-Why this works:
-- Edge function uses service role internally, so it can read tasks regardless of RLS.
-- We still enforce access by checking `(driverId + adminCode)` match, preventing random reads.
+**Chosen approach:** Add a permissive storage policy for `sos-evidence` INSERT that allows any upload (the bucket is already private for reads, and admin-only for viewing). This is the simplest fix and matches how `proofs` already has `proofs_insert_authenticated` allowing any bucket insert.
 
-2) Update the driver app pages to use the edge function (instead of direct table queries):
-   - `src/pages/app/DriverAppDashboard.tsx`
-   - `src/pages/app/DriverAppTasks.tsx`
-   - (Recommended) `src/pages/app/DriverAppCompleteTask.tsx` for loading the task details safely
+Also fix line 172: after uploading the photo, the code calls `supabase.from('sos_events').update(...)` directly -- this also fails because `sos_update_admin` RLS only allows admins. Fix: move the photo_url update into the `sos-create` edge function or add a new action to `connect-driver`.
 
-3) Replace Realtime subscriptions for driver tasks with polling:
-   - Realtime also respects RLS; anon users won’t receive task change events.
-   - Implement a lightweight poll:
-     - on screen focus/mount: fetch immediately
-     - then every 15–30s while app is in foreground
-     - pause polling when the tab/app is not visible (`document.visibilityState`)
+**Files:**
+- SQL migration: Add storage policy for anonymous SOS evidence uploads + fix `sos_events` photo update
+- `src/pages/app/DriverAppSOS.tsx`: Upload photo via edge function instead of direct Supabase client
 
-4) Fix unread badge logic in driver layout:
-   - `src/hooks/useTaskNotifications.ts` currently queries `tasks` directly and subscribes to Realtime.
-   - Replace with edge-function polling:
-     - Fetch assigned tasks list (or a `get-task-unread-count` action).
-     - Detect “new task” by comparing IDs from last poll, then play sound + toast.
+---
 
-Deliverable result:
-- Pat sees tasks immediately in the driver app after publish (no RLS changes needed).
+### Issue 2: Task Completion Not Reaching Admin
 
---------------------------------------------------------------------------------
+**Root Cause:** The `proofs` bucket has the old policy `"Users can upload their own proofs"` requiring `auth.uid()::text = (storage.foldername(name))[1]`. The driver app has no `auth.uid()`, so folder path `{driverId}/...` does not match. There IS a newer policy `proofs_insert_authenticated` that allows any insert to `proofs` bucket -- BUT the driver has no auth session at all (anonymous), so even `bucket_id = 'proofs'` requires at least being authenticated.
 
-B) Make iOS tracking truly “background + offline capable”
-1) Install missing iOS native dependency (fix build failure)
-- Add dependency: `@transistorsoft/capacitor-background-fetch`
-- This resolves the `_OBJC_CLASS_$_TSBackgroundFetch` linker error.
+The `submit-task-report` edge function action works (it uses service role), but the **media upload happens client-side** at line 156 of `DriverAppCompleteTask.tsx` before the edge function call. This client-side upload fails because the driver has no auth session.
 
-2) Change iOS tracking to use Transistorsoft native HTTP + persistence
-Update `src/hooks/useIOSBackgroundTracking.ts`:
-- Configure `BackgroundGeolocation.ready({...})` with:
-  - `url: "https://invbnyxieoyohahqhbir.supabase.co/functions/v1/connect-driver"`
-  - `autoSync: true`
-  - `batchSync: true` (optional but recommended)
-  - `autoSyncThreshold: 3` (or 1 if you want immediate uploads; 3 saves battery)
-  - `maxBatchSize: 50`
-  - `params: { action: "update-location", driverId, adminCode, isBackground: true }`
-  - optional: `headers: { apikey: <anon key> }` (not strictly required for your current edge function, but can help standardize)
-- Add `BackgroundGeolocation.onHttp(...)` logging (and optionally `onConnectivityChange`) to confirm native sync is working.
-- Keep the `onLocation` listener only for updating UI state (map marker / status), not for manual `supabase.functions.invoke` (to avoid duplicates).
-- Ensure listeners are unsubscribed on cleanup to prevent duplicated callbacks.
+**Fix:** Move file uploads to the edge function, OR add a permissive anonymous upload policy for the `proofs` bucket. Simplest: add an INSERT policy allowing anonymous uploads to `proofs` bucket (reads are already public via `proofs_select_public`).
 
-Why this fixes “offline tracking”:
-- The plugin will persist every location in native SQLite when offline.
-- When internet returns, it automatically uploads the backlog to your edge function.
+**Files:**
+- SQL migration: Add storage policy allowing anonymous uploads to `proofs` bucket
 
-3) Update the edge function `connect-driver` to accept Transistorsoft HTTP payloads
-Currently `update-location` expects:
-- `latitude`, `longitude`, `accuracy`, `speed`, etc at the top-level request body.
+---
 
-But Transistorsoft HTTP posts:
-- `{ location: { coords: { latitude, longitude, accuracy, speed, heading }, battery: { level }, timestamp, ... } }`
-- (and with batchSync it may send multiple records; typically `{ locations: [...] }`)
+### Issue 3: Offline Trail Not Syncing to Admin Dashboard (Priority 1)
 
-So we’ll update `connect-driver`:
-- If top-level `latitude/longitude` missing, look for:
-  - `body.location.coords.latitude` / `body.location.coords.longitude`
-  - `body.locations[i].coords.latitude` / etc (batch)
-- Convert units when parsing plugin payload:
-  - `speed` from plugin is m/s → convert to km/h (`* 3.6`) before validation/storage
-  - `battery.level` is 0..1 → convert to 0..100
-  - use `heading` as `bearing`
-- For batch payload:
-  - process locations in order
-  - update `drivers.last_seen_at` once
-  - upsert `driver_locations` using the newest accurate point
-  - insert `driver_location_history` for each accurate point (or just newest N to limit load)
+**Root Cause:** The local trail stored in `localStorage` under `driver_location_trail` is **only used for the driver's own map UI**. It is never uploaded to the backend. The admin dashboard reads from `driver_location_history` table, which is populated by the `connect-driver` edge function's `update-location` action.
 
-4) Make DriverAppDashboard reflect iOS native tracking state (UI correctness)
-Right now:
-- `DriverAppDashboard` calls `useIOSBackgroundTracking(...)` but does not use its `lastLocation/lastUpdate/isTracking`.
-- `useBackgroundLocationTracking` sets `isTracking=true` on native iOS and returns early, so the UI can say “Tracking Active” even if the native engine failed.
+When the driver is offline:
+- On **web**: The `OfflineQueue` component queues location updates and syncs them when online -- this should work but relies on JavaScript running.
+- On **iOS native**: The Transistorsoft plugin's native HTTP service is configured to auto-sync -- this handles offline persistence natively.
 
-Update `src/pages/app/DriverAppDashboard.tsx`:
-- Detect native iOS (same check used in hooks).
-- If native iOS:
-  - Use `iosTracking.isTracking`, `iosTracking.lastUpdate`, `iosTracking.lastLocation` to set UI:
-    - marker position
-    - accuracy display
-    - speed/heading
-    - last sync time
-  - Disable the browser `navigator.geolocation.watchPosition` UI watcher on iOS to reduce battery and avoid conflicting readings.
-- If web / non-native:
-  - keep existing browser watcher for UI.
+The real problem is that the **admin dashboard trail/history view** may not be fetching `driver_location_history` correctly, or the data isn't being stored because of accuracy filtering (only locations with accuracy <= 30m are stored).
 
-5) Permission + iOS settings checklist (required for “always on”)
-- Ensure the app requests “Always” authorization (you already set `locationAuthorizationRequest: 'Always'`).
-- In Xcode target:
-  - Capabilities → Background Modes:
-    - Location updates
-    - Background fetch (recommended since the plugin uses it for retry)
-- On the device:
-  - Settings → App → Location → Always
-  - Location Services ON
+**Fix:**
+1. Verify the admin DriverDetails page correctly queries `driver_location_history` for the trail
+2. Ensure the iOS native plugin's `autoSync` configuration is correctly sending offline-queued locations
+3. Lower accuracy threshold or store all locations with an `is_accurate` flag so trail continuity is maintained
+4. Add a "sync trail" action to the `connect-driver` edge function that accepts a batch of trail points from localStorage
 
-Deliverable result:
-- When Pat switches apps, locks phone, or briefly loses internet, tracking continues and syncs later.
-- If Pat force-kills the app, tracking still generally continues with this plugin configuration (subject to iOS behavior and permissions), and queued locations sync when possible.
+**Files:**
+- `supabase/functions/connect-driver/index.ts`: Add a `sync-trail` action that accepts an array of trail points
+- `src/pages/app/DriverAppDashboard.tsx`: On reconnect/visibility change, upload any stored trail points via edge function
+- `src/pages/admin/DriverDetails.tsx` or equivalent: Verify trail query
 
---------------------------------------------------------------------------------
+Let me check the admin driver details page:
 
-C) Deployment / “Do we need to update the app?”
-Because your Capacitor config uses:
-- `server.url: 'https://fleettrackmate.com/app?...'`
+---
 
-This means:
-- Web code changes (task fetching UI changes, hook logic changes) take effect after you Publish on Lovable.
-- Native plugin dependency changes (background-fetch install) require a native rebuild once.
+### Issue 4: Driver App Dark Theme
 
-Step-by-step for you after I implement changes:
-1) Publish the web app (so Pat’s driver app loads the new task-fetching logic immediately).
-2) Rebuild iOS once (native dependency fix):
-   - Export to GitHub → git pull
-   - `npm install` (this brings in `@transistorsoft/capacitor-background-fetch`)
-   - `npx cap sync ios`
-   - `cd ios/App && pod install && cd ../..`
-   - Build in Xcode / distribute via TestFlight
-3) On Pat’s phone:
-   - Open the app once
-   - Confirm permission is “Always”
-   - Test offline: turn off data for 2–5 minutes, move, turn data back on, confirm backlog syncs
+**Root Cause:** The app already has a `ThemeProvider` and `ThemeToggle` component wrapping the entire app (including driver routes). The `dark` class toggle works. However, the driver Settings page does not include a theme toggle.
 
---------------------------------------------------------------------------------
-Testing plan (what we will verify)
-1) Tasks:
-- Create a new task assigned to Pat (admin UI).
-- Open Pat Driver App → Tasks page should show it within 0–30 seconds (polling interval).
-- Badge count updates as tasks arrive.
+**Fix:** Add the `ThemeToggle` component to the driver app Settings page.
 
-2) iOS offline/background tracking:
-- With app in background, confirm edge function continues receiving updates (or later uploads).
-- Turn on airplane mode for a few minutes:
-  - confirm no hard failures and that sync resumes once online
-- Kill the app:
-  - verify whether location continues and uploads (depends on permission/settings; we’ll validate with edge logs)
+**Files:**
+- `src/pages/app/DriverAppSettings.tsx`: Import and render `ThemeToggle`
 
-3) Accuracy:
-- Confirm `connect-driver` continues to store only points with accuracy <= 30m (already implemented).
-- Ensure iOS plugin payload conversions keep speed/battery accurate.
+---
 
-Files/areas that will be changed (implementation scope)
-- `supabase/functions/connect-driver/index.ts` (new actions + accept plugin payload + batch handling)
-- `src/pages/app/DriverAppDashboard.tsx` (use iOS hook state; disable duplicate browser watch on iOS; task loading via edge function)
-- `src/pages/app/DriverAppTasks.tsx` (task loading via edge function + polling)
-- `src/hooks/useTaskNotifications.ts` (edge-function polling notification)
-- `src/hooks/useIOSBackgroundTracking.ts` (native HTTP autoSync config + cleanup + UI state updates)
-- `package.json` (add `@transistorsoft/capacitor-background-fetch`)
+### Issue 5: Driver Shows Active on Mobile but Offline on Admin
 
-Notes on future hardening (optional but recommended)
-- Add a lightweight shared secret header for driver updates to reduce spoofing risk, or require `adminCode` match for every update-location call (we can make this required once all clients send it).
+**Root Cause:** The driver app updates `drivers.last_seen_at` via the `update-location` action. The admin dashboard considers a driver "online" if `last_seen_at` is within 5 minutes. If location updates stop (due to backgrounding, accuracy filtering, or network issues), the heartbeat stops and the driver appears offline on admin even though the driver app UI still shows "Tracking Active" from a stale state.
 
-If you approve this plan, I’ll implement it and then we’ll do a quick end-to-end verification with Pat (tasks + background/offline tracking) using edge logs and the admin dashboard trail.
+**Fix:**
+1. Add a dedicated **heartbeat interval** in the driver dashboard that sends a lightweight `update-status` call every 60 seconds, independent of location updates. This ensures `last_seen_at` stays current even when GPS accuracy is poor or locations are being filtered.
+2. On the driver app, if the last successful server response was more than 2 minutes ago, show a warning instead of "Tracking Active".
+
+**Files:**
+- `src/pages/app/DriverAppDashboard.tsx`: Add heartbeat interval calling `update-status` every 60s
+- `src/components/driver/DriverStatusCard.tsx`: Show stale warning if lastSync > 2 min
+
+---
+
+### Implementation Steps
+
+#### Step 1: SQL Migration -- Fix Storage Policies
+Add anonymous upload policies for `sos-evidence` and `proofs` buckets so code-based drivers can upload files.
+
+```sql
+-- Allow anonymous uploads to sos-evidence bucket
+CREATE POLICY "anon_upload_sos_evidence"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'sos-evidence');
+
+-- Allow anonymous uploads to proofs bucket (drop conflicting old policy)
+DROP POLICY IF EXISTS "Users can upload their own proofs" ON storage.objects;
+CREATE POLICY "anon_upload_proofs"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'proofs');
+```
+
+#### Step 2: Fix SOS Photo Upload Flow
+Update `DriverAppSOS.tsx`:
+- After creating SOS via `sos-create` edge function, upload photo to storage (now works with permissive policy)
+- Update `sos_events.photo_url` via a new `connect-driver` action `update-sos-photo` (bypasses RLS)
+
+Add `update-sos-photo` action to `connect-driver` edge function.
+
+#### Step 3: Fix Heartbeat for Driver Online Status
+Add a 60-second heartbeat in `DriverAppDashboard.tsx` that calls `update-status` even when no location is available, keeping `drivers.last_seen_at` fresh.
+
+#### Step 4: Sync Offline Trail to Backend
+Add `sync-trail` action to `connect-driver` edge function. On app visibility change or when coming back online, upload trail points from localStorage to `driver_location_history`.
+
+#### Step 5: Add Dark Theme Toggle to Driver Settings
+Import `ThemeToggle` in `DriverAppSettings.tsx` and render it in an "Appearance" card.
+
+#### Step 6: Show Stale Tracking Warning
+Update `DriverStatusCard.tsx` to show warning if last sync was more than 2 minutes ago.
+
+### Files to Modify
+1. **SQL migration** -- storage policies for anonymous uploads
+2. `supabase/functions/connect-driver/index.ts` -- add `update-sos-photo` and `sync-trail` actions
+3. `src/pages/app/DriverAppSOS.tsx` -- fix photo upload + sos_events update via edge function
+4. `src/pages/app/DriverAppDashboard.tsx` -- add 60s heartbeat interval + trail sync on reconnect
+5. `src/pages/app/DriverAppSettings.tsx` -- add ThemeToggle
+6. `src/components/driver/DriverStatusCard.tsx` -- stale tracking warning
+
+### After Implementation
+- **Publish** for web code changes to take effect on the driver app
+- SOS photos and task completion proofs will upload successfully
+- Driver heartbeat keeps admin dashboard showing correct online/offline status
+- Dark theme toggle available in driver Settings
+- Offline trail points sync to backend when connectivity returns
+
