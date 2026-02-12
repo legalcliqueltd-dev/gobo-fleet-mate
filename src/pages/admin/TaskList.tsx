@@ -334,15 +334,15 @@ export default function TaskList() {
                         </div>
                       )}
                       {report?.photos && report.photos.length > 0 && (
-                        <div className="flex gap-1 mt-2">
+                        <div className="flex gap-1.5 mt-2">
                           {report.photos.slice(0, 3).map((url, idx) => {
                             const isVideo = url.includes('.mp4') || url.includes('.mov') || url.includes('.webm');
                             return isVideo ? (
-                              <div key={idx} className="relative w-10 h-10 bg-black rounded overflow-hidden">
+                              <div key={idx} className="relative w-12 h-12 bg-black rounded-md overflow-hidden">
                                 <Play className="absolute inset-0 m-auto h-4 w-4 text-white" />
                               </div>
                             ) : (
-                              <img key={idx} src={url} alt="" className="w-10 h-10 object-cover rounded" />
+                              <img key={idx} src={url} alt="" className="w-12 h-12 object-cover rounded-md border border-border" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                             );
                           })}
                           {report.photos.length > 3 && (
@@ -405,15 +405,16 @@ export default function TaskList() {
                           key={idx}
                           src={url}
                           controls
-                          className="w-24 h-24 object-cover rounded-lg"
+                          className="w-28 h-28 object-cover rounded-lg border border-border"
                         />
                       ) : (
                         <img 
                           key={idx}
                           src={url}
                           alt={`Proof ${idx + 1}`}
-                          className="w-24 h-24 object-cover rounded-lg cursor-pointer"
+                          className="w-28 h-28 object-cover rounded-lg cursor-pointer border border-border hover:opacity-90 transition"
                           onClick={() => window.open(url, '_blank')}
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
                         />
                       );
                     })}

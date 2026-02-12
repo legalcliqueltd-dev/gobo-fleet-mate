@@ -531,9 +531,9 @@ export default function Incidents() {
                 </div>
               )}
 
-              {/* Photo Evidence - Hidden on very small screens, shown on larger */}
+              {/* Photo Evidence */}
               {selectedEvent.photo_url && (
-                <div className="mb-2 hidden sm:block">
+                <div className="mb-2">
                   <p className="text-xs font-medium mb-1 flex items-center gap-1">
                     <Image className="h-3 w-3" />
                     Photo Evidence
@@ -541,8 +541,16 @@ export default function Incidents() {
                   <img
                     src={selectedEvent.photo_url}
                     alt="Evidence"
-                    className="w-full max-h-24 lg:max-h-32 object-cover rounded-lg cursor-pointer hover:opacity-90 transition"
+                    className="w-full max-h-28 sm:max-h-32 lg:max-h-40 object-cover rounded-lg cursor-pointer hover:opacity-90 transition border border-border"
                     onClick={() => setPhotoModalOpen(true)}
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      target.style.display = 'none';
+                      const fallback = document.createElement('p');
+                      fallback.className = 'text-xs text-muted-foreground italic';
+                      fallback.textContent = 'Image unavailable';
+                      target.parentElement?.appendChild(fallback);
+                    }}
                   />
                 </div>
               )}
@@ -653,11 +661,12 @@ export default function Incidents() {
                     {formatDistanceToNow(new Date(evt.created_at), { addSuffix: true })}
                   </p>
                   {evt.photo_url && (
-                    <div className="mt-1.5 sm:mt-2 hidden sm:block">
+                    <div className="mt-1.5 sm:mt-2">
                       <img
                         src={evt.photo_url}
                         alt="Evidence"
-                        className="w-full h-12 sm:h-16 object-cover rounded-lg"
+                        className="w-full h-14 sm:h-16 object-cover rounded-lg border border-border"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
                       />
                     </div>
                   )}
