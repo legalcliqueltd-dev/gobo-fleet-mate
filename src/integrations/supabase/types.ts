@@ -852,6 +852,28 @@ export type Database = {
           max_speed_kmh: number
         }[]
       }
+      driver_fleet_stats: {
+        Args: { p_admin_codes: string[]; p_since: string }
+        Returns: {
+          active_count: number
+          avg_speed_kmh: number
+          driver_count: number
+          idle_count: number
+          max_speed_kmh: number
+          offline_count: number
+          total_distance_km: number
+          total_idle_minutes: number
+        }[]
+      }
+      driver_fleet_utilization_daily: {
+        Args: { p_admin_codes: string[]; p_days?: number }
+        Returns: {
+          day: string
+          total_active_minutes: number
+          total_driver_minutes: number
+          utilization_percent: number
+        }[]
+      }
       driver_stats: {
         Args: { p_driver_id: string; p_since: string }
         Returns: {
