@@ -488,6 +488,104 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ========================================
+    // ACTION: update-sos-photo
+    // ========================================
+    if (action === 'update-sos-photo') {
+      const { adminCode, sosId, photoUrl } = body;
+      if (!driverId || !adminCode || !sosId || !photoUrl) {
+        return new Response(
+          JSON.stringify({ error: 'driverId, adminCode, sosId and photoUrl are required', server_time: serverTime }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const driver = await validateDriverIdentity(driverId, adminCode);
+      if (!driver) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid driver identity', server_time: serverTime }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { error: updateErr } = await supabaseAdmin
+        .from('sos_events')
+        .update({ photo_url: photoUrl })
+        .eq('id', sosId)
+        .eq('driver_id', driverId);
+
+      if (updateErr) {
+        console.error('SOS photo update error:', updateErr);
+        return new Response(
+          JSON.stringify({ error: 'Failed to update SOS photo', server_time: serverTime }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, server_time: serverTime }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ========================================
+    // ACTION: sync-trail
+    // ========================================
+    if (action === 'sync-trail') {
+      const { adminCode, trailPoints } = body;
+      if (!driverId || !adminCode || !Array.isArray(trailPoints) || trailPoints.length === 0) {
+        return new Response(
+          JSON.stringify({ error: 'driverId, adminCode and trailPoints array are required', server_time: serverTime }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const driver = await validateDriverIdentity(driverId, adminCode);
+      if (!driver) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid driver identity', server_time: serverTime }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const historyRows: any[] = [];
+      for (const pt of trailPoints.slice(-100)) {
+        const lat = pt.lat ?? pt.latitude;
+        const lng = pt.lng ?? pt.longitude;
+        if (!validateLatitude(lat) || !validateLongitude(lng)) continue;
+        historyRows.push({
+          driver_id: driverId,
+          admin_code: adminCode,
+          latitude: lat,
+          longitude: lng,
+          speed: pt.speed ?? null,
+          accuracy: pt.accuracy ?? null,
+          recorded_at: pt.timestamp ? new Date(pt.timestamp).toISOString() : new Date().toISOString(),
+        });
+      }
+
+      let stored = 0;
+      if (historyRows.length > 0) {
+        const { error: insertErr } = await supabaseAdmin.from('driver_location_history').insert(historyRows);
+        if (insertErr) {
+          console.error('Trail sync insert error:', insertErr);
+        } else {
+          stored = historyRows.length;
+        }
+      }
+
+      // Also update heartbeat
+      await supabaseAdmin
+        .from('drivers')
+        .update({ status: 'active', last_seen_at: new Date().toISOString() })
+        .eq('driver_id', driverId);
+
+      return new Response(
+        JSON.stringify({ success: true, stored, server_time: serverTime }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (action === 'update-status') {
       if (!driverId) {
         return new Response(

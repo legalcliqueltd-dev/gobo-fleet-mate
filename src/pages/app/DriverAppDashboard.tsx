@@ -201,6 +201,83 @@ export default function DriverAppDashboard() {
     };
   }, [loadTasks]);
 
+  // === Heartbeat: keep driver alive on admin dashboard even without location updates ===
+  useEffect(() => {
+    if (!session?.driverId) return;
+    
+    const sendHeartbeat = async () => {
+      try {
+        await supabase.functions.invoke('connect-driver', {
+          body: {
+            action: 'update-status',
+            driverId: session.driverId,
+            status: 'active',
+            batteryLevel: batteryLevel ?? undefined,
+          },
+        });
+      } catch (e) {
+        console.warn('Heartbeat failed:', e);
+      }
+    };
+
+    const heartbeatInterval = setInterval(sendHeartbeat, 60000);
+    return () => clearInterval(heartbeatInterval);
+  }, [session?.driverId, batteryLevel]);
+
+  // === Trail sync: upload locally stored trail to backend on visibility change / online ===
+  useEffect(() => {
+    if (!session?.driverId || !session?.adminCode) return;
+
+    const syncTrail = async () => {
+      const stored = localStorage.getItem(TRAIL_STORAGE_KEY);
+      if (!stored) return;
+      
+      try {
+        const trailPoints: TrailPoint[] = JSON.parse(stored);
+        // Only sync points not yet synced (use a marker)
+        const lastSyncTs = parseInt(localStorage.getItem('trail_last_sync_ts') || '0', 10);
+        const unsyncedPoints = trailPoints.filter(p => p.timestamp > lastSyncTs);
+        
+        if (unsyncedPoints.length === 0) return;
+        
+        const { data, error } = await supabase.functions.invoke('connect-driver', {
+          body: {
+            action: 'sync-trail',
+            driverId: session.driverId,
+            adminCode: session.adminCode,
+            trailPoints: unsyncedPoints,
+          },
+        });
+
+        if (!error && data?.success) {
+          localStorage.setItem('trail_last_sync_ts', String(Date.now()));
+          console.log(`Trail synced: ${data.stored} points`);
+        }
+      } catch (e) {
+        console.warn('Trail sync failed:', e);
+      }
+    };
+
+    // Sync on mount and visibility change
+    syncTrail();
+    const handleVisibilityTrail = () => {
+      if (document.visibilityState === 'visible') syncTrail();
+    };
+    const handleOnline = () => syncTrail();
+    
+    document.addEventListener('visibilitychange', handleVisibilityTrail);
+    window.addEventListener('online', handleOnline);
+    
+    // Also sync every 5 minutes
+    const syncInterval = setInterval(syncTrail, 5 * 60 * 1000);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityTrail);
+      window.removeEventListener('online', handleOnline);
+      clearInterval(syncInterval);
+    };
+  }, [session?.driverId, session?.adminCode]);
+
   const centerOnLocation = useCallback(() => {
     if (mapRef.current && currentLocation) {
       mapRef.current.panTo(currentLocation);
