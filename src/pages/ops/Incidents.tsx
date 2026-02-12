@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '../../contexts/AuthContext';
 import { GoogleMap, Marker, useJsApiLoader, Polyline, InfoWindow } from '@react-google-maps/api';
 import { GOOGLE_MAPS_API_KEY } from '../../lib/googleMapsConfig';
-import { AlertTriangle, CheckCircle, Clock, MapPin, Image, User, Calendar, ZoomIn, Map, Satellite, Trash2, ExternalLink } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, MapPin, Image, Calendar, ZoomIn, Map, Satellite, Trash2, ExternalLink, X, Navigation } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Textarea } from '../../components/ui/textarea';
 import { toast } from 'sonner';
@@ -54,7 +54,6 @@ const isUuid = (value: string | null | undefined) =>
   !!value &&
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 
-// Create numbered SOS marker icon
 const createSOSMarkerIcon = (index: number, status: string, isSelected: boolean) => {
   const colors: Record<string, string> = {
     open: '#ef4444',
@@ -65,14 +64,14 @@ const createSOSMarkerIcon = (index: number, status: string, isSelected: boolean)
   const size = isSelected ? 44 : 32;
   const fontSize = isSelected ? 16 : 12;
   const strokeWidth = isSelected ? 3 : 2;
-  
+
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-      <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 2}" fill="${color}" stroke="white" stroke-width="${strokeWidth}"/>
-      <text x="${size/2}" y="${size/2 + fontSize/3}" font-family="Arial,sans-serif" font-size="${fontSize}" font-weight="bold" fill="white" text-anchor="middle">${index}</text>
+      <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - 2}" fill="${color}" stroke="white" stroke-width="${strokeWidth}"/>
+      <text x="${size / 2}" y="${size / 2 + fontSize / 3}" font-family="Arial,sans-serif" font-size="${fontSize}" font-weight="bold" fill="white" text-anchor="middle">${index}</text>
       ${isSelected ? `
-        <circle cx="${size/2}" cy="${size/2}" r="${size/2}" fill="none" stroke="${color}" stroke-width="2" opacity="0.6">
-          <animate attributeName="r" from="${size/2}" to="${size/2 + 8}" dur="1.2s" repeatCount="indefinite"/>
+        <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="none" stroke="${color}" stroke-width="2" opacity="0.6">
+          <animate attributeName="r" from="${size / 2}" to="${size / 2 + 8}" dur="1.2s" repeatCount="indefinite"/>
           <animate attributeName="opacity" from="0.6" to="0" dur="1.2s" repeatCount="indefinite"/>
         </circle>
       ` : ''}
@@ -111,7 +110,6 @@ export default function Incidents() {
   useEffect(() => {
     if (selectedEvent) {
       loadPositionTrail(selectedEvent.id);
-      // Zoom to selected event
       if (mapRef.current && selectedEvent.latitude && selectedEvent.longitude) {
         mapRef.current.panTo({ lat: selectedEvent.latitude, lng: selectedEvent.longitude });
         mapRef.current.setZoom(16);
@@ -193,7 +191,6 @@ export default function Incidents() {
 
       setEvents(enrichedEvents);
 
-      // Fit map bounds to all events with locations on initial load
       if (!hasFittedInitialBounds.current && mapRef.current) {
         const eventsWithLoc = enrichedEvents.filter(e => e.latitude && e.longitude);
         if (eventsWithLoc.length > 0) {
@@ -297,7 +294,6 @@ export default function Incidents() {
     }
   }, [selectedEvent]);
 
-  // Get the index for each event (for numbered markers)
   const eventIndexMap = useMemo(() => {
     const indexMap: Record<string, number> = {};
     const eventsWithLoc = events.filter(e => e.latitude && e.longitude);
@@ -312,10 +308,10 @@ export default function Incidents() {
       resolved: 'secondary',
       cancelled: 'outline',
     };
-    return <Badge variant={variants[status] || 'outline'}>{status.toUpperCase()}</Badge>;
+    return <Badge variant={variants[status] || 'outline'} className="text-[10px] px-1.5 py-0">{status.toUpperCase()}</Badge>;
   };
 
-  const hazardEmoji = (hazard: string) => {
+  const hazardIcon = (hazard: string) => {
     const emojis: Record<string, string> = {
       accident: '🚗', medical: '🏥', robbery: '🚨', breakdown: '🔧', other: '⚠️',
     };
@@ -337,134 +333,146 @@ export default function Incidents() {
   const resolvedEvents = events.filter(e => e.status === 'resolved' || e.status === 'cancelled');
 
   return (
-    <div className="h-[calc(100dvh-140px)] flex flex-col">
-      <div className="flex items-center justify-between mb-3 px-1">
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Incident Management</h1>
-          <Badge variant={activeEvents.length > 0 ? 'destructive' : 'secondary'} className="text-xs sm:text-sm px-2 sm:px-3 py-0.5 sm:py-1">
-            {activeEvents.length} Active
-          </Badge>
+    <div className="h-[calc(100dvh-140px)] flex flex-col gap-2">
+      {/* Header Row */}
+      <div className="flex items-center justify-between px-1 shrink-0">
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg sm:text-xl font-bold">Incidents</h1>
+          {activeEvents.length > 0 && (
+            <Badge variant="destructive" className="text-[10px] px-2 py-0.5 animate-pulse">
+              {activeEvents.length} Active
+            </Badge>
+          )}
+        </div>
+        {/* Map type & controls */}
+        <div className="flex items-center gap-1.5">
+          <Button
+            size="sm"
+            variant={mapType === 'roadmap' ? 'default' : 'outline'}
+            onClick={() => setMapType('roadmap')}
+            className="h-7 px-2 text-[10px]"
+          >
+            <Map className="h-3 w-3 mr-1" /> Map
+          </Button>
+          <Button
+            size="sm"
+            variant={mapType === 'satellite' ? 'default' : 'outline'}
+            onClick={() => setMapType('satellite')}
+            className="h-7 px-2 text-[10px]"
+          >
+            <Satellite className="h-3 w-3 mr-1" /> Satellite
+          </Button>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col lg:grid lg:grid-cols-[320px_1fr] xl:grid-cols-[360px_1fr] gap-3 min-h-0">
-        {/* Events List */}
-        <div className="order-2 lg:order-1 glass-card rounded-xl p-3 overflow-y-auto flex-1 lg:flex-none lg:max-h-full min-h-[120px] max-h-[30vh] lg:max-h-none">
-          <h2 className="font-semibold mb-2 flex items-center gap-2 text-sm">
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-            Active ({activeEvents.length})
-          </h2>
-          {loading ? (
-            <p className="text-xs text-muted-foreground">Loading...</p>
-          ) : activeEvents.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No active incidents</p>
-          ) : (
-            <div className="space-y-2">
-              {activeEvents.map((evt) => {
-                const markerNum = eventIndexMap[evt.id];
-                return (
-                  <div
-                    key={evt.id}
-                    onClick={() => setSelectedEvent(evt)}
-                    className={`p-2.5 rounded-xl border-2 cursor-pointer transition-all ${
-                      selectedEvent?.id === evt.id
-                        ? 'border-primary bg-primary/5 shadow-lg'
-                        : 'border-border hover:border-primary/50 hover:shadow-md'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-1">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col lg:grid lg:grid-cols-[300px_1fr_320px] gap-2 min-h-0">
+
+        {/* Left Panel - Incident List */}
+        <div className="order-2 lg:order-1 rounded-xl border border-border bg-card overflow-y-auto min-h-[100px] max-h-[28vh] lg:max-h-none">
+          {/* Active Section */}
+          <div className="p-2.5">
+            <h2 className="font-semibold text-xs flex items-center gap-1.5 mb-2 text-destructive">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              Active ({activeEvents.length})
+            </h2>
+            {loading ? (
+              <p className="text-[10px] text-muted-foreground py-4 text-center">Loading...</p>
+            ) : activeEvents.length === 0 ? (
+              <p className="text-[10px] text-muted-foreground py-4 text-center">No active incidents</p>
+            ) : (
+              <div className="space-y-1.5">
+                {activeEvents.map((evt) => {
+                  const markerNum = eventIndexMap[evt.id];
+                  const isSelected = selectedEvent?.id === evt.id;
+                  return (
+                    <button
+                      key={evt.id}
+                      onClick={() => setSelectedEvent(evt)}
+                      className={`w-full text-left p-2 rounded-lg border transition-all ${
+                        isSelected
+                          ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
+                          : 'border-border hover:border-primary/40 hover:bg-muted/50'
+                      }`}
+                    >
                       <div className="flex items-center gap-2">
-                        {/* Marker number badge */}
                         {markerNum && (
-                          <span className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold text-white ${
+                          <span className={`shrink-0 flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold text-white ${
                             evt.status === 'open' ? 'bg-destructive' : 'bg-yellow-500'
                           }`}>
                             {markerNum}
                           </span>
                         )}
-                        <span className="text-lg">{hazardEmoji(evt.hazard)}</span>
-                        <div>
-                          <p className="font-semibold text-sm">{evt.driver_name}</p>
-                          {evt.driver_code && (
-                            <p className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded inline-block mt-0.5">
-                              {evt.driver_code}
-                            </p>
-                          )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-xs font-semibold truncate">{evt.driver_name}</span>
+                            {statusBadge(evt.status)}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[10px] uppercase text-muted-foreground font-medium">{hazardIcon(evt.hazard)} {evt.hazard}</span>
+                            <span className="text-[9px] text-muted-foreground">·</span>
+                            <span className="text-[9px] text-muted-foreground">{formatDistanceToNow(new Date(evt.created_at), { addSuffix: true })}</span>
+                          </div>
                         </div>
                       </div>
-                      {statusBadge(evt.status)}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground uppercase font-medium mb-0.5">{evt.hazard}</p>
-                    <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {formatDistanceToNow(new Date(evt.created_at), { addSuffix: true })}
-                    </p>
-                    {evt.photo_url && (
-                      <div className="mt-1.5">
-                        <img src={evt.photo_url} alt="Evidence" className="w-full h-14 object-cover rounded-lg border border-border" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
+          {/* Resolved Section */}
           {resolvedEvents.length > 0 && (
-            <>
-              <h2 className="font-semibold mt-4 mb-2 flex items-center gap-2 text-muted-foreground text-sm">
-                <CheckCircle className="h-4 w-4" />
+            <div className="p-2.5 border-t border-border">
+              <h2 className="font-semibold text-xs flex items-center gap-1.5 mb-2 text-muted-foreground">
+                <CheckCircle className="h-3.5 w-3.5" />
                 Resolved ({resolvedEvents.length})
               </h2>
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {resolvedEvents.slice(0, 10).map((evt) => {
                   const markerNum = eventIndexMap[evt.id];
+                  const isSelected = selectedEvent?.id === evt.id;
                   return (
                     <div
                       key={evt.id}
                       onClick={() => setSelectedEvent(evt)}
-                      className={`p-2 rounded-lg border cursor-pointer transition opacity-70 hover:opacity-100 flex items-center justify-between ${
-                        selectedEvent?.id === evt.id ? 'border-primary bg-primary/5' : 'border-border'
+                      className={`flex items-center gap-2 p-1.5 rounded-lg border cursor-pointer transition opacity-60 hover:opacity-100 ${
+                        isSelected ? 'border-primary bg-primary/5 opacity-100' : 'border-transparent hover:border-border'
                       }`}
                     >
-                      <div className="min-w-0 flex-1 flex items-center gap-2">
-                        {markerNum && (
-                          <span className="flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-bold text-white bg-green-500 shrink-0">
-                            {markerNum}
-                          </span>
-                        )}
-                        <div className="min-w-0">
-                          <span className="text-xs font-medium truncate block">{evt.driver_name}</span>
-                          {evt.driver_code && (
-                            <span className="text-[10px] font-mono bg-muted px-1 py-0.5 rounded inline-block mt-0.5">
-                              {evt.driver_code}
-                            </span>
-                          )}
-                        </div>
+                      {markerNum && (
+                        <span className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-bold text-white bg-green-500">
+                          {markerNum}
+                        </span>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[11px] font-medium truncate block">{evt.driver_name}</span>
+                        <span className="text-[9px] text-muted-foreground">{formatDistanceToNow(new Date(evt.created_at), { addSuffix: true })}</span>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                      <div className="flex items-center gap-1 shrink-0">
                         {statusBadge(evt.status)}
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteClick(evt.id); }}
-                          className="p-1 text-muted-foreground hover:text-destructive transition"
+                          className="p-0.5 text-muted-foreground hover:text-destructive transition"
                           title="Delete"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-3 w-3" />
                         </button>
                       </div>
                     </div>
                   );
                 })}
               </div>
-            </>
+            </div>
           )}
         </div>
 
-        {/* Map */}
-        <div className="order-1 lg:order-2 glass-card rounded-xl overflow-hidden relative h-[55vh] sm:h-[60vh] lg:h-full min-h-[400px]">
+        {/* Center - Clean Map (no overlays) */}
+        <div className="order-1 lg:order-2 rounded-xl overflow-hidden border border-border h-[50vh] sm:h-[55vh] lg:h-full min-h-[350px]">
           {!isLoaded ? (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-muted-foreground">Loading map...</p>
+            <div className="flex items-center justify-center h-full bg-muted/20">
+              <p className="text-muted-foreground text-sm">Loading map...</p>
             </div>
           ) : (
             <GoogleMap
@@ -473,7 +481,6 @@ export default function Incidents() {
               zoom={6}
               onLoad={(map) => {
                 mapRef.current = map;
-                // Fit bounds if we already have events
                 const eventsWithLoc = events.filter(e => e.latitude && e.longitude);
                 if (eventsWithLoc.length > 0 && !hasFittedInitialBounds.current) {
                   const bounds = new google.maps.LatLngBounds();
@@ -491,7 +498,6 @@ export default function Incidents() {
                 gestureHandling: 'greedy',
               }}
             >
-              {/* SOS Event Markers - numbered, selected one pulses */}
               {events
                 .filter((e) => e.latitude && e.longitude)
                 .map((evt) => {
@@ -513,21 +519,6 @@ export default function Incidents() {
                   );
                 })}
 
-              {/* Selected event info window */}
-              {selectedEvent && selectedEvent.latitude && selectedEvent.longitude && (
-                <InfoWindow
-                  position={{ lat: selectedEvent.latitude, lng: selectedEvent.longitude }}
-                  onCloseClick={() => {}}
-                >
-                  <div className="p-1 min-w-[120px]">
-                    <p className="font-bold text-xs text-gray-900">{hazardEmoji(selectedEvent.hazard)} {selectedEvent.hazard.toUpperCase()}</p>
-                    <p className="text-[11px] text-gray-600">{selectedEvent.driver_name}</p>
-                    <p className="text-[10px] text-gray-500">{new Date(selectedEvent.created_at).toLocaleString()}</p>
-                  </div>
-                </InfoWindow>
-              )}
-
-              {/* Position Trail Polyline */}
               {positionTrail.length > 1 && (
                 <Polyline
                   path={positionTrail.map(p => ({ lat: p.latitude, lng: p.longitude }))}
@@ -535,7 +526,6 @@ export default function Incidents() {
                 />
               )}
 
-              {/* Position Trail Markers */}
               {positionTrail.map((pos, idx) => (
                 <Marker
                   key={pos.id}
@@ -553,93 +543,95 @@ export default function Incidents() {
               ))}
             </GoogleMap>
           )}
+        </div>
 
-          {/* Map Type Toggle */}
-          <div className="absolute top-2 right-2 sm:top-3 sm:right-3 flex gap-1.5">
-            <Button size="sm" variant={mapType === 'roadmap' ? 'default' : 'secondary'} onClick={() => setMapType('roadmap')} className="shadow-lg h-7 px-2 text-xs">
-              <Map className="h-3.5 w-3.5 sm:mr-1" />
-              <span className="hidden sm:inline">Map</span>
-            </Button>
-            <Button size="sm" variant={mapType === 'satellite' ? 'default' : 'secondary'} onClick={() => setMapType('satellite')} className="shadow-lg h-7 px-2 text-xs">
-              <Satellite className="h-3.5 w-3.5 sm:mr-1" />
-              <span className="hidden sm:inline">Satellite</span>
-            </Button>
-          </div>
-
-          {/* Selected Event Details Panel */}
-          {selectedEvent && (
-            <div className="absolute 
-              bottom-2 left-2 right-2 max-h-[45%]
-              lg:bottom-auto lg:left-auto lg:top-12 lg:right-3 lg:w-72 xl:w-80 lg:max-h-[calc(100%-4rem)]
-              glass-card rounded-xl p-2.5 overflow-y-auto shadow-2xl border border-border/50
-            ">
-              <div className="flex items-start justify-between mb-2">
+        {/* Right Panel - Incident Details (outside the map) */}
+        <div className="order-3 rounded-xl border border-border bg-card overflow-y-auto min-h-[100px] max-h-[35vh] lg:max-h-none">
+          {selectedEvent ? (
+            <div className="p-3">
+              {/* Header */}
+              <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  {/* Marker number */}
                   {eventIndexMap[selectedEvent.id] && (
-                    <span className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold text-white ${
+                    <span className={`shrink-0 flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold text-white ${
                       selectedEvent.status === 'open' ? 'bg-destructive' : selectedEvent.status === 'acknowledged' ? 'bg-yellow-500' : 'bg-green-500'
                     }`}>
                       {eventIndexMap[selectedEvent.id]}
                     </span>
                   )}
-                  <div className="min-w-0">
-                    <h3 className="font-bold text-xs truncate">{selectedEvent.driver_name}</h3>
+                  <div>
+                    <h3 className="font-bold text-sm">{selectedEvent.driver_name}</h3>
                     {selectedEvent.driver_code && (
-                      <p className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded inline-block">
+                      <p className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded inline-block mt-0.5">
                         {selectedEvent.driver_code}
                       </p>
                     )}
                   </div>
                 </div>
-                <button onClick={() => setSelectedEvent(null)} className="text-muted-foreground hover:text-foreground text-lg font-light shrink-0 p-1">×</button>
+                <button
+                  onClick={() => setSelectedEvent(null)}
+                  className="p-1 rounded-md hover:bg-muted transition text-muted-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
 
-              <div className="flex items-center gap-1.5 mb-2">
-                <span className="text-lg">{hazardEmoji(selectedEvent.hazard)}</span>
-                <span className="font-semibold text-xs">{selectedEvent.hazard.toUpperCase()}</span>
+              {/* Status & Hazard */}
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-base">{hazardIcon(selectedEvent.hazard)}</span>
+                <span className="font-semibold text-xs uppercase">{selectedEvent.hazard}</span>
                 {statusBadge(selectedEvent.status)}
               </div>
 
-              <div className="text-[10px] text-muted-foreground mb-2 space-y-0.5">
-                <span className="flex items-center gap-1">
-                  <Calendar className="h-3 w-3" />
+              {/* Meta Info */}
+              <div className="space-y-1 mb-3 p-2 rounded-lg bg-muted/50 border border-border">
+                <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                  <Calendar className="h-3 w-3 shrink-0" />
                   {new Date(selectedEvent.created_at).toLocaleString()}
-                </span>
+                </p>
                 {selectedEvent.latitude && selectedEvent.longitude && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                    <MapPin className="h-3 w-3 shrink-0" />
                     {selectedEvent.latitude.toFixed(4)}, {selectedEvent.longitude.toFixed(4)}
-                  </span>
+                  </p>
+                )}
+                {positionTrail.length > 0 && (
+                  <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                    <Navigation className="h-3 w-3 shrink-0" />
+                    {positionTrail.length} position update{positionTrail.length > 1 ? 's' : ''}
+                  </p>
                 )}
               </div>
 
+              {/* Quick Actions */}
               {selectedEvent.latitude && selectedEvent.longitude && (
-                <div className="flex gap-1.5 mb-2">
-                  <Button size="sm" variant="outline" onClick={zoomToLocation} className="flex-1 h-7 text-[10px]">
+                <div className="flex gap-1.5 mb-3">
+                  <Button size="sm" variant="outline" onClick={zoomToLocation} className="flex-1 h-8 text-[11px]">
                     <ZoomIn className="h-3 w-3 mr-1" /> Zoom
                   </Button>
-                  <Button size="sm" variant="outline" onClick={openInGoogleMaps} className="flex-1 h-7 text-[10px]">
+                  <Button size="sm" variant="outline" onClick={openInGoogleMaps} className="flex-1 h-8 text-[11px]">
                     <ExternalLink className="h-3 w-3 mr-1" /> Google Maps
                   </Button>
                 </div>
               )}
 
+              {/* Message */}
               {selectedEvent.message && (
-                <div className="p-1.5 bg-muted rounded-lg mb-2">
-                  <p className="text-[10px]">{selectedEvent.message}</p>
+                <div className="p-2 bg-muted/50 rounded-lg mb-3 border border-border">
+                  <p className="text-[11px] text-foreground">{selectedEvent.message}</p>
                 </div>
               )}
 
+              {/* Photo Evidence */}
               {selectedEvent.photo_url && (
-                <div className="mb-2">
-                  <p className="text-xs font-medium mb-1 flex items-center gap-1">
+                <div className="mb-3">
+                  <p className="text-xs font-medium mb-1.5 flex items-center gap-1">
                     <Image className="h-3 w-3" /> Photo Evidence
                   </p>
                   <img
                     src={selectedEvent.photo_url}
                     alt="Evidence"
-                    className="w-full max-h-32 object-cover rounded-lg cursor-pointer hover:opacity-90 transition border border-border"
+                    className="w-full h-36 object-cover rounded-lg cursor-pointer hover:opacity-90 transition border border-border"
                     onClick={() => setPhotoModalOpen(true)}
                     onError={(e) => {
                       const target = e.currentTarget;
@@ -653,38 +645,45 @@ export default function Incidents() {
                 </div>
               )}
 
-              {positionTrail.length > 0 && (
-                <p className="text-[10px] text-muted-foreground mb-2">
-                  📍 {positionTrail.length} position update{positionTrail.length > 1 ? 's' : ''}
-                </p>
-              )}
-
+              {/* Action Buttons */}
               {selectedEvent.status === 'open' && (
-                <Button size="sm" onClick={() => acknowledgeEvent(selectedEvent.id)} className="w-full mb-1.5 h-7 text-[10px]">
-                  <Clock className="h-3 w-3 mr-1" /> Acknowledge
+                <Button size="sm" onClick={() => acknowledgeEvent(selectedEvent.id)} className="w-full h-8 text-xs">
+                  <Clock className="h-3.5 w-3.5 mr-1.5" /> Acknowledge
                 </Button>
               )}
 
               {selectedEvent.status === 'acknowledged' && (
-                <div className="space-y-1.5">
-                  <Textarea placeholder="Resolution note..." value={resolveNote} onChange={(e) => setResolveNote(e.target.value)} rows={2} className="text-[10px] min-h-[50px]" />
-                  <Button size="sm" onClick={() => resolveEvent(selectedEvent.id)} className="w-full h-7 text-[10px]">
-                    <CheckCircle className="h-3 w-3 mr-1" /> Resolve
+                <div className="space-y-2">
+                  <Textarea
+                    placeholder="Resolution note..."
+                    value={resolveNote}
+                    onChange={(e) => setResolveNote(e.target.value)}
+                    rows={2}
+                    className="text-xs min-h-[50px]"
+                  />
+                  <Button size="sm" onClick={() => resolveEvent(selectedEvent.id)} className="w-full h-8 text-xs">
+                    <CheckCircle className="h-3.5 w-3.5 mr-1.5" /> Resolve
                   </Button>
                 </div>
               )}
 
               {selectedEvent.resolved_note && (
-                <div className="mt-2 p-1.5 bg-green-500/10 rounded-lg">
-                  <p className="text-[10px] font-medium text-green-600 dark:text-green-400">✓ {selectedEvent.resolved_note}</p>
+                <div className="mt-3 p-2 bg-green-500/10 rounded-lg border border-green-500/20">
+                  <p className="text-[11px] font-medium text-green-600 dark:text-green-400">✓ {selectedEvent.resolved_note}</p>
                 </div>
               )}
 
               {(selectedEvent.status === 'resolved' || selectedEvent.status === 'cancelled') && (
-                <Button size="sm" variant="destructive" onClick={() => handleDeleteClick(selectedEvent.id)} className="w-full mt-2 h-7 text-[10px]">
-                  <Trash2 className="h-3 w-3 mr-1" /> Delete
+                <Button size="sm" variant="destructive" onClick={() => handleDeleteClick(selectedEvent.id)} className="w-full mt-3 h-8 text-xs">
+                  <Trash2 className="h-3.5 w-3.5 mr-1.5" /> Delete Incident
                 </Button>
               )}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full p-6 text-center">
+              <MapPin className="h-8 w-8 text-muted-foreground/40 mb-2" />
+              <p className="text-sm font-medium text-muted-foreground">No incident selected</p>
+              <p className="text-[11px] text-muted-foreground/70 mt-1">Select an incident from the list to view details</p>
             </div>
           )}
         </div>
@@ -695,7 +694,9 @@ export default function Incidents() {
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setPhotoModalOpen(false)}>
           <div className="relative max-w-4xl max-h-[90vh]">
             <img src={selectedEvent.photo_url} alt="Evidence" className="max-w-full max-h-[90vh] object-contain rounded-lg" />
-            <button onClick={() => setPhotoModalOpen(false)} className="absolute top-2 right-2 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition">×</button>
+            <button onClick={() => setPhotoModalOpen(false)} className="absolute top-2 right-2 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition">
+              <X className="h-4 w-4" />
+            </button>
           </div>
         </div>
       )}
