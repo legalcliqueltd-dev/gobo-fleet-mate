@@ -79,18 +79,20 @@ export default function DriverLocationMap({ driverName, currentLocation, locatio
       .map(loc => ({ lat: loc.latitude, lng: loc.longitude }));
   }, [locationHistory]);
 
-  // Fit bounds to show all history points
+  // Fit bounds to show all history points - only on initial load
+  const hasFittedBounds = useRef(false);
   useEffect(() => {
-    if (mapRef.current && path.length > 1) {
+    if (mapRef.current && path.length > 1 && !hasFittedBounds.current) {
       const bounds = new google.maps.LatLngBounds();
       path.forEach(point => bounds.extend(point));
       mapRef.current.fitBounds(bounds, 60);
+      hasFittedBounds.current = true;
     }
   }, [path]);
 
   if (!GOOGLE_MAPS_API_KEY) {
     return (
-      <div className="h-[300px] rounded-xl border-2 border-dashed border-muted flex items-center justify-center bg-muted/20">
+      <div className="h-[500px] rounded-xl border-2 border-dashed border-muted flex items-center justify-center bg-muted/20">
         <div className="text-center">
           <MapPin className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
           <p className="text-sm text-muted-foreground">Map unavailable</p>
@@ -101,7 +103,7 @@ export default function DriverLocationMap({ driverName, currentLocation, locatio
 
   if (!isLoaded) {
     return (
-      <div className="h-[300px] rounded-xl border-2 border-border bg-card flex items-center justify-center">
+      <div className="h-[500px] rounded-xl border-2 border-border bg-card flex items-center justify-center">
         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
       </div>
     );
@@ -109,7 +111,7 @@ export default function DriverLocationMap({ driverName, currentLocation, locatio
 
   if (!currentLocation || currentLocation.latitude === 0) {
     return (
-      <div className="h-[300px] rounded-xl border-2 border-dashed border-warning/50 flex items-center justify-center bg-warning/5">
+      <div className="h-[500px] rounded-xl border-2 border-dashed border-warning/50 flex items-center justify-center bg-warning/5">
         <div className="text-center">
           <MapPin className="h-8 w-8 text-warning mx-auto mb-2" />
           <p className="text-sm text-warning font-medium">No location data</p>
@@ -120,7 +122,7 @@ export default function DriverLocationMap({ driverName, currentLocation, locatio
   }
 
   return (
-    <div className="relative h-[300px] rounded-xl overflow-hidden border-2 border-border">
+    <div className="relative h-[500px] rounded-xl overflow-hidden border-2 border-border">
       <GoogleMap
         mapContainerStyle={{ width: '100%', height: '100%' }}
         center={center}

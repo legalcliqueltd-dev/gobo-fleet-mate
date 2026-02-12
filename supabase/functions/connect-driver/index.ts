@@ -248,11 +248,17 @@ Deno.serve(async (req) => {
       }
 
       // Update task status to completed
-      await supabaseAdmin
+      const { error: taskUpdateError, count: taskUpdateCount } = await supabaseAdmin
         .from('tasks')
-        .update({ status: 'completed', updated_at: new Date().toISOString() })
+        .update({ status: 'completed' })
         .eq('id', taskId)
         .eq('assigned_driver_id', driverId);
+      
+      if (taskUpdateError) {
+        console.error('Task status update error:', taskUpdateError);
+      } else {
+        console.log('Task status updated to completed, taskId:', taskId);
+      }
 
       return new Response(
         JSON.stringify({ success: true, server_time: serverTime }),
