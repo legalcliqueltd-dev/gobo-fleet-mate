@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { User, Battery, MapPin, Unlink, Power, AlertTriangle } from 'lucide-react';
+import { User, Battery, MapPin, Unlink, Power, AlertTriangle, Palette } from 'lucide-react';
 import { toast } from 'sonner';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
+import ThemeToggle from '@/components/ThemeToggle';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -222,6 +223,25 @@ export default function DriverAppSettings() {
                 checked={batterySaving}
                 onCheckedChange={handleBatterySavingChange}
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Appearance */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Palette className="h-5 w-5" />
+              Appearance
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label>Theme</Label>
+                <p className="text-xs text-muted-foreground">Choose light, dark, or system theme</p>
+              </div>
+              <ThemeToggle />
             </div>
           </CardContent>
         </Card>

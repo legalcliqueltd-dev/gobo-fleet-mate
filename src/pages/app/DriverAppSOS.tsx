@@ -168,8 +168,16 @@ export default function DriverAppSOS() {
       if (photoFile && data.sosId) {
         const photoUrl = await uploadPhoto(data.sosId);
         if (photoUrl) {
-          // Update SOS with photo URL via edge function or direct update
-          await supabase.from('sos_events').update({ photo_url: photoUrl }).eq('id', data.sosId);
+          // Update SOS with photo URL via edge function (bypasses RLS)
+          await supabase.functions.invoke('connect-driver', {
+            body: {
+              action: 'update-sos-photo',
+              driverId: session.driverId,
+              adminCode: session.adminCode,
+              sosId: data.sosId,
+              photoUrl,
+            },
+          });
         }
       }
 

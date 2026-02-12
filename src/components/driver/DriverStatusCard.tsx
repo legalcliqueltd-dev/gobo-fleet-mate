@@ -1,4 +1,4 @@
-import { BatteryLow, BatteryMedium, BatteryFull, Gauge, Clock, Navigation, Signal } from 'lucide-react';
+import { BatteryLow, BatteryMedium, BatteryFull, Gauge, Clock, Navigation, Signal, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface DriverStatusCardProps {
@@ -51,8 +51,18 @@ export default function DriverStatusCard({
 
   const displaySpeed = speed !== null ? Math.round(speed) : 0;
 
+  const isStale = lastSyncTime 
+    ? (new Date().getTime() - lastSyncTime.getTime()) > 2 * 60 * 1000 
+    : false;
+
   return (
     <div className="driver-status-card mx-4 mb-4 rounded-xl bg-card/95 backdrop-blur-sm border border-border shadow-lg">
+      {isStale && isTracking && (
+        <div className="px-4 pt-3 pb-1 flex items-center gap-2 text-warning">
+          <AlertTriangle className="h-4 w-4" />
+          <span className="text-xs font-medium">Connection stale — last sync {formatSyncTime()}</span>
+        </div>
+      )}
       <div className="px-4 py-3 flex items-center justify-between gap-3">
         {/* Speed - Larger Display */}
         <div className="flex items-center gap-2">
