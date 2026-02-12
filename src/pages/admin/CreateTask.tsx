@@ -93,57 +93,58 @@ export default function CreateTask() {
   }, [pickupLat, pickupLng, dropoffLat, dropoffLng]);
 
   const checkAdminAccess = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'admin')
-      .maybeSingle();
-    
-    if (!data) {
-      toast.error('Admin access required');
-      navigate('/dashboard');
+    try {
+      if (!user) return;
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('role', 'admin')
+        .maybeSingle();
+      
+      if (!data) {
+        toast.error('Admin access required');
+        navigate('/dashboard');
+      }
+    } catch (error) {
+      console.error('Admin access check failed:', error);
     }
   };
 
   const loadDrivers = async () => {
-    if (!user) return;
+    try {
+      if (!user) return;
 
-    // Get admin's devices to find their connection codes
-    const { data: devices } = await supabase
-      .from('devices')
-      .select('connection_code')
-      .eq('user_id', user.id)
-      .not('connection_code', 'is', null);
+      const { data: devices } = await supabase
+        .from('devices')
+        .select('connection_code')
+        .eq('user_id', user.id)
+        .not('connection_code', 'is', null);
 
-    if (!devices || devices.length === 0) {
-      toast.error('No devices with connection codes found');
-      return;
+      if (!devices || devices.length === 0) {
+        return;
+      }
+
+      const connectionCodes = devices
+        .map(d => d.connection_code)
+        .filter((code): code is string => code !== null);
+
+      const { data: driversData, error } = await supabase
+        .from('drivers')
+        .select('driver_id, driver_name, admin_code, status, last_seen_at')
+        .in('admin_code', connectionCodes);
+
+      if (error) {
+        console.error('Error loading drivers:', error);
+        return;
+      }
+
+      if (driversData && driversData.length > 0) {
+        setDrivers(driversData);
+      }
+    } catch (error) {
+      console.error('Failed to load drivers:', error);
     }
-
-    const connectionCodes = devices
-      .map(d => d.connection_code)
-      .filter((code): code is string => code !== null);
-
-    // Get drivers from drivers table where admin_code matches any of the admin's codes
-    const { data: driversData, error } = await supabase
-      .from('drivers')
-      .select('driver_id, driver_name, admin_code, status, last_seen_at')
-      .in('admin_code', connectionCodes);
-
-    if (error) {
-      console.error('Error loading drivers:', error);
-      toast.error('Failed to load drivers');
-      return;
-    }
-
-    if (!driversData || driversData.length === 0) {
-      toast.info('No drivers connected yet. Share your connection code with drivers.');
-      return;
-    }
-
-    setDrivers(driversData);
   };
 
   const handleDriverSelect = (driverId: string) => {
