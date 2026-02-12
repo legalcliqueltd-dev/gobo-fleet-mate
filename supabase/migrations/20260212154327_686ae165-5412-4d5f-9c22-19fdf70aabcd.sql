@@ -1,0 +1,2 @@
+ALTER TABLE public.task_reports DROP CONSTRAINT task_reports_verified_by_check;
+ALTER TABLE public.task_reports ADD CONSTRAINT task_reports_verified_by_check CHECK (verified_by IN ('qr','otp','geofence','photo','none'));
