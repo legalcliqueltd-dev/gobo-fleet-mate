@@ -867,6 +867,28 @@ export type Database = {
         Args: { p_connection_code: string; p_driver_user_id: string }
         Returns: Json
       }
+      fleet_stats: {
+        Args: { p_since: string }
+        Returns: {
+          active_count: number
+          avg_speed_kmh: number
+          device_count: number
+          idle_count: number
+          max_speed_kmh: number
+          offline_count: number
+          total_distance_km: number
+          total_idle_minutes: number
+        }[]
+      }
+      fleet_utilization_daily: {
+        Args: { p_days?: number }
+        Returns: {
+          day: string
+          total_active_minutes: number
+          total_device_minutes: number
+          utilization_percent: number
+        }[]
+      }
       generate_connection_code: { Args: never; Returns: string }
       get_admin_connection_code: {
         Args: { p_admin_user_id: string }

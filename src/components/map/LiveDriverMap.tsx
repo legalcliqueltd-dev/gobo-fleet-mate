@@ -527,16 +527,18 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
     return { longitude: lon, latitude: lat, zoom: 13 };
   }, [validDrivers, validDevices]);
 
-  // Fly to selected driver
+  // Fly to selected driver - only when selection changes, not on every driver update
+  const prevSelectedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (selectedDriverId && mapRef.current) {
+    if (selectedDriverId && selectedDriverId !== prevSelectedRef.current && mapRef.current) {
       const driver = validDrivers.find(d => d.driver_id === selectedDriverId);
       if (driver) {
         mapRef.current.panTo({ lat: driver.latitude, lng: driver.longitude });
         mapRef.current.setZoom(16);
       }
     }
-  }, [selectedDriverId, validDrivers]);
+    prevSelectedRef.current = selectedDriverId || null;
+  }, [selectedDriverId]);
 
   const fitToAll = () => {
     if (!mapRef.current) return;
