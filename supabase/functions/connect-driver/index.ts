@@ -865,23 +865,25 @@ Deno.serve(async (req) => {
         .update(driverUpdate)
         .eq('driver_id', driverId);
 
+      // ALWAYS upsert driver_locations so driver appears on admin map (even with low accuracy)
+      const { error: locationError } = await supabaseAdmin
+        .from('driver_locations')
+        .upsert({
+          driver_id: driverId,
+          admin_code: driver.admin_code,
+          latitude,
+          longitude,
+          speed: speed || null,
+          accuracy: accuracyValue,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'driver_id' });
+
+      if (locationError) {
+        console.error('Location update error:', locationError);
+      }
+
+      // Only store in history when accuracy is good (keeps trail data clean)
       if (isAccurate) {
-        const { error: locationError } = await supabaseAdmin
-          .from('driver_locations')
-          .upsert({
-            driver_id: driverId,
-            admin_code: driver.admin_code,
-            latitude,
-            longitude,
-            speed: speed || null,
-            accuracy: accuracyValue,
-            updated_at: new Date().toISOString(),
-          }, { onConflict: 'driver_id' });
-
-        if (locationError) {
-          console.error('Location update error:', locationError);
-        }
-
         const { error: historyError } = await supabaseAdmin
           .from('driver_location_history')
           .insert({
@@ -897,32 +899,24 @@ Deno.serve(async (req) => {
         if (historyError) {
           console.error('History insert error:', historyError);
         }
-
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            stored: true, 
-            accuracy: accuracyValue,
-            server_time: serverTime,
-            nextUpdateMs: batteryLevel && batteryLevel < 20 ? 120000 : 
-                          speed && speed > 5 ? 15000 : 60000
-          }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
       } else {
-        console.log('Skipping inaccurate location - accuracy:', accuracyValue, 'm');
-        return new Response(
-          JSON.stringify({ 
-            success: true, 
-            stored: false, 
-            accuracy: accuracyValue, 
-            reason: 'accuracy_too_low',
-            server_time: serverTime,
-            nextUpdateMs: 15000
-          }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.log('Stored approximate location (accuracy:', accuracyValue, 'm) - skipping history');
       }
+
+      const nextUpdateMs = batteryLevel && batteryLevel < 20 ? 120000 : 
+                           speed && speed > 5 ? 15000 : 60000;
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          stored: true, 
+          accuracy: accuracyValue,
+          accurate: isAccurate,
+          server_time: serverTime,
+          nextUpdateMs
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     return new Response(
