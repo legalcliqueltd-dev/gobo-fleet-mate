@@ -14,7 +14,7 @@ const plans = {
   basic: {
     name: "Basic",
     priceUSD: "$1.99",
-    priceNGN: "₦1,499",
+    priceNGN: "₦2,899",
     period: "/month",
     icon: Zap,
     features: [
@@ -29,7 +29,7 @@ const plans = {
   pro: {
     name: "Pro",
     priceUSD: "$3.99",
-    priceNGN: "₦3,999",
+    priceNGN: "₦5,799",
     period: "/month",
     icon: Star,
     features: [

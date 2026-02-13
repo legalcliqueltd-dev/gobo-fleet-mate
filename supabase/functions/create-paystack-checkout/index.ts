@@ -14,11 +14,11 @@ const logStep = (step: string, details?: any) => {
 // Paystack pricing (amount in kobo - 100 kobo = ₦1)
 const PAYSTACK_PRICES = {
   basic: {
-    amount: 149900, // ₦1,499/month
+    amount: 289900, // ₦2,899/month
     name: "FleetTrackMate Basic",
   },
   pro: {
-    amount: 399900, // ₦3,999/month
+    amount: 579900, // ₦5,799/month
     name: "FleetTrackMate Pro",
   },
 };

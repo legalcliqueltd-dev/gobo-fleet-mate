@@ -245,7 +245,7 @@ export default function DriversManagement() {
               </p>
               <p className="text-sm text-muted-foreground">
                 {driverLimit === 1 
-                  ? 'Your first driver is free! Upgrade to Pro for unlimited drivers at ₦3,999/month.'
+                  ? 'Your first driver is free! Upgrade to Pro for unlimited drivers at ₦5,799/month.'
                   : `You've reached your plan's driver limit (${driverLimit}). Upgrade to connect more drivers.`
                 }
               </p>
