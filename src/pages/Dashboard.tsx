@@ -6,7 +6,8 @@ import DriversList from '../components/DriversList';
 import GeofenceAlerts from '../components/GeofenceAlerts';
 import TempTrackingManager from '../components/TempTrackingManager';
 import PaymentWall from '../components/PaymentWall';
-import { Clock, Plus, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone, Timer, Copy, Check } from 'lucide-react';
+import { Clock, Plus, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone, Timer, Copy, Check, CreditCard } from 'lucide-react';
+import PaymentModal from '@/components/PaymentModal';
 import { ShareAppButton } from '@/components/ShareAppButton';
 import clsx from 'clsx';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -25,6 +26,7 @@ export default function Dashboard() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
 
@@ -131,6 +133,7 @@ export default function Dashboard() {
       {showUpgradeModal && (
         <PaymentWall onDismiss={() => setShowUpgradeModal(false)} />
       )}
+      <PaymentModal open={showPaymentModal} onOpenChange={setShowPaymentModal} />
 
       {/* Trial Banner */}
       {subscription.status === 'trial' && subscription.trialDaysRemaining > 0 && (
@@ -331,6 +334,44 @@ export default function Dashboard() {
                 </a>
                 <ShareAppButton variant="outline" size="sm" className="h-6 text-[10px] px-2" />
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Billing Card */}
+          <Card className="border border-border">
+            <CardContent className="p-1.5 md:p-2 space-y-1">
+              <div className="flex items-center gap-1.5 mb-1">
+                <div className="p-1 rounded-md bg-primary/20">
+                  <CreditCard className="h-3 w-3 text-primary" />
+                </div>
+                <h3 className="font-heading font-semibold text-[11px]">Billing</h3>
+                {subscription.status === 'active' && subscription.plan && (
+                  <Badge variant="outline" className="text-[8px] px-1 py-0 bg-success/10 text-success border-success/30 ml-auto">
+                    {subscription.plan === 'pro' ? 'Pro' : 'Basic'}
+                  </Badge>
+                )}
+              </div>
+              {subscription.status === 'active' ? (
+                <p className="text-[10px] text-muted-foreground">
+                  {subscription.plan === 'pro' ? 'Pro' : 'Basic'} plan active
+                  {subscription.subscriptionEnd && ` · Renews ${new Date(subscription.subscriptionEnd).toLocaleDateString()}`}
+                </p>
+              ) : (
+                <p className="text-[10px] text-muted-foreground">
+                  {subscription.status === 'trial' 
+                    ? `Trial · ${subscription.trialDaysRemaining} day${subscription.trialDaysRemaining !== 1 ? 's' : ''} left` 
+                    : 'No active plan'}
+                </p>
+              )}
+              <Button 
+                variant={subscription.status === 'active' ? "outline" : "hero"} 
+                size="sm" 
+                className="w-full h-6 text-[10px]"
+                onClick={() => setShowPaymentModal(true)}
+              >
+                <CreditCard className="h-3 w-3 mr-1" />
+                {subscription.status === 'active' ? 'Manage Plan' : 'Upgrade Now'}
+              </Button>
             </CardContent>
           </Card>
 
