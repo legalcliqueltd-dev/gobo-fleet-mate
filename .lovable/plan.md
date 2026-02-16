@@ -1,65 +1,58 @@
 
 
-# Email Notification System Implementation
+# Bulk Email + Trial Expiry Test
 
-## Step 0: Add RESEND_API_KEY Secret
-Store your Resend API key as a Supabase secret so all edge functions can use it.
+## What Gets Built
 
-## Step 1: Create `send-email` Edge Function
-A centralized, reusable email sender that all other functions call internally via the Resend REST API.
+### 1. New `bulk-email` Edge Function
+A new edge function that allows admins to send bulk emails to all users or filtered groups.
 
-- Accepts: `to`, `subject`, `html`, `replyTo`
-- From: `FleetTrackMate <noreply@yourdomain.com>` (using your verified domain)
-- Clean HTML email template with branding
+- Endpoint: `POST /functions/v1/bulk-email`
+- Accepts: `subject`, `html`, `filter` (optional: `all`, `trial`, `expired`, `active`)
+- Uses service role to query all matching profiles
+- Sends emails in sequence with a small delay to respect Resend rate limits (100/day free tier)
+- Returns count of sent/failed emails
 
-## Step 2: Update `sos-dispatch` (SOS Emergency Emails)
-When an SOS is created:
-- Look up admin email via `admin_code` -> `devices.connection_code` -> `devices.user_id` -> `profiles.email`
-- Send urgent email: "EMERGENCY: SOS Alert from [Driver]" with hazard, location, and dashboard link
+### 2. Trigger Trial Expiry Emails Now
+Update `trial-reminder` to also accept a `force` parameter that sends expiry emails to ALL expired trial users regardless of deduplication (`last_trial_reminder_at`). This lets you test immediately.
 
-## Step 3: Create `trial-reminder` Edge Function
-A cron-callable function that:
-- Queries profiles with `subscription_status = 'trial'`
-- Sends email at 3 days remaining and on expiration day
-- Tracks via new `last_trial_reminder_at` column on `profiles` to avoid duplicates
-- Includes upgrade link
+Alternatively, the new `bulk-email` function can be called with `filter: "expired"` and a pre-built template.
 
-## Step 4: Update `notify-inactivity` (Device Offline Emails)
-Replace the non-functional FCM logic with Resend email:
-- Look up device owner email from `profiles`
-- Send: "[Device Name] is offline"
-- Keep existing deduplication via `last_notified_offline_at`
+## Technical Details
 
-## Step 5: Update `connect-driver` (Task Completion + Driver Onboarding Emails)
-**Task completed:** After `submit-task-report`, email the task creator: "Task Completed: [Title]"
-**New driver connected:** On first `connect` action, email admin: "New Driver Connected: [Name]"
+### New File: `supabase/functions/bulk-email/index.ts`
 
-## Step 6: Geofence Breach Emails (Inline in `sos-dispatch` or new function)
-Create a lightweight callable for geofence events that emails the geofence creator when entry/exit occurs.
+- Authenticates the caller (must be an admin via JWT)
+- Queries `profiles` table with service role based on filter:
+  - `all` -- all profiles with email
+  - `trial` -- `subscription_status = 'trial'`
+  - `expired` -- `subscription_status = 'expired'` OR trial expired by date
+  - `active` -- `subscription_status = 'active'`
+- For `expired` filter, uses the branded trial-expired email template automatically
+- Sends via Resend API (same pattern as `send-email`)
+- Returns `{ sent: number, failed: number, errors: string[] }`
 
-## Database Migration
-```sql
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_trial_reminder_at timestamptz;
+### Modified: `supabase/config.toml`
+Add `bulk-email` function config with `verify_jwt = false` (validates auth in code).
+
+### Testing the System
+After deployment, call the function to send trial expiry emails to all expired admins:
+
+```
+POST /functions/v1/bulk-email
+Authorization: Bearer <your-auth-token>
+{ "filter": "expired" }
 ```
 
-## Files Created
-| File | Purpose |
-|------|---------|
-| `supabase/functions/send-email/index.ts` | Centralized Resend email helper |
-| `supabase/functions/trial-reminder/index.ts` | Trial expiration reminder |
-| `supabase/functions/geofence-email/index.ts` | Geofence breach notifications |
+This will:
+1. Find all profiles where trial has expired
+2. Send each one the "Your trial has expired" email with upgrade link
+3. Return how many were sent
 
-## Files Modified
-| File | Change |
+## Files
+
+| File | Action |
 |------|--------|
-| `supabase/config.toml` | Add new function configs |
-| `supabase/functions/sos-dispatch/index.ts` | Add admin email on SOS |
-| `supabase/functions/notify-inactivity/index.ts` | Replace FCM with Resend |
-| `supabase/functions/connect-driver/index.ts` | Add task + onboarding emails |
-
-## Email Templates
-All emails use clean inline-styled HTML with:
-- FleetTrackMate header
-- Clear action button linking to the relevant dashboard page
-- "You're receiving this because..." footer
+| `supabase/functions/bulk-email/index.ts` | Create -- bulk email sender with admin auth |
+| `supabase/config.toml` | Add `bulk-email` config |
 
