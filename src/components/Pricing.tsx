@@ -86,7 +86,7 @@ const Pricing = () => {
               viewport={{ once: true }}
             >
               <Card 
-                className={`relative overflow-hidden transition-all duration-300 hover:-translate-y-2 h-full ${
+                className={`relative overflow-hidden transition-all duration-300 hover:-translate-y-2 h-full flex flex-col ${
                   plan.popular 
                     ? "border-2 border-primary shadow-lg shadow-primary/20" 
                     : "border-2 border-border hover:shadow-lg"
@@ -121,7 +121,7 @@ const Pricing = () => {
                   )}
                 </CardHeader>
                 
-                <CardContent className="flex flex-col h-full">
+                <CardContent className="flex flex-col flex-1">
                   <ul className="space-y-3 mb-8 flex-1">
                     {plan.features.map((feature, featureIndex) => (
                       <li key={featureIndex} className="flex items-center">
