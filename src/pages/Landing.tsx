@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Download } from 'lucide-react';
 import AppDownload from '@/components/AppDownload';
+import Features from '@/components/Features';
+import Testimonials from '@/components/Testimonials';
 import Pricing from '@/components/Pricing';
 import Footer from '@/components/Footer';
 
@@ -32,6 +34,14 @@ export default function Landing() {
       </HeroGeometric>
 
       <AppDownload />
+
+      <div id="features">
+        <Features />
+      </div>
+
+      <div id="testimonials">
+        <Testimonials />
+      </div>
 
       <div id="pricing">
         <Pricing />

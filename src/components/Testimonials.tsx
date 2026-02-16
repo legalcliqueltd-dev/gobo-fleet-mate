@@ -8,7 +8,7 @@ const Testimonials = () => {
       name: "Sarah Johnson",
       company: "Express Logistics Inc.",
       role: "Fleet Manager",
-      content: "FleetTracker has revolutionized our operations. We've reduced fuel costs by 23% and improved delivery times significantly. The real-time tracking gives us complete visibility.",
+      content: "FleetTrackMate has revolutionized our operations. We've reduced fuel costs by 23% and improved delivery times significantly. The real-time tracking gives us complete visibility.",
       rating: 5,
       avatar: "SJ"
     },
@@ -24,7 +24,7 @@ const Testimonials = () => {
       name: "Amanda Rodriguez",
       company: "Metro Transport",
       role: "CEO",
-      content: "Driver behavior monitoring has improved safety scores across our entire fleet. Insurance costs dropped 15% after just 6 months of using FleetTracker.",
+      content: "Driver behavior monitoring has improved safety scores across our entire fleet. Insurance costs dropped 15% after just 6 months of using FleetTrackMate.",
       rating: 5,
       avatar: "AR"
     }
