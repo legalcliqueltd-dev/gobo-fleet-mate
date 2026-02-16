@@ -114,7 +114,7 @@ export default function App() {
                 <Route path="/demo/hero-geometric" element={<HeroGeometricDemo />} />
                 <Route path="/demo/pulse-beams" element={<PulseBeamsDemo />} />
                 <Route path="/demo/header-3" element={<Header3Demo />} />
-                <Route path="/auth" element={<Navigate to="/auth/login" replace />} />
+                
                 <Route path="/auth/login" element={<Login />} />
                 <Route path="/auth/signup" element={<Signup />} />
                 <Route path="/auth/forgot" element={<ForgotPassword />} />
