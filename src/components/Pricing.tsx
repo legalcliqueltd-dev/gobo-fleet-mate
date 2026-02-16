@@ -1,10 +1,15 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Star, Zap } from "lucide-react";
+import { Check, Star, Zap, CreditCard } from "lucide-react";
 import { motion } from "framer-motion";
+import PaymentModal from "@/components/PaymentModal";
 
 const Pricing = () => {
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<"basic" | "pro">("pro");
+
   const plans = [
     {
       name: "Basic",
@@ -49,6 +54,8 @@ const Pricing = () => {
   ];
 
   return (
+    <>
+    <PaymentModal open={paymentOpen} onOpenChange={setPaymentOpen} defaultPlan={selectedPlan} />
     <section className="py-20 bg-muted/20">
       <div className="container mx-auto px-4">
         <motion.div
@@ -126,15 +133,29 @@ const Pricing = () => {
                     ))}
                   </ul>
                   
-                  <a href={plan.href} className="block mt-auto">
+                  <div className="space-y-2 mt-auto">
+                    <a href={plan.href} className="block">
+                      <Button 
+                        variant={plan.popular ? "hero" : "outline"} 
+                        size="lg" 
+                        className="w-full"
+                      >
+                        {plan.cta}
+                      </Button>
+                    </a>
                     <Button 
-                      variant={plan.popular ? "hero" : "outline"} 
-                      size="lg" 
-                      className="w-full"
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full text-xs text-muted-foreground hover:text-primary"
+                      onClick={() => {
+                        setSelectedPlan(plan.name.toLowerCase() as "basic" | "pro");
+                        setPaymentOpen(true);
+                      }}
                     >
-                      {plan.cta}
+                      <CreditCard className="w-3 h-3 mr-1.5" />
+                      Pay Now · Skip Trial
                     </Button>
-                  </a>
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
@@ -165,6 +186,7 @@ const Pricing = () => {
         </motion.div>
       </div>
     </section>
+    </>
   );
 };
 
