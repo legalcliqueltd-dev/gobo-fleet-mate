@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-const FROM_EMAIL = 'FleetTrackMate <noreply@gobotracking.com>';
+const FROM_EMAIL = 'FleetTrackMate <noreply@fleettrackmate.com>';
 const APP_URL = 'https://gobo-fleet-mate.lovable.app';
 
 async function sendEmailNotification(to: string, subject: string, html: string) {
