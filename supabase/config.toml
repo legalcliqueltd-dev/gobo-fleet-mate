@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.geofence-email]
 verify_jwt = false
+
+[functions.bulk-email]
+verify_jwt = false
