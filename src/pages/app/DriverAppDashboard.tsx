@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useBackgroundLocationTracking } from '@/hooks/useBackgroundLocationTracking';
 import { useIOSBackgroundTracking } from '@/hooks/useIOSBackgroundTracking';
-import { GoogleMap, useJsApiLoader, Marker, Polyline } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Polyline } from '@react-google-maps/api';
+import AdvancedMarker from '@/components/map/AdvancedMarker';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 import { Crosshair, Map, Package, Wifi, Signal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -348,13 +349,11 @@ export default function DriverAppDashboard() {
 
             {tasks.map((task) => 
               task.dropoff_lat && task.dropoff_lng ? (
-                <Marker
+                <AdvancedMarker
                   key={task.id}
                   position={{ lat: task.dropoff_lat, lng: task.dropoff_lng }}
-                  icon={{
-                    url: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="%234ade80" stroke="%23ffffff" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>',
-                    scaledSize: new google.maps.Size(32, 32),
-                  }}
+                  iconUrl='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="%234ade80" stroke="%23ffffff" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>'
+                  iconSize={32}
                   onClick={() => navigate('/app/tasks')}
                 />
               ) : null

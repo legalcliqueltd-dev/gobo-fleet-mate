@@ -52,9 +52,9 @@ export default function Geofences() {
         type: 'circle',
         center_lat: circleCenter[1],
         center_lng: circleCenter[0],
-        radius_meters: circleRadius,
-        geometry: {},
-        active: true,
+        radius_m: circleRadius,
+        coordinates: {},
+        is_active: true,
       });
       
       toast.success('Geofence created successfully');
@@ -83,9 +83,9 @@ export default function Geofences() {
         type: 'polygon',
         center_lat: null,
         center_lng: null,
-        radius_meters: null,
-        geometry: closedPolygon,
-        active: true,
+        radius_m: null,
+        coordinates: closedPolygon,
+        is_active: true,
       });
       
       toast.success('Geofence created successfully');
@@ -102,10 +102,10 @@ export default function Geofences() {
     setPolygonPoints([]);
   };
 
-  const toggleGeofence = async (id: string, active: boolean) => {
+  const toggleGeofence = async (id: string, is_active: boolean) => {
     try {
-      await updateGeofence(id, { active: !active });
-      toast.success(`Geofence ${!active ? 'activated' : 'deactivated'}`);
+      await updateGeofence(id, { is_active: !is_active });
+      toast.success(`Geofence ${!is_active ? 'activated' : 'deactivated'}`);
     } catch (err: any) {
       toast.error(err.message);
     }
@@ -249,7 +249,7 @@ export default function Geofences() {
                   <div
                     key={g.id}
                     className={`rounded-xl border-2 p-4 transition-all ${
-                      g.active 
+                      g.is_active 
                         ? 'border-primary/30 bg-primary/5' 
                         : 'border-border bg-muted/30 opacity-60'
                     }`}
@@ -258,16 +258,16 @@ export default function Geofences() {
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold truncate">{g.name}</div>
                         <div className="text-xs text-muted-foreground mt-1">
-                          {g.type === 'circle' ? `Circle (${g.radius_meters}m)` : `Polygon (${JSON.parse(JSON.stringify(g.geometry)).length} points)`}
+                          {g.type === 'circle' ? `Circle (${g.radius_m}m)` : `Polygon (${JSON.parse(JSON.stringify(g.coordinates)).length} points)`}
                         </div>
                       </div>
                       <div className="flex gap-1 ml-2">
                         <button
-                          onClick={() => toggleGeofence(g.id, g.active)}
+                          onClick={() => toggleGeofence(g.id, g.is_active)}
                           className="p-2 hover:bg-accent rounded-lg transition-colors"
-                          title={g.active ? 'Deactivate' : 'Activate'}
+                          title={g.is_active ? 'Deactivate' : 'Activate'}
                         >
-                          {g.active ? <Eye className="h-4 w-4 text-primary" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
+                          {g.is_active ? <Eye className="h-4 w-4 text-primary" /> : <EyeOff className="h-4 w-4 text-muted-foreground" />}
                         </button>
                         <button
                           onClick={() => handleDelete(g.id)}
@@ -302,13 +302,13 @@ export default function Geofences() {
               }}
             >
               {/* Existing Geofences */}
-              {geofences.filter(g => g.active).map((g) => {
-                if (g.type === 'circle' && g.center_lat && g.center_lng && g.radius_meters) {
+              {geofences.filter(g => g.is_active).map((g) => {
+                if (g.type === 'circle' && g.center_lat && g.center_lng && g.radius_m) {
                   return (
                     <GoogleCircle
                       key={g.id}
                       center={{ lat: g.center_lat, lng: g.center_lng }}
-                      radius={g.radius_meters}
+                      radius={g.radius_m}
                       options={{
                         fillColor: '#06b6d4',
                         fillOpacity: 0.2,
@@ -317,11 +317,11 @@ export default function Geofences() {
                       }}
                     />
                   );
-                } else if (g.type === 'polygon' && Array.isArray(g.geometry)) {
+                } else if (g.type === 'polygon' && Array.isArray(g.coordinates)) {
                   return (
                     <Polygon
                       key={g.id}
-                      paths={g.geometry.map((coord: [number, number]) => ({ lat: coord[1], lng: coord[0] }))}
+                      paths={g.coordinates.map((coord: [number, number]) => ({ lat: coord[1], lng: coord[0] }))}
                       options={{
                         fillColor: '#06b6d4',
                         fillOpacity: 0.2,

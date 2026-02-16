@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '../../contexts/AuthContext';
-import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
+import AdvancedMarker from '@/components/map/AdvancedMarker';
 import { GOOGLE_MAPS_API_KEY } from '../../lib/googleMapsConfig';
 import { Package, MapPin, User, Phone, Clock, FileText, Download } from 'lucide-react';
 import { Button } from '../../components/ui/button';
@@ -276,19 +277,17 @@ export default function OpsTasks() {
               {tasks
                 .filter((t) => t.dropoff_lat && t.dropoff_lng)
                 .map((task) => (
-                  <Marker
+                  <AdvancedMarker
                     key={task.id}
                     position={{ lat: task.dropoff_lat!, lng: task.dropoff_lng! }}
                     onClick={() => setSelectedTask(task)}
-                    icon={{
-                      path: window.google.maps.SymbolPath.CIRCLE,
-                      scale: 16,
-                      fillColor: task.status === 'delivered' ? '#22c55e' : task.status === 'en_route' ? '#eab308' : '#3b82f6',
-                      fillOpacity: 1,
-                      strokeColor: '#ffffff',
-                      strokeWeight: 2,
-                    }}
-                  />
+                    iconSize={32}
+                  >
+                    <div 
+                      className="w-8 h-8 rounded-full border-2 border-white shadow-lg flex items-center justify-center"
+                      style={{ backgroundColor: task.status === 'delivered' ? '#22c55e' : task.status === 'en_route' ? '#eab308' : '#3b82f6' }}
+                    />
+                  </AdvancedMarker>
                 ))}
             </GoogleMap>
           )}

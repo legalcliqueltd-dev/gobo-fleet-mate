@@ -5,15 +5,15 @@ export type GeofenceType = 'circle' | 'polygon';
 
 export type Geofence = {
   id: string;
-  user_id: string;
+  created_by: string;
   name: string;
   description: string | null;
-  geometry: any;
+  coordinates: any;
   center_lat: number | null;
   center_lng: number | null;
-  radius_meters: number | null;
+  radius_m: number | null;
   type: GeofenceType;
-  active: boolean;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -43,16 +43,23 @@ export function useGeofences() {
     fetchGeofences();
   }, []);
 
-  const createGeofence = async (geofence: Omit<Geofence, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
+  const createGeofence = async (geofence: Omit<Geofence, 'id' | 'created_by' | 'created_at' | 'updated_at'>) => {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) throw new Error('Not authenticated');
 
     const { data, error } = await supabase
       .from('geofences')
       .insert({
-        ...geofence,
+        name: geofence.name,
+        description: geofence.description,
+        type: geofence.type,
+        center_lat: geofence.center_lat,
+        center_lng: geofence.center_lng,
+        radius_m: geofence.radius_m,
+        coordinates: geofence.coordinates,
+        is_active: geofence.is_active,
         created_by: userData.user.id,
-      } as any)
+      })
       .select()
       .single();
 
@@ -64,7 +71,7 @@ export function useGeofences() {
   const updateGeofence = async (id: string, updates: Partial<Geofence>) => {
     const { error } = await supabase
       .from('geofences')
-      .update(updates)
+      .update(updates as any)
       .eq('id', id);
 
     if (error) throw error;

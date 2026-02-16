@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, Polyline, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Polyline, InfoWindow } from '@react-google-maps/api';
+import AdvancedMarker from '@/components/map/AdvancedMarker';
 import { GOOGLE_MAPS_API_KEY } from '../../lib/googleMapsConfig';
 import { MapPin, Navigation, Clock, Crosshair, Flag, CircleDot } from 'lucide-react';
 import clsx from 'clsx';
@@ -211,12 +212,10 @@ export default function DriverLocationMap({ driverName, currentLocation, locatio
 
         {/* Start marker */}
         {startPoint && (
-          <Marker
+          <AdvancedMarker
             position={startPoint}
-            icon={{
-              url: createStartIcon(),
-              anchor: new google.maps.Point(16, 16),
-            }}
+            iconUrl={createStartIcon()}
+            iconSize={32}
             zIndex={50}
             title="Start"
           />
@@ -224,24 +223,20 @@ export default function DriverLocationMap({ driverName, currentLocation, locatio
 
         {/* End marker (only if different from current) */}
         {endPoint && path.length > 2 && (
-          <Marker
+          <AdvancedMarker
             position={endPoint}
-            icon={{
-              url: createEndIcon(),
-              anchor: new google.maps.Point(16, 16),
-            }}
+            iconUrl={createEndIcon()}
+            iconSize={32}
             zIndex={50}
             title="End"
           />
         )}
 
         {/* Current location marker */}
-        <Marker
+        <AdvancedMarker
           position={center}
-          icon={{
-            url: createDriverIcon(isOnline),
-            anchor: new google.maps.Point(24, 24),
-          }}
+          iconUrl={createDriverIcon(isOnline)}
+          iconSize={48}
           zIndex={100}
           onClick={() => setHoveredIndex(0)}
         />

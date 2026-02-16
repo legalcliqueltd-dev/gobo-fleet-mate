@@ -278,8 +278,58 @@ export type Database = {
         }
         Relationships: []
       }
+      geofence_events: {
+        Row: {
+          acknowledged: boolean
+          device_id: string
+          event_type: string
+          geofence_id: string
+          id: string
+          latitude: number
+          longitude: number
+          timestamp: string
+        }
+        Insert: {
+          acknowledged?: boolean
+          device_id: string
+          event_type: string
+          geofence_id: string
+          id?: string
+          latitude: number
+          longitude: number
+          timestamp?: string
+        }
+        Update: {
+          acknowledged?: boolean
+          device_id?: string
+          event_type?: string
+          geofence_id?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "geofence_events_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "geofence_events_geofence_id_fkey"
+            columns: ["geofence_id"]
+            isOneToOne: false
+            referencedRelation: "geofences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       geofences: {
         Row: {
+          center_lat: number | null
+          center_lng: number | null
           coordinates: Json
           created_at: string
           created_by: string
@@ -292,6 +342,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          center_lat?: number | null
+          center_lng?: number | null
           coordinates: Json
           created_at?: string
           created_by: string
@@ -304,6 +356,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          center_lat?: number | null
+          center_lng?: number | null
           coordinates?: Json
           created_at?: string
           created_by?: string

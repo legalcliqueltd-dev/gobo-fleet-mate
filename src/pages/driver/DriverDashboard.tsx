@@ -3,7 +3,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useBackgroundLocationTracking } from '@/hooks/useBackgroundLocationTracking';
-import { GoogleMap, useJsApiLoader, Marker, Polygon } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Polygon } from '@react-google-maps/api';
+import AdvancedMarker from '@/components/map/AdvancedMarker';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 import { AlertCircle, Navigation, Package, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -180,29 +181,19 @@ export default function DriverDashboard() {
       >
         {/* Driver's current location */}
         {currentLocation && (
-          <Marker
-            position={currentLocation}
-            icon={{
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 10,
-              fillColor: '#3b82f6',
-              fillOpacity: 1,
-              strokeColor: '#ffffff',
-              strokeWeight: 3,
-            }}
-          />
+          <AdvancedMarker position={currentLocation} iconSize={24}>
+            <div className="w-5 h-5 rounded-full bg-blue-500 border-[3px] border-white shadow-lg" />
+          </AdvancedMarker>
         )}
 
         {/* Task markers */}
         {tasks.map((task) => 
           task.dropoff_lat && task.dropoff_lng ? (
-            <Marker
+            <AdvancedMarker
               key={task.id}
               position={{ lat: task.dropoff_lat, lng: task.dropoff_lng }}
-              icon={{
-                url: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="%234ade80" stroke="%23ffffff" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>',
-                scaledSize: new google.maps.Size(32, 32),
-              }}
+              iconUrl='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="%234ade80" stroke="%23ffffff" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>'
+              iconSize={32}
               onClick={() => navigate(`/driver/tasks/${task.id}`)}
             />
           ) : null
@@ -210,13 +201,11 @@ export default function DriverDashboard() {
 
         {/* SOS event markers */}
         {sosEvents.map((sos) => (
-          <Marker
+          <AdvancedMarker
             key={sos.id}
             position={{ lat: sos.latitude, lng: sos.longitude }}
-            icon={{
-              url: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="%23ef4444" stroke="%23ffffff" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><path d="M12 8v4M12 16h.01"></path></svg>',
-              scaledSize: new google.maps.Size(32, 32),
-            }}
+            iconUrl='data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="%23ef4444" stroke="%23ffffff" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><path d="M12 8v4M12 16h.01"></path></svg>'
+            iconSize={32}
           />
         ))}
 

@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow, TrafficLayer } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, InfoWindow, TrafficLayer } from '@react-google-maps/api';
+import AdvancedMarker from '@/components/map/AdvancedMarker';
 import { Button } from '@/components/ui/button';
 import { 
   Layers, Scan, MapPin, Phone, MessageSquare, Navigation, Signal, SignalLow, SignalZero, 
@@ -737,13 +738,11 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
           const initial = (driver.driver_name || 'D').charAt(0).toUpperCase();
           
           return (
-            <Marker
+            <AdvancedMarker
               key={driver.driver_id}
               position={position}
-              icon={{
-                url: createDriverMarkerIcon(driver.status, isSelected, initial),
-                anchor: new google.maps.Point(markerSize / 2, markerSize / 2),
-              }}
+              iconUrl={createDriverMarkerIcon(driver.status, isSelected, initial)}
+              iconSize={markerSize}
               onClick={() => {
                 setOpenInfoWindowId(openInfoWindowId === driver.driver_id ? null : driver.driver_id);
                 onDriverSelect?.(driver.driver_id);
@@ -759,13 +758,11 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
           const markerSize = isSelected ? 40 : 32;
           
           return (
-            <Marker
+            <AdvancedMarker
               key={device.device_id}
               position={{ lat: device.latitude, lng: device.longitude }}
-              icon={{
-                url: createDeviceMarkerIcon(device.status, isSelected),
-                anchor: new google.maps.Point(markerSize / 2, markerSize / 2),
-              }}
+              iconUrl={createDeviceMarkerIcon(device.status, isSelected)}
+              iconSize={markerSize}
               zIndex={isSelected ? 800 : 50}
             />
           );

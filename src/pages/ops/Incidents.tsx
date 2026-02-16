@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '../../contexts/AuthContext';
-import { GoogleMap, Marker, useJsApiLoader, Polyline, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Polyline, InfoWindow } from '@react-google-maps/api';
+import AdvancedMarker from '@/components/map/AdvancedMarker';
 import { GOOGLE_MAPS_API_KEY } from '../../lib/googleMapsConfig';
 import { AlertTriangle, CheckCircle, Clock, MapPin, Image, Calendar, ZoomIn, Map, Satellite, Trash2, ExternalLink, X, Navigation } from 'lucide-react';
 import { Button } from '../../components/ui/button';
@@ -512,15 +513,12 @@ export default function Incidents() {
                   const markerNum = eventIndexMap[evt.id] || 0;
                   const isSelected = selectedEvent?.id === evt.id;
                   return (
-                    <Marker
+                    <AdvancedMarker
                       key={evt.id}
                       position={{ lat: evt.latitude!, lng: evt.longitude! }}
                       onClick={() => selectAndZoom(evt)}
-                      icon={{
-                        url: createSOSMarkerIcon(markerNum, evt.status, isSelected),
-                        anchor: isSelected ? new google.maps.Point(22, 22) : new google.maps.Point(16, 16),
-                        scaledSize: isSelected ? new google.maps.Size(44, 44) : new google.maps.Size(32, 32),
-                      }}
+                      iconUrl={createSOSMarkerIcon(markerNum, evt.status, isSelected)}
+                      iconSize={isSelected ? 44 : 32}
                       zIndex={isSelected ? 1000 : 100}
                       opacity={selectedEvent && !isSelected ? 0.4 : 1}
                     />
@@ -535,19 +533,14 @@ export default function Incidents() {
               )}
 
               {positionTrail.map((pos, idx) => (
-                <Marker
+                <AdvancedMarker
                   key={pos.id}
                   position={{ lat: pos.latitude, lng: pos.longitude }}
-                  icon={{
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 5,
-                    fillColor: '#3b82f6',
-                    fillOpacity: 0.6,
-                    strokeColor: '#ffffff',
-                    strokeWeight: 1,
-                  }}
+                  iconSize={12}
                   title={`Update ${idx + 1}: ${new Date(pos.timestamp).toLocaleTimeString()}`}
-                />
+                >
+                  <div className="w-[10px] h-[10px] rounded-full bg-blue-500/60 border border-white" />
+                </AdvancedMarker>
               ))}
             </GoogleMap>
           )}

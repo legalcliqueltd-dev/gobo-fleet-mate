@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, InfoWindow } from '@react-google-maps/api';
+import AdvancedMarker from '@/components/map/AdvancedMarker';
 import { Button } from '@/components/ui/button';
 import { Layers, Scan, Navigation, MapPin } from 'lucide-react';
 import { GOOGLE_MAPS_API_KEY } from '../../lib/googleMapsConfig';
@@ -284,13 +285,11 @@ export default function MapView({ items, selectedId, onMarkerClick }: Props) {
           const markerSize = isSelected ? 52 : (isDriver ? 44 : 34);
           
           return (
-            <Marker
+            <AdvancedMarker
               key={item.device_id}
               position={{ lat: item.latitude, lng: item.longitude }}
-              icon={{
-                url: createMarkerIcon(item.status, isSelected, isDriver),
-                anchor: new google.maps.Point(markerSize / 2, markerSize / 2),
-              }}
+              iconUrl={createMarkerIcon(item.status, isSelected, isDriver)}
+              iconSize={markerSize}
               onClick={() => onMarkerClick?.(item.device_id)}
               onMouseOver={() => setHoveredId(item.device_id)}
               onMouseOut={() => setHoveredId(null)}
