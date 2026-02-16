@@ -59,7 +59,7 @@ serve(async (req) => {
       throw new Error("Paystack secret key not configured. Please add PAYSTACK_SECRET_KEY to secrets.");
     }
 
-    const origin = req.headers.get("origin") || "https://gobo-fleet-mate.lovable.app";
+    const origin = req.headers.get("origin") || "https://fleettrackmate.com";
 
     // Initialize Paystack transaction
     const response = await fetch("https://api.paystack.co/transaction/initialize", {

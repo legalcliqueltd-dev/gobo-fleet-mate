@@ -7,7 +7,7 @@ const corsHeaders = {
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const FROM_EMAIL = 'FleetTrackMate <noreply@fleettrackmate.com>';
-const APP_URL = 'https://gobo-fleet-mate.lovable.app';
+const APP_URL = 'https://fleettrackmate.com';
 
 async function sendEmailNotification(to: string, subject: string, html: string) {
   if (!RESEND_API_KEY) return;
@@ -15,7 +15,7 @@ async function sendEmailNotification(to: string, subject: string, html: string) 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html }),
+      body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html, headers: { 'List-Unsubscribe': '<https://fleettrackmate.com/settings>' } }),
     });
     const data = await res.json();
     if (!res.ok) console.error('Email error:', data);
@@ -307,7 +307,7 @@ Deno.serve(async (req) => {
                 <p>Time: ${new Date().toLocaleString('en-US', { timeZone: 'UTC' })} UTC</p>
               `;
               const html = makeEmailHtml('Task Completed', emailBody, `${APP_URL}/admin/tasks`, 'View Tasks');
-              await sendEmailNotification(creatorProfile.email, `✅ Task Completed: ${task.title}`, html);
+              await sendEmailNotification(creatorProfile.email, `Task Completed: ${task.title}`, html);
             }
           }
         } catch (emailErr) {

@@ -37,7 +37,7 @@ export async function sendEmail({ to, subject, html, replyTo }: {
         'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, headers: { 'List-Unsubscribe': '<https://fleettrackmate.com/settings>' } }),
     });
 
     const data = await res.json();

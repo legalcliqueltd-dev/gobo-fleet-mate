@@ -8,7 +8,7 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const FROM_EMAIL = 'FleetTrackMate <noreply@fleettrackmate.com>';
-const APP_URL = 'https://gobo-fleet-mate.lovable.app';
+const APP_URL = 'https://fleettrackmate.com';
 
 const supabase = createClient(supabaseUrl, serviceKey);
 
@@ -23,7 +23,7 @@ async function sendEmail(to: string, subject: string, html: string) {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html }),
+      body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html, headers: { 'List-Unsubscribe': '<https://fleettrackmate.com/settings>' } }),
     });
     const data = await res.json();
     if (!res.ok) console.error('Resend error:', data);
@@ -138,7 +138,7 @@ async function emailAdminOnSOS(sosEvent: any) {
     ? `<a href="https://www.google.com/maps?q=${sosEvent.latitude},${sosEvent.longitude}">View on Map</a>`
     : 'Location not available';
 
-  const subject = `🚨 EMERGENCY: SOS Alert from ${driverDisplayName}`;
+  const subject = `EMERGENCY: SOS Alert from ${driverDisplayName}`;
   const body = `
     <p>Hi ${adminName || 'Admin'},</p>
     <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;margin:16px 0;">
