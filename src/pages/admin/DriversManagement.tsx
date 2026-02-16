@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import LockedFeature from '@/components/LockedFeature';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -212,6 +213,7 @@ export default function DriversManagement() {
   const driverLimit = subscription?.driver_limit || 1;
 
   return (
+    <LockedFeature featureName="Driver Management">
     <div className="max-w-6xl mx-auto p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
@@ -391,5 +393,6 @@ export default function DriversManagement() {
         }}
       />
     </div>
+    </LockedFeature>
   );
 }
