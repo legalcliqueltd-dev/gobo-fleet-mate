@@ -2,12 +2,6 @@
 # https://fleettrackmate.com
 
 User-agent: *
-Allow: /
-Allow: /privacy
-Allow: /terms
-Allow: /auth/login
-Allow: /auth/signup
-Allow: /status
 
 # Block protected/private routes
 Disallow: /dashboard
@@ -25,9 +19,7 @@ Disallow: /auth/update-password
 Disallow: /auth/forgot
 Disallow: /app/
 Disallow: /tasks/
+Disallow: /demo/
 
 # Sitemap
 Sitemap: https://fleettrackmate.com/sitemap.xml
-
-# Crawl-delay for polite crawling
-Crawl-delay: 1
