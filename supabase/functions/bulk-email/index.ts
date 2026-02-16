@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const FROM_EMAIL = 'FleetTrackMate <noreply@fleettrackmate.com>';
-const APP_URL = 'https://gobo-fleet-mate.lovable.app';
+const APP_URL = 'https://fleettrackmate.com';
 const TRIAL_DAYS = 7;
 
 async function sendEmail(to: string, subject: string, html: string) {
@@ -16,7 +16,7 @@ async function sendEmail(to: string, subject: string, html: string) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html }),
+    body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html, headers: { 'List-Unsubscribe': '<https://fleettrackmate.com/settings>' } }),
   });
   const data = await res.json();
   if (!res.ok) return { success: false, error: data.message || 'Send failed' };
@@ -111,10 +111,10 @@ serve(async (req) => {
       let html: string;
 
       if (filter === 'expired' && !customSubject) {
-        subject = '🔒 Your FleetTrackMate trial has expired';
+        subject = 'Your FleetTrackMate trial has expired';
         html = emailTemplate('Your trial has expired', trialExpiredBody(name), `${APP_URL}/settings`, 'Upgrade Now');
       } else {
-        subject = customSubject || '📢 Update from FleetTrackMate';
+        subject = customSubject || 'Update from FleetTrackMate';
         html = customHtml || emailTemplate('Important Update', `<p>Hi ${name},</p><p>We have an important update for you. Please log in to your dashboard for details.</p>`, APP_URL, 'Go to Dashboard');
       }
 

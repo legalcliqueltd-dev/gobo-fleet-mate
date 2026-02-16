@@ -11,7 +11,7 @@ const corsHeaders = {
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 const FROM_EMAIL = 'FleetTrackMate <noreply@fleettrackmate.com>';
-const APP_URL = 'https://gobo-fleet-mate.lovable.app';
+const APP_URL = 'https://fleettrackmate.com';
 
 // Default trial length in days
 const TRIAL_DAYS = 14;
@@ -21,7 +21,7 @@ async function sendEmail(to: string, subject: string, html: string) {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html }),
+    body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html, headers: { 'List-Unsubscribe': '<https://fleettrackmate.com/settings>' } }),
   });
   const data = await res.json();
   if (!res.ok) { console.error('Resend error:', data); return { success: false, error: data.message }; }
@@ -85,7 +85,7 @@ serve(async (req) => {
 
       if (daysRemaining === 3) {
         shouldSend = true;
-        subject = '⏰ Your FleetTrackMate trial ends in 3 days';
+        subject = 'Your FleetTrackMate trial ends in 3 days';
         body = `
           <p>Hi ${name},</p>
           <p>Your free trial ends in <strong>3 days</strong>. After that, you'll lose access to:</p>
@@ -99,7 +99,7 @@ serve(async (req) => {
         `;
       } else if (daysRemaining <= 0) {
         shouldSend = true;
-        subject = '🔒 Your FleetTrackMate trial has expired';
+        subject = 'Your FleetTrackMate trial has expired';
         body = `
           <p>Hi ${name},</p>
           <p>Your free trial has <strong>expired</strong>. Your account features are now limited.</p>
