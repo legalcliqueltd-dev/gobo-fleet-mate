@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { GoogleMap, useJsApiLoader, DirectionsRenderer, Marker } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, DirectionsRenderer } from '@react-google-maps/api';
+import AdvancedMarker from '@/components/map/AdvancedMarker';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 import { Button } from '@/components/ui/button';
 import { X, Navigation, LocateFixed } from 'lucide-react';
@@ -166,31 +167,21 @@ export default function TaskNavigationMap({
 
           {/* Current position marker */}
           {currentPosition && (
-            <Marker
+            <AdvancedMarker
               position={currentPosition}
-              icon={{
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 10,
-                fillColor: '#22c55e',
-                fillOpacity: 1,
-                strokeColor: '#ffffff',
-                strokeWeight: 3,
-              }}
-            />
+              iconSize={24}
+            >
+              <div className="w-5 h-5 rounded-full bg-green-500 border-[3px] border-white shadow-lg" />
+            </AdvancedMarker>
           )}
 
           {/* Destination marker */}
-          <Marker
+          <AdvancedMarker
             position={{ lat: dropoffLat, lng: dropoffLng }}
-            icon={{
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 12,
-              fillColor: '#ef4444',
-              fillOpacity: 1,
-              strokeColor: '#ffffff',
-              strokeWeight: 3,
-            }}
-          />
+            iconSize={28}
+          >
+            <div className="w-6 h-6 rounded-full bg-red-500 border-[3px] border-white shadow-lg" />
+          </AdvancedMarker>
         </GoogleMap>
 
         {/* Error overlay */}
