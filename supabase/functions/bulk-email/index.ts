@@ -44,25 +44,33 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    // Auth check — must be admin OR service role
+    // Auth check — must be admin, service role, or internal automation
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    const token = authHeader.replace('Bearer ', '');
-    
-    // Allow service role key for automated/internal calls
+    const internalKey = req.headers.get('x-internal-key');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    const isServiceRole = token === serviceRoleKey;
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
     
-    if (!isServiceRole) {
-      const { data: userData, error: userErr } = await supabase.auth.getUser(token);
-      if (userErr || !userData.user) {
-        return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    // Allow internal automation calls with anon key as x-internal-key header
+    const isInternalCall = internalKey && (internalKey === serviceRoleKey || internalKey === anonKey);
+    
+    if (!isInternalCall) {
+      if (!authHeader?.startsWith('Bearer ')) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
-      const { data: roleData } = await supabase.from('user_roles').select('role').eq('user_id', userData.user.id).eq('role', 'admin').maybeSingle();
-      if (!roleData) {
-        return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const token = authHeader.replace('Bearer ', '');
+      
+      // Allow service role key for automated/internal calls
+      const isServiceRole = token === serviceRoleKey;
+      
+      if (!isServiceRole) {
+        const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+        if (userErr || !userData.user) {
+          return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        const { data: roleData } = await supabase.from('user_roles').select('role').eq('user_id', userData.user.id).eq('role', 'admin').maybeSingle();
+        if (!roleData) {
+          return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
       }
     }
 
