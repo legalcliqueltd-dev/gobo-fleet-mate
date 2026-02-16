@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import clsx from 'clsx';
 import DriverLocationMap from '@/components/map/DriverLocationMap';
 import { useDriverInsights, getTimeRange } from '@/hooks/useDriverInsights';
+import LockedFeature from '@/components/LockedFeature';
 
 type DriverDetail = {
   driver_id: string;
@@ -267,6 +268,7 @@ export default function DriverDetails() {
   }
 
   return (
+    <LockedFeature featureName="Driver Details">
     <div className="space-y-6 max-w-5xl">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -776,5 +778,6 @@ export default function DriverDetails() {
         </TabsContent>
       </Tabs>
     </div>
+    </LockedFeature>
   );
 }
