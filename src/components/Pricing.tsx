@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Star, Zap, CreditCard } from "lucide-react";
+import { Check, Star, Zap, CreditCard, Shield } from "lucide-react";
 import { motion } from "framer-motion";
 import PaymentModal from "@/components/PaymentModal";
 
@@ -15,10 +15,10 @@ const Pricing = () => {
       name: "Basic",
       price: "$1.99",
       period: "/month",
-      description: "Perfect for getting started",
+      description: "Perfect for small teams",
       trial: "7 days free",
       features: [
-        "1 driver connection",
+        "Up to 3 driver connections",
         "Real-time GPS tracking",
         "Dashboard access",
         "Mobile driver app",
@@ -72,7 +72,7 @@ const Pricing = () => {
             Simple, Transparent Pricing
           </h2>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Start free with 1 driver. Upgrade anytime for unlimited drivers and premium features.
+            Try free for 7 days. No credit card required. Upgrade anytime.
           </p>
         </motion.div>
 
@@ -133,26 +133,26 @@ const Pricing = () => {
                     ))}
                   </ul>
                   
-                  <div className="space-y-2 mt-auto">
+                  <div className="space-y-3 mt-auto">
                     <a href={plan.href} className="block">
                       <Button 
-                        variant={plan.popular ? "hero" : "outline"} 
+                        variant={plan.popular ? "hero" : "default"} 
                         size="lg" 
-                        className="w-full"
+                        className="w-full text-base py-6"
                       >
                         {plan.cta}
                       </Button>
                     </a>
                     <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      className="w-full text-xs text-muted-foreground hover:text-primary"
+                      variant="outline" 
+                      size="default" 
+                      className="w-full"
                       onClick={() => {
                         setSelectedPlan(plan.name.toLowerCase() as "basic" | "pro");
                         setPaymentOpen(true);
                       }}
                     >
-                      <CreditCard className="w-3 h-3 mr-1.5" />
+                      <CreditCard className="w-4 h-4 mr-2" />
                       Pay Now · Skip Trial
                     </Button>
                   </div>
@@ -167,7 +167,7 @@ const Pricing = () => {
           whileInView={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.4 }}
           viewport={{ once: true }}
-          className="text-center mt-12"
+          className="text-center mt-12 space-y-4"
         >
           <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
@@ -183,6 +183,10 @@ const Pricing = () => {
               <span>Free driver app</span>
             </div>
           </div>
+          <p className="text-xs text-muted-foreground max-w-lg mx-auto flex items-center justify-center gap-1.5">
+            <Shield className="w-3.5 h-3.5 text-muted-foreground" />
+            No payment required for 7-day trial. Payment only affects admin dashboard — driver app is always free.
+          </p>
         </motion.div>
       </div>
     </section>

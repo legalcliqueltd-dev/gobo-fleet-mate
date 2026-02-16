@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, CreditCard, Building2, Loader2, Star, Zap, Globe, MapPin } from "lucide-react";
+import { Check, CreditCard, Building2, Loader2, Star, Zap, Globe, MapPin, ShieldX, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,7 +18,7 @@ const plans = {
     period: "/month",
     icon: Zap,
     features: [
-      "1 driver connection",
+      "Up to 3 driver connections",
       "Real-time GPS tracking",
       "Dashboard access",
       "Mobile driver app",
@@ -78,7 +78,6 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
         window.open(data.url, "_blank");
         toast.success("Redirecting to payment page...");
         
-        // Refresh subscription after a delay (in case user completes payment quickly)
         setTimeout(() => {
           refreshSubscription();
         }, 5000);
@@ -127,13 +126,43 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
               <Badge variant="outline" className="mb-4 border-destructive/50 text-destructive bg-destructive/10">
                 Trial Expired
               </Badge>
-              <h1 className="text-3xl font-bold mb-2">Choose Your Plan</h1>
-              <p className="text-muted-foreground">
-                Your 7-day trial has ended. Subscribe to continue tracking your fleet.
+              <h1 className="text-3xl font-bold mb-2">Your 7-Day Trial Has Ended</h1>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Subscribe to continue tracking your fleet from the admin dashboard. Your driver app is unaffected.
               </p>
             </>
           )}
         </div>
+
+        {/* What's locked vs what works */}
+        {!isVoluntaryUpgrade && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 max-w-lg mx-auto">
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldX className="w-4 h-4 text-destructive" />
+                <span className="text-sm font-semibold text-destructive">Locked</span>
+              </div>
+              <ul className="space-y-1 text-xs text-muted-foreground">
+                <li>• Admin dashboard & map</li>
+                <li>• Fleet analytics & reports</li>
+                <li>• Task management</li>
+                <li>• Geofencing & alerts</li>
+              </ul>
+            </div>
+            <div className="rounded-xl border border-success/30 bg-success/5 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldCheck className="w-4 h-4 text-success" />
+                <span className="text-sm font-semibold text-success">Still Works</span>
+              </div>
+              <ul className="space-y-1 text-xs text-muted-foreground">
+                <li>• Driver mobile app</li>
+                <li>• Driver GPS tracking</li>
+                <li>• SOS emergency alerts</li>
+                <li>• Task completion</li>
+              </ul>
+            </div>
+          </div>
+        )}
 
         {/* Plan Selection */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">

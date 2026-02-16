@@ -128,7 +128,24 @@ export default function Dashboard() {
 
 
   return (
-    <div className="space-y-3 md:space-y-4">
+    <div className="relative space-y-3 md:space-y-4">
+      {/* Expired overlay - defense in depth */}
+      {subscription.status === 'expired' && (
+        <div className="absolute inset-0 z-40 backdrop-blur-md bg-background/80 rounded-xl flex items-center justify-center">
+          <div className="text-center p-6 max-w-md">
+            <Badge variant="outline" className="mb-3 border-destructive/50 text-destructive bg-destructive/10">
+              Subscription Required
+            </Badge>
+            <h2 className="text-xl font-bold mb-2">Admin Dashboard Locked</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Your 7-day trial has ended. Subscribe to continue tracking your fleet. Your driver app still works normally.
+            </p>
+            <Button variant="hero" size="lg" onClick={() => setShowUpgradeModal(true)}>
+              Subscribe Now
+            </Button>
+          </div>
+        </div>
+      )}
       {/* Upgrade Modal - shown when user clicks Upgrade Now during trial */}
       {showUpgradeModal && (
         <PaymentWall onDismiss={() => setShowUpgradeModal(false)} />
@@ -337,36 +354,51 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Billing Card */}
-          <Card className="border border-border">
-            <CardContent className="p-1.5 md:p-2 space-y-1">
-              <div className="flex items-center gap-1.5 mb-1">
+          {/* Billing Card - Enhanced */}
+          <Card className={`border ${subscription.status === 'active' ? 'border-success/30 bg-success/5' : 'border-border'}`}>
+            <CardContent className="p-2 md:p-3 space-y-2">
+              <div className="flex items-center gap-1.5">
                 <div className="p-1 rounded-md bg-primary/20">
                   <CreditCard className="h-3 w-3 text-primary" />
                 </div>
-                <h3 className="font-heading font-semibold text-[11px]">Billing</h3>
+                <h3 className="font-heading font-semibold text-xs">Billing</h3>
                 {subscription.status === 'active' && subscription.plan && (
-                  <Badge variant="outline" className="text-[8px] px-1 py-0 bg-success/10 text-success border-success/30 ml-auto">
-                    {subscription.plan === 'pro' ? 'Pro' : 'Basic'}
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-success/10 text-success border-success/30 ml-auto">
+                    ✓ {subscription.plan === 'pro' ? 'Pro' : 'Basic'} Active
+                  </Badge>
+                )}
+                {subscription.status === 'trial' && (
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-warning/10 text-warning border-warning/30 ml-auto">
+                    Trial
                   </Badge>
                 )}
               </div>
+              
               {subscription.status === 'active' ? (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-success">
+                    {subscription.plan === 'pro' ? '⭐ Pro' : '⚡ Basic'} Plan
+                  </p>
+                  {subscription.subscriptionEnd && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Active until {new Date(subscription.subscriptionEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                  )}
+                </div>
+              ) : subscription.status === 'trial' ? (
                 <p className="text-[10px] text-muted-foreground">
-                  {subscription.plan === 'pro' ? 'Pro' : 'Basic'} plan active
-                  {subscription.subscriptionEnd && ` · Renews ${new Date(subscription.subscriptionEnd).toLocaleDateString()}`}
+                  {subscription.trialDaysRemaining} day{subscription.trialDaysRemaining !== 1 ? 's' : ''} remaining in free trial
                 </p>
               ) : (
-                <p className="text-[10px] text-muted-foreground">
-                  {subscription.status === 'trial' 
-                    ? `Trial · ${subscription.trialDaysRemaining} day${subscription.trialDaysRemaining !== 1 ? 's' : ''} left` 
-                    : 'No active plan'}
+                <p className="text-[10px] text-destructive font-medium">
+                  Trial expired — subscribe to continue
                 </p>
               )}
+              
               <Button 
                 variant={subscription.status === 'active' ? "outline" : "hero"} 
                 size="sm" 
-                className="w-full h-6 text-[10px]"
+                className="w-full h-7 text-xs"
                 onClick={() => setShowPaymentModal(true)}
               >
                 <CreditCard className="h-3 w-3 mr-1" />

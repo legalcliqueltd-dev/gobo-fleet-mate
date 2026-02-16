@@ -30,7 +30,7 @@ const plans = {
     priceNGN: "₦2,899",
     icon: Zap,
     features: [
-      "1 driver connection",
+      "Up to 3 driver connections",
       "Real-time GPS tracking",
       "Dashboard access",
       "Mobile driver app",
