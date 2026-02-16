@@ -9,7 +9,7 @@ const corsHeaders = {
 };
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-const FROM_EMAIL = 'FleetTrackMate <noreply@gobotracking.com>';
+const FROM_EMAIL = 'FleetTrackMate <noreply@fleettrackmate.com>';
 
 export async function sendEmail({ to, subject, html, replyTo }: {
   to: string;

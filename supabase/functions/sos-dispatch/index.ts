@@ -7,7 +7,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-const FROM_EMAIL = 'FleetTrackMate <noreply@gobotracking.com>';
+const FROM_EMAIL = 'FleetTrackMate <noreply@fleettrackmate.com>';
 const APP_URL = 'https://gobo-fleet-mate.lovable.app';
 
 const supabase = createClient(supabaseUrl, serviceKey);
