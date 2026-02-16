@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import LockedFeature from '@/components/LockedFeature';
 import { Package, MapPin, Clock, FileText, Download, Plus, User, Play, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -287,6 +288,7 @@ export default function TaskList() {
   };
 
   return (
+    <LockedFeature featureName="Task Management">
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -471,5 +473,6 @@ export default function TaskList() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </LockedFeature>
   );
 }

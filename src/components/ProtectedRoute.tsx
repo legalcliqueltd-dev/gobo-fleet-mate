@@ -1,9 +1,8 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import PaymentWall from './PaymentWall';
 
 export default function ProtectedRoute({ children }: { children: JSX.Element }) {
-  const { user, loading, subscription } = useAuth();
+  const { user, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -19,10 +18,6 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
     return <Navigate to={`/auth/login?redirect=${redirect}`} replace />;
   }
 
-  // Show payment wall if trial expired
-  if (subscription.status === 'expired') {
-    return <PaymentWall />;
-  }
-
+  // Let authenticated users through — individual pages handle feature locking
   return children;
 }

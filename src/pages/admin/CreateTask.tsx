@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import LockedFeature from '@/components/LockedFeature';
 import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
 import AdvancedMarker from '@/components/map/AdvancedMarker';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
@@ -245,6 +246,7 @@ export default function CreateTask() {
   }
 
   return (
+    <LockedFeature featureName="Task Creation">
     <div className="h-screen flex">
       {/* Left Panel - Form */}
       <div className="w-1/3 overflow-y-auto border-r bg-background p-6">
@@ -417,5 +419,6 @@ export default function CreateTask() {
         </GoogleMap>
       </div>
     </div>
+    </LockedFeature>
   );
 }

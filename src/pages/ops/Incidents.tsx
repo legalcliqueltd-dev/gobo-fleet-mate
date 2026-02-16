@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import LockedFeature from '@/components/LockedFeature';
 import { useAuth } from '../../contexts/AuthContext';
 import { GoogleMap, useJsApiLoader, Polyline, InfoWindow } from '@react-google-maps/api';
 import AdvancedMarker from '@/components/map/AdvancedMarker';
@@ -342,6 +343,7 @@ export default function Incidents() {
   const resolvedEvents = events.filter(e => e.status === 'resolved' || e.status === 'cancelled');
 
   return (
+    <LockedFeature featureName="Incident Management">
     <div className="h-[calc(100dvh-140px)] flex flex-col gap-2">
       {/* Header Row */}
       <div className="flex items-center justify-between px-1 shrink-0">
@@ -720,5 +722,6 @@ export default function Incidents() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </LockedFeature>
   );
 }

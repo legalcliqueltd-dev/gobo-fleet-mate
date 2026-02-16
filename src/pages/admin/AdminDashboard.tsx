@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import DeviceMarker from '@/components/map/DeviceMarker';
+import LockedFeature from '@/components/LockedFeature';
 
 type TaskActivity = {
   id: string;
@@ -27,7 +28,7 @@ type TaskActivity = {
 };
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
+  const { user, hasFullAccess } = useAuth();
   const navigate = useNavigate();
   const mapRef = useRef<google.maps.Map | null>(null);
   
@@ -128,6 +129,7 @@ export default function AdminDashboard() {
   }
 
   return (
+    <LockedFeature featureName="Admin Dashboard">
     <div className="h-screen flex flex-col">
       {/* Header Stats */}
       <div className="bg-background border-b p-4">
@@ -357,5 +359,6 @@ export default function AdminDashboard() {
         </div>
       </div>
     </div>
+    </LockedFeature>
   );
 }

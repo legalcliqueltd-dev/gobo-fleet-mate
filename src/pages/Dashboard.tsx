@@ -6,6 +6,7 @@ import DriversList from '../components/DriversList';
 import GeofenceAlerts from '../components/GeofenceAlerts';
 import TempTrackingManager from '../components/TempTrackingManager';
 import PaymentWall from '../components/PaymentWall';
+import LockedFeature from '../components/LockedFeature';
 import { Clock, Plus, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone, Timer, Copy, Check, CreditCard } from 'lucide-react';
 
 import { ShareAppButton } from '@/components/ShareAppButton';
@@ -129,22 +130,25 @@ export default function Dashboard() {
 
   return (
     <div className="relative space-y-3 md:space-y-4">
-      {/* Expired overlay - defense in depth */}
+      {/* Expired Banner */}
       {subscription.status === 'expired' && (
-        <div className="absolute inset-0 z-40 backdrop-blur-md bg-background/80 rounded-xl flex items-center justify-center">
-          <div className="text-center p-6 max-w-md">
-            <Badge variant="outline" className="mb-3 border-destructive/50 text-destructive bg-destructive/10">
-              Subscription Required
-            </Badge>
-            <h2 className="text-xl font-bold mb-2">Admin Dashboard Locked</h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              Your 7-day trial has ended. Subscribe to continue tracking your fleet. Your driver app still works normally.
-            </p>
-            <Button variant="hero" size="lg" onClick={() => setShowUpgradeModal(true)}>
-              Subscribe Now
-            </Button>
-          </div>
-        </div>
+        <Card className="border-destructive/50 bg-destructive/10">
+          <CardContent className="p-3 md:p-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="border-destructive/50 text-destructive bg-destructive/10">
+                  Trial Expired
+                </Badge>
+                <span className="text-sm text-muted-foreground">
+                  Subscribe to unlock all admin features. Driver app still works free.
+                </span>
+              </div>
+              <Button variant="hero" size="sm" className="h-7 text-xs" onClick={() => setShowUpgradeModal(true)}>
+                Subscribe Now
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
       {/* Upgrade Modal - shown when user clicks Upgrade Now during trial */}
       {showUpgradeModal && (
@@ -426,8 +430,12 @@ export default function Dashboard() {
         </aside>
       </div>
 
-      <TempTrackingManager />
-      <GeofenceAlerts />
+      <LockedFeature featureName="Temp Tracking">
+        <TempTrackingManager />
+      </LockedFeature>
+      <LockedFeature featureName="Geofence Alerts">
+        <GeofenceAlerts />
+      </LockedFeature>
 
       <Link to="/devices/new" className="lg:hidden fixed bottom-4 right-4 md:bottom-6 md:right-6 z-20 safe-bottom">
         <Button variant="default" size="icon" className="rounded-xl h-12 w-12 md:h-14 md:w-14 shadow-xl">
