@@ -5,6 +5,29 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+const FROM_EMAIL = 'FleetTrackMate <noreply@gobotracking.com>';
+const APP_URL = 'https://gobo-fleet-mate.lovable.app';
+
+async function sendEmailNotification(to: string, subject: string, html: string) {
+  if (!RESEND_API_KEY) return;
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html }),
+    });
+    const data = await res.json();
+    if (!res.ok) console.error('Email error:', data);
+    else console.log('Email sent:', data.id);
+  } catch (err) { console.error('Email send failed:', err); }
+}
+
+function makeEmailHtml(title: string, body: string, actionUrl?: string, actionLabel?: string) {
+  const btn = actionUrl && actionLabel ? `<div style="text-align:center;margin:24px 0;"><a href="${actionUrl}" style="background-color:#2563eb;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;">${actionLabel}</a></div>` : '';
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><div style="max-width:560px;margin:0 auto;padding:24px;"><div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><div style="background:#1e293b;padding:20px 24px;"><h1 style="margin:0;color:#fff;font-size:18px;">🚛 FleetTrackMate</h1></div><div style="padding:24px;"><h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">${title}</h2><div style="color:#475569;font-size:14px;line-height:1.6;">${body}</div>${btn}</div><div style="padding:16px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;"><p style="margin:0;color:#94a3b8;font-size:12px;">You're receiving this because you have a FleetTrackMate account.</p></div></div></div></body></html>`;
+}
+
 // Generate a unique driver ID
 function generateDriverId(): string {
   return crypto.randomUUID();
@@ -248,7 +271,7 @@ Deno.serve(async (req) => {
       }
 
       // Update task status to completed
-      const { error: taskUpdateError, count: taskUpdateCount } = await supabaseAdmin
+      const { error: taskUpdateError } = await supabaseAdmin
         .from('tasks')
         .update({ status: 'completed' })
         .eq('id', taskId)
@@ -258,6 +281,38 @@ Deno.serve(async (req) => {
         console.error('Task status update error:', taskUpdateError);
       } else {
         console.log('Task status updated to completed, taskId:', taskId);
+        
+        // Send email to task creator
+        try {
+          const { data: task } = await supabaseAdmin
+            .from('tasks')
+            .select('title, created_by')
+            .eq('id', taskId)
+            .maybeSingle();
+
+          if (task?.created_by) {
+            const { data: creatorProfile } = await supabaseAdmin
+              .from('profiles')
+              .select('email, full_name')
+              .eq('id', task.created_by)
+              .maybeSingle();
+
+            if (creatorProfile?.email) {
+              const driverLabel = driver?.driver_name || 'A driver';
+              const emailBody = `
+                <p>Hi ${creatorProfile.full_name || 'there'},</p>
+                <p>Great news! The task "<strong>${task.title}</strong>" has been <strong>completed</strong> by <strong>${driverLabel}</strong>.</p>
+                <p><strong>Delivery status:</strong> ${delivered ? '✅ Delivered' : '❌ Not delivered'}</p>
+                ${note ? `<p><strong>Note:</strong> ${note}</p>` : ''}
+                <p>Time: ${new Date().toLocaleString('en-US', { timeZone: 'UTC' })} UTC</p>
+              `;
+              const html = makeEmailHtml('Task Completed', emailBody, `${APP_URL}/admin/tasks`, 'View Tasks');
+              await sendEmailNotification(creatorProfile.email, `✅ Task Completed: ${task.title}`, html);
+            }
+          }
+        } catch (emailErr) {
+          console.error('Task completion email error:', emailErr);
+        }
       }
 
       return new Response(
@@ -409,6 +464,33 @@ Deno.serve(async (req) => {
           status: 'active',
         })
         .eq('id', device.id);
+
+      // Send email to admin when a NEW driver connects (not reconnecting)
+      if (!isReconnecting && device.user_id) {
+        try {
+          const { data: adminProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('email, full_name')
+            .eq('id', device.user_id)
+            .maybeSingle();
+
+          if (adminProfile?.email) {
+            const emailBody = `
+              <p>Hi ${adminProfile.full_name || 'there'},</p>
+              <p>A new driver has connected to your fleet:</p>
+              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:16px 0;">
+                <p style="margin:0;"><strong>Driver Name:</strong> ${driverName.trim()}</p>
+                <p style="margin:4px 0 0;"><strong>Device:</strong> ${device.name || 'N/A'}</p>
+                <p style="margin:4px 0 0;"><strong>Connected at:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'UTC' })} UTC</p>
+              </div>
+            `;
+            const html = makeEmailHtml('New Driver Connected', emailBody, `${APP_URL}/admin/drivers`, 'View Drivers');
+            await sendEmailNotification(adminProfile.email, `🆕 New Driver Connected: ${driverName.trim()}`, html);
+          }
+        } catch (emailErr) {
+          console.error('New driver email error:', emailErr);
+        }
+      }
 
       return new Response(
         JSON.stringify({ 

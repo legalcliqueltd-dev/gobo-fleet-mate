@@ -386,6 +386,7 @@ export type Database = {
           email: string | null
           full_name: string | null
           id: string
+          last_trial_reminder_at: string | null
           payment_provider: string | null
           registration_source: string | null
           subscription_end_at: string | null
@@ -400,6 +401,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id: string
+          last_trial_reminder_at?: string | null
           payment_provider?: string | null
           registration_source?: string | null
           subscription_end_at?: string | null
@@ -414,6 +416,7 @@ export type Database = {
           email?: string | null
           full_name?: string | null
           id?: string
+          last_trial_reminder_at?: string | null
           payment_provider?: string | null
           registration_source?: string | null
           subscription_end_at?: string | null
