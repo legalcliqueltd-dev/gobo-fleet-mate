@@ -43,7 +43,8 @@ serve(async (req) => {
     const priceId = STRIPE_PRICES[plan as keyof typeof STRIPE_PRICES];
     logStep("Plan selected", { plan, priceId });
 
-    const authHeader = req.headers.get("Authorization")!;
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("No authorization header provided. Please log in first.");
     const token = authHeader.replace("Bearer ", "");
     const { data } = await supabaseClient.auth.getUser(token);
     const user = data.user;
