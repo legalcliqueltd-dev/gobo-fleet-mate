@@ -1,69 +1,65 @@
 
 
-# Pricing UI Overhaul - Fit the No-Credit-Card-Required Concept
+# Email Notification System Implementation
 
-## Current Issues Found
-1. **Pricing section is invisible on the landing page** - The cards exist in the DOM but are not showing visually. The `framer-motion` `whileInView` animations with `opacity: 0` initial state may not be triggering properly, leaving cards invisible.
-2. **PaymentModal is redundant** - Since the agreed concept is "no credit card upfront, 7-day free trial, then PaymentWall blocks admin," the "Pay Now - Skip Trial" button on the landing page is unnecessary for most users. However, we'll keep it as a secondary option for those who want to skip the trial.
-3. **Copy and UI don't fully reflect the agreed payment flow**.
+## Step 0: Add RESEND_API_KEY Secret
+Store your Resend API key as a Supabase secret so all edge functions can use it.
 
-## What Will Change
+## Step 1: Create `send-email` Edge Function
+A centralized, reusable email sender that all other functions call internally via the Resend REST API.
 
-### 1. Fix Pricing Section Visibility (Critical)
-- Remove `framer-motion` animation wrappers from the pricing cards (they're causing the invisible cards issue)
-- Use simple CSS transitions instead for hover effects
-- Ensure cards render immediately without depending on viewport intersection
+- Accepts: `to`, `subject`, `html`, `replyTo`
+- From: `FleetTrackMate <noreply@yourdomain.com>` (using your verified domain)
+- Clean HTML email template with branding
 
-### 2. Simplify Pricing UI for "No Card Required" Flow
-- **Primary CTA**: "Start Free Trial" button links to `/auth/signup` (large, prominent)
-- **Secondary CTA**: "Pay Now - Skip Trial" remains as a smaller outline button (opens PaymentModal)
-- Update header copy: "Start Free. Upgrade When Ready."
-- Update subtitle: "Track your fleet free for 7 days. No credit card needed. Only admin features require a subscription - driver app is always free."
+## Step 2: Update `sos-dispatch` (SOS Emergency Emails)
+When an SOS is created:
+- Look up admin email via `admin_code` -> `devices.connection_code` -> `devices.user_id` -> `profiles.email`
+- Send urgent email: "EMERGENCY: SOS Alert from [Driver]" with hazard, location, and dashboard link
 
-### 3. Add Clear Visual Messaging
-- Add a highlighted callout below the cards explaining the payment concept:
-  - "How it works: Sign up -> 7 days free tracking -> Subscribe to keep admin access"
-  - "Driver app remains free forever - no payment needed for drivers"
-- Add step-by-step visual (3 steps: Sign Up, Try Free, Subscribe)
+## Step 3: Create `trial-reminder` Edge Function
+A cron-callable function that:
+- Queries profiles with `subscription_status = 'trial'`
+- Sends email at 3 days remaining and on expiration day
+- Tracks via new `last_trial_reminder_at` column on `profiles` to avoid duplicates
+- Includes upgrade link
 
-### 4. Update PaymentWall Copy
-- Ensure the expired state messaging matches: "Your 7-day free trial has ended. Subscribe to continue using admin features."
-- The "Locked vs Still Works" section already exists and is good
+## Step 4: Update `notify-inactivity` (Device Offline Emails)
+Replace the non-functional FCM logic with Resend email:
+- Look up device owner email from `profiles`
+- Send: "[Device Name] is offline"
+- Keep existing deduplication via `last_notified_offline_at`
 
-### 5. Dashboard Billing Card Polish
-- Already implemented - no major changes needed
-- Minor: ensure the "Upgrade Now" button from the billing card opens PaymentWall (not PaymentModal) for consistency
+## Step 5: Update `connect-driver` (Task Completion + Driver Onboarding Emails)
+**Task completed:** After `submit-task-report`, email the task creator: "Task Completed: [Title]"
+**New driver connected:** On first `connect` action, email admin: "New Driver Connected: [Name]"
 
-## Technical Details
+## Step 6: Geofence Breach Emails (Inline in `sos-dispatch` or new function)
+Create a lightweight callable for geofence events that emails the geofence creator when entry/exit occurs.
 
-### Files to Modify
+## Database Migration
+```sql
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_trial_reminder_at timestamptz;
+```
 
-**`src/components/Pricing.tsx`** (Major rewrite)
-- Remove all `framer-motion` wrappers (fixing the invisible cards bug)
-- Restructure with clean CSS-only animations
-- Update copy to match the no-card-required concept
-- Add a 3-step "How It Works" section below the cards
-- Keep both CTAs: "Start Free Trial" (primary) and "Pay Now - Skip Trial" (secondary)
+## Files Created
+| File | Purpose |
+|------|---------|
+| `supabase/functions/send-email/index.ts` | Centralized Resend email helper |
+| `supabase/functions/trial-reminder/index.ts` | Trial expiration reminder |
+| `supabase/functions/geofence-email/index.ts` | Geofence breach notifications |
 
-**`src/pages/Landing.tsx`**
-- No changes needed - already includes Pricing component
+## Files Modified
+| File | Change |
+|------|--------|
+| `supabase/config.toml` | Add new function configs |
+| `supabase/functions/sos-dispatch/index.ts` | Add admin email on SOS |
+| `supabase/functions/notify-inactivity/index.ts` | Replace FCM with Resend |
+| `supabase/functions/connect-driver/index.ts` | Add task + onboarding emails |
 
-**`src/components/PaymentWall.tsx`**
-- Minor copy tweaks to reinforce "admin only" messaging
-- No structural changes needed - already well-built
+## Email Templates
+All emails use clean inline-styled HTML with:
+- FleetTrackMate header
+- Clear action button linking to the relevant dashboard page
+- "You're receiving this because..." footer
 
-**`src/pages/Dashboard.tsx`**
-- Change the billing card's "Upgrade Now" button to open PaymentWall instead of PaymentModal for a more complete upgrade experience
-- Remove the separate PaymentModal import (use PaymentWall with `onDismiss` instead)
-
-**`src/components/PaymentModal.tsx`**
-- No changes - still used by the "Pay Now - Skip Trial" button on the pricing page
-
-### Design Approach
-- Cards will use simple `hover:-translate-y-1 transition-transform` instead of framer-motion
-- Section title and subtitle will render immediately (no animation dependency)
-- A "How It Works" 3-step row will be added between the subtitle and the cards:
-  1. "Sign Up" - Create your account in seconds
-  2. "Track Free" - 7 days full admin access
-  3. "Subscribe" - Continue from $1.99/month
-- Footer trust badges remain: "7 days free trial", "Cancel anytime", "Free driver app"
