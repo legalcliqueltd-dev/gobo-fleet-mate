@@ -126,9 +126,9 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
               <Badge variant="outline" className="mb-4 border-destructive/50 text-destructive bg-destructive/10">
                 Trial Expired
               </Badge>
-              <h1 className="text-3xl font-bold mb-2">Your 7-Day Trial Has Ended</h1>
+              <h1 className="text-3xl font-bold mb-2">Your 7-Day Free Trial Has Ended</h1>
               <p className="text-muted-foreground max-w-md mx-auto">
-                Subscribe to continue tracking your fleet from the admin dashboard. Your driver app is unaffected.
+                Subscribe to continue using admin features. Your drivers can still use the app — it's always free for them.
               </p>
             </>
           )}

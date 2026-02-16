@@ -7,7 +7,7 @@ import GeofenceAlerts from '../components/GeofenceAlerts';
 import TempTrackingManager from '../components/TempTrackingManager';
 import PaymentWall from '../components/PaymentWall';
 import { Clock, Plus, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone, Timer, Copy, Check, CreditCard } from 'lucide-react';
-import PaymentModal from '@/components/PaymentModal';
+
 import { ShareAppButton } from '@/components/ShareAppButton';
 import clsx from 'clsx';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -26,7 +26,7 @@ export default function Dashboard() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
 
@@ -150,7 +150,7 @@ export default function Dashboard() {
       {showUpgradeModal && (
         <PaymentWall onDismiss={() => setShowUpgradeModal(false)} />
       )}
-      <PaymentModal open={showPaymentModal} onOpenChange={setShowPaymentModal} />
+      
 
       {/* Trial Banner */}
       {subscription.status === 'trial' && subscription.trialDaysRemaining > 0 && (
@@ -399,7 +399,7 @@ export default function Dashboard() {
                 variant={subscription.status === 'active' ? "outline" : "hero"} 
                 size="sm" 
                 className="w-full h-7 text-xs"
-                onClick={() => setShowPaymentModal(true)}
+                onClick={() => setShowUpgradeModal(true)}
               >
                 <CreditCard className="h-3 w-3 mr-1" />
                 {subscription.status === 'active' ? 'Manage Plan' : 'Upgrade Now'}
