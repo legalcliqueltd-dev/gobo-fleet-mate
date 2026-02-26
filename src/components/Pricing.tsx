@@ -16,7 +16,7 @@ const Pricing = () => {
       period: "/month",
       description: "Perfect for small teams",
       features: [
-        "Up to 3 driver connections",
+        "Up to 2 driver connections",
         "Real-time GPS tracking",
         "Dashboard access",
         "Mobile driver app",
