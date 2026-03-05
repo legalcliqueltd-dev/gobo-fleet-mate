@@ -52,6 +52,18 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Check if trial has expired - force skip trial
+    const { data: profile } = await supabaseClient
+      .from("profiles")
+      .select("trial_started_at, subscription_status")
+      .eq("id", user.id)
+      .single();
+    
+    const trialExpired = profile?.subscription_status === "expired" || 
+      (profile?.trial_started_at && new Date(profile.trial_started_at).getTime() + 7 * 86400000 < Date.now());
+    const forceSkipTrial = skipTrial || !!trialExpired;
+    logStep("Trial check", { trialExpired, forceSkipTrial });
+
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2025-08-27.basil",
     });
@@ -80,8 +92,8 @@ serve(async (req) => {
       cancel_url: `${origin}/dashboard?payment=cancelled`,
     };
 
-    // Only add trial if not skipping
-    if (!skipTrial) {
+    // Only add trial if not skipping and trial hasn't expired
+    if (!forceSkipTrial) {
       sessionConfig.subscription_data = {
         trial_period_days: 7,
       };

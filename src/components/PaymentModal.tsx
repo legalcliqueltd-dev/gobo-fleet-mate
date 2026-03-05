@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Check, CreditCard, Building2, Loader2, Globe, MapPin, Star, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 type Plan = "basic" | "pro";
 type PaymentMethod = "paystack" | "stripe";
@@ -54,9 +55,11 @@ const plans = {
 };
 
 const PaymentModal = ({ open, onOpenChange, onSuccess, defaultPlan = "pro" }: PaymentModalProps) => {
+  const { subscription } = useAuth();
+  const trialExpired = subscription.trialExpired || subscription.status === 'expired';
   const [selectedPlan, setSelectedPlan] = useState<Plan>(defaultPlan);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
-  const [skipTrial, setSkipTrial] = useState(false);
+  const [skipTrial, setSkipTrial] = useState(trialExpired);
   const [loading, setLoading] = useState(false);
 
   const handlePayment = async () => {
@@ -71,7 +74,7 @@ const PaymentModal = ({ open, onOpenChange, onSuccess, defaultPlan = "pro" }: Pa
       const functionName = selectedMethod === "stripe" ? "create-checkout" : "create-paystack-checkout";
       
       const { data, error } = await supabase.functions.invoke(functionName, {
-        body: { plan: selectedPlan, skip_trial: skipTrial }
+        body: { plan: selectedPlan, skip_trial: trialExpired || skipTrial }
       });
 
       if (error) {
@@ -221,20 +224,26 @@ const PaymentModal = ({ open, onOpenChange, onSuccess, defaultPlan = "pro" }: Pa
             )}
           </Button>
 
-          <div className="flex items-center justify-between bg-muted/30 rounded-lg p-3">
-            <div className="flex items-center gap-2">
-              <Switch
-                checked={skipTrial}
-                onCheckedChange={setSkipTrial}
-                id="skip-trial"
-              />
-              <label htmlFor="skip-trial" className="text-sm font-medium cursor-pointer">
-                Skip trial — start subscription now
-              </label>
+          {!trialExpired && (
+            <div className="flex items-center justify-between bg-muted/30 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={skipTrial}
+                  onCheckedChange={setSkipTrial}
+                  id="skip-trial"
+                />
+                <label htmlFor="skip-trial" className="text-sm font-medium cursor-pointer">
+                  Skip trial — start subscription now
+                </label>
+              </div>
             </div>
-          </div>
+          )}
 
-          {!skipTrial && (
+          {trialExpired ? (
+            <p className="text-xs text-center text-muted-foreground">
+              You'll be charged {currentPrice} immediately. Cancel anytime.
+            </p>
+          ) : !skipTrial ? (
             <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
               <div className="flex items-center gap-1">
                 <Check className="w-3 h-3 text-success" />
@@ -245,8 +254,7 @@ const PaymentModal = ({ open, onOpenChange, onSuccess, defaultPlan = "pro" }: Pa
                 Cancel anytime
               </div>
             </div>
-          )}
-          {skipTrial && (
+          ) : (
             <p className="text-xs text-center text-muted-foreground">
               You'll be charged {currentPrice} immediately. Cancel anytime.
             </p>
