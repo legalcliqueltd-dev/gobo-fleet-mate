@@ -7,7 +7,7 @@ import GeofenceAlerts from '../components/GeofenceAlerts';
 import TempTrackingManager from '../components/TempTrackingManager';
 import PaymentWall from '../components/PaymentWall';
 import LockedFeature from '../components/LockedFeature';
-import { Clock, Plus, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone, Timer, Copy, Check, CreditCard } from 'lucide-react';
+import { Clock, Plus, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone, Timer, Copy, Check, CreditCard, Pause, Play, AlertTriangle } from 'lucide-react';
 
 import { ShareAppButton } from '@/components/ShareAppButton';
 import clsx from 'clsx';
@@ -144,10 +144,33 @@ export default function Dashboard() {
     }
   };
 
+  const handleTogglePause = async (deviceId: string, currentlyPaused: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('devices')
+        .update({ is_paused: !currentlyPaused })
+        .eq('id', deviceId);
+      if (error) throw error;
+      toast.success(currentlyPaused ? 'Device resumed' : 'Device paused');
+    } catch (err) {
+      console.error('Error toggling pause:', err);
+      toast.error('Failed to update device');
+    }
+  };
+
   const activeDevices = items.filter(d => d.status === 'active').length;
   const activeDrivers = drivers.filter(d => 
     d.last_seen_at && Date.now() - new Date(d.last_seen_at).getTime() < 15 * 60 * 1000
   ).length;
+
+  // Device limit logic
+  const isBasic = subscription.status === 'active' && subscription.plan === 'basic';
+  const isPro = subscription.status === 'active' && subscription.plan === 'pro';
+  const isTrial = subscription.status === 'trial';
+  const deviceLimit = isPro ? Infinity : 2;
+  const activeNonPausedDevices = items.filter(d => !d.is_paused).length;
+  const isOverLimit = activeNonPausedDevices > deviceLimit;
+  const excessCount = Math.max(0, activeNonPausedDevices - deviceLimit);
 
   const handleCopyCode = async (code: string, deviceId: string) => {
     try {
