@@ -2,15 +2,16 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, CreditCard, Building2, Loader2, Star, Zap, Globe, MapPin, ShieldX, ShieldCheck, ArrowUp } from "lucide-react";
+import { Check, CreditCard, Building2, Loader2, Star, Zap, Globe, MapPin, ShieldX, ShieldCheck, ArrowUp, ArrowDown, Calendar, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import ActivePlanView from "./payment/ActivePlanView";
 
 type Plan = "basic" | "pro";
 type PaymentMethod = "stripe" | "paystack";
 
-const plans = {
+export const plans = {
   basic: {
     name: "Basic",
     priceUSD: "$1.99",
@@ -53,9 +54,8 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
   const { subscription, refreshSubscription, user } = useAuth();
   const currentSubPlan = subscription.plan;
   const isActive = subscription.status === 'active';
-  const hasProPlan = isActive && currentSubPlan === 'pro';
+  const hasActivePlan = isActive && (currentSubPlan === 'pro' || currentSubPlan === 'basic');
   
-  // If user has basic, default to pro for upgrade
   const initialPlan: Plan = (isActive && currentSubPlan === 'basic') ? 'pro' : 'pro';
   
   const [selectedPlan, setSelectedPlan] = useState<Plan>(initialPlan);
@@ -64,35 +64,23 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
 
   const isUpgrade = isActive && currentSubPlan === 'basic' && selectedPlan === 'pro';
 
-  // If user already has Pro, show confirmation instead of payment options
-  if (hasProPlan) {
+  // If user has an active paid plan, show the active plan management view
+  if (hasActivePlan) {
     return (
-      <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <Card className="border-2 border-success/30">
-            <CardContent className="pt-8 pb-6 text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-success/20 flex items-center justify-center mx-auto">
-                <Check className="w-8 h-8 text-success" />
-              </div>
-              <h2 className="text-2xl font-bold">You're on Pro!</h2>
-              <p className="text-muted-foreground">
-                You have full access to all FleetTrackMate features.
-              </p>
-              {subscription.subscriptionEnd && (
-                <div className="bg-muted/50 rounded-lg p-3 text-sm">
-                  <span className="text-muted-foreground">Next renewal: </span>
-                  <span className="font-semibold">
-                    {new Date(subscription.subscriptionEnd).toLocaleDateString('en-US', { 
-                      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
-                    })}
-                  </span>
-                </div>
-              )}
-              <Button variant="outline" onClick={onDismiss} className="mt-2">
-                Close
+      <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="w-full max-w-lg my-8">
+          {onDismiss && (
+            <div className="flex justify-end mb-4">
+              <Button variant="ghost" size="sm" onClick={onDismiss}>
+                ✕ Close
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          )}
+          <ActivePlanView 
+            subscription={subscription} 
+            onDismiss={onDismiss} 
+            onRefresh={refreshSubscription}
+          />
         </div>
       </div>
     );
@@ -162,7 +150,6 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
   return (
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
       <div className="w-full max-w-4xl my-8">
-        {/* Close button for voluntary upgrades */}
         {isVoluntaryUpgrade && (
           <div className="flex justify-end mb-4">
             <Button variant="ghost" size="sm" onClick={onDismiss}>
@@ -206,7 +193,6 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
           )}
         </div>
 
-        {/* What's locked vs what works */}
         {!isVoluntaryUpgrade && !isActive && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 max-w-lg mx-auto">
             <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3">
@@ -236,7 +222,6 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
           </div>
         )}
 
-        {/* Current plan indicator for upgrade flow */}
         {isActive && currentSubPlan === 'basic' && (
           <div className="flex items-center justify-center gap-3 mb-6 p-4 rounded-xl bg-muted/50 border max-w-lg mx-auto">
             <div className="flex items-center gap-2">
