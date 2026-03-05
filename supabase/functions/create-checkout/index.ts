@@ -14,8 +14,8 @@ const logStep = (step: string, details?: any) => {
 
 // Stripe Price IDs - with 7-day free trial
 const STRIPE_PRICES = {
-  basic: "price_1T1SleRWxKms6a9XoE840uvI", // $1.99/month
-  pro: "price_1T1Sm1RWxKms6a9Xa9vboNvO", // $3.99/month
+  basic: "price_1T7YNEDrKSyvbr3II5UkdDEC", // $1.99/month
+  pro: "price_1T7YNWDrKSyvbr3Is592GI1W", // $3.99/month
 };
 
 serve(async (req) => {
