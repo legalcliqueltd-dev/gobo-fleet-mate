@@ -56,6 +56,7 @@ const plans = {
 const PaymentModal = ({ open, onOpenChange, onSuccess, defaultPlan = "pro" }: PaymentModalProps) => {
   const [selectedPlan, setSelectedPlan] = useState<Plan>(defaultPlan);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
+  const [skipTrial, setSkipTrial] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handlePayment = async () => {
