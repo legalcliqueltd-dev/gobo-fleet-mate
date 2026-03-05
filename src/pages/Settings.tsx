@@ -55,7 +55,26 @@ export default function Settings() {
     toast.success('Update interval changed. Reload to apply.');
   };
 
-  const handleBatterySavingToggle = (enabled: boolean) => {
+  const handleSendInvoices = async () => {
+    setSendingInvoices(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toast.error('Please log in first'); return; }
+      
+      const { data, error } = await supabase.functions.invoke('bulk-email', {
+        body: { filter: 'paid' },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      
+      if (error) throw error;
+      toast.success(`Invoices sent: ${data.sent} successful, ${data.failed} failed`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send invoices');
+    } finally {
+      setSendingInvoices(false);
+    }
+  };
+
     setBatterySavingMode(enabled);
     localStorage.setItem('batterySavingMode', String(enabled));
     toast.success(enabled ? 'Battery saving mode enabled' : 'Battery saving mode disabled');
