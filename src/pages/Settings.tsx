@@ -189,6 +189,29 @@ export default function Settings() {
               </Button>
             )}
           </div>
+
+          {/* Send Invoice Emails (admin only) */}
+          {subscription.status === 'active' && (
+            <div className="rounded-lg border border-dashed border-border p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-medium">Email Actions</p>
+              </div>
+              <p className="text-xs text-muted-foreground">Send invoice emails to all paid subscribers with their plan details and expiration date.</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSendInvoices}
+                disabled={sendingInvoices}
+              >
+                {sendingInvoices ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Sending...</>
+                ) : (
+                  <><Send className="h-4 w-4 mr-2" /> Send Invoices to Paid Users</>
+                )}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
