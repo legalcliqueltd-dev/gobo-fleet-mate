@@ -321,6 +321,51 @@ serve(async (req) => {
         break;
       }
 
+      case "customer.subscription.updated": {
+        const sub = event.data.object as Stripe.Subscription;
+        const customerId = sub.customer as string;
+        const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
+        
+        if (!customer.email) break;
+
+        const { data: users } = await supabaseClient.auth.admin.listUsers();
+        const user = users?.users?.find(u => u.email === customer.email);
+        if (!user) {
+          logStep("User not found for subscription update", { email: customer.email });
+          break;
+        }
+
+        const priceId = sub.items.data[0]?.price.id;
+        const plan = STRIPE_PLANS[priceId] || "pro";
+        const periodEnd = new Date(sub.current_period_end * 1000);
+        const driverLimit = plan === "pro" ? 999 : 3;
+        const isActive = sub.status === "active" || sub.status === "trialing";
+
+        if (isActive) {
+          await supabaseClient.from("profiles").update({
+            subscription_status: "active",
+            subscription_plan: plan,
+            subscription_end_at: periodEnd.toISOString(),
+            payment_provider: "stripe",
+          }).eq("id", user.id);
+
+          await supabaseClient.from("admin_subscriptions").upsert({
+            user_id: user.id,
+            plan_name: plan,
+            status: "active",
+            driver_limit: driverLimit,
+            stripe_subscription_id: sub.id,
+            stripe_customer_id: customerId,
+            current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
+            current_period_end: periodEnd.toISOString(),
+            features: { max_drivers: driverLimit, advanced_analytics: plan === "pro", push_notifications: true },
+          }, { onConflict: "user_id" });
+
+          logStep("Subscription updated (plan change)", { userId: user.id, plan, driverLimit });
+        }
+        break;
+      }
+
       default:
         logStep("Unhandled event type", { type: event.type });
     }
