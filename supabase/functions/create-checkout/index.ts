@@ -32,9 +32,10 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    // Parse request body for plan selection
+  // Parse request body for plan selection
     const body = await req.json().catch(() => ({}));
     const plan = body.plan || "pro"; // Default to pro if not specified
+    const skipTrial = body.skip_trial === true;
     
     if (!["basic", "pro"].includes(plan)) {
       throw new Error("Invalid plan. Must be 'basic' or 'pro'");
