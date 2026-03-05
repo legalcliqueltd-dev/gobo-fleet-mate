@@ -169,7 +169,17 @@ serve(async (req) => {
       let subject: string;
       let html: string;
 
-      if (filter === 'expired' && !customSubject) {
+      if (filter === 'paid' && !customSubject) {
+        const plan = (profile.subscription_plan || 'pro').charAt(0).toUpperCase() + (profile.subscription_plan || 'pro').slice(1);
+        const amount = profile.subscription_plan === 'basic' ? '$1.99/month' : '$3.99/month';
+        const provider = (profile.payment_provider || 'Stripe').charAt(0).toUpperCase() + (profile.payment_provider || 'stripe').slice(1);
+        const endDate = profile.subscription_end_at ? new Date(profile.subscription_end_at) : null;
+        const renewalDate = endDate ? endDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+        const daysRemaining = endDate ? Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))) : 0;
+        const invoiceDate = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        subject = `FleetTrackMate Invoice - ${plan} Plan`;
+        html = invoiceHtml(name, plan, amount, provider, renewalDate, daysRemaining, invoiceDate);
+      } else if (filter === 'expired' && !customSubject) {
         subject = 'Your FleetTrackMate trial has expired';
         html = emailTemplate('Your trial has expired', trialExpiredBody(name), `${APP_URL}/settings`, 'Upgrade Now');
       } else {
