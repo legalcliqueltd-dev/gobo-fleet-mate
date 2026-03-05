@@ -178,36 +178,68 @@ export default function AddDevice() {
     );
   }
 
+  if (showUpgrade) {
+    return <PaymentWall />;
+  }
+
   return (
     <div className="max-w-md mx-auto">
       <h2 className="font-heading text-2xl font-semibold mb-4">Add Device</h2>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 nb-card p-6">
-        <div>
-          <label className="block text-sm font-medium mb-2">Name</label>
-          <input 
-            className="w-full rounded-lg border-2 border-slate-300 dark:border-slate-700 px-3 py-2 bg-white dark:bg-slate-900 focus:border-cyan-500 dark:focus:border-cyan-500 transition" 
-            {...register('name')} 
-          />
-          {errors.name && <p className="text-sm text-red-600 mt-1">{errors.name.message}</p>}
+      
+      {!loadingCount && (
+        <div className="mb-4 p-3 rounded-lg border border-border bg-card text-sm">
+          <span className="text-muted-foreground">Devices: </span>
+          <span className="font-semibold">{deviceCount}</span>
+          {deviceLimit !== Infinity && (
+            <span className="text-muted-foreground"> / {deviceLimit}</span>
+          )}
+          {isPro && <span className="text-muted-foreground"> (Unlimited)</span>}
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-2">IMEI (optional)</label>
-          <input 
-            className="w-full rounded-lg border-2 border-slate-300 dark:border-slate-700 px-3 py-2 bg-white dark:bg-slate-900 focus:border-cyan-500 dark:focus:border-cyan-500 transition" 
-            {...register('imei')} 
-          />
-        </div>
-        {errorMsg && <p className="text-sm text-red-600">{errorMsg}</p>}
-        <div className="flex items-center gap-2">
-          <button 
-            type="submit" 
-            disabled={isSubmitting} 
-            className="nb-button hover:shadow-brutal disabled:opacity-50 transition-all"
-          >
-            {isSubmitting ? 'Saving…' : 'Create device'}
-          </button>
-        </div>
-      </form>
+      )}
+
+      {atLimit ? (
+        <Card className="border border-destructive/50">
+          <CardContent className="p-6 text-center space-y-4">
+            <Lock className="h-8 w-8 text-destructive mx-auto" />
+            <h3 className="font-semibold text-lg">Device Limit Reached</h3>
+            <p className="text-sm text-muted-foreground">
+              Your {isBasic ? 'Basic' : 'current'} plan allows up to {deviceLimit} devices. 
+              Upgrade to Pro for unlimited device connections.
+            </p>
+            <Button onClick={() => setShowUpgrade(true)} className="w-full">
+              Upgrade to Pro
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 nb-card p-6">
+          <div>
+            <label className="block text-sm font-medium mb-2">Name</label>
+            <input 
+              className="w-full rounded-lg border-2 border-border px-3 py-2 bg-background focus:border-primary transition" 
+              {...register('name')} 
+            />
+            {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">IMEI (optional)</label>
+            <input 
+              className="w-full rounded-lg border-2 border-border px-3 py-2 bg-background focus:border-primary transition" 
+              {...register('imei')} 
+            />
+          </div>
+          {errorMsg && <p className="text-sm text-destructive">{errorMsg}</p>}
+          <div className="flex items-center gap-2">
+            <button 
+              type="submit" 
+              disabled={isSubmitting} 
+              className="nb-button hover:shadow-brutal disabled:opacity-50 transition-all"
+            >
+              {isSubmitting ? 'Saving…' : 'Create device'}
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }
