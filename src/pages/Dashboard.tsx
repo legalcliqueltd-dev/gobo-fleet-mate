@@ -34,10 +34,28 @@ export default function Dashboard() {
   // Handle payment success callback
   useEffect(() => {
     const paymentStatus = searchParams.get('payment');
+    const provider = searchParams.get('provider');
+    const plan = searchParams.get('plan');
+    const reference = searchParams.get('reference') || searchParams.get('trxref');
+    
     if (paymentStatus === 'success') {
-      toast.success('Payment successful! Welcome to FleetTrackMate Pro.');
-      // Refresh subscription status
-      refreshSubscription();
+      if (provider === 'paystack' && reference) {
+        // Verify Paystack payment and activate subscription
+        supabase.functions.invoke('verify-paystack-payment', {
+          body: { reference, plan }
+        }).then(({ data, error }) => {
+          if (error) {
+            console.error('Paystack verification error:', error);
+            toast.error('Payment received but activation failed. Please contact support.');
+          } else {
+            toast.success(`Payment successful! Welcome to FleetTrackMate ${plan === 'pro' ? 'Pro' : 'Basic'}.`);
+          }
+          refreshSubscription();
+        });
+      } else {
+        toast.success('Payment successful! Welcome to FleetTrackMate.');
+        refreshSubscription();
+      }
     } else if (paymentStatus === 'cancelled') {
       toast.info('Payment cancelled.');
     }
