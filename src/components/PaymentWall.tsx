@@ -53,6 +53,7 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
   const { subscription, refreshSubscription, user } = useAuth();
   const currentSubPlan = subscription.plan;
   const isActive = subscription.status === 'active';
+  const hasProPlan = isActive && currentSubPlan === 'pro';
   
   // If user has basic, default to pro for upgrade
   const initialPlan: Plan = (isActive && currentSubPlan === 'basic') ? 'pro' : 'pro';
@@ -62,6 +63,40 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
   const [loading, setLoading] = useState(false);
 
   const isUpgrade = isActive && currentSubPlan === 'basic' && selectedPlan === 'pro';
+
+  // If user already has Pro, show confirmation instead of payment options
+  if (hasProPlan) {
+    return (
+      <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <Card className="border-2 border-success/30">
+            <CardContent className="pt-8 pb-6 text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-success/20 flex items-center justify-center mx-auto">
+                <Check className="w-8 h-8 text-success" />
+              </div>
+              <h2 className="text-2xl font-bold">You're on Pro!</h2>
+              <p className="text-muted-foreground">
+                You have full access to all FleetTrackMate features.
+              </p>
+              {subscription.subscriptionEnd && (
+                <div className="bg-muted/50 rounded-lg p-3 text-sm">
+                  <span className="text-muted-foreground">Next renewal: </span>
+                  <span className="font-semibold">
+                    {new Date(subscription.subscriptionEnd).toLocaleDateString('en-US', { 
+                      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+                    })}
+                  </span>
+                </div>
+              )}
+              <Button variant="outline" onClick={onDismiss} className="mt-2">
+                Close
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   const handlePayment = async () => {
     if (!selectedMethod) {
