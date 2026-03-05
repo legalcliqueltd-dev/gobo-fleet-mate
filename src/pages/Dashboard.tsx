@@ -21,7 +21,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 const APK_DOWNLOAD_URL = "https://fleettrackmate.com/downloads/FleetTrackMate.apk";
 export default function Dashboard() {
-  const { items, markers, loading, error } = useDeviceLocations();
+  const { items, setItems, markers, loading, error } = useDeviceLocations();
   const { drivers } = useDriverLocations();
   const { subscription, hasFullAccess, refreshSubscription } = useAuth();
   const [selectedId, setSelectedId] = useState<string | null>(null);
