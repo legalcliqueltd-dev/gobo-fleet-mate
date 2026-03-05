@@ -113,5 +113,5 @@ export function useDeviceLocations() {
       }));
   }, [items]);
 
-  return { items, markers, loading, error };
+  return { items, setItems, markers, loading, error };
 }
