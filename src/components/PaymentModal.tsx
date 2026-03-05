@@ -55,7 +55,7 @@ const plans = {
 };
 
 const PaymentModal = ({ open, onOpenChange, onSuccess, defaultPlan = "pro" }: PaymentModalProps) => {
-  const { subscription } = useAuth();
+  const { subscription, user } = useAuth();
   const trialExpired = subscription.trialExpired || subscription.status === 'expired';
   const [selectedPlan, setSelectedPlan] = useState<Plan>(defaultPlan);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
@@ -71,10 +71,23 @@ const PaymentModal = ({ open, onOpenChange, onSuccess, defaultPlan = "pro" }: Pa
     setLoading(true);
 
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (!user || !accessToken) {
+        toast.error("Please log in to continue payment");
+        onOpenChange(false);
+        window.location.href = "/auth/login?redirect=/dashboard";
+        return;
+      }
+
       const functionName = selectedMethod === "stripe" ? "create-checkout" : "create-paystack-checkout";
       
       const { data, error } = await supabase.functions.invoke(functionName, {
-        body: { plan: selectedPlan, skip_trial: trialExpired || skipTrial }
+        body: { plan: selectedPlan, skip_trial: trialExpired || skipTrial },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
 
       if (error) {
