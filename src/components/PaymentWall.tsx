@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, CreditCard, Building2, Loader2, Star, Zap, Globe, MapPin, ShieldX, ShieldCheck } from "lucide-react";
+import { Check, CreditCard, Building2, Loader2, Star, Zap, Globe, MapPin, ShieldX, ShieldCheck, ArrowUp } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,9 +51,17 @@ interface PaymentWallProps {
 
 const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
   const { subscription, refreshSubscription, user } = useAuth();
-  const [selectedPlan, setSelectedPlan] = useState<Plan>("pro");
+  const currentSubPlan = subscription.plan;
+  const isActive = subscription.status === 'active';
+  
+  // If user has basic, default to pro for upgrade
+  const initialPlan: Plan = (isActive && currentSubPlan === 'basic') ? 'pro' : 'pro';
+  
+  const [selectedPlan, setSelectedPlan] = useState<Plan>(initialPlan);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const isUpgrade = isActive && currentSubPlan === 'basic' && selectedPlan === 'pro';
 
   const handlePayment = async () => {
     if (!selectedMethod) {
@@ -76,7 +84,7 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
       const functionName = selectedMethod === "stripe" ? "create-checkout" : "create-paystack-checkout";
 
       const { data, error } = await supabase.functions.invoke(functionName, {
-        body: { plan: selectedPlan },
+        body: { plan: selectedPlan, skip_trial: true },
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
@@ -88,7 +96,7 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
 
       if (data?.url) {
         window.open(data.url, "_blank");
-        toast.success("Redirecting to payment page...");
+        toast.success(isUpgrade ? "Redirecting to upgrade page..." : "Redirecting to payment page...");
 
         setTimeout(() => {
           refreshSubscription();
@@ -105,10 +113,16 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
     }
   };
 
-  const currentPlan = plans[selectedPlan];
-  const currentPrice = selectedMethod === "paystack" ? currentPlan.priceNGN : currentPlan.priceUSD;
+  const currentPlanDetails = plans[selectedPlan];
+  const currentPrice = selectedMethod === "paystack" ? currentPlanDetails.priceNGN : currentPlanDetails.priceUSD;
 
   const isVoluntaryUpgrade = !!onDismiss;
+
+  // Filter available plans - don't show current active plan
+  const availablePlans = (Object.entries(plans) as [Plan, typeof plans.basic][]).filter(([key]) => {
+    if (isActive && currentSubPlan === key) return false;
+    return true;
+  });
 
   return (
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
@@ -123,7 +137,18 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
         )}
 
         <div className="text-center mb-8">
-          {isVoluntaryUpgrade ? (
+          {isActive && currentSubPlan === 'basic' ? (
+            <>
+              <Badge variant="outline" className="mb-4 border-primary/50 text-primary bg-primary/10">
+                <ArrowUp className="w-3 h-3 mr-1" />
+                Upgrade Available
+              </Badge>
+              <h1 className="text-3xl font-bold mb-2">Upgrade to Pro</h1>
+              <p className="text-muted-foreground">
+                You're on the Basic plan. Upgrade to Pro for unlimited features.
+              </p>
+            </>
+          ) : isVoluntaryUpgrade ? (
             <>
               <Badge variant="outline" className="mb-4 border-primary/50 text-primary bg-primary/10">
                 Upgrade Your Plan
@@ -147,7 +172,7 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
         </div>
 
         {/* What's locked vs what works */}
-        {!isVoluntaryUpgrade && (
+        {!isVoluntaryUpgrade && !isActive && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 max-w-lg mx-auto">
             <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3">
               <div className="flex items-center gap-2 mb-2">
@@ -176,9 +201,24 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
           </div>
         )}
 
+        {/* Current plan indicator for upgrade flow */}
+        {isActive && currentSubPlan === 'basic' && (
+          <div className="flex items-center justify-center gap-3 mb-6 p-4 rounded-xl bg-muted/50 border max-w-lg mx-auto">
+            <div className="flex items-center gap-2">
+              <Zap className="w-5 h-5 text-primary" />
+              <span className="font-medium">Basic</span>
+            </div>
+            <ArrowUp className="w-5 h-5 text-muted-foreground" />
+            <div className="flex items-center gap-2">
+              <Star className="w-5 h-5 text-amber-500" />
+              <span className="font-medium">Pro</span>
+            </div>
+          </div>
+        )}
+
         {/* Plan Selection */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          {(Object.entries(plans) as [Plan, typeof plans.basic][]).map(([key, plan]) => (
+        <div className={`grid grid-cols-1 ${availablePlans.length > 1 ? 'md:grid-cols-2' : 'max-w-md mx-auto'} gap-4 mb-8`}>
+          {availablePlans.map(([key, plan]) => (
             <Card 
               key={key}
               className={`cursor-pointer transition-all hover:border-primary/50 ${
@@ -199,7 +239,7 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
                   {key === "pro" && (
                     <Badge className="bg-primary text-primary-foreground">
                       <Star className="w-3 h-3 mr-1" />
-                      Popular
+                      {isActive && currentSubPlan === 'basic' ? 'Upgrade' : 'Popular'}
                     </Badge>
                   )}
                 </div>
@@ -262,7 +302,7 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
                       </div>
                     </div>
                     <Badge variant="outline" className="bg-success/10 text-success border-success/30">
-                      {currentPlan.priceNGN}
+                      {currentPlanDetails.priceNGN}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
@@ -292,7 +332,7 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
                       </div>
                     </div>
                     <Badge variant="outline" className="bg-success/10 text-success border-success/30">
-                      {currentPlan.priceUSD}
+                      {currentPlanDetails.priceUSD}
                     </Badge>
                   </div>
                   <p className="text-xs text-muted-foreground mt-2">
@@ -320,7 +360,10 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
               </>
             ) : (
               <>
-                Subscribe to {currentPlan.name} - {currentPrice}/month
+                {isUpgrade 
+                  ? `Upgrade to Pro — ${currentPrice}/month`
+                  : `Subscribe to ${currentPlanDetails.name} — ${currentPrice}/month`
+                }
               </>
             )}
           </Button>
