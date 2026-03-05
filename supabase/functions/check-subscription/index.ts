@@ -20,6 +20,12 @@ const STRIPE_PLANS = {
 
 const TRIAL_DAYS = 7;
 
+const safeDate = (value: string | null | undefined): Date | null => {
+  if (!value) return null;
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? null : d;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
