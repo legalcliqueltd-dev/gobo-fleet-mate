@@ -343,7 +343,7 @@ Deno.serve(async (req) => {
       // Find device with this connection code
       const { data: device, error: deviceError } = await supabaseAdmin
         .from('devices')
-        .select('id, user_id, name, connected_driver_id, connection_code')
+        .select('id, user_id, name, connected_driver_id, connection_code, is_paused')
         .eq('connection_code', code.trim().toUpperCase())
         .maybeSingle();
 
@@ -359,6 +359,14 @@ Deno.serve(async (req) => {
         return new Response(
           JSON.stringify({ error: 'Invalid connection code', server_time: serverTime }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Check if device is paused by admin
+      if (device.is_paused) {
+        return new Response(
+          JSON.stringify({ error: 'This device has been paused by your admin. Please contact your fleet manager.', server_time: serverTime }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 

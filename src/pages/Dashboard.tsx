@@ -89,18 +89,23 @@ export default function Dashboard() {
     }
   }, [searchParams]);
 
-  // Convert device markers for LiveDriverMap
+  // Convert device markers for LiveDriverMap (exclude paused devices)
   const deviceMarkers = useMemo(() => {
-    return markers.map(m => ({
-      device_id: m.device_id,
-      name: m.name || 'Device',
-      status: (m.status || 'offline') as 'active' | 'idle' | 'offline',
-      latitude: m.latitude,
-      longitude: m.longitude,
-      speed: m.speed || null,
-      timestamp: m.timestamp || null,
-    }));
-  }, [markers]);
+    return markers
+      .filter(m => {
+        const device = items.find(d => d.id === m.device_id);
+        return !device?.is_paused;
+      })
+      .map(m => ({
+        device_id: m.device_id,
+        name: m.name || 'Device',
+        status: (m.status || 'offline') as 'active' | 'idle' | 'offline',
+        latitude: m.latitude,
+        longitude: m.longitude,
+        speed: m.speed || null,
+        timestamp: m.timestamp || null,
+      }));
+  }, [markers, items]);
 
   const handleDriverSelect = useCallback((driver: DriverLocation) => {
     setSelectedDriverId(driver.driver_id);
