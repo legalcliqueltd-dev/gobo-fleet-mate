@@ -1,12 +1,18 @@
 
-# Make Driver Details Page a Premium Feature
 
-## What Changes
-The Driver Details page (`/driver/:driverId`) will be wrapped with the existing `LockedFeature` component, so expired/unpaid users will see the page content blurred with an "Upgrade to Unlock" prompt -- consistent with how AdminDashboard, TaskList, and other admin pages are already locked.
+## Plan: Fix "Invalid time value" bug in check-subscription
 
-## Technical Details
+### Problem
+The `check-subscription` edge function throws `"Invalid time value"` when `profile.subscription_end_at` contains an unparseable date string. Line 83 does `new Date(profile.subscription_end_at)` without validation.
 
-**File: `src/pages/DriverDetails.tsx`**
-- Import `LockedFeature` from `@/components/LockedFeature`
-- Wrap the main content (the returned JSX after the loading/not-found checks) inside `<LockedFeature featureName="Driver Details">`
-- The header with the back button and driver name will still be visible but blurred, along with the map, analytics tabs, and action buttons -- prompting the user to upgrade to interact with them
+### Fix
+Add a safe date parsing helper in `check-subscription/index.ts` that validates dates before constructing `Date` objects. If `subscription_end_at` is invalid, treat the subscription as inactive and fall through to trial/expired logic.
+
+### Changes
+**File: `supabase/functions/check-subscription/index.ts`**
+- Wrap `new Date(profile.subscription_end_at)` in a try/catch or validate with `isNaN()` check
+- If invalid, log a warning and skip the "active subscription" block
+- Same safeguard for `trialStartedAt` parsing on line 73
+
+This is a single-file fix in the edge function.
+
