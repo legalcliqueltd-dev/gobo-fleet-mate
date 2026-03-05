@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Bell, Info, Palette, MapPin, Battery, Settings as SettingsIcon, User, CreditCard, Crown, Calendar, CheckCircle2 } from 'lucide-react';
+import { Bell, Info, Palette, MapPin, Battery, Settings as SettingsIcon, User, CreditCard, Crown, Calendar, CheckCircle2, Mail, Send, Loader2 } from 'lucide-react';
 import ThemeToggle from '../components/ThemeToggle';
 import { Label } from '../components/ui/label';
 import { Switch } from '../components/ui/switch';
@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 export default function Settings() {
   const { user, subscription } = useAuth();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [sendingInvoices, setSendingInvoices] = useState(false);
   const [tokens, setTokens] = useState<{ id: string; token: string; platform: string; created_at: string }[]>([]);
   
   const [locationTrackingEnabled, setLocationTrackingEnabled] = useState(() => {
@@ -52,6 +53,26 @@ export default function Settings() {
     setUpdateInterval(value);
     localStorage.setItem('locationUpdateInterval', value);
     toast.success('Update interval changed. Reload to apply.');
+  };
+
+  const handleSendInvoices = async () => {
+    setSendingInvoices(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { toast.error('Please log in first'); return; }
+      
+      const { data, error } = await supabase.functions.invoke('bulk-email', {
+        body: { filter: 'paid' },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      
+      if (error) throw error;
+      toast.success(`Invoices sent: ${data.sent} successful, ${data.failed} failed`);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send invoices');
+    } finally {
+      setSendingInvoices(false);
+    }
   };
 
   const handleBatterySavingToggle = (enabled: boolean) => {
@@ -168,6 +189,29 @@ export default function Settings() {
               </Button>
             )}
           </div>
+
+          {/* Send Invoice Emails (admin only) */}
+          {subscription.status === 'active' && (
+            <div className="rounded-lg border border-dashed border-border p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                <p className="text-sm font-medium">Email Actions</p>
+              </div>
+              <p className="text-xs text-muted-foreground">Send invoice emails to all paid subscribers with their plan details and expiration date.</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSendInvoices}
+                disabled={sendingInvoices}
+              >
+                {sendingInvoices ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Sending...</>
+                ) : (
+                  <><Send className="h-4 w-4 mr-2" /> Send Invoices to Paid Users</>
+                )}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
