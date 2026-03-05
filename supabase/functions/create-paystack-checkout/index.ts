@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const logStep = (step: string, details?: any) => {
@@ -50,6 +50,7 @@ serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
+      logStep("Unauthorized request - missing bearer token");
       return new Response(JSON.stringify({ error: "Unauthorized. Please log in first." }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 401,
@@ -57,10 +58,19 @@ serve(async (req) => {
     }
 
     const token = authHeader.replace("Bearer ", "").trim();
+    if (!token || token === "undefined" || token === "null") {
+      logStep("Unauthorized request - invalid bearer token");
+      return new Response(JSON.stringify({ error: "Unauthorized. Please log in first." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
+
     const { data, error: userError } = await supabaseClient.auth.getUser(token);
     const user = data.user;
 
     if (userError || !user?.email) {
+      logStep("Authentication failed", { error: userError?.message });
       return new Response(JSON.stringify({ error: "Unauthorized. Please log in first." }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 401,
