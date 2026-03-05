@@ -173,6 +173,11 @@ export default function Settings() {
 
       <PaymentModal open={showPaymentModal} onOpenChange={setShowPaymentModal} />
 
+      <Card className="border-2 border-border">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-primary/20">
+              <MapPin className="h-4 w-4 text-primary" />
             </div>
             <h3 className="font-heading font-semibold text-lg">Location Tracking</h3>
           </div>
