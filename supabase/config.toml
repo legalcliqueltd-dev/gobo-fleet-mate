@@ -35,3 +35,9 @@ verify_jwt = false
 
 [functions.bulk-email]
 verify_jwt = false
+
+[functions.check-subscription]
+verify_jwt = false
+
+[functions.verify-paystack-payment]
+verify_jwt = false
