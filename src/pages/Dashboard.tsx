@@ -150,12 +150,19 @@ export default function Dashboard() {
   };
 
   const handleTogglePause = async (deviceId: string, currentlyPaused: boolean) => {
+    const newPaused = !currentlyPaused;
+    // Optimistic local update
+    setItems(prev => prev.map(d => d.id === deviceId ? { ...d, is_paused: newPaused } : d));
     try {
       const { error } = await supabase
         .from('devices')
-        .update({ is_paused: !currentlyPaused })
+        .update({ is_paused: newPaused })
         .eq('id', deviceId);
-      if (error) throw error;
+      if (error) {
+        // Revert on failure
+        setItems(prev => prev.map(d => d.id === deviceId ? { ...d, is_paused: currentlyPaused } : d));
+        throw error;
+      }
       toast.success(currentlyPaused ? 'Device resumed' : 'Device paused');
     } catch (err) {
       console.error('Error toggling pause:', err);
