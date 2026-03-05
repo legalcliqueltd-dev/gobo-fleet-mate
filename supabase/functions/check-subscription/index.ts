@@ -222,10 +222,12 @@ serve(async (req) => {
                 })
                 .eq("id", user.id);
 
-              // Send confirmation email only when status transitions to active
-              if (profile?.subscription_status !== "active" && profile?.subscription_status !== "trial") {
+              // Send confirmation email when status transitions to active paid subscription
+              // Skip if profile already shows active with the same plan (avoid duplicate emails)
+              const alreadyOnSamePlan = profile?.subscription_status === "active" && profile?.subscription_plan === plan && profile?.payment_provider === "stripe";
+              if (!alreadyOnSamePlan) {
                 try {
-                  await sendPaymentConfirmationEmail(user.email, plan, subscriptionEnd, "stripe");
+                  await sendPaymentConfirmationEmail(user.email!, plan, subscriptionEnd, "stripe");
                 } catch (emailErr) {
                   logStep("Email error (non-blocking)", { error: String(emailErr) });
                 }
