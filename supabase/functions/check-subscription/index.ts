@@ -186,58 +186,87 @@ serve(async (req) => {
     // Check Stripe for active subscription
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (stripeKey) {
-      const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-      
-      if (customers.data.length > 0) {
-        const customerId = customers.data[0].id;
-        const subscriptions = await stripe.subscriptions.list({
-          customer: customerId,
-          status: "active",
-          limit: 1,
-        });
-
-        if (subscriptions.data.length > 0) {
-          const subscription = subscriptions.data[0];
-          const subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
-          const priceId = subscription.items.data[0]?.price.id;
+      try {
+        const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+        const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+        
+        if (customers.data.length > 0) {
+          const customerId = customers.data[0].id;
           
-          // Determine plan from price ID
-          let plan = "pro";
-          if (priceId === STRIPE_PLANS.basic) {
-            plan = "basic";
+          // Check for both active AND trialing subscriptions
+          for (const checkStatus of ["active", "trialing"] as const) {
+            const subscriptions = await stripe.subscriptions.list({
+              customer: customerId,
+              status: checkStatus,
+              limit: 1,
+            });
+
+            if (subscriptions.data.length > 0) {
+              const subscription = subscriptions.data[0];
+              const periodEndTs = subscription.current_period_end;
+              const trialEndTs = subscription.trial_end;
+              
+              // Safely parse dates
+              let subscriptionEnd: string;
+              if (checkStatus === "trialing" && trialEndTs) {
+                subscriptionEnd = new Date(trialEndTs * 1000).toISOString();
+              } else if (periodEndTs) {
+                subscriptionEnd = new Date(periodEndTs * 1000).toISOString();
+              } else {
+                // Fallback: 30 days from now
+                const fallback = new Date();
+                fallback.setDate(fallback.getDate() + 30);
+                subscriptionEnd = fallback.toISOString();
+              }
+              
+              const priceId = subscription.items.data[0]?.price.id;
+              
+              // Determine plan from price ID
+              let plan = "pro";
+              if (priceId === STRIPE_PLANS.basic) {
+                plan = "basic";
+              }
+
+              const subStatus = checkStatus === "trialing" ? "active" : "active";
+
+              // Update profile with subscription info
+              await supabaseClient
+                .from("profiles")
+                .update({
+                  subscription_status: subStatus,
+                  subscription_plan: plan,
+                  subscription_end_at: subscriptionEnd,
+                  payment_provider: "stripe",
+                })
+                .eq("id", user.id);
+
+              // Send confirmation email only when status transitions to active
+              if (profile?.subscription_status !== "active" && profile?.subscription_status !== "trial") {
+                try {
+                  await sendPaymentConfirmationEmail(user.email, plan, subscriptionEnd, "stripe");
+                } catch (emailErr) {
+                  logStep("Email error (non-blocking)", { error: String(emailErr) });
+                }
+              }
+
+              logStep("Stripe subscription found", { plan, subscriptionEnd, stripeStatus: checkStatus });
+
+              return new Response(JSON.stringify({
+                status: "active",
+                plan,
+                subscription_end: subscriptionEnd,
+                payment_provider: "stripe",
+                trial_days_remaining: 0,
+                trial_expired: false,
+              }), {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+                status: 200,
+              });
+            }
           }
-
-          // Update profile with subscription info
-          await supabaseClient
-            .from("profiles")
-            .update({
-              subscription_status: "active",
-              subscription_plan: plan,
-              subscription_end_at: subscriptionEnd,
-              payment_provider: "stripe",
-            })
-            .eq("id", user.id);
-
-          // Send confirmation email only when status transitions to active
-          if (profile?.subscription_status !== "active") {
-            await sendPaymentConfirmationEmail(user.email, plan, subscriptionEnd, "stripe");
-          }
-
-          logStep("Stripe subscription found", { plan, subscriptionEnd });
-
-          return new Response(JSON.stringify({
-            status: "active",
-            plan,
-            subscription_end: subscriptionEnd,
-            payment_provider: "stripe",
-            trial_days_remaining: 0,
-            trial_expired: false,
-          }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 200,
-          });
         }
+      } catch (stripeErr) {
+        logStep("Stripe check error (non-blocking)", { error: String(stripeErr) });
       }
     }
 

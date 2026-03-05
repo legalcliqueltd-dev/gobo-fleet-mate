@@ -41,9 +41,15 @@ export default function Dashboard() {
     if (paymentStatus === 'success') {
       if (provider === 'paystack' && reference) {
         // Verify Paystack payment and activate subscription
-        supabase.functions.invoke('verify-paystack-payment', {
-          body: { reference, plan }
-        }).then(({ data, error }) => {
+        const verifyPaystack = async () => {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const accessToken = sessionData.session?.access_token;
+          
+          const { data, error } = await supabase.functions.invoke('verify-paystack-payment', {
+            body: { reference, plan },
+            headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+          });
+          
           if (error) {
             console.error('Paystack verification error:', error);
             toast.error('Payment received but activation failed. Please contact support.');
@@ -51,10 +57,19 @@ export default function Dashboard() {
             toast.success(`Payment successful! Welcome to FleetTrackMate ${plan === 'pro' ? 'Pro' : 'Basic'}.`);
           }
           refreshSubscription();
-        });
+        };
+        verifyPaystack();
       } else {
-        toast.success('Payment successful! Welcome to FleetTrackMate.');
-        refreshSubscription();
+        // Stripe payment - webhook handles activation, just refresh status
+        toast.success('Payment successful! Your subscription is being activated...');
+        // Retry subscription check a few times to allow webhook to process
+        const retryRefresh = async () => {
+          for (let i = 0; i < 5; i++) {
+            await new Promise(r => setTimeout(r, 3000));
+            await refreshSubscription();
+          }
+        };
+        retryRefresh();
       }
     } else if (paymentStatus === 'cancelled') {
       toast.info('Payment cancelled.');
