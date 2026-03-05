@@ -4,11 +4,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Copy, Check, QrCode, Link2 } from 'lucide-react';
+import { Copy, Check, QrCode, Link2, Lock } from 'lucide-react';
 import { toast } from 'sonner';
+import PaymentWall from '@/components/PaymentWall';
 
 const schema = z.object({
   name: z.string().min(2, 'Name is required'),
@@ -17,12 +18,34 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function AddDevice() {
-  const { user } = useAuth();
+  const { user, subscription } = useAuth();
   const navigate = useNavigate();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [connectionCode, setConnectionCode] = useState<string | null>(null);
   const [deviceName, setDeviceName] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  const [deviceCount, setDeviceCount] = useState<number>(0);
+  const [loadingCount, setLoadingCount] = useState(true);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+
+  const isBasic = subscription.status === 'active' && subscription.plan === 'basic';
+  const isPro = subscription.status === 'active' && subscription.plan === 'pro';
+  const isTrial = subscription.status === 'trial';
+  const deviceLimit = (isBasic || isTrial) ? 2 : isPro ? Infinity : 2;
+  const atLimit = deviceCount >= deviceLimit;
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from('devices')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+      setDeviceCount(count ?? 0);
+      setLoadingCount(false);
+    };
+    fetchCount();
+  }, [user]);
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -32,7 +55,11 @@ export default function AddDevice() {
   const onSubmit = async (values: FormValues) => {
     if (!user) return;
     setErrorMsg(null);
-    
+
+    if (atLimit) {
+      setShowUpgrade(true);
+      return;
+    }
     // Generate connection code
     const { data: codeData, error: codeError } = await supabase.rpc('generate_connection_code');
     
@@ -151,36 +178,68 @@ export default function AddDevice() {
     );
   }
 
+  if (showUpgrade) {
+    return <PaymentWall />;
+  }
+
   return (
     <div className="max-w-md mx-auto">
       <h2 className="font-heading text-2xl font-semibold mb-4">Add Device</h2>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 nb-card p-6">
-        <div>
-          <label className="block text-sm font-medium mb-2">Name</label>
-          <input 
-            className="w-full rounded-lg border-2 border-slate-300 dark:border-slate-700 px-3 py-2 bg-white dark:bg-slate-900 focus:border-cyan-500 dark:focus:border-cyan-500 transition" 
-            {...register('name')} 
-          />
-          {errors.name && <p className="text-sm text-red-600 mt-1">{errors.name.message}</p>}
+      
+      {!loadingCount && (
+        <div className="mb-4 p-3 rounded-lg border border-border bg-card text-sm">
+          <span className="text-muted-foreground">Devices: </span>
+          <span className="font-semibold">{deviceCount}</span>
+          {deviceLimit !== Infinity && (
+            <span className="text-muted-foreground"> / {deviceLimit}</span>
+          )}
+          {isPro && <span className="text-muted-foreground"> (Unlimited)</span>}
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-2">IMEI (optional)</label>
-          <input 
-            className="w-full rounded-lg border-2 border-slate-300 dark:border-slate-700 px-3 py-2 bg-white dark:bg-slate-900 focus:border-cyan-500 dark:focus:border-cyan-500 transition" 
-            {...register('imei')} 
-          />
-        </div>
-        {errorMsg && <p className="text-sm text-red-600">{errorMsg}</p>}
-        <div className="flex items-center gap-2">
-          <button 
-            type="submit" 
-            disabled={isSubmitting} 
-            className="nb-button hover:shadow-brutal disabled:opacity-50 transition-all"
-          >
-            {isSubmitting ? 'Saving…' : 'Create device'}
-          </button>
-        </div>
-      </form>
+      )}
+
+      {atLimit ? (
+        <Card className="border border-destructive/50">
+          <CardContent className="p-6 text-center space-y-4">
+            <Lock className="h-8 w-8 text-destructive mx-auto" />
+            <h3 className="font-semibold text-lg">Device Limit Reached</h3>
+            <p className="text-sm text-muted-foreground">
+              Your {isBasic ? 'Basic' : 'current'} plan allows up to {deviceLimit} devices. 
+              Upgrade to Pro for unlimited device connections.
+            </p>
+            <Button onClick={() => setShowUpgrade(true)} className="w-full">
+              Upgrade to Pro
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 nb-card p-6">
+          <div>
+            <label className="block text-sm font-medium mb-2">Name</label>
+            <input 
+              className="w-full rounded-lg border-2 border-border px-3 py-2 bg-background focus:border-primary transition" 
+              {...register('name')} 
+            />
+            {errors.name && <p className="text-sm text-destructive mt-1">{errors.name.message}</p>}
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-2">IMEI (optional)</label>
+            <input 
+              className="w-full rounded-lg border-2 border-border px-3 py-2 bg-background focus:border-primary transition" 
+              {...register('imei')} 
+            />
+          </div>
+          {errorMsg && <p className="text-sm text-destructive">{errorMsg}</p>}
+          <div className="flex items-center gap-2">
+            <button 
+              type="submit" 
+              disabled={isSubmitting} 
+              className="nb-button hover:shadow-brutal disabled:opacity-50 transition-all"
+            >
+              {isSubmitting ? 'Saving…' : 'Create device'}
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }
