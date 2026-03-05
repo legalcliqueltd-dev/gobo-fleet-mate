@@ -126,7 +126,7 @@ serve(async (req) => {
         logStep("Missing stripe-signature header");
         return new Response("Missing signature", { status: 400 });
       }
-      event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
+      event = await stripe.webhooks.constructEventAsync(body, sig, webhookSecret);
     } else {
       // Without webhook secret, parse directly (less secure, but functional)
       event = JSON.parse(body);
