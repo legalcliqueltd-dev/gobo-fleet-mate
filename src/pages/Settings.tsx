@@ -83,11 +83,96 @@ export default function Settings() {
         </div>
       </div>
 
+      {/* Billing & Subscription */}
       <Card className="border-2 border-border">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-primary/20">
-              <MapPin className="h-4 w-4 text-primary" />
+              <CreditCard className="h-4 w-4 text-primary" />
+            </div>
+            <h3 className="font-heading font-semibold text-lg">Billing & Subscription</h3>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Current Plan</p>
+              <div className="flex items-center gap-2">
+                {subscription.status === 'active' && subscription.plan ? (
+                  <>
+                    <Crown className="h-4 w-4 text-amber-500" />
+                    <span className="font-semibold text-lg">{subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)}</span>
+                    <Badge className="bg-success/20 text-success border-success/30" variant="outline">Active</Badge>
+                  </>
+                ) : subscription.status === 'trial' && !subscription.trialExpired ? (
+                  <>
+                    <span className="font-semibold text-lg">Free Trial</span>
+                    <Badge className="bg-primary/20 text-primary border-primary/30" variant="outline">
+                      {subscription.trialDaysRemaining} days left
+                    </Badge>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-semibold text-lg">No Active Plan</span>
+                    <Badge className="bg-destructive/20 text-destructive border-destructive/30" variant="outline">Expired</Badge>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Subscription details */}
+          {subscription.status === 'active' && subscription.subscriptionEnd && (
+            <div className="rounded-lg bg-muted/50 border p-4 space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span>Next Renewal</span>
+                </div>
+                <span className="font-semibold">
+                  {new Date(subscription.subscriptionEnd).toLocaleDateString('en-US', {
+                    year: 'numeric', month: 'long', day: 'numeric'
+                  })}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>Payment Provider</span>
+                </div>
+                <span className="font-semibold capitalize">{subscription.paymentProvider || 'N/A'}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <CreditCard className="h-4 w-4" />
+                  <span>Amount</span>
+                </div>
+                <span className="font-semibold">
+                  {subscription.plan === 'pro' ? '$3.99/mo' : '$1.99/mo'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex gap-3">
+            {subscription.status === 'active' && subscription.plan === 'pro' ? (
+              <p className="text-sm text-muted-foreground">You have the highest plan. No upgrades available.</p>
+            ) : subscription.status === 'active' && subscription.plan === 'basic' ? (
+              <Button variant="default" onClick={() => setShowPaymentModal(true)}>
+                Upgrade to Pro
+              </Button>
+            ) : (
+              <Button variant="default" onClick={() => setShowPaymentModal(true)}>
+                Subscribe Now
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <PaymentModal open={showPaymentModal} onOpenChange={setShowPaymentModal} />
+
             </div>
             <h3 className="font-heading font-semibold text-lg">Location Tracking</h3>
           </div>
