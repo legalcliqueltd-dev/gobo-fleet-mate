@@ -46,6 +46,7 @@ serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
+      logStep("Unauthorized request - missing bearer token");
       return new Response(JSON.stringify({ error: "Unauthorized. Please log in first." }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 401,
@@ -53,10 +54,19 @@ serve(async (req) => {
     }
 
     const token = authHeader.replace("Bearer ", "").trim();
+    if (!token || token === "undefined" || token === "null") {
+      logStep("Unauthorized request - invalid bearer token");
+      return new Response(JSON.stringify({ error: "Unauthorized. Please log in first." }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
+
     const { data, error: userError } = await supabaseClient.auth.getUser(token);
     const user = data.user;
 
     if (userError || !user?.email) {
+      logStep("Authentication failed", { error: userError?.message });
       return new Response(JSON.stringify({ error: "Unauthorized. Please log in first." }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 401,
