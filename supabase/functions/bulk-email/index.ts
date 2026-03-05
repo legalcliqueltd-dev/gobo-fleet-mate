@@ -25,11 +25,56 @@ async function sendEmail(to: string, subject: string, html: string) {
 
 function emailTemplate(title: string, body: string, actionUrl?: string, actionLabel?: string) {
   const btn = actionUrl && actionLabel ? `<div style="text-align:center;margin:24px 0;"><a href="${actionUrl}" style="background-color:#2563eb;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;">${actionLabel}</a></div>` : '';
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><div style="max-width:560px;margin:0 auto;padding:24px;"><div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><div style="background:#1e293b;padding:20px 24px;"><h1 style="margin:0;color:#fff;font-size:18px;">🚛 FleetTrackMate</h1></div><div style="padding:24px;"><h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">${title}</h2><div style="color:#475569;font-size:14px;line-height:1.6;">${body}</div>${btn}</div><div style="padding:16px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;"><p style="margin:0;color:#94a3b8;font-size:12px;">You're receiving this because you have a FleetTrackMate account.</p></div></div></div></body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><div style="max-width:560px;margin:0 auto;padding:24px;"><div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><div style="background:#1e293b;padding:20px 24px;"><h1 style="margin:0;color:#fff;font-size:18px;">FleetTrackMate</h1></div><div style="padding:24px;"><h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">${title}</h2><div style="color:#475569;font-size:14px;line-height:1.6;">${body}</div>${btn}</div><div style="padding:16px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;"><p style="margin:0;color:#94a3b8;font-size:12px;">You're receiving this because you have a FleetTrackMate account.</p></div></div></div></body></html>`;
 }
 
 function trialExpiredBody(name: string) {
   return `<p>Hi ${name},</p><p>Your free trial has <strong>expired</strong>. Your account features are now limited.</p><p>Upgrade today to restore full access to all fleet management features including:</p><ul><li>Real-time driver tracking</li><li>Task management & dispatch</li><li>SOS emergency alerts</li><li>Fleet analytics & reports</li></ul><p>Don't lose your fleet data — upgrade now.</p>`;
+}
+
+function invoiceHtml(name: string, plan: string, amount: string, provider: string, renewalDate: string, daysRemaining: number, invoiceDate: string) {
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:560px;margin:0 auto;padding:24px;">
+    <div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+      <div style="background:#1e293b;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;">
+        <h1 style="margin:0;color:#fff;font-size:18px;font-weight:700;">FleetTrackMate</h1>
+        <span style="color:#94a3b8;font-size:13px;">INVOICE</span>
+      </div>
+      <div style="padding:24px;">
+        <p style="color:#475569;font-size:14px;margin:0 0 4px;">Hi ${name},</p>
+        <p style="color:#475569;font-size:14px;margin:0 0 20px;">Here is your subscription invoice summary.</p>
+        
+        <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:16px 0;border:1px solid #e2e8f0;">
+          <p style="margin:0 0 12px;color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Invoice Details</p>
+          <table style="width:100%;border-collapse:collapse;">
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px;">Invoice Date</td><td style="padding:8px 0;text-align:right;font-weight:600;color:#1e293b;">${invoiceDate}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px;">Plan</td><td style="padding:8px 0;text-align:right;font-weight:600;color:#1e293b;">${plan}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px;">Amount</td><td style="padding:8px 0;text-align:right;font-weight:600;color:#1e293b;">${amount}</td></tr>
+            <tr><td style="padding:8px 0;color:#64748b;font-size:13px;">Payment Method</td><td style="padding:8px 0;text-align:right;font-weight:600;color:#1e293b;">${provider}</td></tr>
+            <tr style="border-top:1px solid #e2e8f0;"><td style="padding:10px 0 8px;color:#64748b;font-size:13px;">Status</td><td style="padding:10px 0 8px;text-align:right;"><span style="background:#dcfce7;color:#16a34a;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;">Paid</span></td></tr>
+          </table>
+        </div>
+
+        <div style="background:#eff6ff;border-radius:8px;padding:16px;margin:16px 0;border:1px solid #bfdbfe;">
+          <p style="margin:0 0 8px;color:#1e40af;font-size:13px;font-weight:600;">Subscription Expiry</p>
+          <table style="width:100%;border-collapse:collapse;">
+            <tr><td style="padding:4px 0;color:#3b82f6;font-size:13px;">Next Renewal</td><td style="padding:4px 0;text-align:right;font-weight:600;color:#1e293b;">${renewalDate}</td></tr>
+            <tr><td style="padding:4px 0;color:#3b82f6;font-size:13px;">Days Remaining</td><td style="padding:4px 0;text-align:right;font-weight:600;color:#22c55e;">${daysRemaining} days</td></tr>
+          </table>
+        </div>
+
+        <div style="text-align:center;margin:24px 0;">
+          <a href="https://fleettrackmate.com/settings" style="background-color:#2563eb;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;">Manage Subscription</a>
+        </div>
+      </div>
+      <div style="padding:16px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;">
+        <p style="margin:0;color:#94a3b8;font-size:12px;">This is an automated invoice from FleetTrackMate. No action is required.</p>
+      </div>
+    </div>
+  </div>
+</body></html>`;
 }
 
 serve(async (req) => {
@@ -80,14 +125,13 @@ serve(async (req) => {
     const customHtml: string | undefined = body.html;
 
     // Build query
-    let query = supabase.from('profiles').select('id, email, full_name, trial_started_at, subscription_status, subscription_end_at').not('email', 'is', null);
+    let query = supabase.from('profiles').select('id, email, full_name, trial_started_at, subscription_status, subscription_end_at, subscription_plan, payment_provider').not('email', 'is', null);
 
     if (filter === 'trial') {
       query = query.eq('subscription_status', 'trial');
-    } else if (filter === 'active') {
+    } else if (filter === 'active' || filter === 'paid') {
       query = query.eq('subscription_status', 'active');
     } else if (filter === 'expired') {
-      // Get trial + expired users whose trial has actually expired
       query = query.in('subscription_status', ['expired', 'trial']);
     }
     // 'all' = no extra filter
