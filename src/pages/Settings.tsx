@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 export default function Settings() {
   const { user, subscription } = useAuth();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [sendingInvoices, setSendingInvoices] = useState(false);
   const [tokens, setTokens] = useState<{ id: string; token: string; platform: string; created_at: string }[]>([]);
   
   const [locationTrackingEnabled, setLocationTrackingEnabled] = useState(() => {
