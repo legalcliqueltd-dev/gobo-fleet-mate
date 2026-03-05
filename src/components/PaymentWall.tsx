@@ -50,7 +50,7 @@ interface PaymentWallProps {
 }
 
 const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
-  const { subscription, refreshSubscription } = useAuth();
+  const { subscription, refreshSubscription, user } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<Plan>("pro");
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [loading, setLoading] = useState(false);
@@ -64,10 +64,22 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
     setLoading(true);
 
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (!user || !accessToken) {
+        toast.error("Please log in to continue payment");
+        window.location.href = "/auth/login?redirect=/dashboard";
+        return;
+      }
+
       const functionName = selectedMethod === "stripe" ? "create-checkout" : "create-paystack-checkout";
-      
+
       const { data, error } = await supabase.functions.invoke(functionName, {
-        body: { plan: selectedPlan }
+        body: { plan: selectedPlan },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
 
       if (error) {
@@ -77,7 +89,7 @@ const PaymentWall = ({ onDismiss }: PaymentWallProps) => {
       if (data?.url) {
         window.open(data.url, "_blank");
         toast.success("Redirecting to payment page...");
-        
+
         setTimeout(() => {
           refreshSubscription();
         }, 5000);
