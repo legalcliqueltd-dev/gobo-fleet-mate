@@ -75,6 +75,7 @@ export default function Settings() {
     }
   };
 
+  const handleBatterySavingToggle = (enabled: boolean) => {
     setBatterySavingMode(enabled);
     localStorage.setItem('batterySavingMode', String(enabled));
     toast.success(enabled ? 'Battery saving mode enabled' : 'Battery saving mode disabled');
