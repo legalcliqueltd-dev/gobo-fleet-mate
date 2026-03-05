@@ -7,7 +7,7 @@ import GeofenceAlerts from '../components/GeofenceAlerts';
 import TempTrackingManager from '../components/TempTrackingManager';
 import PaymentWall from '../components/PaymentWall';
 import LockedFeature from '../components/LockedFeature';
-import { Clock, Plus, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone, Timer, Copy, Check, CreditCard } from 'lucide-react';
+import { Clock, Plus, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone, Timer, Copy, Check, CreditCard, Pause, Play, AlertTriangle } from 'lucide-react';
 
 import { ShareAppButton } from '@/components/ShareAppButton';
 import clsx from 'clsx';
@@ -89,18 +89,23 @@ export default function Dashboard() {
     }
   }, [searchParams]);
 
-  // Convert device markers for LiveDriverMap
+  // Convert device markers for LiveDriverMap (exclude paused devices)
   const deviceMarkers = useMemo(() => {
-    return markers.map(m => ({
-      device_id: m.device_id,
-      name: m.name || 'Device',
-      status: (m.status || 'offline') as 'active' | 'idle' | 'offline',
-      latitude: m.latitude,
-      longitude: m.longitude,
-      speed: m.speed || null,
-      timestamp: m.timestamp || null,
-    }));
-  }, [markers]);
+    return markers
+      .filter(m => {
+        const device = items.find(d => d.id === m.device_id);
+        return !device?.is_paused;
+      })
+      .map(m => ({
+        device_id: m.device_id,
+        name: m.name || 'Device',
+        status: (m.status || 'offline') as 'active' | 'idle' | 'offline',
+        latitude: m.latitude,
+        longitude: m.longitude,
+        speed: m.speed || null,
+        timestamp: m.timestamp || null,
+      }));
+  }, [markers, items]);
 
   const handleDriverSelect = useCallback((driver: DriverLocation) => {
     setSelectedDriverId(driver.driver_id);
@@ -144,10 +149,33 @@ export default function Dashboard() {
     }
   };
 
+  const handleTogglePause = async (deviceId: string, currentlyPaused: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('devices')
+        .update({ is_paused: !currentlyPaused })
+        .eq('id', deviceId);
+      if (error) throw error;
+      toast.success(currentlyPaused ? 'Device resumed' : 'Device paused');
+    } catch (err) {
+      console.error('Error toggling pause:', err);
+      toast.error('Failed to update device');
+    }
+  };
+
   const activeDevices = items.filter(d => d.status === 'active').length;
   const activeDrivers = drivers.filter(d => 
     d.last_seen_at && Date.now() - new Date(d.last_seen_at).getTime() < 15 * 60 * 1000
   ).length;
+
+  // Device limit logic
+  const isBasic = subscription.status === 'active' && subscription.plan === 'basic';
+  const isPro = subscription.status === 'active' && subscription.plan === 'pro';
+  const isTrial = subscription.status === 'trial';
+  const deviceLimit = isPro ? Infinity : 2;
+  const activeNonPausedDevices = items.filter(d => !d.is_paused).length;
+  const isOverLimit = activeNonPausedDevices > deviceLimit;
+  const excessCount = Math.max(0, activeNonPausedDevices - deviceLimit);
 
   const handleCopyCode = async (code: string, deviceId: string) => {
     try {
@@ -220,6 +248,25 @@ export default function Dashboard() {
             {subscription.plan === 'pro' ? '⭐ Pro Plan' : '⚡ Basic Plan'}
           </Badge>
         </div>
+      )}
+
+      {/* Over-Limit Banner */}
+      {isOverLimit && (
+        <Card className="border-destructive/50 bg-destructive/10">
+          <CardContent className="p-3 md:p-4">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+                <span className="text-sm font-medium text-destructive">
+                  Your plan allows {deviceLimit} device{deviceLimit !== 1 ? 's' : ''}. You have {activeNonPausedDevices} active. Please pause {excessCount} device{excessCount !== 1 ? 's' : ''} to continue.
+                </span>
+              </div>
+              <Button variant="hero" size="sm" className="h-7 text-xs" onClick={() => setShowUpgradeModal(true)}>
+                Upgrade to Pro
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Stats Banner - Compact */}
@@ -316,20 +363,30 @@ export default function Dashboard() {
                   return (
                     <li key={d.id}>
                       <div className={clsx(
-                        'rounded-md border p-1.5 transition-all hover:border-primary/50 hover:bg-primary/5',
-                        selectedId === d.id ? 'border-primary bg-primary/10' : 'border-border bg-card/50'
+                        'rounded-md border p-1.5 transition-all',
+                        d.is_paused 
+                          ? 'border-muted bg-muted/30 opacity-60' 
+                          : selectedId === d.id 
+                            ? 'border-primary bg-primary/10 hover:border-primary/50' 
+                            : 'border-border bg-card/50 hover:border-primary/50 hover:bg-primary/5'
                       )}>
                         {/* Row 1: Name + Code + Actions */}
                         <div className="flex items-center justify-between gap-1">
                           <button onClick={() => setSelectedId(d.id)} className="text-left flex-1 min-w-0 flex items-center gap-1.5">
                             <div className={clsx(
                               'h-1.5 w-1.5 rounded-full shrink-0',
+                              d.is_paused ? 'bg-muted-foreground' :
                               d.status === 'active' ? 'bg-success animate-pulse' : d.status === 'idle' ? 'bg-warning' : 'bg-muted-foreground'
                             )} />
-                            <span className="font-medium text-[11px] truncate">{d.name ?? 'Unnamed'}</span>
+                            <span className={clsx("font-medium text-[11px] truncate", d.is_paused && "line-through text-muted-foreground")}>{d.name ?? 'Unnamed'}</span>
+                            {d.is_paused && (
+                              <Badge variant="outline" className="text-[7px] px-1 py-0 border-muted-foreground/30 text-muted-foreground">
+                                PAUSED
+                              </Badge>
+                            )}
                           </button>
                           <div className="flex items-center gap-0.5 shrink-0">
-                            {d.connection_code && (
+                            {d.connection_code && !d.is_paused && (
                               <>
                                 <span className="text-xs font-mono font-semibold text-foreground">{d.connection_code}</span>
                                 <button
@@ -345,6 +402,17 @@ export default function Dashboard() {
                                 </button>
                               </>
                             )}
+                            <button 
+                              onClick={() => handleTogglePause(d.id, !!d.is_paused)} 
+                              className={clsx("p-0.5 rounded", d.is_paused ? "hover:bg-success/10" : "hover:bg-warning/10")}
+                              title={d.is_paused ? "Resume" : "Pause"}
+                            >
+                              {d.is_paused ? (
+                                <Play className="h-2.5 w-2.5 text-success" />
+                              ) : (
+                                <Pause className="h-2.5 w-2.5 text-warning" />
+                              )}
+                            </button>
                             <button onClick={() => handleDeleteDevice(d.id)} className="p-0.5 rounded hover:bg-destructive/10" title="Delete">
                               <Trash2 className="h-2.5 w-2.5 text-destructive" />
                             </button>

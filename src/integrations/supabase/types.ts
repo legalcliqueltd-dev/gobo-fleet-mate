@@ -67,6 +67,7 @@ export type Database = {
           created_at: string | null
           id: string
           imei: string | null
+          is_paused: boolean
           is_temporary: boolean | null
           last_notified_offline_at: string | null
           name: string | null
@@ -82,6 +83,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           imei?: string | null
+          is_paused?: boolean
           is_temporary?: boolean | null
           last_notified_offline_at?: string | null
           name?: string | null
@@ -97,6 +99,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           imei?: string | null
+          is_paused?: boolean
           is_temporary?: boolean | null
           last_notified_offline_at?: string | null
           name?: string | null
