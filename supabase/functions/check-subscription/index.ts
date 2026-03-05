@@ -75,8 +75,12 @@ serve(async (req) => {
       logStep("Trial started", { trialStartedAt });
     }
 
-    // Calculate trial expiry
-    const trialEnd = new Date(trialStartedAt);
+    // Calculate trial expiry (with safe parsing)
+    const trialDate = safeDate(trialStartedAt);
+    if (!trialDate) {
+      logStep("WARNING: Invalid trial_started_at value", { trialStartedAt });
+    }
+    const trialEnd = trialDate ? new Date(trialDate.getTime()) : new Date();
     trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS);
     const now = new Date();
     const trialExpired = now > trialEnd;
@@ -84,10 +88,12 @@ serve(async (req) => {
 
     logStep("Trial status", { trialStartedAt, trialEnd: trialEnd.toISOString(), trialExpired, trialDaysRemaining });
 
-    // If already has active subscription, return that status
+    // If already has active subscription, validate the date first
     if (profile?.subscription_status === "active" && profile?.subscription_end_at) {
-      const subEnd = new Date(profile.subscription_end_at);
-      if (subEnd > now) {
+      const subEnd = safeDate(profile.subscription_end_at);
+      if (!subEnd) {
+        logStep("WARNING: Invalid subscription_end_at, skipping active check", { subscription_end_at: profile.subscription_end_at });
+      } else if (subEnd > now) {
         logStep("Active subscription found", { plan: profile.subscription_plan, endAt: profile.subscription_end_at });
         return new Response(JSON.stringify({
           status: "active",
