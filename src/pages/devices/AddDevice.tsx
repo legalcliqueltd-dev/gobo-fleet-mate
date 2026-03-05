@@ -4,11 +4,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Copy, Check, QrCode, Link2 } from 'lucide-react';
+import { Copy, Check, QrCode, Link2, Lock } from 'lucide-react';
 import { toast } from 'sonner';
+import PaymentWall from '@/components/PaymentWall';
 
 const schema = z.object({
   name: z.string().min(2, 'Name is required'),
@@ -17,12 +18,34 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function AddDevice() {
-  const { user } = useAuth();
+  const { user, subscription } = useAuth();
   const navigate = useNavigate();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [connectionCode, setConnectionCode] = useState<string | null>(null);
   const [deviceName, setDeviceName] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  const [deviceCount, setDeviceCount] = useState<number>(0);
+  const [loadingCount, setLoadingCount] = useState(true);
+  const [showUpgrade, setShowUpgrade] = useState(false);
+
+  const isBasic = subscription.status === 'active' && subscription.plan === 'basic';
+  const isPro = subscription.status === 'active' && subscription.plan === 'pro';
+  const isTrial = subscription.status === 'trial';
+  const deviceLimit = (isBasic || isTrial) ? 2 : isPro ? Infinity : 2;
+  const atLimit = deviceCount >= deviceLimit;
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchCount = async () => {
+      const { count } = await supabase
+        .from('devices')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+      setDeviceCount(count ?? 0);
+      setLoadingCount(false);
+    };
+    fetchCount();
+  }, [user]);
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema),
