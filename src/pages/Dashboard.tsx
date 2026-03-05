@@ -332,8 +332,8 @@ export default function Dashboard() {
               devices={deviceMarkers}
             />
           </div>
-          {isOverLimit && (
-            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/30 backdrop-blur-sm rounded-lg">
+          {isOverLimit && !showUpgradeModal && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/30 backdrop-blur-sm rounded-lg">
               <div className="bg-card border border-border rounded-xl p-6 shadow-lg text-center max-w-sm mx-4">
                 <div className="p-3 rounded-full bg-destructive/10 w-fit mx-auto mb-3">
                   <Lock className="h-6 w-6 text-destructive" />
