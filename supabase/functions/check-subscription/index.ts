@@ -199,6 +199,11 @@ serve(async (req) => {
             })
             .eq("id", user.id);
 
+          // Send confirmation email only when status transitions to active
+          if (profile?.subscription_status !== "active") {
+            await sendPaymentConfirmationEmail(user.email, plan, subscriptionEnd, "stripe");
+          }
+
           logStep("Stripe subscription found", { plan, subscriptionEnd });
 
           return new Response(JSON.stringify({
