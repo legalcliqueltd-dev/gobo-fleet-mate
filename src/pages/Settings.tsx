@@ -13,7 +13,8 @@ import PaymentModal from '../components/PaymentModal';
 import { toast } from 'sonner';
 
 export default function Settings() {
-  const { user } = useAuth();
+  const { user, subscription } = useAuth();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [tokens, setTokens] = useState<{ id: string; token: string; platform: string; created_at: string }[]>([]);
   
   const [locationTrackingEnabled, setLocationTrackingEnabled] = useState(() => {
