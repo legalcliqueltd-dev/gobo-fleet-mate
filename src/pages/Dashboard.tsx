@@ -7,7 +7,7 @@ import GeofenceAlerts from '../components/GeofenceAlerts';
 import TempTrackingManager from '../components/TempTrackingManager';
 import PaymentWall from '../components/PaymentWall';
 import LockedFeature from '../components/LockedFeature';
-import { Clock, Plus, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone, Timer, Copy, Check, CreditCard, Pause, Play, AlertTriangle } from 'lucide-react';
+import { Clock, Plus, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone, Timer, Copy, Check, CreditCard, Pause, Play, AlertTriangle, Lock } from 'lucide-react';
 
 import { ShareAppButton } from '@/components/ShareAppButton';
 import clsx from 'clsx';
@@ -323,13 +323,31 @@ export default function Dashboard() {
 
       {/* Main Content - Map on Top */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_420px] gap-2 md:gap-3">
-        <section className="order-1 min-h-[45vh] md:min-h-[50vh] lg:min-h-[65vh]">
-          <LiveDriverMap
-            selectedDriverId={selectedDriverId}
-            onDriverSelect={handleLiveDriverSelect}
-            showDevices={true}
-            devices={deviceMarkers}
-          />
+        <section className="order-1 min-h-[45vh] md:min-h-[50vh] lg:min-h-[65vh] relative">
+          <div className={isOverLimit ? 'blur-md pointer-events-none h-full' : 'h-full'}>
+            <LiveDriverMap
+              selectedDriverId={selectedDriverId}
+              onDriverSelect={handleLiveDriverSelect}
+              showDevices={true}
+              devices={deviceMarkers}
+            />
+          </div>
+          {isOverLimit && (
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-background/30 backdrop-blur-sm rounded-lg">
+              <div className="bg-card border border-border rounded-xl p-6 shadow-lg text-center max-w-sm mx-4">
+                <div className="p-3 rounded-full bg-destructive/10 w-fit mx-auto mb-3">
+                  <Lock className="h-6 w-6 text-destructive" />
+                </div>
+                <h3 className="text-lg font-bold text-foreground mb-1">Map Locked</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Pause {activeNonPausedDevices - deviceLimit} device(s) to unlock the map, or upgrade your plan.
+                </p>
+                <Button variant="default" onClick={() => setShowUpgradeModal(true)} className="w-full">
+                  <CreditCard className="h-4 w-4 mr-1" /> Upgrade to Pro
+                </Button>
+              </div>
+            </div>
+          )}
         </section>
 
         <aside className="order-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-2 md:gap-2">

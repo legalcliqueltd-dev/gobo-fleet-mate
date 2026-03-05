@@ -1,23 +1,12 @@
 
+# Make Driver Details Page a Premium Feature
 
-## Blur the Map When Over Device Limit
+## What Changes
+The Driver Details page (`/driver/:driverId`) will be wrapped with the existing `LockedFeature` component, so expired/unpaid users will see the page content blurred with an "Upgrade to Unlock" prompt -- consistent with how AdminDashboard, TaskList, and other admin pages are already locked.
 
-### What Changes
-Instead of just showing a warning banner when the user is over the device limit, the map (`LiveDriverMap`) will be blurred with an overlay message prompting the admin to pause excess devices. The blur lifts automatically once `activeNonPausedDevices <= deviceLimit`.
+## Technical Details
 
-### Technical Details
-
-**File: `src/pages/Dashboard.tsx`**
-
-Wrap the `<LiveDriverMap>` section (around line 326) with a conditional blur overlay when `isOverLimit` is true:
-
-- Add a `relative` wrapper `div` around the map section
-- When `isOverLimit`, apply `blur-md pointer-events-none` to the map and render an absolute-positioned overlay on top with:
-  - A lock/warning icon
-  - Text: "Pause {excessCount} device(s) to unlock the map"
-  - "Upgrade to Pro" button (opens upgrade modal)
-- The device cards panel (right side) remains fully interactive so the admin can pause devices
-- The existing over-limit banner can remain as additional context, or be simplified since the map overlay now communicates the same message
-
-This is purely a CSS/JSX change in `Dashboard.tsx` — no new files or hooks needed. The blur removes itself reactively because `isOverLimit` recalculates from `items` state which updates optimistically on pause/resume.
-
+**File: `src/pages/DriverDetails.tsx`**
+- Import `LockedFeature` from `@/components/LockedFeature`
+- Wrap the main content (the returned JSX after the loading/not-found checks) inside `<LockedFeature featureName="Driver Details">`
+- The header with the back button and driver name will still be visible but blurred, along with the map, analytics tabs, and action buttons -- prompting the user to upgrade to interact with them
