@@ -162,26 +162,8 @@ serve(async (req) => {
 
     logStep("Trial status", { trialStartedAt, trialEnd: trialEnd.toISOString(), trialExpired, trialDaysRemaining });
 
-    // If already has active subscription, validate the date first
-    if (profile?.subscription_status === "active" && profile?.subscription_end_at) {
-      const subEnd = safeDate(profile.subscription_end_at);
-      if (!subEnd) {
-        logStep("WARNING: Invalid subscription_end_at, skipping active check", { subscription_end_at: profile.subscription_end_at });
-      } else if (subEnd > now) {
-        logStep("Active subscription found", { plan: profile.subscription_plan, endAt: profile.subscription_end_at });
-        return new Response(JSON.stringify({
-          status: "active",
-          plan: profile.subscription_plan,
-          subscription_end: profile.subscription_end_at,
-          payment_provider: profile.payment_provider,
-          trial_days_remaining: 0,
-          trial_expired: false,
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
-      }
-    }
+    // Always check Stripe first to catch plan upgrades/downgrades
+    // Don't short-circuit on profile data alone
 
     // Check Stripe for active subscription
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
