@@ -55,7 +55,11 @@ export default function AddDevice() {
   const onSubmit = async (values: FormValues) => {
     if (!user) return;
     setErrorMsg(null);
-    
+
+    if (atLimit) {
+      setShowUpgrade(true);
+      return;
+    }
     // Generate connection code
     const { data: codeData, error: codeError } = await supabase.rpc('generate_connection_code');
     
