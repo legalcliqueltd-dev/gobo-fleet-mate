@@ -14,8 +14,8 @@ const logStep = (step: string, details?: any) => {
 
 // Plan mapping
 const STRIPE_PLANS = {
-  basic: "price_basic_stripe", // Replace with actual Stripe price ID for Basic
-  pro: "price_1RXr1bDRWKLOzMXaOq97Fnw4", // Existing Pro price
+  basic: "price_1T7YNEDrKSyvbr3II5UkdDEC", // $1.99/month
+  pro: "price_1T7YNWDrKSyvbr3Is592GI1W", // $3.99/month
 };
 
 const TRIAL_DAYS = 7;
