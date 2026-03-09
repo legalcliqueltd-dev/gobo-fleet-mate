@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/integrations/supabase/client';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { Truck, Mail, Lock, ArrowLeft, Loader2 } from 'lucide-react';
+import { Mail, Lock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,98 +51,77 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full bg-primary/5 blur-3xl" />
-        <div className="absolute bottom-[-20%] left-[-10%] w-[400px] h-[400px] rounded-full bg-primary/8 blur-3xl" />
-      </div>
-
-      <div className="w-full max-w-md relative z-10">
-        {/* Back link */}
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to home
-        </Link>
-
-        {/* Logo */}
-        <div className="flex items-center gap-2.5 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Truck className="w-5 h-5 text-primary" />
-          </div>
-          <span className="font-bold text-xl text-foreground">FleetTrackMate</span>
-        </div>
-
+    <div className="flex items-center justify-center py-8 md:py-16">
+      <div className="w-full max-w-md">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-foreground tracking-tight">Welcome back</h1>
           <p className="text-muted-foreground mt-1.5">Sign in to your account to continue</p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-          <div className="space-y-1.5">
-            <Label htmlFor="email" className="text-foreground">Email</Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@company.com"
-                className="pl-10"
-                {...register('email')}
-              />
+        {/* Form Card */}
+        <div className="rounded-2xl border border-border bg-card/60 backdrop-blur-sm p-6 md:p-8 space-y-5">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="you@company.com"
+                  className="pl-10"
+                  {...register('email')}
+                />
+              </div>
+              {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
             </div>
-            {errors.email && <p className="text-sm text-destructive mt-1">{errors.email.message}</p>}
-          </div>
 
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="password" className="text-foreground">Password</Label>
-              <Link to="/auth/forgot" className="text-xs text-primary hover:text-primary/80 transition-colors">
-                Forgot password?
-              </Link>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <Link to="/auth/forgot" className="text-xs text-primary hover:text-primary/80 transition-colors">
+                  Forgot password?
+                </Link>
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  className="pl-10"
+                  {...register('password')}
+                />
+              </div>
+              {errors.password && <p className="text-sm text-destructive mt-1">{errors.password.message}</p>}
             </div>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                className="pl-10"
-                {...register('password')}
-              />
-            </div>
-            {errors.password && <p className="text-sm text-destructive mt-1">{errors.password.message}</p>}
-          </div>
 
-          {errorMsg && (
-            <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3">
-              <p className="text-sm text-destructive">{errorMsg}</p>
-            </div>
-          )}
-
-          <Button type="submit" disabled={isSubmitting} className="w-full h-11 font-semibold">
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Signing in…
-              </>
-            ) : (
-              'Sign in'
+            {errorMsg && (
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-4 py-3">
+                <p className="text-sm text-destructive">{errorMsg}</p>
+              </div>
             )}
-          </Button>
+
+            <Button type="submit" disabled={isSubmitting} className="w-full h-11 font-semibold">
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Signing in…
+                </>
+              ) : (
+                'Sign in'
+              )}
+            </Button>
+          </form>
 
           {/* Divider */}
-          <div className="relative my-2">
+          <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-xs">
-              <span className="px-3 bg-background text-muted-foreground uppercase tracking-wider">or</span>
+              <span className="px-3 bg-card text-muted-foreground uppercase tracking-wider">or</span>
             </div>
           </div>
 
@@ -163,13 +142,13 @@ export default function Login() {
           </Button>
 
           {/* Sign up link */}
-          <p className="text-center text-sm text-muted-foreground pt-2">
+          <p className="text-center text-sm text-muted-foreground">
             Don't have an account?{' '}
             <Link to="/auth/signup" className="text-primary font-medium hover:text-primary/80 transition-colors">
               Create account
             </Link>
           </p>
-        </form>
+        </div>
       </div>
     </div>
   );
