@@ -7,7 +7,7 @@ import {
   Clock, Zap, Maximize2, Minimize2, Car, Mountain, Route, Compass, Battery, BatteryLow,
   BatteryWarning, AlertTriangle, WifiOff
 } from 'lucide-react';
-import { GOOGLE_MAPS_API_KEY } from '../../lib/googleMapsConfig';
+import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 import { useRealtimeDriverLocations, LiveDriverLocation } from '@/hooks/useRealtimeDriverLocations';
 import { formatTimeAgo, interpolatePosition, easeOutCubic } from '@/utils/mapInterpolation';
 import clsx from 'clsx';

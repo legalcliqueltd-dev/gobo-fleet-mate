@@ -1,4 +1,4 @@
-import HealthCheck from '../components/HealthCheck';
+import HealthCheck from '@/components/HealthCheck';
 
 export default function Status() {
   const hasGoogleMaps = !!import.meta.env.VITE_GOOGLE_MAPS_API_KEY;

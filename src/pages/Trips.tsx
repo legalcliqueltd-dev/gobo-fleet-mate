@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
-import { useTrips } from '../hooks/useTrips';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { useTrips } from '@/hooks/useTrips';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MapPin, Clock, TrendingUp, Gauge, Calendar, Filter, Route, Car } from 'lucide-react';
-import { useDeviceLocations } from '../hooks/useDeviceLocations';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { useDeviceLocations } from '@/hooks/useDeviceLocations';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function Trips() {
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | undefined>(undefined);

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useFleetAnalytics } from '../hooks/useFleetAnalytics';
+import { useFleetAnalytics } from '@/hooks/useFleetAnalytics';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Gauge, Route as RouteIcon, Timer, TrendingUp, Activity } from 'lucide-react';
 
