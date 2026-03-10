@@ -6,8 +6,8 @@ import clsx from 'clsx';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import LocationPermissionPrompt from '../LocationPermissionPrompt';
-import SOSNotificationBell from '../sos/SOSNotificationBell';
+import LocationPermissionPrompt from '@/components/LocationPermissionPrompt';
+import SOSNotificationBell from '@/components/sos/SOSNotificationBell';
 import { AlertTriangle as AlertTriangleIcon2, Timer } from 'lucide-react';
 
 export default function AppLayout({ children }: PropsWithChildren) {

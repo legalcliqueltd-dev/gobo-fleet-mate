@@ -1,15 +1,15 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import LockedFeature from '@/components/LockedFeature';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { GoogleMap, useJsApiLoader, Polyline, InfoWindow } from '@react-google-maps/api';
 import AdvancedMarker from '@/components/map/AdvancedMarker';
-import { GOOGLE_MAPS_API_KEY } from '../../lib/googleMapsConfig';
+import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 import { AlertTriangle, CheckCircle, Clock, MapPin, Image, Calendar, ZoomIn, Map, Satellite, Trash2, ExternalLink, X, Navigation } from 'lucide-react';
-import { Button } from '../../components/ui/button';
-import { Textarea } from '../../components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Badge } from '../../components/ui/badge';
+import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import {
   AlertDialog,
