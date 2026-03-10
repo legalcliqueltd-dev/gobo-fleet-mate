@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { GoogleMap, Polyline, useJsApiLoader } from '@react-google-maps/api';
-import DeviceMarker from '../../components/map/DeviceMarker';
+import DeviceMarker from '@/components/map/DeviceMarker';
 import { Play, Pause, Pencil, Trash2, ChevronLeft, Gauge, Timer, Route as RouteIcon, AlertTriangle, Copy, Check } from 'lucide-react';
-import { GOOGLE_MAPS_API_KEY } from '../../lib/googleMapsConfig';
-import { useDeviceInsights } from '../../hooks/useDeviceInsights';
+import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
+import { useDeviceInsights } from '@/hooks/useDeviceInsights';
 
 type DeviceRow = {
   id: string;

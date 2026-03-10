@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useGeofenceEvents } from '../hooks/useGeofenceEvents';
+import { useGeofenceEvents } from '@/hooks/useGeofenceEvents';
 import { Bell, X, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
