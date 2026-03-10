@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import PaymentWall from './PaymentWall';
+import PaymentWall from '@/components/PaymentWall';
 
 interface LockedFeatureProps {
   children: React.ReactNode;

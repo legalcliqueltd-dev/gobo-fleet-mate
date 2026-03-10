@@ -6,7 +6,7 @@ import { Check, CreditCard, Building2, Loader2, Star, Zap, Globe, MapPin, Shield
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import ActivePlanView from "./payment/ActivePlanView";
+import ActivePlanView from "@/components/payment/ActivePlanView";
 
 type Plan = "basic" | "pro";
 type PaymentMethod = "stripe" | "paystack";
