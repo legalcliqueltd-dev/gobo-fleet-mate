@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { MapPin, AlertCircle, X } from 'lucide-react';
-import { Button } from './ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -8,7 +8,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from './ui/dialog';
+} from '@/components/ui/dialog';
 
 type PermissionState = 'prompt' | 'granted' | 'denied' | 'unavailable';
 
