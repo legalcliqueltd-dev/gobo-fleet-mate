@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { GoogleMap, useJsApiLoader, Polyline, InfoWindow } from '@react-google-maps/api';
 import AdvancedMarker from '@/components/map/AdvancedMarker';
-import { GOOGLE_MAPS_API_KEY } from '../../lib/googleMapsConfig';
+import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
 import { MapPin, Navigation, Clock, Crosshair, Flag, CircleDot } from 'lucide-react';
 import clsx from 'clsx';
 
