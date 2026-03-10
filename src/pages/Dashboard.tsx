@@ -1,12 +1,12 @@
 import { useMemo, useState, useCallback, useEffect } from 'react';
-import { useDeviceLocations } from '../hooks/useDeviceLocations';
-import { useDriverLocations, DriverLocation } from '../hooks/useDriverLocations';
-import LiveDriverMap from '../components/map/LiveDriverMap';
-import DriversList from '../components/DriversList';
-import GeofenceAlerts from '../components/GeofenceAlerts';
-import TempTrackingManager from '../components/TempTrackingManager';
-import PaymentWall from '../components/PaymentWall';
-import LockedFeature from '../components/LockedFeature';
+import { useDeviceLocations } from '@/hooks/useDeviceLocations';
+import { useDriverLocations, DriverLocation } from '@/hooks/useDriverLocations';
+import LiveDriverMap from '@/components/map/LiveDriverMap';
+import DriversList from '@/components/DriversList';
+import GeofenceAlerts from '@/components/GeofenceAlerts';
+import TempTrackingManager from '@/components/TempTrackingManager';
+import PaymentWall from '@/components/PaymentWall';
+import LockedFeature from '@/components/LockedFeature';
 import { Clock, Plus, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone, Timer, Copy, Check, CreditCard, Pause, Play, AlertTriangle, Lock } from 'lucide-react';
 
 import { ShareAppButton } from '@/components/ShareAppButton';
