@@ -123,6 +123,7 @@ export default function App() {
                 <Route path="/status" element={<Status />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
+                <Route path="/delete-account" element={<DeleteAccount />} />
                 <Route
                   path="/dashboard"
                   element={
