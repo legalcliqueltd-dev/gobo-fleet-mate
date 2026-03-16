@@ -41,6 +41,7 @@ import PulseBeamsDemo from '@/pages/PulseBeamsDemo';
 import Header3Demo from '@/pages/Header3Demo';
 import Privacy from '@/pages/Privacy';
 import Terms from '@/pages/Terms';
+import DeleteAccount from '@/pages/DeleteAccount';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 
 // Driver App (Mobile-only pages) - No email/password required
@@ -122,6 +123,7 @@ export default function App() {
                 <Route path="/status" element={<Status />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
+                <Route path="/delete-account" element={<DeleteAccount />} />
                 <Route
                   path="/dashboard"
                   element={
