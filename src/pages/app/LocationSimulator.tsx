@@ -58,7 +58,7 @@ const LocationSimulator = () => {
   const [lastResponse, setLastResponse] = useState<any>(null);
   const [isSending, setIsSending] = useState<boolean>(false);
   
-  const simulationRef = useRef<NodeJS.Timeout | null>(null);
+  const simulationRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch drivers on mount
   useEffect(() => {

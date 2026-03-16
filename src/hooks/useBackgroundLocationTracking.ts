@@ -39,7 +39,7 @@ export const useBackgroundLocationTracking = (
   // Union type to handle both Capacitor (string) and browser (number) watch IDs
   const watchIdRef = useRef<string | number | null>(null);
   const lastSentRef = useRef<number>(0);
-  const batteryCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const batteryCheckIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const driverIdRef = useRef<string | undefined>(driverId);
   const adminCodeRef = useRef<string | undefined>(adminCode);
   const lowAccuracyCountRef = useRef<number>(0);
