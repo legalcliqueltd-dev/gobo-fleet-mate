@@ -4,6 +4,37 @@ import { Button } from '@/components/ui/button';
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
 
+/**
+ * Robust native platform detection.
+ * When the app loads from a remote URL via Capacitor's server.url,
+ * Capacitor.isNativePlatform() can return false because the JS runs
+ * in a remote web context. We use multiple signals to detect native.
+ */
+const detectNativePlatform = (): boolean => {
+  try {
+    // Primary check
+    if (Capacitor.isNativePlatform()) return true;
+    // Secondary: platform is explicitly android/ios (not 'web')
+    const platform = Capacitor.getPlatform();
+    if (platform === 'android' || platform === 'ios') return true;
+    // Tertiary: check the window bridge object directly
+    const cap = (window as any).Capacitor;
+    if (cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform()) return true;
+    if (cap && cap.platform && cap.platform !== 'web') return true;
+    return false;
+  } catch {
+    return false;
+  }
+};
+
+const isAndroid = (): boolean => {
+  try {
+    return Capacitor.getPlatform() === 'android' || (window as any).Capacitor?.platform === 'android';
+  } catch {
+    return false;
+  }
+};
+
 interface LocationBlockerProps {
   onPermissionGranted: () => void;
 }
@@ -14,6 +45,9 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
   const [retrying, setRetrying] = useState(false);
   const [permissionDebug, setPermissionDebug] = useState<string>('');
   const checkPermissionRef = useRef<(() => void) | null>(null);
+
+  const isNative = detectNativePlatform();
+  const isAndroidNative = isAndroid();
 
   const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string) => {
     let timeoutId: number | undefined;
@@ -30,27 +64,31 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
 
   const checkPermission = async () => {
     setChecking(true);
+    const platform = Capacitor.getPlatform();
+    console.log(`[LocationBlocker] checkPermission — isNative=${isNative}, platform=${platform}, isAndroid=${isAndroidNative}`);
+
     try {
-      if (Capacitor.isNativePlatform()) {
-        // Use Capacitor Geolocation for native
+      if (isNative) {
         const status = await Geolocation.checkPermissions();
-        setPermissionDebug(`native: location=${status.location ?? 'n/a'} coarse=${status.coarseLocation ?? 'n/a'}`);
+        const debugStr = `native(${platform}): location=${status.location ?? 'n/a'} coarse=${status.coarseLocation ?? 'n/a'}`;
+        console.log(`[LocationBlocker] ${debugStr}`);
+        setPermissionDebug(debugStr);
+
         if (status.location === 'granted' || status.coarseLocation === 'granted') {
           setHasPermission(true);
           onPermissionGranted();
         } else {
-          // On iOS, users can set "Ask Next Time / When I Share" which is effectively a prompt state.
-          // In that case, attempt a position request to trigger the system prompt; if it succeeds, let them through.
           const isPrompt = status.location === 'prompt' || status.coarseLocation === 'prompt';
           if (isPrompt) {
             try {
+              console.log('[LocationBlocker] Permission is prompt — attempting getCurrentPosition to trigger system dialog');
               await withTimeout(
                 Geolocation.getCurrentPosition({
                   enableHighAccuracy: true,
-                  timeout: 10000,
+                  timeout: isAndroidNative ? 15000 : 10000,
                   maximumAge: 0,
                 }),
-                12000,
+                isAndroidNative ? 18000 : 12000,
                 'CHECK_GET_CURRENT_POSITION'
               );
 
@@ -66,6 +104,7 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
         }
       } else {
         // Use browser API for web
+        console.log('[LocationBlocker] Using browser geolocation API (non-native)');
         const result = await navigator.permissions.query({ name: 'geolocation' });
         setPermissionDebug(`web: ${result.state}`);
         if (result.state === 'granted') {
@@ -74,7 +113,6 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
         } else if (result.state === 'denied') {
           setHasPermission(false);
         } else {
-          // Prompt state - try to get location to trigger browser prompt
           try {
             await new Promise<GeolocationPosition>((resolve, reject) => {
               navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
@@ -87,7 +125,7 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
         }
       }
     } catch (error) {
-      console.error('Permission check error:', error);
+      console.error('[LocationBlocker] Permission check error:', error);
       setHasPermission(false);
     } finally {
       setChecking(false);
@@ -96,47 +134,56 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
 
   const requestPermission = async () => {
     setRetrying(true);
+    console.log(`[LocationBlocker] requestPermission — isNative=${isNative}, isAndroid=${isAndroidNative}`);
     try {
-      if (Capacitor.isNativePlatform()) {
-        // iOS often only shows the permission prompt when calling getCurrentPosition.
-        // requestPermissions can remain in 'prompt' state without displaying UI.
+      if (isNative) {
         const before = await Geolocation.checkPermissions();
-        console.log('[LocationBlocker] native permission before:', before);
+        console.log('[LocationBlocker] native permission before:', JSON.stringify(before));
 
         if (before.location !== 'granted' && before.coarseLocation !== 'granted') {
           try {
-            await withTimeout(Geolocation.requestPermissions(), 8000, 'REQUEST_PERMISSIONS');
+            console.log('[LocationBlocker] Calling Geolocation.requestPermissions()...');
+            const reqResult = await withTimeout(
+              Geolocation.requestPermissions(),
+              isAndroidNative ? 15000 : 8000,
+              'REQUEST_PERMISSIONS'
+            );
+            console.log('[LocationBlocker] requestPermissions result:', JSON.stringify(reqResult));
           } catch (e) {
             console.warn('[LocationBlocker] requestPermissions timed out/failed:', e);
           }
         }
 
-        // Trigger the system prompt (or validate permission) with an actual position request.
+        // On Android, also force a getCurrentPosition to trigger the system dialog
+        // as requestPermissions alone may not show the native prompt on some devices
         try {
+          console.log('[LocationBlocker] Calling getCurrentPosition to force system dialog...');
           await withTimeout(
             Geolocation.getCurrentPosition({
               enableHighAccuracy: true,
-              timeout: 10000,
+              timeout: isAndroidNative ? 15000 : 10000,
               maximumAge: 0,
             }),
-            12000,
+            isAndroidNative ? 18000 : 12000,
             'GET_CURRENT_POSITION'
           );
+          console.log('[LocationBlocker] getCurrentPosition succeeded — permission granted');
         } catch (e) {
           console.warn('[LocationBlocker] getCurrentPosition failed:', e);
         }
 
         const after = await Geolocation.checkPermissions();
-        console.log('[LocationBlocker] native permission after:', after);
+        console.log('[LocationBlocker] native permission after:', JSON.stringify(after));
 
         if (after.location === 'granted' || after.coarseLocation === 'granted') {
           setHasPermission(true);
           onPermissionGranted();
         } else {
           setHasPermission(false);
+          setPermissionDebug(`native(${Capacitor.getPlatform()}): location=${after.location} coarse=${after.coarseLocation}`);
         }
       } else {
-        // Browser - try to trigger location prompt
+        // Browser fallback
         try {
           await withTimeout(
             new Promise<GeolocationPosition>((resolve, reject) => {
@@ -155,7 +202,7 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
         }
       }
     } catch (error) {
-      console.error('Permission request error:', error);
+      console.error('[LocationBlocker] Permission request error:', error);
       setHasPermission(false);
     } finally {
       setRetrying(false);
@@ -163,19 +210,30 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
   };
 
   const openSettings = () => {
-    if (Capacitor.isNativePlatform()) {
-      // Best-effort deep link to app settings (primarily iOS).
-      try {
-        window.location.href = 'app-settings:';
-      } catch {
-        // ignore
+    if (isNative) {
+      if (isAndroidNative) {
+        // On Android, try to open the app's settings page directly
+        try {
+          // Android intent URI for app settings
+          window.location.href = 'intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:app.fleettrackmate.driver;end';
+        } catch {
+          // Fallback
+          alert(
+            'Please open your device Settings > Apps > FleetTrackMate Driver > Permissions > Location and allow location access, then return to the app and tap Retry Check.'
+          );
+        }
+      } else {
+        // iOS deep link
+        try {
+          window.location.href = 'app-settings:';
+        } catch {
+          // ignore
+        }
+        alert(
+          'Please open your device Settings > FleetTrackMate > Location and allow location access, then return to the app and tap Retry Check.'
+        );
       }
-
-      alert(
-        'Please open your device Settings > FleetTrackMate > Location and allow location access, then return to the app and tap Retry Check.'
-      );
     } else {
-      // For browser, provide instructions
       alert('Please click the location icon in your browser address bar and allow location access, then click Retry.');
     }
   };
@@ -184,7 +242,6 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
     checkPermission();
   }, []);
 
-  // Re-check automatically when returning from Settings (common: user changes permission, then comes back still blocked)
   checkPermissionRef.current = () => {
     void checkPermission();
   };
@@ -210,7 +267,6 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
     };
   }, [hasPermission]);
 
-  // If permission is granted or still checking, don't show blocker
   if (checking) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
@@ -226,16 +282,13 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
     return null;
   }
 
-  // Show blocker when permission is denied
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-background p-6">
       <div className="max-w-md w-full text-center space-y-6">
-        {/* Icon */}
         <div className="mx-auto w-24 h-24 rounded-full bg-destructive/10 flex items-center justify-center">
           <MapPin className="h-12 w-12 text-destructive" />
         </div>
 
-        {/* Title */}
         <div>
           <h1 className="text-2xl font-heading font-bold mb-2">Location Required</h1>
           <p className="text-muted-foreground">
@@ -243,7 +296,6 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
           </p>
         </div>
 
-        {/* Warning */}
         <div className="bg-warning/10 border border-warning/30 rounded-xl p-4 flex items-start gap-3 text-left">
           <AlertTriangle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
           <div className="text-sm">
@@ -251,17 +303,20 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
             <p className="text-muted-foreground mt-1">
               Without location permission, you cannot access the dashboard, tasks, or SOS features.
             </p>
-            {Capacitor.isNativePlatform() && permissionDebug.includes('prompt') && (
+            {isNative && permissionDebug.includes('prompt') && (
               <p className="text-muted-foreground mt-2">
-                iOS is currently set to <span className="font-medium">Ask Next Time / When I Share</span>. Tap{' '}
-                <span className="font-medium">Enable Location</span> to trigger the prompt, and choose{' '}
-                <span className="font-medium">While Using the App</span> for reliable tracking.
+                {isAndroidNative ? (
+                  <>Tap <span className="font-medium">Enable Location</span> and select <span className="font-medium">Allow</span> or <span className="font-medium">While using the app</span> when the system dialog appears.</>
+                ) : (
+                  <>iOS is currently set to <span className="font-medium">Ask Next Time / When I Share</span>. Tap{' '}
+                  <span className="font-medium">Enable Location</span> to trigger the prompt, and choose{' '}
+                  <span className="font-medium">While Using the App</span> for reliable tracking.</>
+                )}
               </p>
             )}
           </div>
         </div>
 
-        {/* Actions */}
         <div className="space-y-3">
           <Button 
             onClick={requestPermission} 
@@ -302,12 +357,10 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
           </Button>
         </div>
 
-        {/* Footer note */}
         <p className="text-xs text-muted-foreground">
           Your location is only shared with your fleet administrator while you're on duty.
         </p>
 
-        {/* Lightweight diagnostics (helps debug stuck permission state on iOS devices/simulator) */}
         {permissionDebug && (
           <p className="text-[11px] text-muted-foreground break-words">
             Permission: {permissionDebug}

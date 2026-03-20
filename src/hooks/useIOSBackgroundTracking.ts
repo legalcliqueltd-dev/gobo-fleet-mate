@@ -44,8 +44,11 @@ export const useIOSBackgroundTracking = (
   const driverIdRef = useRef<string | undefined>(driverId);
   const adminCodeRef = useRef<string | undefined>(adminCode);
 
-  // Check if we're on native iOS
-  const isNativeIOS = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+  // Check if we're on native iOS — explicitly skip Android to prevent
+  // Transistorsoft license errors from interfering with @capacitor/geolocation
+  const isNativeIOS = Capacitor.getPlatform() === 'ios' && (
+    Capacitor.isNativePlatform() || (window as any).Capacitor?.isNativePlatform?.()
+  );
 
   // Keep refs updated
   useEffect(() => {
