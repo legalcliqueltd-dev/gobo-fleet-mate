@@ -9,35 +9,45 @@ if (-not (Test-Path $AndroidDir)) {
     exit 0
 }
 
-# 1. Remove Transistorsoft entries from settings.gradle
-$SettingsFile = "$AndroidDir\settings.gradle"
-if (Test-Path $SettingsFile) {
-    $content = Get-Content $SettingsFile | Where-Object { $_ -notmatch "transistorsoft" }
-    $content | Set-Content $SettingsFile
-    Write-Host "[OK] Cleaned transistorsoft from $SettingsFile"
+function Remove-TransistorsoftLines {
+    param(
+        [string]$FilePath
+    )
+
+    if (-not (Test-Path $FilePath)) {
+        return
+    }
+
+    $original = Get-Content $FilePath
+    $cleaned = $original | Where-Object { $_ -notmatch "transistorsoft" }
+
+    if ($cleaned.Count -ne $original.Count) {
+        $cleaned | Set-Content $FilePath
+        Write-Host "[OK] Cleaned transistorsoft from $FilePath"
+    }
 }
 
-# 2. Remove Transistorsoft dependency from app/build.gradle
-$AppGradle = "$AndroidDir\app\build.gradle"
-if (Test-Path $AppGradle) {
-    $content = Get-Content $AppGradle | Where-Object { $_ -notmatch "transistorsoft" }
-    $content | Set-Content $AppGradle
-    Write-Host "[OK] Cleaned transistorsoft from $AppGradle"
+# 1. Remove Transistorsoft entries from Gradle files
+$filesToClean = @(
+    "$AndroidDir\settings.gradle",
+    "$AndroidDir\build.gradle",
+    "$AndroidDir\app\build.gradle",
+    "$AndroidDir\app\capacitor.settings.gradle",
+    "$AndroidDir\app\capacitor.build.gradle"
+)
+
+foreach ($file in $filesToClean) {
+    Remove-TransistorsoftLines -FilePath $file
 }
 
-# 3. Remove Transistorsoft Maven repo from root build.gradle
-$RootGradle = "$AndroidDir\build.gradle"
-if (Test-Path $RootGradle) {
-    $content = Get-Content $RootGradle | Where-Object { $_ -notmatch "transistorsoft" }
-    $content | Set-Content $RootGradle
-    Write-Host "[OK] Cleaned transistorsoft from $RootGradle"
-}
-
-# 4. Remove native module directories
+# 2. Remove native module directories
 $dirs = @(
     "$AndroidDir\transistorsoft-capacitor-background-geolocation",
-    "$AndroidDir\transistorsoft-capacitor-background-fetch"
+    "$AndroidDir\transistorsoft-capacitor-background-fetch",
+    "$AndroidDir\app\transistorsoft-capacitor-background-geolocation",
+    "$AndroidDir\app\transistorsoft-capacitor-background-fetch"
 )
+
 foreach ($dir in $dirs) {
     if (Test-Path $dir) {
         Remove-Item -Recurse -Force $dir
