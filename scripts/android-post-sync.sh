@@ -1,28 +1,50 @@
 #!/bin/bash
-# Post-sync script for Android: adds Transistorsoft Maven repository
+# Post-sync script for Android
+# Removes Transistorsoft plugin from Android build (it's iOS-only)
 # Run after: npx cap sync android
 
-GRADLE_FILE="android/build.gradle"
+ANDROID_DIR="android"
 
-if [ ! -f "$GRADLE_FILE" ]; then
-  echo "⚠️  $GRADLE_FILE not found. Run 'npx cap add android' first."
+if [ ! -d "$ANDROID_DIR" ]; then
+  echo "⚠️  $ANDROID_DIR not found. Run 'npx cap add android' first."
   exit 0
 fi
 
-# Check if the maven repo is already added
-if grep -q "transistorsoft-capacitor-background-geolocation" "$GRADLE_FILE"; then
-  echo "✅ Transistorsoft Maven repo already configured in $GRADLE_FILE"
-  exit 0
+# 1. Remove Transistorsoft settings entry from android/settings.gradle
+SETTINGS_FILE="$ANDROID_DIR/settings.gradle"
+if [ -f "$SETTINGS_FILE" ] && grep -q "transistorsoft" "$SETTINGS_FILE"; then
+  sed -i.bak '/transistorsoft/d' "$SETTINGS_FILE"
+  rm -f "${SETTINGS_FILE}.bak"
+  echo "✅ Removed Transistorsoft from $SETTINGS_FILE"
 fi
 
-# Add the maven repository inside allprojects > repositories
-sed -i.bak '/allprojects {/,/repositories {/ {
-  /repositories {/ a\
-\        // Transistorsoft background geolocation native libs\
-\        maven { url("${project('"'"':transistorsoft-capacitor-background-geolocation'"'"').projectDir}/libs") }
-}' "$GRADLE_FILE"
+# 2. Remove Transistorsoft dependency from android/app/build.gradle
+APP_GRADLE="$ANDROID_DIR/app/build.gradle"
+if [ -f "$APP_GRADLE" ] && grep -q "transistorsoft" "$APP_GRADLE"; then
+  sed -i.bak '/transistorsoft/d' "$APP_GRADLE"
+  rm -f "${APP_GRADLE}.bak"
+  echo "✅ Removed Transistorsoft from $APP_GRADLE"
+fi
 
-# Remove backup file
-rm -f "${GRADLE_FILE}.bak"
+# 3. Remove Transistorsoft Maven repo from android/build.gradle
+ROOT_GRADLE="$ANDROID_DIR/build.gradle"
+if [ -f "$ROOT_GRADLE" ] && grep -q "transistorsoft" "$ROOT_GRADLE"; then
+  sed -i.bak '/transistorsoft/d' "$ROOT_GRADLE"
+  rm -f "${ROOT_GRADLE}.bak"
+  echo "✅ Removed Transistorsoft Maven repo from $ROOT_GRADLE"
+fi
 
-echo "✅ Added Transistorsoft Maven repo to $GRADLE_FILE"
+# 4. Remove the Transistorsoft native module directory if it exists
+TSL_DIR="$ANDROID_DIR/transistorsoft-capacitor-background-geolocation"
+if [ -d "$TSL_DIR" ]; then
+  rm -rf "$TSL_DIR"
+  echo "✅ Removed $TSL_DIR directory"
+fi
+
+TSL_FETCH_DIR="$ANDROID_DIR/transistorsoft-capacitor-background-fetch"
+if [ -d "$TSL_FETCH_DIR" ]; then
+  rm -rf "$TSL_FETCH_DIR"
+  echo "✅ Removed $TSL_FETCH_DIR directory"
+fi
+
+echo "✅ Android build cleaned — Transistorsoft plugin removed (iOS-only)"
