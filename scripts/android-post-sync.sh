@@ -10,41 +10,37 @@ if [ ! -d "$ANDROID_DIR" ]; then
   exit 0
 fi
 
-# 1. Remove Transistorsoft settings entry from android/settings.gradle
-SETTINGS_FILE="$ANDROID_DIR/settings.gradle"
-if [ -f "$SETTINGS_FILE" ] && grep -q "transistorsoft" "$SETTINGS_FILE"; then
-  sed -i.bak '/transistorsoft/d' "$SETTINGS_FILE"
-  rm -f "${SETTINGS_FILE}.bak"
-  echo "✅ Removed Transistorsoft from $SETTINGS_FILE"
-fi
+# 1. Remove Transistorsoft entries from Gradle files
+clean_gradle_file() {
+  local file="$1"
+  if [ -f "$file" ] && grep -qi "transistorsoft" "$file"; then
+    sed -i.bak '/transistorsoft/d' "$file"
+    rm -f "${file}.bak"
+    echo "✅ Removed Transistorsoft from $file"
+  fi
+}
 
-# 2. Remove Transistorsoft dependency from android/app/build.gradle
-APP_GRADLE="$ANDROID_DIR/app/build.gradle"
-if [ -f "$APP_GRADLE" ] && grep -q "transistorsoft" "$APP_GRADLE"; then
-  sed -i.bak '/transistorsoft/d' "$APP_GRADLE"
-  rm -f "${APP_GRADLE}.bak"
-  echo "✅ Removed Transistorsoft from $APP_GRADLE"
-fi
+for file in \
+  "$ANDROID_DIR/settings.gradle" \
+  "$ANDROID_DIR/build.gradle" \
+  "$ANDROID_DIR/app/build.gradle" \
+  "$ANDROID_DIR/app/capacitor.settings.gradle" \
+  "$ANDROID_DIR/app/capacitor.build.gradle"
+do
+  clean_gradle_file "$file"
+done
 
-# 3. Remove Transistorsoft Maven repo from android/build.gradle
-ROOT_GRADLE="$ANDROID_DIR/build.gradle"
-if [ -f "$ROOT_GRADLE" ] && grep -q "transistorsoft" "$ROOT_GRADLE"; then
-  sed -i.bak '/transistorsoft/d' "$ROOT_GRADLE"
-  rm -f "${ROOT_GRADLE}.bak"
-  echo "✅ Removed Transistorsoft Maven repo from $ROOT_GRADLE"
-fi
-
-# 4. Remove the Transistorsoft native module directory if it exists
-TSL_DIR="$ANDROID_DIR/transistorsoft-capacitor-background-geolocation"
-if [ -d "$TSL_DIR" ]; then
-  rm -rf "$TSL_DIR"
-  echo "✅ Removed $TSL_DIR directory"
-fi
-
-TSL_FETCH_DIR="$ANDROID_DIR/transistorsoft-capacitor-background-fetch"
-if [ -d "$TSL_FETCH_DIR" ]; then
-  rm -rf "$TSL_FETCH_DIR"
-  echo "✅ Removed $TSL_FETCH_DIR directory"
-fi
+# 2. Remove the Transistorsoft native module directories if they exist
+for dir in \
+  "$ANDROID_DIR/transistorsoft-capacitor-background-geolocation" \
+  "$ANDROID_DIR/transistorsoft-capacitor-background-fetch" \
+  "$ANDROID_DIR/app/transistorsoft-capacitor-background-geolocation" \
+  "$ANDROID_DIR/app/transistorsoft-capacitor-background-fetch"
+do
+  if [ -d "$dir" ]; then
+    rm -rf "$dir"
+    echo "✅ Removed $dir directory"
+  fi
+done
 
 echo "✅ Android build cleaned — Transistorsoft plugin removed (iOS-only)"
