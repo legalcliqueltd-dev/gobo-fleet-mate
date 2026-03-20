@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "cap:sync:android": "npx cap sync android && bash scripts/android-post-sync.sh",
+    "cap:clean:android": "powershell -ExecutionPolicy Bypass -File scripts/android-post-sync.ps1",
     "cap:build:android": "npm run build && npm run cap:sync:android"
   },
   "dependencies": {
