@@ -9,6 +9,13 @@ const config: CapacitorConfig = {
     url: 'https://fleettrackmate.com/app?forceHideBadge=true',
     cleartext: true,
     androidScheme: 'https'
+  },
+  android: {
+    // Exclude Transistorsoft plugins (iOS-only) from Android builds
+    includePlugins: [
+      '@capacitor/camera',
+      '@capacitor/geolocation'
+    ]
   }
 };
 
