@@ -11,11 +11,8 @@ const config: CapacitorConfig = {
     androidScheme: 'https'
   },
   android: {
-    // Exclude Transistorsoft plugins (iOS-only) from Android builds
-    includePlugins: [
-      '@capacitor/camera',
-      '@capacitor/geolocation'
-    ]
+    // After syncing, run: powershell -ExecutionPolicy Bypass -File scripts/android-post-sync.ps1
+    // to remove Transistorsoft (iOS-only) from the Android build
   }
 };
 
