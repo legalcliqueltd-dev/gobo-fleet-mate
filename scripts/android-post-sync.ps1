@@ -14,7 +14,7 @@ $SettingsFile = "$AndroidDir\settings.gradle"
 if (Test-Path $SettingsFile) {
     $content = Get-Content $SettingsFile | Where-Object { $_ -notmatch "transistorsoft" }
     $content | Set-Content $SettingsFile
-    Write-Host "✅ Cleaned transistorsoft from $SettingsFile"
+    Write-Host "[OK] Cleaned transistorsoft from $SettingsFile"
 }
 
 # 2. Remove Transistorsoft dependency from app/build.gradle
@@ -22,7 +22,7 @@ $AppGradle = "$AndroidDir\app\build.gradle"
 if (Test-Path $AppGradle) {
     $content = Get-Content $AppGradle | Where-Object { $_ -notmatch "transistorsoft" }
     $content | Set-Content $AppGradle
-    Write-Host "✅ Cleaned transistorsoft from $AppGradle"
+    Write-Host "[OK] Cleaned transistorsoft from $AppGradle"
 }
 
 # 3. Remove Transistorsoft Maven repo from root build.gradle
@@ -30,7 +30,7 @@ $RootGradle = "$AndroidDir\build.gradle"
 if (Test-Path $RootGradle) {
     $content = Get-Content $RootGradle | Where-Object { $_ -notmatch "transistorsoft" }
     $content | Set-Content $RootGradle
-    Write-Host "✅ Cleaned transistorsoft from $RootGradle"
+    Write-Host "[OK] Cleaned transistorsoft from $RootGradle"
 }
 
 # 4. Remove native module directories
@@ -41,8 +41,8 @@ $dirs = @(
 foreach ($dir in $dirs) {
     if (Test-Path $dir) {
         Remove-Item -Recurse -Force $dir
-        Write-Host "✅ Removed $dir"
+        Write-Host "[OK] Removed $dir"
     }
 }
 
-Write-Host "✅ Android build cleaned — Transistorsoft plugin removed (iOS-only)"
+Write-Host "[OK] Android build cleaned - Transistorsoft plugin removed (iOS-only)"
