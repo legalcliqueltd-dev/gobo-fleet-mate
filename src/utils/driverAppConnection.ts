@@ -142,8 +142,8 @@ export async function startLocationTracking(): Promise<{ success: boolean; messa
     // Stop existing watch if any
     await stopLocationTracking();
 
-    if (Capacitor.isNativePlatform()) {
-      // Native platform - use Capacitor Geolocation
+    if (detectNativePlatform() && isGeolocationPluginAvailable()) {
+      // Native platform - use Capacitor Geolocation (plugin confirmed available)
       const permission = await Geolocation.checkPermissions();
       
       if (permission.location !== 'granted') {
