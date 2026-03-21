@@ -43,6 +43,7 @@ import Privacy from '@/pages/Privacy';
 import Terms from '@/pages/Terms';
 import DeleteAccount from '@/pages/DeleteAccount';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { detectNativePlatform } from '@/utils/platformDetection';
 
 // Driver App (Mobile-only pages) - No email/password required
 import DriverApp from '@/pages/app/DriverApp';
@@ -54,6 +55,8 @@ import DriverAppSOS from '@/pages/app/DriverAppSOS';
 import DriverAppSettings from '@/pages/app/DriverAppSettings';
 
 export default function App() {
+  const isNativeApp = detectNativePlatform();
+
   // Global handler for unhandled promise rejections to prevent blank screens
   useEffect(() => {
     const handleRejection = (event: PromiseRejectionEvent) => {
@@ -110,7 +113,7 @@ export default function App() {
           <Route path="/*" element={
             <AppLayout>
               <Routes>
-                <Route path="/" element={<Landing />} />
+                <Route path="/" element={isNativeApp ? <Navigate to="/app" replace /> : <Landing />} />
                 <Route path="/demo/background-paths" element={<BackgroundPathsDemo />} />
                 <Route path="/demo/hero-geometric" element={<HeroGeometricDemo />} />
                 <Route path="/demo/pulse-beams" element={<PulseBeamsDemo />} />
@@ -344,7 +347,7 @@ export default function App() {
                     </ProtectedRoute>
                   }
                 />
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="*" element={<Navigate to={isNativeApp ? "/app" : "/"} replace />} />
               </Routes>
             </AppLayout>
           } />
