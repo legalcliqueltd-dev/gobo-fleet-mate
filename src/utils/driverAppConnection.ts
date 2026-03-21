@@ -11,6 +11,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
+import { detectNativePlatform } from '@/utils/platformDetection';
+import { isGeolocationPluginAvailable } from '@/utils/nativeGeolocation';
 
 // Union type to handle both Capacitor (string) and browser (number) watch IDs
 let locationWatchId: string | number | null = null;
