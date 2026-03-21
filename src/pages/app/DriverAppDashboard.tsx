@@ -15,7 +15,7 @@ import DriverLocationMarker from '@/components/map/DriverLocationMarker';
 import DriverStatusCard from '@/components/driver/DriverStatusCard';
 import LocationBlocker from '@/components/driver/LocationBlocker';
 import { cn } from '@/lib/utils';
-import { Capacitor } from '@capacitor/core';
+import { detectNativePlatform, isIOS } from '@/utils/platformDetection';
 
 type Task = {
   id: string;
@@ -50,7 +50,7 @@ export default function DriverAppDashboard() {
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
   const [trail, setTrail] = useState<TrailPoint[]>([]);
   
-  const isNativeIOS = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+  const isNativeIOS = detectNativePlatform() && isIOS();
 
   const [onDuty] = useState(() => {
     const stored = localStorage.getItem('driverOnDuty');

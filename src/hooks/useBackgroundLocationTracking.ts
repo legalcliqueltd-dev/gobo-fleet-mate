@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { queueOfflineAction } from '@/components/OfflineQueue';
 import { Geolocation } from '@capacitor/geolocation';
-import { Capacitor } from '@capacitor/core';
+import { detectNativePlatform, isIOS } from '@/utils/platformDetection';
 
 // Accuracy threshold in meters - only accept high-precision locations
 const ACCURACY_THRESHOLD_M = 30;
@@ -182,7 +182,7 @@ export const useBackgroundLocationTracking = (
     console.log('[LocationTracking] Requesting fresh high-accuracy GPS fix...');
 
     try {
-      if (Capacitor.isNativePlatform()) {
+      if (detectNativePlatform()) {
         const position = await Geolocation.getCurrentPosition({
           enableHighAccuracy: true,
           timeout: 20000,
@@ -249,7 +249,7 @@ export const useBackgroundLocationTracking = (
     }
 
     // On native iOS, skip browser-based tracking — useIOSBackgroundTracking handles it
-    const isNativeIOS = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+    const isNativeIOS = detectNativePlatform() && isIOS();
     if (isNativeIOS) {
       console.log('[LocationTracking] Native iOS detected — deferring to useIOSBackgroundTracking');
       setIsTracking(true);
@@ -261,7 +261,7 @@ export const useBackgroundLocationTracking = (
     await requestAccuratePosition();
 
     try {
-      if (Capacitor.isNativePlatform()) {
+      if (detectNativePlatform()) {
         // Native platform - use Capacitor Geolocation
         const permission = await Geolocation.checkPermissions();
         
@@ -354,7 +354,7 @@ export const useBackgroundLocationTracking = (
   const stopTracking = async () => {
     if (watchIdRef.current !== null) {
       try {
-        if (Capacitor.isNativePlatform()) {
+        if (detectNativePlatform()) {
           // Native - use Capacitor to clear watch
           await Geolocation.clearWatch({ id: watchIdRef.current as string });
         } else {
