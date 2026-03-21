@@ -11,6 +11,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
+import { detectNativePlatform } from '@/utils/platformDetection';
+import { isGeolocationPluginAvailable } from '@/utils/nativeGeolocation';
 
 // Union type to handle both Capacitor (string) and browser (number) watch IDs
 let locationWatchId: string | number | null = null;
@@ -140,12 +142,12 @@ export async function startLocationTracking(): Promise<{ success: boolean; messa
     // Stop existing watch if any
     await stopLocationTracking();
 
-    if (Capacitor.isNativePlatform()) {
-      // Native platform - use Capacitor Geolocation
+    if (detectNativePlatform() && isGeolocationPluginAvailable()) {
+      // Native platform - use Capacitor Geolocation (plugin confirmed available)
       const permission = await Geolocation.checkPermissions();
       
       if (permission.location !== 'granted') {
-        const requested = await Geolocation.requestPermissions();
+        const requested = await Geolocation.requestPermissions({ permissions: ['location'] });
         if (requested.location !== 'granted') {
           return { success: false, message: 'Location permission denied' };
         }
@@ -215,7 +217,7 @@ export async function startLocationTracking(): Promise<{ success: boolean; messa
  */
 export async function stopLocationTracking(): Promise<void> {
   if (locationWatchId !== null) {
-    if (Capacitor.isNativePlatform()) {
+    if (detectNativePlatform() && isGeolocationPluginAvailable()) {
       await Geolocation.clearWatch({ id: locationWatchId as string });
     } else {
       navigator.geolocation.clearWatch(locationWatchId as number);

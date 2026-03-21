@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { MapPin, Settings, RefreshCw, AlertTriangle } from 'lucide-react';
+import { MapPin, Settings, RefreshCw, AlertTriangle, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Geolocation } from '@capacitor/geolocation';
 import { Capacitor } from '@capacitor/core';
 import { detectNativePlatform, isAndroid } from '@/utils/platformDetection';
+import { isGeolocationPluginAvailable, getGeolocationUnavailableReason } from '@/utils/nativeGeolocation';
 
 interface LocationBlockerProps {
   onPermissionGranted: () => void;
@@ -14,6 +15,7 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [retrying, setRetrying] = useState(false);
   const [permissionDebug, setPermissionDebug] = useState<string>('');
+  const [pluginMissing, setPluginMissing] = useState(false);
   const checkPermissionRef = useRef<(() => void) | null>(null);
 
   const isNative = detectNativePlatform();
@@ -37,8 +39,19 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
     const platform = Capacitor.getPlatform();
     console.log(`[LocationBlocker] checkPermission — isNative=${isNative}, platform=${platform}, isAndroid=${isAndroidNative}`);
 
+    // Check if native plugin is available first
+    const unavailableReason = getGeolocationUnavailableReason();
+    if (isNative && unavailableReason) {
+      console.error(`[LocationBlocker] Plugin unavailable: ${unavailableReason}`);
+      setPluginMissing(true);
+      setPermissionDebug(`plugin_missing: ${unavailableReason}`);
+      setHasPermission(false);
+      setChecking(false);
+      return;
+    }
+
     try {
-      if (isNative) {
+      if (isNative && isGeolocationPluginAvailable()) {
         const status = await Geolocation.checkPermissions();
         const debugStr = `native(${platform}): location=${status.location ?? 'n/a'} coarse=${status.coarseLocation ?? 'n/a'}`;
         console.log(`[LocationBlocker] ${debugStr}`);
@@ -105,8 +118,15 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
   const requestPermission = async () => {
     setRetrying(true);
     console.log(`[LocationBlocker] requestPermission — isNative=${isNative}, isAndroid=${isAndroidNative}`);
+
+    if (pluginMissing) {
+      console.error('[LocationBlocker] Cannot request permission — native plugin is missing');
+      setRetrying(false);
+      return;
+    }
+
     try {
-      if (isNative) {
+      if (isNative && isGeolocationPluginAvailable()) {
         const before = await Geolocation.checkPermissions();
         console.log('[LocationBlocker] native permission before:', JSON.stringify(before));
 
@@ -114,7 +134,7 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
           try {
             console.log('[LocationBlocker] Calling Geolocation.requestPermissions()...');
             const reqResult = await withTimeout(
-              Geolocation.requestPermissions(),
+              Geolocation.requestPermissions({ permissions: ['location'] }),
               isAndroidNative ? 15000 : 8000,
               'REQUEST_PERMISSIONS'
             );
@@ -125,7 +145,6 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
         }
 
         // On Android, also force a getCurrentPosition to trigger the system dialog
-        // as requestPermissions alone may not show the native prompt on some devices
         try {
           console.log('[LocationBlocker] Calling getCurrentPosition to force system dialog...');
           await withTimeout(
@@ -182,18 +201,14 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
   const openSettings = () => {
     if (isNative) {
       if (isAndroidNative) {
-        // On Android, try to open the app's settings page directly
         try {
-          // Android intent URI for app settings
           window.location.href = 'intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:app.fleettrackmate.driver;end';
         } catch {
-          // Fallback
           alert(
             'Please open your device Settings > Apps > FleetTrackMate Driver > Permissions > Location and allow location access, then return to the app and tap Retry Check.'
           );
         }
       } else {
-        // iOS deep link
         try {
           window.location.href = 'app-settings:';
         } catch {
@@ -250,6 +265,51 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
 
   if (hasPermission === true) {
     return null;
+  }
+
+  // Plugin missing — show a specific error UI
+  if (pluginMissing) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background p-6">
+        <div className="max-w-md w-full text-center space-y-6">
+          <div className="mx-auto w-24 h-24 rounded-full bg-destructive/10 flex items-center justify-center">
+            <WifiOff className="h-12 w-12 text-destructive" />
+          </div>
+
+          <div>
+            <h1 className="text-2xl font-heading font-bold mb-2">Native Plugin Missing</h1>
+            <p className="text-muted-foreground">
+              The location plugin could not be loaded. This usually happens when the app loads from a remote URL instead of bundled assets.
+            </p>
+          </div>
+
+          <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 text-left text-sm space-y-2">
+            <p className="font-medium text-destructive">How to fix:</p>
+            <ol className="list-decimal list-inside text-muted-foreground space-y-1">
+              <li>Run <code className="bg-muted px-1 rounded">npm run build</code></li>
+              <li>Run <code className="bg-muted px-1 rounded">npx cap sync android</code></li>
+              <li>Run the post-sync cleanup script</li>
+              <li>Reinstall the app from Android Studio</li>
+            </ol>
+          </div>
+
+          <Button
+            variant="ghost"
+            onClick={() => window.location.reload()}
+            className="w-full gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Reload App
+          </Button>
+
+          {permissionDebug && (
+            <p className="text-[11px] text-muted-foreground break-words">
+              Debug: {permissionDebug}
+            </p>
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (
