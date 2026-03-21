@@ -38,23 +38,26 @@ export function isGeolocationPluginAvailable(): boolean {
 }
 
 /**
+ * Returns true when ANY geolocation method is available —
+ * either the native Capacitor plugin or the browser navigator.geolocation API.
+ * Use this to decide whether to block the user vs allow them through.
+ */
+export function isAnyGeolocationAvailable(): boolean {
+  if (isGeolocationPluginAvailable()) return true;
+  return typeof navigator !== 'undefined' && !!navigator.geolocation;
+}
+
+/**
  * Returns a human-readable reason why geolocation is unavailable,
- * or null if it IS available (native or browser).
+ * or null if it IS available (native plugin or browser fallback).
  */
 export function getGeolocationUnavailableReason(): string | null {
-  const isNative = detectNativePlatform();
+  // If native plugin is available, we're good
+  if (isGeolocationPluginAvailable()) return null;
 
-  if (isNative) {
-    if (!isGeolocationPluginAvailable()) {
-      return 'The native Geolocation plugin is not available. The app may need to be rebuilt with bundled assets instead of loading from a remote URL. Please rebuild: npm run build → npx cap sync android → reinstall.';
-    }
-    return null;
-  }
+  // If browser geolocation is available, we can use it as fallback
+  if (typeof navigator !== 'undefined' && navigator.geolocation) return null;
 
-  // Browser context
-  if (!navigator.geolocation) {
-    return 'Geolocation is not supported by this browser.';
-  }
-
-  return null;
+  // Nothing available at all
+  return 'Neither the native Geolocation plugin nor the browser geolocation API is available.';
 }
