@@ -15,7 +15,7 @@ import DriverLocationMarker from '@/components/map/DriverLocationMarker';
 import DriverStatusCard from '@/components/driver/DriverStatusCard';
 import LocationBlocker from '@/components/driver/LocationBlocker';
 import { cn } from '@/lib/utils';
-import { Capacitor } from '@capacitor/core';
+import { detectNativePlatform, isIOS } from '@/utils/platformDetection';
 
 type Task = {
   id: string;
