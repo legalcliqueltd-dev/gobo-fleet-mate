@@ -2,38 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { MapPin, Settings, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Geolocation } from '@capacitor/geolocation';
-import { Capacitor } from '@capacitor/core';
-
-/**
- * Robust native platform detection.
- * When the app loads from a remote URL via Capacitor's server.url,
- * Capacitor.isNativePlatform() can return false because the JS runs
- * in a remote web context. We use multiple signals to detect native.
- */
-const detectNativePlatform = (): boolean => {
-  try {
-    // Primary check
-    if (Capacitor.isNativePlatform()) return true;
-    // Secondary: platform is explicitly android/ios (not 'web')
-    const platform = Capacitor.getPlatform();
-    if (platform === 'android' || platform === 'ios') return true;
-    // Tertiary: check the window bridge object directly
-    const cap = (window as any).Capacitor;
-    if (cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform()) return true;
-    if (cap && cap.platform && cap.platform !== 'web') return true;
-    return false;
-  } catch {
-    return false;
-  }
-};
-
-const isAndroid = (): boolean => {
-  try {
-    return Capacitor.getPlatform() === 'android' || (window as any).Capacitor?.platform === 'android';
-  } catch {
-    return false;
-  }
-};
+import { detectNativePlatform, isAndroid } from '@/utils/platformDetection';
 
 interface LocationBlockerProps {
   onPermissionGranted: () => void;
