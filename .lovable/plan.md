@@ -1,36 +1,35 @@
 
 
-## Plan: Update Capacitor Config — App Identity & URL
+## Plan: Fix Android Location Detection
 
-### Changes to `capacitor.config.ts`
+### Problem
+The app loads from a remote URL (`fleettrackmate.com`) via Capacitor's `server.url`. In this mode, `Capacitor.isNativePlatform()` often returns `false` because the JavaScript runs in a remote web context — not from bundled assets. This causes the location tracking code to fall back to the browser `navigator.geolocation` API, which behaves unreliably inside an Android Capacitor WebView.
 
-| Field | Current | New |
-|-------|---------|-----|
-| `appId` | `app.lovable.d78756af7da0400ebb464b099b10699b` | `app.fleettrackmate.driver` |
-| `appName` | `gobo-fleet-mate` | `FleetTrackMate-Driver` |
-| `server.url` | `https://fleettrackmate.com/app?forceHideBadge=true` | `https://fleettrackmate.com/app?forceHideBadge=true` |
+The `LocationBlocker` component already has a robust `detectNativePlatform()` helper that checks multiple signals, but the two critical tracking files still use the raw `Capacitor.isNativePlatform()` call:
+- `useBackgroundLocationTracking.ts` (lines 185, 252, 264, 357)
+- `DriverAppDashboard.tsx` (line 53)
 
-The `server.url` already points to `fleettrackmate.com`. If you want a different URL, let me know — otherwise only `appId` and `appName` need updating.
+### Fix
 
-### After the change
+**1. Extract the robust detection helper into a shared utility**
 
-You must re-create the Android platform since the package name changed:
+Create `src/utils/platformDetection.ts` with the `detectNativePlatform()` and `isAndroid()` helpers currently duplicated in `LocationBlocker.tsx`.
 
-```powershell
-# From project root
-Remove-Item -Recurse -Force android
-npx cap add android
-npm run build
-npx cap sync android
-powershell -ExecutionPolicy Bypass -File scripts/android-post-sync.ps1
-```
+**2. Update `useBackgroundLocationTracking.ts`**
 
-Then in Android Studio: re-add your launcher icon via **Image Asset** wizard and rebuild.
+Replace all `Capacitor.isNativePlatform()` calls with `detectNativePlatform()` so that on Android (even with remote URL loading), the Capacitor Geolocation plugin is used instead of the browser fallback.
 
-### Launcher Icon
+**3. Update `DriverAppDashboard.tsx`**
 
-Yes — since the `android/` folder will be recreated, you must re-add the launcher icon in Android Studio:
-1. Right-click `android/app/res` → **New → Image Asset**
-2. Select your 512x512 PNG source
-3. Configure layers → **Finish**
+Replace `Capacitor.isNativePlatform()` with `detectNativePlatform()` for the `isNativeIOS` check, and use `detectNativePlatform()` for the location watch effect guard (line 140-141).
+
+**4. Update `LocationBlocker.tsx`**
+
+Import from the shared utility instead of defining inline.
+
+### Files Changed
+- `src/utils/platformDetection.ts` — new shared helper
+- `src/hooks/useBackgroundLocationTracking.ts` — use shared helper
+- `src/pages/app/DriverAppDashboard.tsx` — use shared helper
+- `src/components/driver/LocationBlocker.tsx` — import from shared helper
 
