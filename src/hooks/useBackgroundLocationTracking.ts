@@ -183,7 +183,7 @@ export const useBackgroundLocationTracking = (
     console.log('[LocationTracking] Requesting fresh high-accuracy GPS fix...');
 
     try {
-      if (detectNativePlatform()) {
+      if (detectNativePlatform() && isGeolocationPluginAvailable()) {
         const position = await Geolocation.getCurrentPosition({
           enableHighAccuracy: true,
           timeout: 20000,
