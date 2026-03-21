@@ -357,11 +357,9 @@ export const useBackgroundLocationTracking = (
   const stopTracking = async () => {
     if (watchIdRef.current !== null) {
       try {
-        if (detectNativePlatform() && isGeolocationPluginAvailable()) {
-          // Native - use Capacitor to clear watch
+        if (isGeolocationPluginAvailable()) {
           await Geolocation.clearWatch({ id: watchIdRef.current as string });
         } else {
-          // Browser - use navigator.geolocation
           navigator.geolocation.clearWatch(watchIdRef.current as number);
         }
         watchIdRef.current = null;
