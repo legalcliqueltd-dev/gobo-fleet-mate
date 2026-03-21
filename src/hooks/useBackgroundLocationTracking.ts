@@ -354,7 +354,7 @@ export const useBackgroundLocationTracking = (
   const stopTracking = async () => {
     if (watchIdRef.current !== null) {
       try {
-        if (Capacitor.isNativePlatform()) {
+        if (detectNativePlatform()) {
           // Native - use Capacitor to clear watch
           await Geolocation.clearWatch({ id: watchIdRef.current as string });
         } else {

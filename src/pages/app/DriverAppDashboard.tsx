@@ -50,7 +50,7 @@ export default function DriverAppDashboard() {
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
   const [trail, setTrail] = useState<TrailPoint[]>([]);
   
-  const isNativeIOS = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+  const isNativeIOS = detectNativePlatform() && isIOS();
 
   const [onDuty] = useState(() => {
     const stored = localStorage.getItem('driverOnDuty');
