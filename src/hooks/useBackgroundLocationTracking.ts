@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { queueOfflineAction } from '@/components/OfflineQueue';
 import { Geolocation } from '@capacitor/geolocation';
-import { Capacitor } from '@capacitor/core';
+import { detectNativePlatform, isIOS } from '@/utils/platformDetection';
 
 // Accuracy threshold in meters - only accept high-precision locations
 const ACCURACY_THRESHOLD_M = 30;
