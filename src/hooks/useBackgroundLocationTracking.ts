@@ -306,6 +306,8 @@ export const useBackgroundLocationTracking = (
         setIsTracking(true);
         console.log('Native background location tracking started');
       } else {
+        // Browser geolocation fallback (also works on Android WebView when native plugin is missing)
+        console.log(`[LocationTracking] Using browser geolocation (native=${detectNativePlatform()}, plugin=${isGeolocationPluginAvailable()})`);
         // Web browser - use navigator.geolocation
         if (!navigator.geolocation) {
           toast.error('Geolocation is not supported by this browser.');
@@ -355,11 +357,9 @@ export const useBackgroundLocationTracking = (
   const stopTracking = async () => {
     if (watchIdRef.current !== null) {
       try {
-        if (detectNativePlatform() && isGeolocationPluginAvailable()) {
-          // Native - use Capacitor to clear watch
+        if (isGeolocationPluginAvailable()) {
           await Geolocation.clearWatch({ id: watchIdRef.current as string });
         } else {
-          // Browser - use navigator.geolocation
           navigator.geolocation.clearWatch(watchIdRef.current as number);
         }
         watchIdRef.current = null;
