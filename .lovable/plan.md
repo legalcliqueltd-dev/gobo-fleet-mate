@@ -1,35 +1,39 @@
 
 
-## Plan: Fix Android Location Detection
+## Plan: Fix Post-Sync Script to Clean All Gradle Files
 
 ### Problem
-The app loads from a remote URL (`fleettrackmate.com`) via Capacitor's `server.url`. In this mode, `Capacitor.isNativePlatform()` often returns `false` because the JavaScript runs in a remote web context — not from bundled assets. This causes the location tracking code to fall back to the browser `navigator.geolocation` API, which behaves unreliably inside an Android Capacitor WebView.
-
-The `LocationBlocker` component already has a robust `detectNativePlatform()` helper that checks multiple signals, but the two critical tracking files still use the raw `Capacitor.isNativePlatform()` call:
-- `useBackgroundLocationTracking.ts` (lines 185, 252, 264, 357)
-- `DriverAppDashboard.tsx` (line 53)
+The Transistorsoft references persist in `android/capacitor.settings.gradle` because the cleanup script only targets `android/app/capacitor.settings.gradle` — but in Capacitor 7, this file is at the **root** `android/` level.
 
 ### Fix
 
-**1. Extract the robust detection helper into a shared utility**
+**Update `scripts/android-post-sync.ps1`** — add root-level Capacitor gradle files to the cleanup list:
 
-Create `src/utils/platformDetection.ts` with the `detectNativePlatform()` and `isAndroid()` helpers currently duplicated in `LocationBlocker.tsx`.
+```
+$filesToClean = @(
+    "$AndroidDir\settings.gradle",
+    "$AndroidDir\build.gradle",
+    "$AndroidDir\app\build.gradle",
+    "$AndroidDir\app\capacitor.settings.gradle",
+    "$AndroidDir\app\capacitor.build.gradle",
+    "$AndroidDir\capacitor.settings.gradle",      # <-- NEW
+    "$AndroidDir\capacitor.build.gradle"           # <-- NEW
+)
+```
 
-**2. Update `useBackgroundLocationTracking.ts`**
+**Update `scripts/android-post-sync.sh`** — same fix for the Bash variant, adding the two root-level paths to the `for` loop.
 
-Replace all `Capacitor.isNativePlatform()` calls with `detectNativePlatform()` so that on Android (even with remote URL loading), the Capacitor Geolocation plugin is used instead of the browser fallback.
+### After applying
+Re-run:
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/android-post-sync.ps1
+```
+Then verify with:
+```powershell
+Select-String -Path "android\settings.gradle","android\capacitor.settings.gradle" -Pattern "transistorsoft"
+```
 
-**3. Update `DriverAppDashboard.tsx`**
-
-Replace `Capacitor.isNativePlatform()` with `detectNativePlatform()` for the `isNativeIOS` check, and use `detectNativePlatform()` for the location watch effect guard (line 140-141).
-
-**4. Update `LocationBlocker.tsx`**
-
-Import from the shared utility instead of defining inline.
-
-### Files Changed
-- `src/utils/platformDetection.ts` — new shared helper
-- `src/hooks/useBackgroundLocationTracking.ts` — use shared helper
-- `src/pages/app/DriverAppDashboard.tsx` — use shared helper
-- `src/components/driver/LocationBlocker.tsx` — import from shared helper
+### Files changed
+- `scripts/android-post-sync.ps1`
+- `scripts/android-post-sync.sh`
 
