@@ -262,8 +262,8 @@ export const useBackgroundLocationTracking = (
     await requestAccuratePosition();
 
     try {
-      if (detectNativePlatform()) {
-        // Native platform - use Capacitor Geolocation
+      if (detectNativePlatform() && isGeolocationPluginAvailable()) {
+        // Native platform - use Capacitor Geolocation (plugin confirmed available)
         const permission = await Geolocation.checkPermissions();
         
         if (permission.location !== 'granted') {
