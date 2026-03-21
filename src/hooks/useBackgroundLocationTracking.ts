@@ -249,7 +249,7 @@ export const useBackgroundLocationTracking = (
     }
 
     // On native iOS, skip browser-based tracking — useIOSBackgroundTracking handles it
-    const isNativeIOS = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
+    const isNativeIOS = detectNativePlatform() && isIOS();
     if (isNativeIOS) {
       console.log('[LocationTracking] Native iOS detected — deferring to useIOSBackgroundTracking');
       setIsTracking(true);
