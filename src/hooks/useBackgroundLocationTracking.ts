@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { queueOfflineAction } from '@/components/OfflineQueue';
 import { Geolocation } from '@capacitor/geolocation';
 import { detectNativePlatform, isIOS } from '@/utils/platformDetection';
+import { isGeolocationPluginAvailable } from '@/utils/nativeGeolocation';
 
 // Accuracy threshold in meters - only accept high-precision locations
 const ACCURACY_THRESHOLD_M = 30;
