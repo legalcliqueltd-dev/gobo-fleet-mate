@@ -217,7 +217,7 @@ export async function startLocationTracking(): Promise<{ success: boolean; messa
  */
 export async function stopLocationTracking(): Promise<void> {
   if (locationWatchId !== null) {
-    if (Capacitor.isNativePlatform()) {
+    if (detectNativePlatform() && isGeolocationPluginAvailable()) {
       await Geolocation.clearWatch({ id: locationWatchId as string });
     } else {
       navigator.geolocation.clearWatch(locationWatchId as number);
