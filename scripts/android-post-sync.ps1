@@ -33,7 +33,9 @@ $filesToClean = @(
     "$AndroidDir\build.gradle",
     "$AndroidDir\app\build.gradle",
     "$AndroidDir\app\capacitor.settings.gradle",
-    "$AndroidDir\app\capacitor.build.gradle"
+    "$AndroidDir\app\capacitor.build.gradle",
+    "$AndroidDir\capacitor.settings.gradle",
+    "$AndroidDir\capacitor.build.gradle"
 )
 
 foreach ($file in $filesToClean) {

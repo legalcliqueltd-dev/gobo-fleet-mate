@@ -25,7 +25,9 @@ for file in \
   "$ANDROID_DIR/build.gradle" \
   "$ANDROID_DIR/app/build.gradle" \
   "$ANDROID_DIR/app/capacitor.settings.gradle" \
-  "$ANDROID_DIR/app/capacitor.build.gradle"
+  "$ANDROID_DIR/app/capacitor.build.gradle" \
+  "$ANDROID_DIR/capacitor.settings.gradle" \
+  "$ANDROID_DIR/capacitor.build.gradle"
 do
   clean_gradle_file "$file"
 done
