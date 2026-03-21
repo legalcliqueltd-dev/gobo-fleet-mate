@@ -140,76 +140,82 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
     }
   };
 
+  const requestBrowserPermission = async () => {
+    console.log('[LocationBlocker] Requesting via browser geolocation API...');
+    try {
+      await withTimeout(
+        new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+          });
+        }),
+        12000,
+        'BROWSER_GET_CURRENT_POSITION'
+      );
+      setHasPermission(true);
+      onPermissionGranted();
+    } catch {
+      setHasPermission(false);
+    }
+  };
+
   const requestPermission = async () => {
     setRetrying(true);
     console.log(`[LocationBlocker] requestPermission — isNative=${isNative}, useNativePlugin=${useNativePlugin}`);
 
     try {
       if (useNativePlugin) {
-        // Native Capacitor plugin path
-        const before = await Geolocation.checkPermissions();
-        console.log('[LocationBlocker] native permission before:', JSON.stringify(before));
-
-        if (before.location !== 'granted' && before.coarseLocation !== 'granted') {
-          try {
-            console.log('[LocationBlocker] Calling Geolocation.requestPermissions()...');
-            const reqResult = await withTimeout(
-              Geolocation.requestPermissions({ permissions: ['location'] }),
-              isAndroidNative ? 15000 : 8000,
-              'REQUEST_PERMISSIONS'
-            );
-            console.log('[LocationBlocker] requestPermissions result:', JSON.stringify(reqResult));
-          } catch (e) {
-            console.warn('[LocationBlocker] requestPermissions timed out/failed:', e);
-          }
-        }
-
-        // Force getCurrentPosition to trigger system dialog
         try {
-          console.log('[LocationBlocker] Calling getCurrentPosition to force system dialog...');
-          await withTimeout(
-            Geolocation.getCurrentPosition({
-              enableHighAccuracy: true,
-              timeout: isAndroidNative ? 15000 : 10000,
-              maximumAge: 0,
-            }),
-            isAndroidNative ? 18000 : 12000,
-            'GET_CURRENT_POSITION'
-          );
-          console.log('[LocationBlocker] getCurrentPosition succeeded — permission granted');
-        } catch (e) {
-          console.warn('[LocationBlocker] getCurrentPosition failed:', e);
-        }
+          const before = await Geolocation.checkPermissions();
+          console.log('[LocationBlocker] native permission before:', JSON.stringify(before));
 
-        const after = await Geolocation.checkPermissions();
-        console.log('[LocationBlocker] native permission after:', JSON.stringify(after));
+          if (before.location !== 'granted' && before.coarseLocation !== 'granted') {
+            try {
+              console.log('[LocationBlocker] Calling Geolocation.requestPermissions()...');
+              const reqResult = await withTimeout(
+                Geolocation.requestPermissions({ permissions: ['location'] }),
+                isAndroidNative ? 15000 : 8000,
+                'REQUEST_PERMISSIONS'
+              );
+              console.log('[LocationBlocker] requestPermissions result:', JSON.stringify(reqResult));
+            } catch (e) {
+              console.warn('[LocationBlocker] requestPermissions timed out/failed:', e);
+            }
+          }
 
-        if (after.location === 'granted' || after.coarseLocation === 'granted') {
-          setHasPermission(true);
-          onPermissionGranted();
-        } else {
-          setHasPermission(false);
-          setPermissionDebug(`native(${Capacitor.getPlatform()}): location=${after.location} coarse=${after.coarseLocation}`);
+          try {
+            console.log('[LocationBlocker] Calling getCurrentPosition to force system dialog...');
+            await withTimeout(
+              Geolocation.getCurrentPosition({
+                enableHighAccuracy: true,
+                timeout: isAndroidNative ? 15000 : 10000,
+                maximumAge: 0,
+              }),
+              isAndroidNative ? 18000 : 12000,
+              'GET_CURRENT_POSITION'
+            );
+            console.log('[LocationBlocker] getCurrentPosition succeeded — permission granted');
+          } catch (e) {
+            console.warn('[LocationBlocker] getCurrentPosition failed:', e);
+          }
+
+          const after = await Geolocation.checkPermissions();
+          console.log('[LocationBlocker] native permission after:', JSON.stringify(after));
+
+          if (after.location === 'granted' || after.coarseLocation === 'granted') {
+            setHasPermission(true);
+            onPermissionGranted();
+          } else {
+            setHasPermission(false);
+            setPermissionDebug(`native(${Capacitor.getPlatform()}): location=${after.location} coarse=${after.coarseLocation}`);
+          }
+        } catch (nativeErr) {
+          console.warn('[LocationBlocker] Native plugin failed in requestPermission, falling back to browser:', nativeErr);
+          await requestBrowserPermission();
         }
       } else {
-        // Browser geolocation fallback
-        console.log('[LocationBlocker] Requesting via browser geolocation API...');
-        try {
-          await withTimeout(
-            new Promise<GeolocationPosition>((resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(resolve, reject, {
-                enableHighAccuracy: true,
-                timeout: 10000,
-              });
-            }),
-            12000,
-            'BROWSER_GET_CURRENT_POSITION'
-          );
-          setHasPermission(true);
-          onPermissionGranted();
-        } catch {
-          setHasPermission(false);
-        }
+        await requestBrowserPermission();
       }
     } catch (error) {
       console.error('[LocationBlocker] Permission request error:', error);
