@@ -41,7 +41,7 @@ for dir in \
   "$ANDROID_DIR/app/transistorsoft-capacitor-background-fetch"
 do
   if [ -d "$dir" ]; then
-может    rm -rf "$dir"
+rm -rf "$dir"
     echo "[OK] Removed $dir directory"
   fi
 done
