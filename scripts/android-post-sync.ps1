@@ -62,54 +62,62 @@ Write-Host ""
 Write-Host "[OK] Android build cleaned - Transistorsoft plugin removed (iOS-only)"
 Write-Host ""
 
-# 3. Verify @capacitor/geolocation plugin is present
+# 3. Verify required Capacitor plugins are present
 Write-Host "--- Plugin Verification ---"
 
-$geoPluginFound = $false
+function Verify-CapacitorPlugin {
+    param(
+        [string]$PluginName,
+        [string]$PluginDirName,
+        [string]$NpmPath
+    )
 
-# Check capacitor.settings.gradle for geolocation include
-$settingsFiles = @(
-    "$AndroidDir\capacitor.settings.gradle",
-    "$AndroidDir\app\capacitor.settings.gradle",
-    "$AndroidDir\settings.gradle"
-)
+    $pluginFound = $false
 
-foreach ($file in $settingsFiles) {
-    if (Test-Path $file) {
-        $content = Get-Content $file -Raw
-        if ($content -match "capacitor-geolocation") {
-            Write-Host "[OK] Geolocation plugin found in $file"
-            $geoPluginFound = $true
+    $settingsFiles = @(
+        "$AndroidDir\capacitor.settings.gradle",
+        "$AndroidDir\app\capacitor.settings.gradle",
+        "$AndroidDir\settings.gradle"
+    )
+
+    foreach ($file in $settingsFiles) {
+        if (Test-Path $file) {
+            $content = Get-Content $file -Raw
+            if ($content -match $PluginDirName) {
+                Write-Host "[OK] $PluginName plugin found in $file"
+                $pluginFound = $true
+            }
         }
+    }
+
+    $dir1 = "$AndroidDir\$PluginDirName"
+    $dir2 = "$AndroidDir\app\$PluginDirName"
+    if ((Test-Path $dir1) -or (Test-Path $dir2)) {
+        Write-Host "[OK] $PluginName plugin native directory exists"
+        $pluginFound = $true
+    }
+
+    if (Test-Path $NpmPath) {
+        Write-Host "[OK] $PluginName Android source found in node_modules"
+    } else {
+        Write-Host "[WARN] $PluginName Android source NOT found in node_modules"
+        Write-Host "       Run: npm install @capacitor/$($PluginDirName -replace 'capacitor-', '')"
+    }
+
+    if (-not $pluginFound) {
+        Write-Host ""
+        Write-Host "[WARN] $PluginName plugin NOT found in Gradle config!"
+        Write-Host "       The plugin may not be registered. Try:"
+        Write-Host "       1. Delete the android/ folder entirely"
+        Write-Host "       2. Run: npx cap add android"
+        Write-Host "       3. Run: npx cap sync android"
+        Write-Host "       4. Run this script again"
     }
 }
 
-# Check for the native plugin directory
-$geoDir = "$AndroidDir\capacitor-geolocation"
-$geoDir2 = "$AndroidDir\app\capacitor-geolocation"
-if ((Test-Path $geoDir) -or (Test-Path $geoDir2)) {
-    Write-Host "[OK] Geolocation plugin native directory exists"
-    $geoPluginFound = $true
-}
-
-# Check node_modules for the plugin
-$nodeGeo = "node_modules\@capacitor\geolocation\android"
-if (Test-Path $nodeGeo) {
-    Write-Host "[OK] @capacitor/geolocation Android source found in node_modules"
-} else {
-    Write-Host "[WARN] @capacitor/geolocation Android source NOT found in node_modules"
-    Write-Host "       Run: npm install @capacitor/geolocation"
-}
-
-if (-not $geoPluginFound) {
-    Write-Host ""
-    Write-Host "[WARN] Geolocation plugin NOT found in Gradle config!"
-    Write-Host "       The plugin may not be registered. Try:"
-    Write-Host "       1. Delete the android/ folder entirely"
-    Write-Host "       2. Run: npx cap add android"
-    Write-Host "       3. Run: npx cap sync android"
-    Write-Host "       4. Run this script again"
-}
+Verify-CapacitorPlugin -PluginName "Geolocation" -PluginDirName "capacitor-geolocation" -NpmPath "node_modules\@capacitor\geolocation\android"
+Write-Host ""
+Verify-CapacitorPlugin -PluginName "Camera" -PluginDirName "capacitor-camera" -NpmPath "node_modules\@capacitor\camera\android"
 
 Write-Host ""
 Write-Host "--- End Verification ---"

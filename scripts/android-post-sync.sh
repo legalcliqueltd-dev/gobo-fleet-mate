@@ -50,43 +50,52 @@ echo ""
 echo "[OK] Android build cleaned - Transistorsoft plugin removed (iOS-only)"
 echo ""
 
-# 3. Verify @capacitor/geolocation plugin is present
+# 3. Verify required Capacitor plugins are present
 echo "--- Plugin Verification ---"
 
-GEO_FOUND=0
+verify_plugin() {
+  local PLUGIN_NAME="$1"
+  local PLUGIN_DIR_NAME="$2"
+  local NPM_PATH="$3"
+  local FOUND=0
 
-for file in \
-  "$ANDROID_DIR/capacitor.settings.gradle" \
-  "$ANDROID_DIR/app/capacitor.settings.gradle" \
-  "$ANDROID_DIR/settings.gradle"
-do
-  if [ -f "$file" ] && grep -q "capacitor-geolocation" "$file"; then
-    echo "[OK] Geolocation plugin found in $file"
-    GEO_FOUND=1
+  for file in \
+    "$ANDROID_DIR/capacitor.settings.gradle" \
+    "$ANDROID_DIR/app/capacitor.settings.gradle" \
+    "$ANDROID_DIR/settings.gradle"
+  do
+    if [ -f "$file" ] && grep -q "$PLUGIN_DIR_NAME" "$file"; then
+      echo "[OK] $PLUGIN_NAME plugin found in $file"
+      FOUND=1
+    fi
+  done
+
+  if [ -d "$ANDROID_DIR/$PLUGIN_DIR_NAME" ] || [ -d "$ANDROID_DIR/app/$PLUGIN_DIR_NAME" ]; then
+    echo "[OK] $PLUGIN_NAME plugin native directory exists"
+    FOUND=1
   fi
-done
 
-if [ -d "$ANDROID_DIR/capacitor-geolocation" ] || [ -d "$ANDROID_DIR/app/capacitor-geolocation" ]; then
-  echo "[OK] Geolocation plugin native directory exists"
-  GEO_FOUND=1
-fi
+  if [ -d "$NPM_PATH" ]; then
+    echo "[OK] $PLUGIN_NAME Android source found in node_modules"
+  else
+    echo "[WARN] $PLUGIN_NAME Android source NOT found in node_modules"
+    echo "       Run: npm install @capacitor/$(echo $PLUGIN_DIR_NAME | sed 's/capacitor-//')"
+  fi
 
-if [ -d "node_modules/@capacitor/geolocation/android" ]; then
-  echo "[OK] @capacitor/geolocation Android source found in node_modules"
-else
-  echo "[WARN] @capacitor/geolocation Android source NOT found in node_modules"
-  echo "       Run: npm install @capacitor/geolocation"
-fi
+  if [ "$FOUND" -eq 0 ]; then
+    echo ""
+    echo "[WARN] $PLUGIN_NAME plugin NOT found in Gradle config!"
+    echo "       The plugin may not be registered. Try:"
+    echo "       1. Delete the android/ folder entirely"
+    echo "       2. Run: npx cap add android"
+    echo "       3. Run: npx cap sync android"
+    echo "       4. Run this script again"
+  fi
+}
 
-if [ "$GEO_FOUND" -eq 0 ]; then
-  echo ""
-  echo "[WARN] Geolocation plugin NOT found in Gradle config!"
-  echo "       The plugin may not be registered. Try:"
-  echo "       1. Delete the android/ folder entirely"
-  echo "       2. Run: npx cap add android"
-  echo "       3. Run: npx cap sync android"
-  echo "       4. Run this script again"
-fi
+verify_plugin "Geolocation" "capacitor-geolocation" "node_modules/@capacitor/geolocation/android"
+echo ""
+verify_plugin "Camera" "capacitor-camera" "node_modules/@capacitor/camera/android"
 
 echo ""
 echo "--- End Verification ---"
