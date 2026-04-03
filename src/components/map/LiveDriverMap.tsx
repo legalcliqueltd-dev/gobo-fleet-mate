@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { GoogleMap, useJsApiLoader, InfoWindow, TrafficLayer } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, OverlayView, TrafficLayer } from '@react-google-maps/api';
 import AdvancedMarker from '@/components/map/AdvancedMarker';
 import { Button } from '@/components/ui/button';
 import { 
