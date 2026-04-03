@@ -17,10 +17,12 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
   const [permissionDebug, setPermissionDebug] = useState<string>('');
   const [pluginMissing, setPluginMissing] = useState(false);
   const [permanentlyDenied, setPermanentlyDenied] = useState(false);
+  const [waitingForSettingsReturn, setWaitingForSettingsReturn] = useState(false);
 
   // Prevents automatic re-checks after initial denied result
   const hasAttemptedRequest = useRef(false);
   const isCheckingRef = useRef(false);
+  const resumeFromSettingsRef = useRef(false);
 
   const isNative = detectNativePlatform();
   const isAndroidNative = isAndroid();
@@ -66,6 +68,8 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
             console.log('[LocationBlocker] Permission already granted');
             setHasPermission(true);
             setPermanentlyDenied(false);
+            setWaitingForSettingsReturn(false);
+            resumeFromSettingsRef.current = false;
             onPermissionGranted();
           } else if (status.location === 'prompt' || status.coarseLocation === 'prompt') {
             // Permission not yet asked — try getCurrentPosition to trigger system dialog
@@ -79,6 +83,8 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
               console.log('[LocationBlocker] getCurrentPosition succeeded — granted');
               setHasPermission(true);
               setPermanentlyDenied(false);
+              setWaitingForSettingsReturn(false);
+              resumeFromSettingsRef.current = false;
               onPermissionGranted();
             } catch (e) {
               console.warn('[LocationBlocker] prompt getCurrentPosition failed:', e);
@@ -170,6 +176,8 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
             console.log('[LocationBlocker] Permission granted via requestPermissions');
             setHasPermission(true);
             setPermanentlyDenied(false);
+            setWaitingForSettingsReturn(false);
+            resumeFromSettingsRef.current = false;
             onPermissionGranted();
             return;
           }
@@ -185,6 +193,8 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
             console.log('[LocationBlocker] getCurrentPosition succeeded — granted');
             setHasPermission(true);
             setPermanentlyDenied(false);
+            setWaitingForSettingsReturn(false);
+            resumeFromSettingsRef.current = false;
             onPermissionGranted();
             return;
           } catch (posErr) {
@@ -199,6 +209,8 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
           if (after.location === 'granted' || after.coarseLocation === 'granted') {
             setHasPermission(true);
             setPermanentlyDenied(false);
+            setWaitingForSettingsReturn(false);
+            resumeFromSettingsRef.current = false;
             onPermissionGranted();
           } else {
             setHasPermission(false);
@@ -248,16 +260,27 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
 
   const openSettings = () => {
     if (isNative) {
+      resumeFromSettingsRef.current = true;
+      setWaitingForSettingsReturn(true);
+
       if (isAndroidNative) {
         // Show instructions first, then try intent
         alert(
           'To enable location:\n\n1. Tap OK to open App Settings\n2. Tap "Permissions"\n3. Tap "Location"\n4. Select "Allow all the time" or "Allow only while using the app"\n5. Return to FleetTrackMate and tap "Retry Check"'
         );
+
         try {
-          window.location.href = 'intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:app.fleettrackmate.driver;end';
+          window.location.href = 'intent://app.fleettrackmate.driver#Intent;scheme=package;action=android.settings.APPLICATION_DETAILS_SETTINGS;end';
         } catch {
           console.warn('[LocationBlocker] Android settings intent failed');
         }
+
+        window.setTimeout(() => {
+          if (document.visibilityState === 'visible') {
+            console.warn('[LocationBlocker] Settings screen did not open automatically');
+            setPermissionDebug('android_settings_open_failed_or_blocked');
+          }
+        }, 1200);
       } else {
         try {
           window.location.href = 'app-settings:';
@@ -280,8 +303,19 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
 
   // Focus/visibility listeners — only re-check if we haven't been permanently denied
   useEffect(() => {
+    const runResumeCheck = () => {
+      if (!resumeFromSettingsRef.current || hasPermission === true) return false;
+
+      console.log('[LocationBlocker] App resumed after Settings — rechecking permission');
+      resumeFromSettingsRef.current = false;
+      setWaitingForSettingsReturn(false);
+      checkPermission(true);
+      return true;
+    };
+
     const onFocus = () => {
       if (hasPermission === true) return;
+      if (runResumeCheck()) return;
       // Only auto-recheck if we haven't exhausted attempts on Android
       checkPermission(false);
     };
@@ -289,6 +323,7 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
     const onVisibilityChange = () => {
       if (hasPermission === true) return;
       if (document.visibilityState === 'visible') {
+        if (runResumeCheck()) return;
         checkPermission(false);
       }
     };
@@ -390,6 +425,12 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
         </div>
 
         <div className="space-y-3">
+          {waitingForSettingsReturn && (
+            <div className="rounded-xl border border-border bg-muted/50 p-3 text-sm text-muted-foreground text-left">
+              Waiting for you to return from Settings. When you come back, the app will check location permission automatically.
+            </div>
+          )}
+
           {!permanentlyDenied && (
             <Button
               onClick={requestPermission}
