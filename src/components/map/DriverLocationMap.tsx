@@ -20,25 +20,32 @@ type Props = {
   isOnline: boolean;
 };
 
-// Create driver marker icon
+// Create driver marker icon – top-down car (Bolt-style)
 const createDriverIcon = (isOnline: boolean) => {
-  const color = isOnline ? '#10b981' : '#6b7280';
-  const ringColor = isOnline ? '#34d399' : '#9ca3af';
-  
+  const body = isOnline ? '#10b981' : '#6b7280';
+  const dark = isOnline ? '#059669' : '#4b5563';
+  const wheel = isOnline ? '#047857' : '#374151';
+  const glow = isOnline ? 'rgba(16,185,129,0.5)' : 'none';
+
   const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
-      <circle cx="24" cy="24" r="20" fill="${color}" stroke="${ringColor}" stroke-width="3"/>
-      <circle cx="24" cy="24" r="14" fill="white" fill-opacity="0.2"/>
-      <path d="M18 28L24 14L30 28Z" fill="white" stroke="white" stroke-width="2" stroke-linejoin="round"/>
+    <svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56">
       ${isOnline ? `
-        <circle cx="24" cy="24" r="22" fill="none" stroke="${ringColor}" stroke-width="2" opacity="0.5">
-          <animate attributeName="r" from="22" to="30" dur="1.5s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" from="0.5" to="0" dur="1.5s" repeatCount="indefinite"/>
+        <circle cx="28" cy="28" r="26" fill="${glow}" opacity="0.4">
+          <animate attributeName="r" from="22" to="30" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" from="0.4" to="0" dur="2s" repeatCount="indefinite"/>
         </circle>
       ` : ''}
+      <ellipse cx="28" cy="40" rx="10" ry="4" fill="black" opacity="0.12"/>
+      <rect x="18" y="14" width="20" height="28" rx="6" fill="${body}" stroke="white" stroke-width="2.5"/>
+      <rect x="21" y="16" width="14" height="7" rx="3" fill="${dark}" opacity="0.5"/>
+      <rect x="22" y="34" width="12" height="5" rx="2" fill="${dark}" opacity="0.4"/>
+      <rect x="14" y="18" width="5" height="8" rx="2" fill="${wheel}" stroke="white" stroke-width="1"/>
+      <rect x="14" y="32" width="5" height="8" rx="2" fill="${wheel}" stroke="white" stroke-width="1"/>
+      <rect x="37" y="18" width="5" height="8" rx="2" fill="${wheel}" stroke="white" stroke-width="1"/>
+      <rect x="37" y="32" width="5" height="8" rx="2" fill="${wheel}" stroke="white" stroke-width="1"/>
     </svg>
   `;
-  
+
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 };
 

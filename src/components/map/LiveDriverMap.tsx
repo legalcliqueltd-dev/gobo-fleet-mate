@@ -63,98 +63,53 @@ const DARK_MAP_STYLES = [
   { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#4e6d70" }] },
 ];
 
-// Enhanced driver marker with status colors and smooth animation
+// Enhanced driver marker – top-down car icon (Bolt-style)
 const createDriverMarkerIcon = (
   status: 'active' | 'idle' | 'offline' | 'stale',
   isSelected: boolean,
-  initial: string
+  _initial: string
 ) => {
   const colors = {
-    active: { bg: '#10b981', ring: '#34d399', glow: 'rgba(16,185,129,0.5)' },
-    idle: { bg: '#f59e0b', ring: '#fbbf24', glow: 'rgba(245,158,11,0.4)' },
-    offline: { bg: '#6b7280', ring: '#9ca3af', glow: 'rgba(107,114,128,0.3)' },
-    stale: { bg: '#9ca3af', ring: '#d1d5db', glow: 'rgba(156,163,175,0.2)' },
+    active: { body: '#10b981', dark: '#059669', wheel: '#047857', glow: 'rgba(16,185,129,0.5)' },
+    idle: { body: '#f59e0b', dark: '#d97706', wheel: '#b45309', glow: 'rgba(245,158,11,0.4)' },
+    offline: { body: '#6b7280', dark: '#4b5563', wheel: '#374151', glow: 'rgba(107,114,128,0.3)' },
+    stale: { body: '#9ca3af', dark: '#6b7280', wheel: '#4b5563', glow: 'rgba(156,163,175,0.2)' },
   };
-  
-  const color = colors[status];
+
+  const c = colors[status];
   const size = isSelected ? 64 : 52;
-  const centerX = size / 2;
-  const centerY = size / 2;
-  
+  const cx = size / 2;
+  const cy = size / 2;
+  // Scale factor relative to a 56-unit design
+  const s = size / 56;
+
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-      <!-- Outer glow/pulse -->
       ${status === 'active' ? `
-        <circle cx="${centerX}" cy="${centerY}" r="${size/2 - 2}" fill="${color.glow}" opacity="0.6">
-          <animate attributeName="r" from="${size/2 - 6}" to="${size/2 + 8}" dur="2s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" from="0.6" to="0" dur="2s" repeatCount="indefinite"/>
-        </circle>
-        <circle cx="${centerX}" cy="${centerY}" r="${size/2 - 6}" fill="${color.glow}" opacity="0.4">
-          <animate attributeName="r" from="${size/2 - 8}" to="${size/2 + 6}" dur="2s" begin="0.5s" repeatCount="indefinite"/>
-          <animate attributeName="opacity" from="0.4" to="0" dur="2s" begin="0.5s" repeatCount="indefinite"/>
+        <circle cx="${cx}" cy="${cy}" r="${size / 2 - 2}" fill="${c.glow}" opacity="0.5">
+          <animate attributeName="r" from="${size / 2 - 6}" to="${size / 2 + 6}" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" from="0.5" to="0" dur="2s" repeatCount="indefinite"/>
         </circle>
       ` : ''}
-      
-      <!-- Stale indicator (dashed outline) -->
-      ${status === 'stale' ? `
-        <circle cx="${centerX}" cy="${centerY}" r="${size/2 - 4}" fill="none" stroke="${color.ring}" stroke-width="2" stroke-dasharray="4 3" opacity="0.7"/>
-      ` : ''}
-      
-      <!-- Drop shadow -->
-      <defs>
-        <linearGradient id="driverGrad${status}${isSelected}" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:${color.ring};stop-opacity:1" />
-          <stop offset="100%" style="stop-color:${color.bg};stop-opacity:1" />
-        </linearGradient>
-        <filter id="shadow${status}" x="-50%" y="-50%" width="200%" height="200%">
-          <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="${color.bg}" flood-opacity="0.5"/>
-        </filter>
-      </defs>
-      
-      <!-- Main circle -->
-      <circle 
-        cx="${centerX}" 
-        cy="${centerY}" 
-        r="${size/2 - 8}" 
-        fill="url(#driverGrad${status}${isSelected})" 
-        stroke="${isSelected ? '#3b82f6' : 'white'}" 
-        stroke-width="${isSelected ? 4 : 3}"
-        filter="url(#shadow${status})"
-      />
-      
-      <!-- Inner highlight -->
-      <circle cx="${centerX - 5}" cy="${centerY - 5}" r="${size/4}" fill="white" fill-opacity="0.2"/>
-      
-      <!-- Initial letter -->
-      <text 
-        x="${centerX}" 
-        y="${centerY + 2}" 
-        font-family="system-ui, -apple-system, sans-serif" 
-        font-size="${isSelected ? 22 : 18}" 
-        font-weight="700" 
-        fill="white" 
-        text-anchor="middle" 
-        dominant-baseline="middle"
-        style="text-shadow: 0 1px 2px rgba(0,0,0,0.3)"
-      >${initial}</text>
-      
-      <!-- Selection ring -->
       ${isSelected ? `
-        <circle 
-          cx="${centerX}" 
-          cy="${centerY}" 
-          r="${size/2 - 4}" 
-          fill="none" 
-          stroke="#3b82f6" 
-          stroke-width="3"
-          opacity="0.9"
-        >
-          <animate attributeName="stroke-dasharray" from="0 200" to="200 0" dur="0.6s" fill="freeze"/>
-        </circle>
+        <circle cx="${cx}" cy="${cy}" r="${size / 2 - 3}" fill="none" stroke="#3b82f6" stroke-width="3" opacity="0.9"/>
       ` : ''}
+      ${status === 'stale' ? `
+        <circle cx="${cx}" cy="${cy}" r="${size / 2 - 4}" fill="none" stroke="${c.dark}" stroke-width="2" stroke-dasharray="4 3" opacity="0.6"/>
+      ` : ''}
+      <ellipse cx="${cx}" cy="${cy + 10 * s}" rx="${10 * s}" ry="${4 * s}" fill="black" opacity="0.12"/>
+      <g>
+        <rect x="${18 * s}" y="${14 * s}" width="${20 * s}" height="${28 * s}" rx="${6 * s}" fill="${c.body}" stroke="white" stroke-width="${isSelected ? 3 : 2.5}"/>
+        <rect x="${21 * s}" y="${16 * s}" width="${14 * s}" height="${7 * s}" rx="${3 * s}" fill="${c.dark}" opacity="0.5"/>
+        <rect x="${22 * s}" y="${34 * s}" width="${12 * s}" height="${5 * s}" rx="${2 * s}" fill="${c.dark}" opacity="0.4"/>
+        <rect x="${14 * s}" y="${18 * s}" width="${5 * s}" height="${8 * s}" rx="${2 * s}" fill="${c.wheel}" stroke="white" stroke-width="1"/>
+        <rect x="${14 * s}" y="${32 * s}" width="${5 * s}" height="${8 * s}" rx="${2 * s}" fill="${c.wheel}" stroke="white" stroke-width="1"/>
+        <rect x="${37 * s}" y="${18 * s}" width="${5 * s}" height="${8 * s}" rx="${2 * s}" fill="${c.wheel}" stroke="white" stroke-width="1"/>
+        <rect x="${37 * s}" y="${32 * s}" width="${5 * s}" height="${8 * s}" rx="${2 * s}" fill="${c.wheel}" stroke="white" stroke-width="1"/>
+      </g>
     </svg>
   `;
-  
+
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 };
 
