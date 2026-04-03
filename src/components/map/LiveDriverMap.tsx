@@ -577,6 +577,7 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
         center={{ lat: initial.latitude, lng: initial.longitude }}
         zoom={initial.zoom}
         mapTypeId={MAP_STYLES[mapType]}
+        onClick={() => setOpenInfoWindowId(null)}
         onLoad={(map) => { 
           mapRef.current = map;
           if (validDrivers.length + validDevices.length > 1) {
