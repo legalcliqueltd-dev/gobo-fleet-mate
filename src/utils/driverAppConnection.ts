@@ -147,7 +147,7 @@ export async function startLocationTracking(): Promise<{ success: boolean; messa
       const permission = await Geolocation.checkPermissions();
       
       if (permission.location !== 'granted') {
-        const requested = await Geolocation.requestPermissions({ permissions: ['location'] });
+        const requested = await Geolocation.requestPermissions();
         if (requested.location !== 'granted') {
           return { success: false, message: 'Location permission denied' };
         }

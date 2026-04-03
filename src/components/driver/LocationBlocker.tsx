@@ -126,8 +126,13 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
             }
           }
         } catch (nativeErr) {
-          console.warn('[LocationBlocker] Native plugin failed, falling back to browser geolocation:', nativeErr);
-          await tryBrowserGeolocation();
+          console.warn('[LocationBlocker] Native plugin failed:', nativeErr);
+          if (!isAndroidNative) {
+            await tryBrowserGeolocation();
+          } else {
+            console.error('[LocationBlocker] Android native — skipping browser fallback');
+            setHasPermission(false);
+          }
         }
       } else {
         await tryBrowserGeolocation();
