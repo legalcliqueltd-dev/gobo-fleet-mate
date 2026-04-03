@@ -1,75 +1,60 @@
 
-Root cause found: the location prompt failure is coming from the Android/native permission flow in `src/components/driver/LocationBlocker.tsx`, with a secondary risk in `src/utils/driverAppConnection.ts`.
 
-What I checked:
-- `src/components/driver/LocationBlocker.tsx`
-- `src/hooks/useBackgroundLocationTracking.ts`
-- `src/utils/driverAppConnection.ts`
-- `src/utils/nativeGeolocation.ts`
-- `src/utils/platformDetection.ts`
-- `src/pages/app/DriverAppDashboard.tsx`
-- `capacitor.config.ts`
-- `package.json`
-- `docs/ROCKET_LOCATION_PERMISSION.md`
+# Fix: Android Location Permission Dialog Not Appearing
 
-Exact cause:
-1. `LocationBlocker.tsx` is the gate that must succeed before the driver dashboard loads.
-2. In `requestPermission()`, it calls:
-   `Geolocation.requestPermissions({ permissions: ['location'] })`
-3. But elsewhere in this project, the working/native-safe path already uses:
-   `Geolocation.requestPermissions()`
-   with no arguments:
-   - `src/hooks/useBackgroundLocationTracking.ts:270`
-   - project docs also show the no-arg version as the main flow
-4. That means the blocker is using a different, outdated permission call signature than the rest of the app.
-5. When that native call fails, `LocationBlocker` falls back to browser geolocation:
-   - `await requestBrowserPermission()`
-   - `await tryBrowserGeolocation()`
-6. That fallback is the wrong recovery path for Android Capacitor native flow, because the app is supposed to rely on the native plugin once available. So the permission dialog may appear, but the blocker never transitions cleanly to granted.
+## What's happening
 
-Why this is the most likely exact issue:
-- The failure point is inside the gating component that blocks the whole driver app.
-- The permission call in that component is inconsistent with the newer working code in the tracking hook.
-- The fallback behavior masks the true native failure and can leave the app stuck.
-- Your own project memory/docs already indicate native geolocation must use the real Capacitor bridge and bundled assets.
+The Logcat shows LocationBlocker's console messages repeating in Info/Warn/Error triplets every few seconds. The Android system permission dialog is never appearing. This creates an infinite loop where the permission check keeps cycling via focus/visibility listeners.
 
-Additional issue I found:
-- `src/utils/driverAppConnection.ts` also still uses the same outdated call:
-  `Geolocation.requestPermissions({ permissions: ['location'] })`
-- Even if the blocker is fixed, this should also be updated to prevent the same bug elsewhere.
+## Root cause
 
-Native config risk I could not fully verify:
-- The repo snapshot currently does not contain the real Android native project files.
-- `android/` only shows `local.properties`; there is no `AndroidManifest.xml`, Gradle files, or plugin registration files available to inspect.
-- So I cannot confirm from code whether the Android shell is currently healthy.
-- If your local Android project is stale, that could also contribute, but it is not the primary code-level root cause I found here.
+On Android, Capacitor returns `"denied"` for both "never asked" AND "permanently denied" permission states — they are indistinguishable. Once the user has denied the permission (even once with "Don't ask again"), `Geolocation.requestPermissions()` silently resolves without showing any dialog. The current code doesn't detect this and keeps retrying, triggering focus/visibility events that restart the cycle.
 
-Implementation plan:
-1. Update `src/components/driver/LocationBlocker.tsx`
-   - Replace `Geolocation.requestPermissions({ permissions: ['location'] })`
-   - Use `Geolocation.requestPermissions()` only
-2. Remove Android-native browser fallback from the blocker
-   - If native plugin path is active, keep the flow native
-   - After request, immediately re-check permission and/or call `getCurrentPosition()`
-3. Update `src/utils/driverAppConnection.ts`
-   - Replace the same outdated permission call there too
-4. Keep `useBackgroundLocationTracking.ts` as the reference implementation
-   - It already uses the correct no-arg permission request
-5. After code fix, verify on Android end to end
-   - open app
-   - trigger permission gate
-   - allow location
-   - confirm blocker dismisses
-   - confirm dashboard loads
-   - confirm tracking starts
+Additionally, there's a known Capacitor Geolocation >=7.1.0 issue where `requestPermissions()` can hang in certain states.
 
-Technical notes:
-- Problem file: `src/components/driver/LocationBlocker.tsx`
-- Bad call:
-  `Geolocation.requestPermissions({ permissions: ['location'] })`
-- Good call already present elsewhere:
-  `Geolocation.requestPermissions()`
-- Secondary cleanup file:
-  `src/utils/driverAppConnection.ts`
+## Plan
 
-If we implement this, I would treat the blocker mismatch as the main fix, then test on Android immediately before doing any broader refactor.
+### 1. Add detailed diagnostic logging to LocationBlocker
+
+Add `console.log` statements that output the exact `checkPermissions()` result (the `location` and `coarseLocation` values) so we can see in Logcat precisely what Android is returning. This helps confirm whether the status is `denied`, `prompt`, or something else.
+
+### 2. Fix the permission re-check loop
+
+The focus/visibility event listeners re-run `checkPermission()` every time the app regains focus. When the permission is `denied`, this creates an infinite retry loop. Fix:
+- Add a `hasCheckedOnce` ref that prevents automatic re-checking after the initial check completes with `denied`
+- Only allow manual re-check via the "Retry Check" button
+- Remove or debounce the focus/visibility listener so it doesn't immediately re-trigger
+
+### 3. Handle "denied" state properly on Android
+
+When `checkPermissions()` returns `denied` on Android:
+- Do NOT call `getCurrentPosition()` (it will fail/hang)
+- Do NOT call `requestPermissions()` in a loop
+- Instead, try `requestPermissions()` exactly once
+- If still `denied` after the single attempt, show the "Open Settings" UI immediately with clear instructions
+- Track whether we've already attempted the request to avoid repeating it
+
+### 4. Improve the "Enable Location" button behavior
+
+When the user taps "Enable Location":
+- Call `Geolocation.requestPermissions()` once (no args, no timeout wrapper for the first attempt — let the OS dialog show naturally)
+- If the result is still `denied`, show a toast/alert explaining they need to go to Settings
+- If the result is `granted`, proceed normally
+
+### 5. Fix the Settings deep-link for Android
+
+The current `intent:` URL scheme may not work on all Android versions. Add a fallback that uses Capacitor's `App` plugin or `NativeSettings` approach, and always show a clear instructional alert as backup.
+
+## Files to modify
+
+- `src/components/driver/LocationBlocker.tsx` — all changes above
+
+## After deploying
+
+1. `npm run build`
+2. `npx cap sync android`
+3. `powershell -ExecutionPolicy Bypass -File scripts/android-post-sync.ps1`
+4. **Uninstall the app from the device first** (`adb uninstall app.fleettrackmate.driver`) to clear cached permission state
+5. Rebuild and install from Android Studio
+6. On first launch, the system dialog should now appear; if it was previously permanently denied, the app will direct to Settings
+
