@@ -211,8 +211,13 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
             setPermissionDebug(`native(${Capacitor.getPlatform()}): location=${after.location} coarse=${after.coarseLocation}`);
           }
         } catch (nativeErr) {
-          console.warn('[LocationBlocker] Native plugin failed in requestPermission, falling back to browser:', nativeErr);
-          await requestBrowserPermission();
+          console.warn('[LocationBlocker] Native plugin failed in requestPermission:', nativeErr);
+          if (!isAndroidNative) {
+            await requestBrowserPermission();
+          } else {
+            console.error('[LocationBlocker] Android native — skipping browser fallback');
+            setHasPermission(false);
+          }
         }
       } else {
         await requestBrowserPermission();
