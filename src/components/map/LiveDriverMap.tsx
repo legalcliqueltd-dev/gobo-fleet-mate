@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { GoogleMap, useJsApiLoader, InfoWindow, TrafficLayer } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, OverlayView, TrafficLayer } from '@react-google-maps/api';
 import AdvancedMarker from '@/components/map/AdvancedMarker';
 import { Button } from '@/components/ui/button';
 import { 
@@ -190,7 +190,10 @@ function DriverCard({ driver, onClose }: { driver: LiveDriverLocation; onClose: 
   const lastLng = driver.lastKnownLongitude ?? driver.longitude;
   
   return (
-    <div className="min-w-[280px] bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-2xl border border-slate-700/50 overflow-hidden">
+    <div 
+      className="min-w-[280px] bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-2xl border border-slate-700/50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200"
+      onClick={(e) => e.stopPropagation()}
+    >
       {/* Stale/Offline Warning Banner */}
       {(isStale || isOffline) && (
         <div className={clsx(
@@ -237,6 +240,12 @@ function DriverCard({ driver, onClose }: { driver: LiveDriverLocation; onClose: 
               )}
             </div>
           </div>
+          <button 
+            onClick={onClose}
+            className="w-7 h-7 rounded-full bg-slate-700/60 hover:bg-slate-600 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+          >
+            ✕
+          </button>
         </div>
       </div>
       
@@ -314,6 +323,11 @@ function DriverCard({ driver, onClose }: { driver: LiveDriverLocation; onClose: 
           <Navigation className="h-4 w-4" />
           Navigate
         </button>
+      </div>
+      
+      {/* Arrow pointing down to marker */}
+      <div className="flex justify-center -mb-[10px]">
+        <div className="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[10px] border-t-slate-800" />
       </div>
     </div>
   );
@@ -569,6 +583,7 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
         center={{ lat: initial.latitude, lng: initial.longitude }}
         zoom={initial.zoom}
         mapTypeId={MAP_STYLES[mapType]}
+        onClick={() => setOpenInfoWindowId(null)}
         onLoad={(map) => { 
           mapRef.current = map;
           if (validDrivers.length + validDevices.length > 1) {
@@ -723,18 +738,18 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
           );
         })}
 
-        {/* Info Window */}
+        {/* Driver Info Popup */}
         {openInfoDriver && (
-          <InfoWindow
+          <OverlayView
             position={getDriverPosition(openInfoDriver)}
-            options={{ 
-              pixelOffset: new google.maps.Size(0, -30),
-              disableAutoPan: false,
-            }}
-            onCloseClick={() => setOpenInfoWindowId(null)}
+            mapPaneName={OverlayView.FLOAT_PANE}
+            getPixelPositionOffset={(width, height) => ({
+              x: -(width / 2),
+              y: -(height + 40),
+            })}
           >
             <DriverCard driver={openInfoDriver} onClose={() => setOpenInfoWindowId(null)} />
-          </InfoWindow>
+          </OverlayView>
         )}
       </GoogleMap>
     </div>
