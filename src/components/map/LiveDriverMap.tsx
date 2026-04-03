@@ -240,6 +240,12 @@ function DriverCard({ driver, onClose }: { driver: LiveDriverLocation; onClose: 
               )}
             </div>
           </div>
+          <button 
+            onClick={onClose}
+            className="w-7 h-7 rounded-full bg-slate-700/60 hover:bg-slate-600 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+          >
+            ✕
+          </button>
         </div>
       </div>
       
