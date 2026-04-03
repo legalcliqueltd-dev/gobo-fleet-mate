@@ -190,7 +190,10 @@ function DriverCard({ driver, onClose }: { driver: LiveDriverLocation; onClose: 
   const lastLng = driver.lastKnownLongitude ?? driver.longitude;
   
   return (
-    <div className="min-w-[280px] bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-2xl border border-slate-700/50 overflow-hidden">
+    <div 
+      className="min-w-[280px] bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl shadow-2xl border border-slate-700/50 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200"
+      onClick={(e) => e.stopPropagation()}
+    >
       {/* Stale/Offline Warning Banner */}
       {(isStale || isOffline) && (
         <div className={clsx(
