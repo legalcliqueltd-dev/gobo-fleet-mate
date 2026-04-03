@@ -174,7 +174,7 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
             try {
               console.log('[LocationBlocker] Calling Geolocation.requestPermissions()...');
               const reqResult = await withTimeout(
-                Geolocation.requestPermissions({ permissions: ['location'] }),
+                Geolocation.requestPermissions(),
                 isAndroidNative ? 15000 : 8000,
                 'REQUEST_PERMISSIONS'
               );
