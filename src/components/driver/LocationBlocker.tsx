@@ -126,8 +126,13 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
             }
           }
         } catch (nativeErr) {
-          console.warn('[LocationBlocker] Native plugin failed, falling back to browser geolocation:', nativeErr);
-          await tryBrowserGeolocation();
+          console.warn('[LocationBlocker] Native plugin failed:', nativeErr);
+          if (!isAndroidNative) {
+            await tryBrowserGeolocation();
+          } else {
+            console.error('[LocationBlocker] Android native — skipping browser fallback');
+            setHasPermission(false);
+          }
         }
       } else {
         await tryBrowserGeolocation();
@@ -174,7 +179,7 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
             try {
               console.log('[LocationBlocker] Calling Geolocation.requestPermissions()...');
               const reqResult = await withTimeout(
-                Geolocation.requestPermissions({ permissions: ['location'] }),
+                Geolocation.requestPermissions(),
                 isAndroidNative ? 15000 : 8000,
                 'REQUEST_PERMISSIONS'
               );
@@ -211,8 +216,13 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
             setPermissionDebug(`native(${Capacitor.getPlatform()}): location=${after.location} coarse=${after.coarseLocation}`);
           }
         } catch (nativeErr) {
-          console.warn('[LocationBlocker] Native plugin failed in requestPermission, falling back to browser:', nativeErr);
-          await requestBrowserPermission();
+          console.warn('[LocationBlocker] Native plugin failed in requestPermission:', nativeErr);
+          if (!isAndroidNative) {
+            await requestBrowserPermission();
+          } else {
+            console.error('[LocationBlocker] Android native — skipping browser fallback');
+            setHasPermission(false);
+          }
         }
       } else {
         await requestBrowserPermission();
