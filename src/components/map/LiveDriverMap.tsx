@@ -732,18 +732,18 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
           );
         })}
 
-        {/* Info Window */}
+        {/* Driver Info Popup */}
         {openInfoDriver && (
-          <InfoWindow
+          <OverlayView
             position={getDriverPosition(openInfoDriver)}
-            options={{ 
-              pixelOffset: new google.maps.Size(0, -30),
-              disableAutoPan: false,
-            }}
-            onCloseClick={() => setOpenInfoWindowId(null)}
+            mapPaneName={OverlayView.FLOAT_PANE}
+            getPixelPositionOffset={(width, height) => ({
+              x: -(width / 2),
+              y: -(height + 40),
+            })}
           >
             <DriverCard driver={openInfoDriver} onClose={() => setOpenInfoWindowId(null)} />
-          </InfoWindow>
+          </OverlayView>
         )}
       </GoogleMap>
     </div>
