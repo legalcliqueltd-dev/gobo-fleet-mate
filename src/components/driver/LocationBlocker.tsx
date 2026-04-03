@@ -91,12 +91,46 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
               setHasPermission(false);
             }
           } else {
-            // status is "denied" — on Android this could mean "never asked" OR "permanently denied"
-            // Do NOT auto-retry. Show the blocked UI.
-            console.log('[LocationBlocker] Permission denied — showing blocked UI');
-            setHasPermission(false);
-            if (isAndroidNative) {
+            // "denied" on Android could mean "never asked" — try requesting once automatically
+            if (isAndroidNative && !hasAttemptedRequest.current) {
+              console.log('[LocationBlocker] Android denied (possibly never asked) — auto-requesting...');
               hasAttemptedRequest.current = true;
+              try {
+                const reqResult = await Geolocation.requestPermissions();
+                console.log('[LocationBlocker] Auto-request result:', JSON.stringify(reqResult));
+                if (reqResult.location === 'granted' || reqResult.coarseLocation === 'granted') {
+                  setHasPermission(true);
+                  setPermanentlyDenied(false);
+                  setWaitingForSettingsReturn(false);
+                  resumeFromSettingsRef.current = false;
+                  onPermissionGranted();
+                } else {
+                  // Try getCurrentPosition as secondary trigger
+                  try {
+                    await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+                    console.log('[LocationBlocker] Auto-request getCurrentPosition succeeded — granted');
+                    setHasPermission(true);
+                    setPermanentlyDenied(false);
+                    setWaitingForSettingsReturn(false);
+                    resumeFromSettingsRef.current = false;
+                    onPermissionGranted();
+                  } catch {
+                    console.log('[LocationBlocker] Auto-request failed — permanently denied');
+                    setHasPermission(false);
+                    setPermanentlyDenied(true);
+                  }
+                }
+              } catch {
+                console.log('[LocationBlocker] Auto-request exception — permanently denied');
+                setHasPermission(false);
+                setPermanentlyDenied(true);
+              }
+            } else {
+              console.log('[LocationBlocker] Permission denied — showing blocked UI');
+              setHasPermission(false);
+              if (isAndroidNative) {
+                hasAttemptedRequest.current = true;
+              }
             }
           }
         } catch (nativeErr) {
