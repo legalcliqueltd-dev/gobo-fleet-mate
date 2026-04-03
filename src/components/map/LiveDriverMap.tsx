@@ -318,6 +318,11 @@ function DriverCard({ driver, onClose }: { driver: LiveDriverLocation; onClose: 
           Navigate
         </button>
       </div>
+      
+      {/* Arrow pointing down to marker */}
+      <div className="flex justify-center -mb-[10px]">
+        <div className="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[10px] border-t-slate-800" />
+      </div>
     </div>
   );
 }
