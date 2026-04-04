@@ -20,6 +20,14 @@ const config: CapacitorConfig = {
   appName: 'FleetTrackMate Driver',
   webDir: 'dist',
   bundledWebRuntime: false,
+  includePlugins: [
+    '@capacitor/camera',
+    '@capacitor/geolocation',
+    '@capacitor/app',
+    '@capacitor/haptics',
+    '@capacitor/keyboard',
+    '@capacitor/status-bar',
+  ],
 
   // IMPORTANT:
   // Keep native builds on bundled local assets.
