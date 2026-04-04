@@ -61,8 +61,29 @@ if (Test-Path $GeneratedConfig) {
     }
 }
 
-# 3. Verify required Capacitor plugins are present
-Write-Host "--- Step 3: Plugin Verification ---"
+$ManifestPath = "$AndroidDir\app\src\main\AndroidManifest.xml"
+
+function Ensure-ManifestPermission {
+    param([string]$Permission)
+
+    $manifestText = Get-Content $ManifestPath -Raw
+    if ($manifestText -match [regex]::Escape($Permission)) {
+        Write-Host "[OK] AndroidManifest.xml already includes $Permission"
+        return
+    }
+
+    $updatedManifest = $manifestText -replace '<application', "    <uses-permission android:name=\"$Permission\" />`r`n<application"
+    Set-Content -Path $ManifestPath -Value $updatedManifest
+    Write-Host "[OK] Added $Permission to AndroidManifest.xml"
+}
+
+Write-Host "--- Step 3: Manifest Permission Check ---"
+Ensure-ManifestPermission -Permission "android.permission.ACCESS_COARSE_LOCATION"
+Ensure-ManifestPermission -Permission "android.permission.ACCESS_FINE_LOCATION"
+Write-Host ""
+
+# 4. Verify required Capacitor plugins are present
+Write-Host "--- Step 4: Plugin Verification ---"
 
 function Verify-CapacitorPlugin {
     param(
