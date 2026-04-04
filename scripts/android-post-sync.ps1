@@ -10,6 +10,13 @@ if (-not (Test-Path $AndroidDir)) {
     exit 0
 }
 
+if ((-not (Test-Path "$AndroidDir\gradlew")) -or (-not (Test-Path "$AndroidDir\app\src\main\AndroidManifest.xml"))) {
+    Write-Host "[ERROR] Android platform is incomplete."
+    Write-Host "        Missing gradlew or app/src/main/AndroidManifest.xml."
+    Write-Host "        Delete android/ and run: npx cap add android"
+    exit 1
+}
+
 Write-Host "=== Android Post-Sync Cleanup ==="
 Write-Host ""
 
@@ -42,6 +49,17 @@ Get-ChildItem -Path $AndroidDir -File -Recurse -Include "*.gradle","*.gradle.kts
 Write-Host ""
 Write-Host "[OK] Transistorsoft cleanup complete (iOS-only plugin)"
 Write-Host ""
+
+$GeneratedConfig = "$AndroidDir\app\src\main\assets\capacitor.config.json"
+if (Test-Path $GeneratedConfig) {
+    $generatedConfigText = Get-Content $GeneratedConfig -Raw
+    if ($generatedConfigText -match '"server"') {
+        Write-Host "[ERROR] Generated capacitor.config.json still contains a server block."
+        Write-Host "        Native Geolocation can fail when Android loads remote assets instead of bundled dist files."
+        Write-Host "        Remove server.url from capacitor.config.ts and sync again."
+        exit 1
+    }
+}
 
 # 3. Verify required Capacitor plugins are present
 Write-Host "--- Step 3: Plugin Verification ---"

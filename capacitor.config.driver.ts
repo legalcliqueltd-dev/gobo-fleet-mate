@@ -20,13 +20,20 @@ const config: CapacitorConfig = {
   appName: 'FleetTrackMate Driver',
   webDir: 'dist',
   bundledWebRuntime: false,
-  
-  // Production mode - loads from custom domain
-  server: {
-    url: 'https://fleettrackmate.com/app?forceHideBadge=true',
-    cleartext: true,
-    androidScheme: 'https',
-  },
+
+  // IMPORTANT:
+  // Keep native builds on bundled local assets.
+  // Remote `server.url` loading can make native plugins (especially Geolocation)
+  // show up in metadata while still failing at runtime with
+  // "plugin is not implemented on android".
+  //
+  // For temporary UI-only hot reload, uncomment locally, then re-sync with the
+  // server block removed before testing native plugins again.
+  // server: {
+  //   url: 'https://fleettrackmate.com/app?forceHideBadge=true',
+  //   cleartext: true,
+  //   androidScheme: 'https',
+  // },
 
   // iOS-specific configuration
   ios: {

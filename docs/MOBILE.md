@@ -58,17 +58,34 @@ When prompted:
 
 ## Development Mode
 
-The `capacitor.config.ts` is pre-configured with hot-reload pointing to Lovable sandbox:
-- URL: `https://d78756af-7da0-400e-bb46-4b099b10699b.lovableproject.com`
-- Changes in Lovable will reflect immediately in your mobile device/emulator
+For **native plugin testing** (Geolocation, Camera, permissions), keep `capacitor.config.ts` on bundled local assets only.
 
-**For production builds**, remove the `server` section from `capacitor.config.ts`:
-```typescript
-// Remove this for production:
-server: {
-  url: 'https://d78756af-7da0-400e-bb46-4b099b10699b.lovableproject.com?forceHideBadge=true',
-  cleartext: true
-}
+Do **not** enable `server.url` while debugging Android native plugins — it can cause the app to load remote web assets and produce runtime errors like:
+
+```text
+"Geolocation" plugin is not implemented on android
+```
+
+If you temporarily enable `server.url` for UI-only hot reload, remove it again before rebuilding the Android app and re-run:
+
+```bash
+npm run build
+npm run cap:sync:android
+```
+
+After every Android sync, run the built-in verification:
+
+```bash
+npm run cap:doctor:android
+```
+
+If verification reports a missing `gradlew` or `AndroidManifest.xml`, your Android platform is incomplete. Recover with:
+
+```bash
+rm -rf android
+npx cap add android
+npm run build
+npm run cap:sync:android
 ```
 
 ## Mapbox
@@ -100,7 +117,7 @@ Configure signing in Xcode and run on device/simulator.
 - After code changes, rebuild and sync:
   ```bash
   npm run build
-  npx cap sync
+  npm run cap:sync:android
   ```
 
 ## Useful Scripts

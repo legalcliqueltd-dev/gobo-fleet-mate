@@ -1,0 +1,25 @@
+# FleetTrackMate - Fleet Management & GPS Tracking
+# https://fleettrackmate.com
+
+User-agent: *
+
+# Block protected/private routes
+Disallow: /dashboard
+Disallow: /driver
+Disallow: /admin
+Disallow: /settings
+Disallow: /ops
+Disallow: /devices
+Disallow: /geofences
+Disallow: /trips
+Disallow: /analytics
+Disallow: /temp-tracking
+Disallow: /share/
+Disallow: /auth/update-password
+Disallow: /auth/forgot
+Disallow: /app/
+Disallow: /tasks/
+Disallow: /demo/
+
+# Sitemap
+Sitemap: https://fleettrackmate.com/sitemap.xml

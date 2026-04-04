@@ -1,0 +1,12 @@
+{
+	"appId": "app.fleettrackmate.driver",
+	"appName": "FleetTrackMate-Driver",
+	"webDir": "dist",
+	"bundledWebRuntime": false,
+	"android": {},
+	"plugins": {
+		"Geolocation": {
+			"requestAlwaysPermission": true
+		}
+	}
+}
