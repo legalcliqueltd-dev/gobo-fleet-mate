@@ -93,37 +93,68 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
           } else {
             // "denied" on Android could mean "never asked" — try requesting once automatically
             if (isAndroidNative && !hasAttemptedRequest.current) {
-              console.log('[LocationBlocker] Android denied (possibly never asked) — auto-requesting...');
+              console.log('[LocationBlocker] Android denied (possibly never asked) — auto-triggering dialog...');
               hasAttemptedRequest.current = true;
+              
+              // On Android, getCurrentPosition() is MORE reliable at triggering the OS dialog
+              // than requestPermissions(), which can silently fail or crash on some devices.
+              // We try getCurrentPosition first, then fall back to requestPermissions.
+              let dialogTriggered = false;
+              
+              // Attempt 1: getCurrentPosition — this reliably triggers the OS permission dialog
               try {
-                const reqResult = await Geolocation.requestPermissions();
-                console.log('[LocationBlocker] Auto-request result:', JSON.stringify(reqResult));
-                if (reqResult.location === 'granted' || reqResult.coarseLocation === 'granted') {
-                  setHasPermission(true);
-                  setPermanentlyDenied(false);
-                  setWaitingForSettingsReturn(false);
-                  resumeFromSettingsRef.current = false;
-                  onPermissionGranted();
-                } else {
-                  // Try getCurrentPosition as secondary trigger
-                  try {
-                    await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
-                    console.log('[LocationBlocker] Auto-request getCurrentPosition succeeded — granted');
+                console.log('[LocationBlocker] Attempt 1: getCurrentPosition to trigger OS dialog...');
+                await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+                console.log('[LocationBlocker] getCurrentPosition succeeded — permission granted');
+                setHasPermission(true);
+                setPermanentlyDenied(false);
+                setWaitingForSettingsReturn(false);
+                resumeFromSettingsRef.current = false;
+                onPermissionGranted();
+                dialogTriggered = true;
+              } catch (posErr: any) {
+                console.warn('[LocationBlocker] getCurrentPosition failed:', posErr?.message || posErr);
+              }
+              
+              // Attempt 2: requestPermissions — fallback if getCurrentPosition didn't work
+              if (!dialogTriggered) {
+                try {
+                  console.log('[LocationBlocker] Attempt 2: requestPermissions fallback...');
+                  const reqResult = await Geolocation.requestPermissions();
+                  console.log('[LocationBlocker] requestPermissions result:', JSON.stringify(reqResult));
+                  if (reqResult.location === 'granted' || reqResult.coarseLocation === 'granted') {
                     setHasPermission(true);
                     setPermanentlyDenied(false);
                     setWaitingForSettingsReturn(false);
                     resumeFromSettingsRef.current = false;
                     onPermissionGranted();
-                  } catch {
-                    console.log('[LocationBlocker] Auto-request failed — permanently denied');
-                    setHasPermission(false);
-                    setPermanentlyDenied(true);
+                    dialogTriggered = true;
                   }
+                } catch (reqErr: any) {
+                  console.warn('[LocationBlocker] requestPermissions failed:', reqErr?.message || reqErr);
                 }
-              } catch {
-                console.log('[LocationBlocker] Auto-request exception — permanently denied');
-                setHasPermission(false);
-                setPermanentlyDenied(true);
+              }
+              
+              // Attempt 3: re-check status after both attempts
+              if (!dialogTriggered) {
+                try {
+                  const recheck = await Geolocation.checkPermissions();
+                  console.log('[LocationBlocker] Recheck after attempts:', JSON.stringify(recheck));
+                  if (recheck.location === 'granted' || recheck.coarseLocation === 'granted') {
+                    setHasPermission(true);
+                    setPermanentlyDenied(false);
+                    onPermissionGranted();
+                  } else {
+                    // Show non-permanently-denied UI so user can tap "Enable Location"
+                    // Don't mark as permanently denied on first attempt — the dialog
+                    // might have appeared but user tapped "Deny" (not "Don't ask again")
+                    console.log('[LocationBlocker] Still denied after auto-attempts — showing blocker');
+                    setHasPermission(false);
+                    // Don't set permanentlyDenied on first try — let user tap Enable Location
+                  }
+                } catch {
+                  setHasPermission(false);
+                }
               }
             } else {
               console.log('[LocationBlocker] Permission denied — showing blocked UI');
