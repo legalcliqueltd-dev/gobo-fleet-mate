@@ -11,6 +11,13 @@ if [ ! -d "$ANDROID_DIR" ]; then
   exit 0
 fi
 
+if [ ! -f "$ANDROID_DIR/gradlew" ] || [ ! -f "$ANDROID_DIR/app/src/main/AndroidManifest.xml" ]; then
+  echo "[ERROR] Android platform is incomplete."
+  echo "        Missing gradlew or app/src/main/AndroidManifest.xml."
+  echo "        Delete android/ and run: npx cap add android"
+  exit 1
+fi
+
 # 1. Remove Transistorsoft entries from Gradle files
 clean_gradle_file() {
   local file="$1"
@@ -49,6 +56,13 @@ done
 echo ""
 echo "[OK] Android build cleaned - Transistorsoft plugin removed (iOS-only)"
 echo ""
+
+if [ -f "$ANDROID_DIR/app/src/main/assets/capacitor.config.json" ] && grep -q '"server"' "$ANDROID_DIR/app/src/main/assets/capacitor.config.json"; then
+  echo "[ERROR] Generated capacitor.config.json still contains a server block."
+  echo "        Native Geolocation can fail when Android loads remote assets instead of bundled dist files."
+  echo "        Remove server.url from capacitor.config.ts and sync again."
+  exit 1
+fi
 
 # 3. Verify required Capacitor plugins are present
 echo "--- Plugin Verification ---"
