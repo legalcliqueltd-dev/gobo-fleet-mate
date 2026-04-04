@@ -1,6 +1,6 @@
 # Post-sync script for Android (Windows PowerShell)
 # Removes Transistorsoft plugin from Android build (it's iOS-only)
-# Verifies @capacitor/geolocation plugin is preserved
+# Verifies @capacitor/geolocation and @capacitor/camera plugins are preserved
 # Run after: npx cap sync android
 
 $AndroidDir = "android"
@@ -10,60 +10,41 @@ if (-not (Test-Path $AndroidDir)) {
     exit 0
 }
 
-function Remove-TransistorsoftLines {
-    param(
-        [string]$FilePath
-    )
+Write-Host "=== Android Post-Sync Cleanup ==="
+Write-Host ""
 
-    if (-not (Test-Path $FilePath)) {
-        return
+# 1. Remove ALL Transistorsoft native module directories (recursive search)
+Write-Host "--- Step 1: Remove Transistorsoft directories ---"
+Get-ChildItem -Path $AndroidDir -Directory -Recurse -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -match "transistorsoft" } |
+    ForEach-Object {
+        Remove-Item -Recurse -Force $_.FullName
+        Write-Host "[OK] Removed directory: $($_.FullName)"
     }
 
-    $original = Get-Content $FilePath
-    $cleaned = $original | Where-Object { $_ -notmatch "transistorsoft" }
+# 2. Clean ALL Gradle files of transistorsoft references
+Write-Host ""
+Write-Host "--- Step 2: Clean Gradle files ---"
 
-    if ($cleaned.Count -ne $original.Count) {
-        $cleaned | Set-Content $FilePath
-        Write-Host "[OK] Cleaned transistorsoft from $FilePath"
+Get-ChildItem -Path $AndroidDir -File -Recurse -Include "*.gradle","*.gradle.kts" -ErrorAction SilentlyContinue |
+    ForEach-Object {
+        $filePath = $_.FullName
+        $original = Get-Content $filePath
+        $cleaned = $original | Where-Object { $_ -notmatch "transistorsoft" }
+
+        if ($cleaned.Count -ne $original.Count) {
+            $cleaned | Set-Content $filePath
+            $removed = $original.Count - $cleaned.Count
+            Write-Host "[OK] Removed $removed transistorsoft line(s) from $filePath"
+        }
     }
-}
-
-# 1. Remove Transistorsoft entries from Gradle files
-$filesToClean = @(
-    "$AndroidDir\settings.gradle",
-    "$AndroidDir\build.gradle",
-    "$AndroidDir\app\build.gradle",
-    "$AndroidDir\app\capacitor.settings.gradle",
-    "$AndroidDir\app\capacitor.build.gradle",
-    "$AndroidDir\capacitor.settings.gradle",
-    "$AndroidDir\capacitor.build.gradle"
-)
-
-foreach ($file in $filesToClean) {
-    Remove-TransistorsoftLines -FilePath $file
-}
-
-# 2. Remove native module directories
-$dirs = @(
-    "$AndroidDir\transistorsoft-capacitor-background-geolocation",
-    "$AndroidDir\transistorsoft-capacitor-background-fetch",
-    "$AndroidDir\app\transistorsoft-capacitor-background-geolocation",
-    "$AndroidDir\app\transistorsoft-capacitor-background-fetch"
-)
-
-foreach ($dir in $dirs) {
-    if (Test-Path $dir) {
-        Remove-Item -Recurse -Force $dir
-        Write-Host "[OK] Removed $dir"
-    }
-}
 
 Write-Host ""
-Write-Host "[OK] Android build cleaned - Transistorsoft plugin removed (iOS-only)"
+Write-Host "[OK] Transistorsoft cleanup complete (iOS-only plugin)"
 Write-Host ""
 
 # 3. Verify required Capacitor plugins are present
-Write-Host "--- Plugin Verification ---"
+Write-Host "--- Step 3: Plugin Verification ---"
 
 function Verify-CapacitorPlugin {
     param(
@@ -74,50 +55,31 @@ function Verify-CapacitorPlugin {
 
     $pluginFound = $false
 
-    $settingsFiles = @(
-        "$AndroidDir\capacitor.settings.gradle",
-        "$AndroidDir\app\capacitor.settings.gradle",
-        "$AndroidDir\settings.gradle"
-    )
-
-    foreach ($file in $settingsFiles) {
-        if (Test-Path $file) {
-            $content = Get-Content $file -Raw
+    # Search all gradle files for the plugin reference
+    Get-ChildItem -Path $AndroidDir -File -Recurse -Include "*.gradle","*.gradle.kts" -ErrorAction SilentlyContinue |
+        ForEach-Object {
+            $content = Get-Content $_.FullName -Raw
             if ($content -match $PluginDirName) {
-                Write-Host "[OK] $PluginName plugin found in $file"
+                Write-Host "[OK] $PluginName registered in $($_.FullName)"
                 $pluginFound = $true
             }
         }
-    }
-
-    $dir1 = "$AndroidDir\$PluginDirName"
-    $dir2 = "$AndroidDir\app\$PluginDirName"
-    if ((Test-Path $dir1) -or (Test-Path $dir2)) {
-        Write-Host "[OK] $PluginName plugin native directory exists"
-        $pluginFound = $true
-    }
 
     if (Test-Path $NpmPath) {
         Write-Host "[OK] $PluginName Android source found in node_modules"
     } else {
         Write-Host "[WARN] $PluginName Android source NOT found in node_modules"
-        Write-Host "       Run: npm install @capacitor/$($PluginDirName -replace 'capacitor-', '')"
     }
 
     if (-not $pluginFound) {
-        Write-Host ""
-        Write-Host "[WARN] $PluginName plugin NOT found in Gradle config!"
-        Write-Host "       The plugin may not be registered. Try:"
-        Write-Host "       1. Delete the android/ folder entirely"
-        Write-Host "       2. Run: npx cap add android"
-        Write-Host "       3. Run: npx cap sync android"
-        Write-Host "       4. Run this script again"
+        Write-Host "[WARN] $PluginName plugin NOT found in any Gradle config!"
+        Write-Host "       Try: delete android/, then 'npx cap add android' + 'npx cap sync android'"
     }
+
+    Write-Host ""
 }
 
 Verify-CapacitorPlugin -PluginName "Geolocation" -PluginDirName "capacitor-geolocation" -NpmPath "node_modules\@capacitor\geolocation\android"
-Write-Host ""
 Verify-CapacitorPlugin -PluginName "Camera" -PluginDirName "capacitor-camera" -NpmPath "node_modules\@capacitor\camera\android"
 
-Write-Host ""
-Write-Host "--- End Verification ---"
+Write-Host "=== Done ==="
