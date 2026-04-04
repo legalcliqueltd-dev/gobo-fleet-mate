@@ -5,6 +5,14 @@ const config: CapacitorConfig = {
   appName: 'FleetTrackMate-Driver',
   webDir: 'dist',
   bundledWebRuntime: false,
+  includePlugins: [
+    '@capacitor/camera',
+    '@capacitor/geolocation',
+    '@capacitor/app',
+    '@capacitor/haptics',
+    '@capacitor/keyboard',
+    '@capacitor/status-bar',
+  ],
   // Android loads from bundled dist/ so native plugins (Geolocation etc.) work.
   // For dev/debug with hot-reload, temporarily uncomment the server block.
   // server: {
