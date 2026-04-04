@@ -53,6 +53,7 @@ import DriverAppTasks from '@/pages/app/DriverAppTasks';
 import DriverAppCompleteTask from '@/pages/app/DriverAppCompleteTask';
 import DriverAppSOS from '@/pages/app/DriverAppSOS';
 import DriverAppSettings from '@/pages/app/DriverAppSettings';
+import LocationDiagnostics from '@/pages/app/LocationDiagnostics';
 
 export default function App() {
   const isNativeApp = detectNativePlatform();
@@ -102,6 +103,7 @@ export default function App() {
                     <DriverAppSettings />
                   </DriverProtectedRoute>
                 } />
+                <Route path="/diagnostics" element={<LocationDiagnostics />} />
               </Routes>
             </DriverSessionProvider>
           } />
