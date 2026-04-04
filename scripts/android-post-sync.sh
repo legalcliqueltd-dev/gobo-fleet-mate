@@ -64,6 +64,32 @@ if [ -f "$ANDROID_DIR/app/src/main/assets/capacitor.config.json" ] && grep -q '"
   exit 1
 fi
 
+MANIFEST_FILE="$ANDROID_DIR/app/src/main/AndroidManifest.xml"
+
+ensure_manifest_permission() {
+  local permission="$1"
+
+  if grep -q "$permission" "$MANIFEST_FILE"; then
+    echo "[OK] AndroidManifest.xml already includes $permission"
+    return
+  fi
+
+  awk -v permission="$permission" '
+    !inserted && /<application/ {
+      print "    <uses-permission android:name=\"" permission "\" />"
+      inserted=1
+    }
+    { print }
+  ' "$MANIFEST_FILE" > "$MANIFEST_FILE.tmp" && mv "$MANIFEST_FILE.tmp" "$MANIFEST_FILE"
+
+  echo "[OK] Added $permission to AndroidManifest.xml"
+}
+
+echo "--- Manifest Permission Check ---"
+ensure_manifest_permission "android.permission.ACCESS_COARSE_LOCATION"
+ensure_manifest_permission "android.permission.ACCESS_FINE_LOCATION"
+echo ""
+
 # 3. Verify required Capacitor plugins are present
 echo "--- Plugin Verification ---"
 

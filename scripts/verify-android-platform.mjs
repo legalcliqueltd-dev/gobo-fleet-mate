@@ -71,6 +71,22 @@ if (exists('android', 'app', 'src', 'main', 'assets', 'capacitor.plugins.json'))
   }
 }
 
+if (exists('android', 'app', 'src', 'main', 'AndroidManifest.xml')) {
+  const manifest = readText('android', 'app', 'src', 'main', 'AndroidManifest.xml');
+
+  if (manifest.includes('android.permission.ACCESS_COARSE_LOCATION')) {
+    oks.push('AndroidManifest.xml includes ACCESS_COARSE_LOCATION');
+  } else {
+    errors.push('AndroidManifest.xml is missing android.permission.ACCESS_COARSE_LOCATION');
+  }
+
+  if (manifest.includes('android.permission.ACCESS_FINE_LOCATION')) {
+    oks.push('AndroidManifest.xml includes ACCESS_FINE_LOCATION');
+  } else {
+    errors.push('AndroidManifest.xml is missing android.permission.ACCESS_FINE_LOCATION');
+  }
+}
+
 if (exists('android', 'capacitor.settings.gradle')) {
   const settingsGradle = readText('android', 'capacitor.settings.gradle');
 
