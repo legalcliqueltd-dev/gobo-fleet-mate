@@ -103,6 +103,7 @@ export default function App() {
                     <DriverAppSettings />
                   </DriverProtectedRoute>
                 } />
+                <Route path="/diagnostics" element={<LocationDiagnostics />} />
               </Routes>
             </DriverSessionProvider>
           } />
