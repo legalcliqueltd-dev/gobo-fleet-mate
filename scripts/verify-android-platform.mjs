@@ -73,6 +73,12 @@ if (exists('android', 'app', 'src', 'main', 'assets', 'capacitor.plugins.json'))
 
 if (exists('android', 'app', 'src', 'main', 'AndroidManifest.xml')) {
   const manifest = readText('android', 'app', 'src', 'main', 'AndroidManifest.xml');
+  const manifestLines = manifest.split('\n').filter(l => l.trim()).length;
+
+  // Warn if manifest looks suspiciously minimal
+  if (manifestLines < 5) {
+    warnings.push(`AndroidManifest.xml looks suspiciously minimal (${manifestLines} non-empty lines). This may cause runtime permission errors.`);
+  }
 
   if (manifest.includes('android.permission.ACCESS_COARSE_LOCATION')) {
     oks.push('AndroidManifest.xml includes ACCESS_COARSE_LOCATION');
@@ -84,6 +90,12 @@ if (exists('android', 'app', 'src', 'main', 'AndroidManifest.xml')) {
     oks.push('AndroidManifest.xml includes ACCESS_FINE_LOCATION');
   } else {
     errors.push('AndroidManifest.xml is missing android.permission.ACCESS_FINE_LOCATION');
+  }
+
+  if (manifest.includes('android.hardware.location.gps')) {
+    oks.push('AndroidManifest.xml includes uses-feature android.hardware.location.gps');
+  } else {
+    warnings.push('AndroidManifest.xml is missing uses-feature android.hardware.location.gps (recommended)');
   }
 }
 
@@ -144,3 +156,5 @@ if (errors.length > 0) {
 
 console.log('');
 console.log('Android native platform looks valid for Geolocation plugin loading.');
+console.log('');
+console.log('REMINDER: Always use "npm run cap:sync:android" instead of plain "npx cap sync android".');
