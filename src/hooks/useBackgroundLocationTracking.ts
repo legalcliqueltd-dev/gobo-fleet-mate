@@ -5,6 +5,7 @@ import { queueOfflineAction } from '@/components/OfflineQueue';
 import { Geolocation } from '@capacitor/geolocation';
 import { detectNativePlatform, isIOS, isAndroid } from '@/utils/platformDetection';
 import { isGeolocationPluginAvailable } from '@/utils/nativeGeolocation';
+import { startAndroidForegroundService, stopAndroidForegroundService } from '@/utils/androidForegroundService';
 
 // Accuracy threshold in meters - only accept high-precision locations
 const ACCURACY_THRESHOLD_M = 30;
@@ -44,6 +45,8 @@ export const useBackgroundLocationTracking = (
   const adminCodeRef = useRef<string | undefined>(adminCode);
   const lowAccuracyCountRef = useRef<number>(0);
   const isFetchingAccurateRef = useRef<boolean>(false);
+  const permissionCheckIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastPermissionStateRef = useRef<string>('granted');
 
   const isNative = detectNativePlatform();
   const isNativeIOS = isNative && isIOS();
@@ -63,10 +66,12 @@ export const useBackgroundLocationTracking = (
 
     startTracking();
     startBatteryMonitoring();
+    startPermissionMonitoring();
 
     return () => {
       stopTracking();
       stopBatteryMonitoring();
+      stopPermissionMonitoring();
     };
   }, [enabled, updateIntervalMs, enableHighAccuracy, batterySavingMode]);
 
@@ -243,6 +248,12 @@ export const useBackgroundLocationTracking = (
       return;
     }
 
+    // On native Android, start the foreground service to keep WebView alive
+    if (isNativeAndroid) {
+      console.log('[LocationTracking] Starting Android foreground service...');
+      await startAndroidForegroundService();
+    }
+
     // Get an initial high-accuracy fix
     await requestAccuratePosition();
 
@@ -347,6 +358,57 @@ export const useBackgroundLocationTracking = (
       } catch (error) {
         console.error('Error stopping location tracking:', error);
       }
+    }
+
+    // Stop foreground service on Android
+    if (isNativeAndroid) {
+      await stopAndroidForegroundService();
+    }
+  };
+
+  // === Permission monitoring: detect when driver disables location ===
+  const sendLocationDisabledAlert = async () => {
+    const currentDriverId = driverIdRef.current;
+    const currentAdminCode = adminCodeRef.current;
+    if (!currentDriverId || !currentAdminCode) return;
+
+    console.log('[LocationTracking] Driver disabled location — sending alert to admin');
+    try {
+      await supabase.functions.invoke('connect-driver', {
+        body: {
+          action: 'location-disabled',
+          driverId: currentDriverId,
+          adminCode: currentAdminCode,
+        },
+      });
+    } catch (error) {
+      console.error('[LocationTracking] Failed to send location-disabled alert:', error);
+    }
+  };
+
+  const startPermissionMonitoring = () => {
+    if (!useNativePlugin) return;
+    
+    permissionCheckIntervalRef.current = setInterval(async () => {
+      try {
+        const result = await Geolocation.checkPermissions();
+        const currentState = result.location;
+        
+        if (lastPermissionStateRef.current === 'granted' && currentState !== 'granted') {
+          console.log('[LocationTracking] Permission changed from granted to', currentState);
+          sendLocationDisabledAlert();
+        }
+        lastPermissionStateRef.current = currentState;
+      } catch (error) {
+        console.error('[LocationTracking] Permission check error:', error);
+      }
+    }, 30000); // Check every 30 seconds
+  };
+
+  const stopPermissionMonitoring = () => {
+    if (permissionCheckIntervalRef.current) {
+      clearInterval(permissionCheckIntervalRef.current);
+      permissionCheckIntervalRef.current = null;
     }
   };
 
