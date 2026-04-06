@@ -194,3 +194,66 @@ async function notifyDriver(sosEvent: any, message: string) {
 
   console.log(`Would notify driver about: ${message}`);
 }
+
+async function emailDriverOnSOS(sosEvent: any) {
+  // Get driver info including the admin's email to find driver email
+  let driverDisplayName = 'Driver';
+  let driverEmail: string | null = null;
+
+  if (sosEvent.driver_id) {
+    const { data: driver } = await supabase
+      .from('drivers')
+      .select('driver_name')
+      .eq('driver_id', sosEvent.driver_id)
+      .maybeSingle();
+    if (driver?.driver_name) driverDisplayName = driver.driver_name;
+  }
+
+  // Try to find a user profile for the driver via user_id
+  if (sosEvent.user_id) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('id', sosEvent.user_id)
+      .maybeSingle();
+    driverEmail = profile?.email || null;
+  }
+
+  if (!driverEmail) {
+    console.log('No driver email found for SOS confirmation');
+    return;
+  }
+
+  const hazard = sosEvent.hazard || 'other';
+  const hazardLabels: Record<string, string> = {
+    accident: 'Accident', medical: 'Medical Emergency', robbery: 'Robbery/Theft', breakdown: 'Vehicle Breakdown', other: 'Emergency'
+  };
+
+  const locationLink = sosEvent.latitude && sosEvent.longitude
+    ? `<a href="https://maps.google.com/?q=${sosEvent.latitude},${sosEvent.longitude}" style="color:#2563eb;">View on Google Maps</a>`
+    : 'Location not available';
+
+  const timestamp = new Date(sosEvent.created_at || Date.now()).toLocaleString('en-US', { timeZone: 'UTC' });
+  const sosDetailLink = `${APP_URL}/ops/incidents`;
+
+  const incidentSummary = `SOS triggered by ${driverDisplayName} — ${hazardLabels[hazard] || 'Emergency'}${sosEvent.message ? ': ' + sosEvent.message : ''}. Coordinates: ${sosEvent.latitude?.toFixed(5) || 'N/A'}, ${sosEvent.longitude?.toFixed(5) || 'N/A'}.`;
+
+  const subject = `SOS Received — Your Emergency Alert Has Been Sent`;
+  const body = `
+    <p>Hi ${driverDisplayName},</p>
+    <p>Your SOS alert has been <strong>received and sent to your dispatcher</strong>. Help is being coordinated.</p>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:16px;margin:16px 0;">
+      <p style="margin:0 0 8px;font-weight:600;color:#166534;">Incident Summary</p>
+      <p style="margin:4px 0;"><strong>Type:</strong> ${hazardLabels[hazard] || 'Emergency'}</p>
+      <p style="margin:4px 0;"><strong>Driver:</strong> ${driverDisplayName} (${sosEvent.driver_id || 'N/A'})</p>
+      <p style="margin:4px 0;"><strong>Time:</strong> ${timestamp} UTC</p>
+      <p style="margin:4px 0;"><strong>Location:</strong> ${locationLink}</p>
+      ${sosEvent.message ? `<p style="margin:4px 0;"><strong>Message:</strong> ${sosEvent.message}</p>` : ''}
+    </div>
+    <p style="color:#475569;font-size:13px;">Stay where you are if safe to do so. Your dispatcher has been notified and will reach out shortly.</p>
+  `;
+
+  const html = emailTemplate('Your SOS Alert Was Received', body, sosDetailLink, 'View Incident Status');
+  await sendEmail(driverEmail, subject, html);
+  console.log('SOS confirmation email sent to driver:', driverEmail);
+}
