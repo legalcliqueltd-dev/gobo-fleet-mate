@@ -28,10 +28,15 @@ export default function DriverAppConnect() {
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   // If already connected, redirect to dashboard
-  if (isConnected && !connected) {
+  if (isConnected && !connected && !showOnboarding) {
     navigate('/app/dashboard', { replace: true });
     return null;
   }
+
+  const triggerShake = () => {
+    setShakeInput(true);
+    setTimeout(() => setShakeInput(false), 500);
+  };
 
   const handleConnect = async () => {
     if (!code.trim()) {
