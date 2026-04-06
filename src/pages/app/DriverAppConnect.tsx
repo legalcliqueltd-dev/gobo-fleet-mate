@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Link2, Check, AlertCircle, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import logo from '@/assets/logo.webp';
+import DriverOnboarding, { isOnboardingCompleted } from '@/components/driver/DriverOnboarding';
 
 export default function DriverAppConnect() {
   const [searchParams] = useSearchParams();
@@ -21,12 +23,20 @@ export default function DriverAppConnect() {
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [deviceName, setDeviceName] = useState<string>('');
+  const [failCount, setFailCount] = useState(0);
+  const [shakeInput, setShakeInput] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // If already connected, redirect to dashboard
-  if (isConnected && !connected) {
+  if (isConnected && !connected && !showOnboarding) {
     navigate('/app/dashboard', { replace: true });
     return null;
   }
+
+  const triggerShake = () => {
+    setShakeInput(true);
+    setTimeout(() => setShakeInput(false), 500);
+  };
 
   const handleConnect = async () => {
     if (!code.trim()) {
@@ -55,34 +65,49 @@ export default function DriverAppConnect() {
       if (functionError) throw functionError;
 
       if (data.error) {
-        setError(data.error);
-        toast.error(data.error);
+        const newFailCount = failCount + 1;
+        setFailCount(newFailCount);
+        setError('Incorrect code. Please double-check the code sent to you and try again.');
+        triggerShake();
       } else if (data.success && data.driverId) {
-        // Save session to localStorage
         connect(data.driverId, driverName.trim(), code.trim().toUpperCase());
         setConnected(true);
         setDeviceName(data.device?.name || 'Fleet');
+        setFailCount(0);
         toast.success('Successfully connected!');
+        // Show onboarding if first time
+        if (!isOnboardingCompleted()) {
+          setShowOnboarding(true);
+        }
       } else {
-        setError('Connection failed. Please try again.');
-        toast.error('Connection failed');
+        const newFailCount = failCount + 1;
+        setFailCount(newFailCount);
+        setError('Incorrect code. Please double-check the code sent to you and try again.');
+        triggerShake();
       }
     } catch (err: any) {
       console.error('Connection error:', err);
-      setError(err.message || 'Failed to connect');
-      toast.error('Failed to connect');
+      const newFailCount = failCount + 1;
+      setFailCount(newFailCount);
+      setError('Incorrect code. Please double-check the code sent to you and try again.');
+      triggerShake();
     } finally {
       setLoading(false);
     }
   };
+
+  // Show onboarding
+  if (showOnboarding) {
+    return <DriverOnboarding onComplete={() => navigate('/app/dashboard', { replace: true })} />;
+  }
 
   if (connected) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="max-w-md w-full">
           <CardContent className="p-6 text-center space-y-4">
-            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto">
-              <Check className="h-8 w-8 text-white" />
+            <div className="w-16 h-16 bg-[hsl(var(--success))] rounded-full flex items-center justify-center mx-auto">
+              <Check className="h-8 w-8 text-[hsl(var(--success-foreground))]" />
             </div>
             
             <h2 className="text-2xl font-bold">Connected!</h2>
@@ -155,16 +180,27 @@ export default function DriverAppConnect() {
                 onChange={(e) => {
                   setCode(e.target.value.toUpperCase());
                   setError(null);
+                  setFailCount(0);
                 }}
                 placeholder="XXXXXXXX"
                 maxLength={8}
-                className="text-center text-2xl tracking-widest font-mono"
+                className={cn(
+                  "text-center text-2xl tracking-widest font-mono",
+                  shakeInput && "animate-shake"
+                )}
                 disabled={loading}
               />
               {error && (
-                <div className="flex items-center gap-2 text-sm text-destructive mt-2">
-                  <AlertCircle className="h-4 w-4" />
-                  {error}
+                <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+                  <div className="flex items-start gap-2 text-sm text-destructive">
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                  {failCount >= 3 && (
+                    <p className="text-xs text-muted-foreground mt-2 pl-6">
+                      Still having trouble? Contact your dispatcher for a new code.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
