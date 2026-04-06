@@ -116,6 +116,10 @@ ensure_manifest_feature() {
 echo "--- Manifest Permission Check ---"
 ensure_manifest_permission "android.permission.ACCESS_COARSE_LOCATION"
 ensure_manifest_permission "android.permission.ACCESS_FINE_LOCATION"
+ensure_manifest_permission "android.permission.ACCESS_BACKGROUND_LOCATION"
+ensure_manifest_permission "android.permission.FOREGROUND_SERVICE"
+ensure_manifest_permission "android.permission.FOREGROUND_SERVICE_LOCATION"
+ensure_manifest_permission "android.permission.WAKE_LOCK"
 ensure_manifest_feature "android.hardware.location.gps"
 echo ""
 

@@ -102,6 +102,10 @@ function Ensure-ManifestFeature {
 Write-Host "--- Step 3: Manifest Permission Check ---"
 Ensure-ManifestPermission -Permission "android.permission.ACCESS_COARSE_LOCATION"
 Ensure-ManifestPermission -Permission "android.permission.ACCESS_FINE_LOCATION"
+Ensure-ManifestPermission -Permission "android.permission.ACCESS_BACKGROUND_LOCATION"
+Ensure-ManifestPermission -Permission "android.permission.FOREGROUND_SERVICE"
+Ensure-ManifestPermission -Permission "android.permission.FOREGROUND_SERVICE_LOCATION"
+Ensure-ManifestPermission -Permission "android.permission.WAKE_LOCK"
 Ensure-ManifestFeature -Feature "android.hardware.location.gps"
 Write-Host ""
 
