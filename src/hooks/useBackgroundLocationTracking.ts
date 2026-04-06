@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { queueOfflineAction } from '@/components/OfflineQueue';
 import { Geolocation } from '@capacitor/geolocation';
-import { detectNativePlatform, isIOS } from '@/utils/platformDetection';
+import { detectNativePlatform, isIOS, isAndroid } from '@/utils/platformDetection';
 import { isGeolocationPluginAvailable } from '@/utils/nativeGeolocation';
 
 // Accuracy threshold in meters - only accept high-precision locations
@@ -25,7 +25,7 @@ export const useBackgroundLocationTracking = (
   options: LocationTrackingOptions = {}
 ) => {
   const {
-    updateIntervalMs = 30000, // 30 seconds default
+    updateIntervalMs = 30000,
     enableHighAccuracy = true,
     maximumAge = 5000,
     batterySavingMode = false,
@@ -37,7 +37,6 @@ export const useBackgroundLocationTracking = (
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [batteryLevel, setBatteryLevel] = useState<number>(100);
   const [accuracy, setAccuracy] = useState<number | null>(null);
-  // Union type to handle both Capacitor (string) and browser (number) watch IDs
   const watchIdRef = useRef<string | number | null>(null);
   const lastSentRef = useRef<number>(0);
   const batteryCheckIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -46,7 +45,11 @@ export const useBackgroundLocationTracking = (
   const lowAccuracyCountRef = useRef<number>(0);
   const isFetchingAccurateRef = useRef<boolean>(false);
 
-  // Update refs when props change
+  const isNative = detectNativePlatform();
+  const isNativeIOS = isNative && isIOS();
+  const isNativeAndroid = isNative && isAndroid();
+  const useNativePlugin = isNative && isGeolocationPluginAvailable();
+
   useEffect(() => {
     driverIdRef.current = driverId;
     adminCodeRef.current = adminCode;
@@ -73,14 +76,12 @@ export const useBackgroundLocationTracking = (
     speed: number | null,
     accuracyM: number
   ) => {
-    // Guard: skip if coordinates are not valid numbers
     if (typeof latitude !== 'number' || isNaN(latitude) || typeof longitude !== 'number' || isNaN(longitude)) {
       console.warn('[LocationTracking] Skipping invalid coordinates:', latitude, longitude);
       return;
     }
 
     const currentDriverId = driverIdRef.current;
-    
     if (!currentDriverId) {
       console.log('No driver ID available for location update');
       return;
@@ -95,7 +96,6 @@ export const useBackgroundLocationTracking = (
       batteryLevel,
     };
 
-    // If offline, queue immediately instead of attempting network call
     if (!navigator.onLine) {
       queueOfflineAction('location', locationPayload);
       setLastUpdate(new Date());
@@ -105,14 +105,10 @@ export const useBackgroundLocationTracking = (
 
     try {
       const { data, error } = await supabase.functions.invoke('connect-driver', {
-        body: {
-          action: 'update-location',
-          ...locationPayload,
-        },
+        body: { action: 'update-location', ...locationPayload },
       });
 
       if (error) throw error;
-      
       if (data?.requiresRelogin) {
         toast.error('Session expired. Please reconnect.');
         return;
@@ -131,51 +127,43 @@ export const useBackgroundLocationTracking = (
 
   const getEffectiveInterval = () => {
     if (batterySavingMode && batteryLevel < 20) {
-      return Math.max(updateIntervalMs * 3, 60000); // 3x interval or minimum 1 minute
+      return Math.max(updateIntervalMs * 3, 60000);
     } else if (batterySavingMode && batteryLevel < 50) {
-      return Math.max(updateIntervalMs * 2, 30000); // 2x interval or minimum 30 seconds
+      return Math.max(updateIntervalMs * 2, 30000);
     }
     return updateIntervalMs;
   };
 
   const handlePositionUpdate = (
-    latitude: number, 
-    longitude: number, 
+    latitude: number,
+    longitude: number,
     speed: number | null,
     accuracyM: number
   ) => {
     const now = Date.now();
     const effectiveInterval = getEffectiveInterval();
-    
-    // Throttle updates based on interval (with battery saving adjustments)
-    if (now - lastSentRef.current < effectiveInterval) {
-      return;
-    }
 
-    // If accuracy is poor, try to get a better fix via getCurrentPosition
+    if (now - lastSentRef.current < effectiveInterval) return;
+
     if (accuracyM > ACCURACY_THRESHOLD_M) {
       lowAccuracyCountRef.current++;
       console.log(`Low accuracy position: ${accuracyM}m (attempt ${lowAccuracyCountRef.current}/${MAX_LOW_ACCURACY_COUNT})`);
-      
       if (lowAccuracyCountRef.current >= MAX_LOW_ACCURACY_COUNT && !isFetchingAccurateRef.current) {
         requestAccuratePosition();
       }
-      // Still send to server for heartbeat (server will filter for map storage)
       const speedKmh = speed !== null ? speed * 3.6 : null;
       sendLocationUpdate(latitude, longitude, speedKmh, accuracyM);
       return;
     }
 
-    // Good accuracy - reset counter
     lowAccuracyCountRef.current = 0;
-    const speedKmh = speed !== null ? speed * 3.6 : null; // Convert m/s to km/h
+    const speedKmh = speed !== null ? speed * 3.6 : null;
     sendLocationUpdate(latitude, longitude, speedKmh, accuracyM);
   };
 
   /**
-   * Force a high-accuracy GPS fix using getCurrentPosition.
-   * Unlike watchPosition (which fires immediately with whatever is available),
-   * getCurrentPosition waits for a proper GPS satellite lock.
+   * Force a high-accuracy GPS fix.
+   * On native Android, uses only Capacitor — never browser fallback.
    */
   const requestAccuratePosition = async () => {
     if (isFetchingAccurateRef.current) return;
@@ -183,7 +171,8 @@ export const useBackgroundLocationTracking = (
     console.log('[LocationTracking] Requesting fresh high-accuracy GPS fix...');
 
     try {
-      if (detectNativePlatform() && isGeolocationPluginAvailable()) {
+      if (useNativePlugin) {
+        // Native (Android or iOS) — use Capacitor exclusively
         const position = await Geolocation.getCurrentPosition({
           enableHighAccuracy: true,
           timeout: 20000,
@@ -198,7 +187,8 @@ export const useBackgroundLocationTracking = (
             sendLocationUpdate(position.coords.latitude, position.coords.longitude, speedKmh, acc);
           }
         }
-      } else if (navigator.geolocation) {
+      } else if (!isNativeAndroid && navigator.geolocation) {
+        // Web/PWA only — browser geolocation is acceptable
         navigator.geolocation.getCurrentPosition(
           (position) => {
             const acc = position.coords.accuracy;
@@ -221,7 +211,6 @@ export const useBackgroundLocationTracking = (
   };
 
   const startBatteryMonitoring = async () => {
-    // Check battery level periodically
     const checkBattery = async () => {
       try {
         if ('getBattery' in navigator) {
@@ -234,7 +223,7 @@ export const useBackgroundLocationTracking = (
     };
 
     await checkBattery();
-    batteryCheckIntervalRef.current = setInterval(checkBattery, 60000); // Check every minute
+    batteryCheckIntervalRef.current = setInterval(checkBattery, 60000);
   };
 
   const stopBatteryMonitoring = () => {
@@ -245,27 +234,23 @@ export const useBackgroundLocationTracking = (
   };
 
   const startTracking = async () => {
-    if (watchIdRef.current !== null) {
-      return; // Already tracking
-    }
+    if (watchIdRef.current !== null) return;
 
-    // On native iOS, skip browser-based tracking — useIOSBackgroundTracking handles it
-    const isNativeIOS = detectNativePlatform() && isIOS();
+    // On native iOS, skip — useIOSBackgroundTracking handles it
     if (isNativeIOS) {
       console.log('[LocationTracking] Native iOS detected — deferring to useIOSBackgroundTracking');
       setIsTracking(true);
       return;
     }
 
-    // Get an initial high-accuracy fix before starting watchPosition
-    // This ensures the first map position is accurate (like SOS does)
+    // Get an initial high-accuracy fix
     await requestAccuratePosition();
 
     try {
-      if (detectNativePlatform() && isGeolocationPluginAvailable()) {
-        // Native platform - use Capacitor Geolocation (plugin confirmed available)
+      if (useNativePlugin) {
+        // Native Android — use Capacitor Geolocation exclusively
         const permission = await Geolocation.checkPermissions();
-        
+
         if (permission.location !== 'granted') {
           const requestResult = await Geolocation.requestPermissions();
           if (requestResult.location !== 'granted') {
@@ -274,12 +259,11 @@ export const useBackgroundLocationTracking = (
           }
         }
 
-        // Start watching position using Capacitor Geolocation
         const watchId = await Geolocation.watchPosition(
-        {
+          {
             enableHighAccuracy: true,
             timeout: 15000,
-            maximumAge: 0, // Force fresh position, no caching
+            maximumAge: 0,
           },
           (position, err) => {
             if (err) {
@@ -290,7 +274,6 @@ export const useBackgroundLocationTracking = (
               }
               return;
             }
-
             if (position) {
               handlePositionUpdate(
                 position.coords.latitude,
@@ -304,20 +287,17 @@ export const useBackgroundLocationTracking = (
 
         watchIdRef.current = watchId;
         setIsTracking(true);
-        console.log('Native background location tracking started');
-      } else {
-        // Browser geolocation fallback (also works on Android WebView when native plugin is missing)
-        console.log(`[LocationTracking] Using browser geolocation (native=${detectNativePlatform()}, plugin=${isGeolocationPluginAvailable()})`);
-        // Web browser - use navigator.geolocation
+        console.log('Native Capacitor location tracking started');
+      } else if (!isNativeAndroid) {
+        // Web/PWA — browser geolocation
         if (!navigator.geolocation) {
           toast.error('Geolocation is not supported by this browser.');
           return;
         }
 
-        // Check/request permission via getCurrentPosition (triggers browser prompt)
+        console.log('[LocationTracking] Using browser geolocation (web/PWA)');
         const watchId = navigator.geolocation.watchPosition(
           (position) => {
-            // Process with accuracy value for filtering
             handlePositionUpdate(
               position.coords.latitude,
               position.coords.longitude,
@@ -332,19 +312,18 @@ export const useBackgroundLocationTracking = (
               setIsTracking(false);
             }
           },
-          {
-            enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 0, // Force fresh position, no caching
-          }
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
         );
 
         watchIdRef.current = watchId;
         setIsTracking(true);
         console.log('Browser location tracking started');
+      } else {
+        // Native Android but plugin unavailable — error state
+        console.error('[LocationTracking] Native Android but Geolocation plugin unavailable. Manifest permissions may be missing.');
+        toast.error('Location plugin unavailable. Please reinstall the app.');
       }
-      
-      // Notify user about battery saving mode
+
       if (batterySavingMode) {
         toast.success('Battery saving mode enabled - tracking frequency adjusts based on battery level');
       }
@@ -357,7 +336,7 @@ export const useBackgroundLocationTracking = (
   const stopTracking = async () => {
     if (watchIdRef.current !== null) {
       try {
-        if (isGeolocationPluginAvailable()) {
+        if (useNativePlugin) {
           await Geolocation.clearWatch({ id: watchIdRef.current as string });
         } else {
           navigator.geolocation.clearWatch(watchIdRef.current as number);
