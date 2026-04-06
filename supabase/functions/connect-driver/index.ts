@@ -1015,6 +1015,88 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ========================================
+    // ACTION: location-disabled
+    // ========================================
+    if (action === 'location-disabled') {
+      const { adminCode } = body;
+      if (!driverId || !adminCode) {
+        return new Response(
+          JSON.stringify({ error: 'driverId and adminCode are required', server_time: serverTime }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const driver = await validateDriverIdentity(driverId, adminCode);
+      if (!driver) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid driver identity', server_time: serverTime }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const driverLabel = driver.driver_name || driverId;
+      const alertMessage = `Driver "${driverLabel}" has disabled location tracking.`;
+
+      // Insert alert record
+      const { error: alertErr } = await supabaseAdmin
+        .from('driver_alerts')
+        .insert({
+          driver_id: driverId,
+          admin_code: adminCode,
+          alert_type: 'location_disabled',
+          message: alertMessage,
+        });
+
+      if (alertErr) {
+        console.error('Driver alert insert error:', alertErr);
+      }
+
+      // Update driver status
+      await supabaseAdmin
+        .from('drivers')
+        .update({ status: 'offline', last_seen_at: new Date().toISOString() })
+        .eq('driver_id', driverId);
+
+      // Send email to admin
+      try {
+        const { data: device } = await supabaseAdmin
+          .from('devices')
+          .select('user_id')
+          .eq('connection_code', adminCode)
+          .maybeSingle();
+
+        if (device?.user_id) {
+          const { data: adminProfile } = await supabaseAdmin
+            .from('profiles')
+            .select('email, full_name')
+            .eq('id', device.user_id)
+            .maybeSingle();
+
+          if (adminProfile?.email) {
+            const emailBody = `
+              <p>Hi ${adminProfile.full_name || 'there'},</p>
+              <p><strong>⚠️ Location Alert:</strong> Driver <strong>${driverLabel}</strong> has <strong>disabled their location</strong> on their device.</p>
+              <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px;margin:16px 0;">
+                <p style="margin:0;"><strong>Driver:</strong> ${driverLabel}</p>
+                <p style="margin:4px 0 0;"><strong>Time:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'UTC' })} UTC</p>
+                <p style="margin:4px 0 0;"><strong>Action Required:</strong> Contact the driver to re-enable location tracking.</p>
+              </div>
+            `;
+            const html = makeEmailHtml('Driver Location Disabled', emailBody, `${APP_URL}/admin/drivers`, 'View Drivers');
+            await sendEmailNotification(adminProfile.email, `⚠️ Location Disabled: ${driverLabel}`, html);
+          }
+        }
+      } catch (emailErr) {
+        console.error('Location disabled email error:', emailErr);
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, server_time: serverTime }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ error: 'Invalid action', server_time: serverTime }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
