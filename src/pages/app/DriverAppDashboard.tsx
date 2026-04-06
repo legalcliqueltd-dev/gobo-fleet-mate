@@ -509,16 +509,15 @@ export default function DriverAppDashboard() {
           {activeTask ? (
             <ActiveTaskCard
               task={activeTask}
-              currentLocation={currentLocation}
+              driverLocation={currentLocation}
               onNavigate={() => setNavigatingTask(activeTask)}
-              onComplete={() => navigate(`/app/complete-task/${activeTask.id}`)}
             />
           ) : (
             <DriverStatusCard
               isTracking={isTracking}
               batteryLevel={batteryLevel}
-              lastUpdate={lastUpdate}
-              currentLocation={currentLocation}
+              lastSyncTime={lastUpdate}
+              speed={speed}
               accuracy={accuracy}
             />
           )}
