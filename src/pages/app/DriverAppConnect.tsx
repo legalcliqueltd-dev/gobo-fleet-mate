@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Link2, Check, AlertCircle, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import logo from '@/assets/logo.webp';
+import DriverOnboarding, { isOnboardingCompleted } from '@/components/driver/DriverOnboarding';
 
 export default function DriverAppConnect() {
   const [searchParams] = useSearchParams();
@@ -21,6 +23,9 @@ export default function DriverAppConnect() {
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [deviceName, setDeviceName] = useState<string>('');
+  const [failCount, setFailCount] = useState(0);
+  const [shakeInput, setShakeInput] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // If already connected, redirect to dashboard
   if (isConnected && !connected) {
