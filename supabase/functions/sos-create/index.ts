@@ -91,24 +91,22 @@ Deno.serve(async (req) => {
 
     console.log('SOS event created successfully:', sosEvent.id);
 
-    // Get admin user ID to notify (find from device with this admin_code)
-    const { data: device } = await supabaseAdmin
-      .from('devices')
-      .select('user_id')
-      .eq('connection_code', adminCode)
-      .maybeSingle();
-
-    // Log notification (Realtime subscription on admin side will handle the actual alert)
-    console.log('SOS Alert Details:', {
-      sosId: sosEvent.id,
-      driverId: driverId,
-      driverName: driver.driver_name,
-      adminCode: adminCode,
-      adminUserId: device?.user_id,
-      location: { lat: latitude, lng: longitude },
-      hazard: hazard,
-      message: message,
-    });
+    // Dispatch SOS notifications (emails to admin + driver)
+    try {
+      const dispatchUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/sos-dispatch`;
+      const dispatchRes = await fetch(dispatchUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ type: 'INSERT', record: sosEvent }),
+      });
+      const dispatchData = await dispatchRes.json();
+      console.log('SOS dispatch result:', dispatchRes.status, dispatchData);
+    } catch (dispatchErr) {
+      console.error('SOS dispatch call failed (non-blocking):', dispatchErr);
+    }
 
     return new Response(
       JSON.stringify({ 
