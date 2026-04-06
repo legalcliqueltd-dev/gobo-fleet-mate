@@ -65,22 +65,32 @@ export default function DriverAppConnect() {
       if (functionError) throw functionError;
 
       if (data.error) {
-        setError(data.error);
-        toast.error(data.error);
+        const newFailCount = failCount + 1;
+        setFailCount(newFailCount);
+        setError('Incorrect code. Please double-check the code sent to you and try again.');
+        triggerShake();
       } else if (data.success && data.driverId) {
-        // Save session to localStorage
         connect(data.driverId, driverName.trim(), code.trim().toUpperCase());
         setConnected(true);
         setDeviceName(data.device?.name || 'Fleet');
+        setFailCount(0);
         toast.success('Successfully connected!');
+        // Show onboarding if first time
+        if (!isOnboardingCompleted()) {
+          setShowOnboarding(true);
+        }
       } else {
-        setError('Connection failed. Please try again.');
-        toast.error('Connection failed');
+        const newFailCount = failCount + 1;
+        setFailCount(newFailCount);
+        setError('Incorrect code. Please double-check the code sent to you and try again.');
+        triggerShake();
       }
     } catch (err: any) {
       console.error('Connection error:', err);
-      setError(err.message || 'Failed to connect');
-      toast.error('Failed to connect');
+      const newFailCount = failCount + 1;
+      setFailCount(newFailCount);
+      setError('Incorrect code. Please double-check the code sent to you and try again.');
+      triggerShake();
     } finally {
       setLoading(false);
     }
