@@ -96,13 +96,18 @@ export default function DriverAppConnect() {
     }
   };
 
+  // Show onboarding
+  if (showOnboarding) {
+    return <DriverOnboarding onComplete={() => navigate('/app/dashboard', { replace: true })} />;
+  }
+
   if (connected) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="max-w-md w-full">
           <CardContent className="p-6 text-center space-y-4">
-            <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto">
-              <Check className="h-8 w-8 text-white" />
+            <div className="w-16 h-16 bg-[hsl(var(--success))] rounded-full flex items-center justify-center mx-auto">
+              <Check className="h-8 w-8 text-[hsl(var(--success-foreground))]" />
             </div>
             
             <h2 className="text-2xl font-bold">Connected!</h2>
@@ -175,16 +180,27 @@ export default function DriverAppConnect() {
                 onChange={(e) => {
                   setCode(e.target.value.toUpperCase());
                   setError(null);
+                  setFailCount(0);
                 }}
                 placeholder="XXXXXXXX"
                 maxLength={8}
-                className="text-center text-2xl tracking-widest font-mono"
+                className={cn(
+                  "text-center text-2xl tracking-widest font-mono",
+                  shakeInput && "animate-shake"
+                )}
                 disabled={loading}
               />
               {error && (
-                <div className="flex items-center gap-2 text-sm text-destructive mt-2">
-                  <AlertCircle className="h-4 w-4" />
-                  {error}
+                <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+                  <div className="flex items-start gap-2 text-sm text-destructive">
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                  {failCount >= 3 && (
+                    <p className="text-xs text-muted-foreground mt-2 pl-6">
+                      Still having trouble? Contact your dispatcher for a new code.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
