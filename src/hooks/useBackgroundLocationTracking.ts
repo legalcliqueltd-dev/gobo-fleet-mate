@@ -5,6 +5,7 @@ import { queueOfflineAction } from '@/components/OfflineQueue';
 import { Geolocation } from '@capacitor/geolocation';
 import { detectNativePlatform, isIOS, isAndroid } from '@/utils/platformDetection';
 import { isGeolocationPluginAvailable } from '@/utils/nativeGeolocation';
+import { startAndroidForegroundService, stopAndroidForegroundService } from '@/utils/androidForegroundService';
 
 // Accuracy threshold in meters - only accept high-precision locations
 const ACCURACY_THRESHOLD_M = 30;
@@ -44,6 +45,8 @@ export const useBackgroundLocationTracking = (
   const adminCodeRef = useRef<string | undefined>(adminCode);
   const lowAccuracyCountRef = useRef<number>(0);
   const isFetchingAccurateRef = useRef<boolean>(false);
+  const permissionCheckIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastPermissionStateRef = useRef<string>('granted');
 
   const isNative = detectNativePlatform();
   const isNativeIOS = isNative && isIOS();

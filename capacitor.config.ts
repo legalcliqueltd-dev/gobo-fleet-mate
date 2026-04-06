@@ -12,6 +12,7 @@ const config: CapacitorConfig = {
     '@capacitor/haptics',
     '@capacitor/keyboard',
     '@capacitor/status-bar',
+    '@capawesome-team/capacitor-android-foreground-service',
   ],
   // Android loads from bundled dist/ so native plugins (Geolocation etc.) work.
   // For dev/debug with hot-reload, temporarily uncomment the server block.
