@@ -48,6 +48,7 @@ serve(async (req) => {
     if (type === 'INSERT' && record.status === 'open') {
       await notifyAdmins(record);
       await emailAdminOnSOS(record);
+      await emailDriverOnSOS(record);
     } else if (type === 'UPDATE') {
       if (record.status === 'acknowledged') {
         await notifyDriver(record, 'Your SOS has been acknowledged. Help is on the way.');
