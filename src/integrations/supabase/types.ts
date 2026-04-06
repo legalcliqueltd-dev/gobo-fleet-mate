@@ -110,6 +110,36 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          admin_code: string
+          alert_type: string
+          created_at: string
+          driver_id: string
+          id: string
+          message: string | null
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          admin_code: string
+          alert_type?: string
+          created_at?: string
+          driver_id: string
+          id?: string
+          message?: string | null
+        }
+        Update: {
+          acknowledged_at?: string | null
+          admin_code?: string
+          alert_type?: string
+          created_at?: string
+          driver_id?: string
+          id?: string
+          message?: string | null
+        }
+        Relationships: []
+      }
       driver_connections: {
         Row: {
           admin_user_id: string
