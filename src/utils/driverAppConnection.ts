@@ -1,6 +1,5 @@
 /**
  * Driver App Connection Module
- * Copy this entire file to your mobile app builder
  * 
  * Prerequisites:
  * - Install @supabase/supabase-js
@@ -10,20 +9,14 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { Geolocation } from '@capacitor/geolocation';
-import { Capacitor } from '@capacitor/core';
-import { detectNativePlatform } from '@/utils/platformDetection';
+import { detectNativePlatform, isAndroid } from '@/utils/platformDetection';
 import { isGeolocationPluginAvailable } from '@/utils/nativeGeolocation';
 
-// Union type to handle both Capacitor (string) and browser (number) watch IDs
 let locationWatchId: string | number | null = null;
 let connectedDeviceId: string | null = null;
 
-/**
- * Connect driver to a device using connection code
- */
 export async function connectDriver(connectionCode: string): Promise<{ success: boolean; message: string; deviceName?: string }> {
   try {
-    // Check if user is authenticated
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
       return { success: false, message: 'Please log in first' };
@@ -31,12 +24,8 @@ export async function connectDriver(connectionCode: string): Promise<{ success: 
 
     console.log('Connecting driver with code:', connectionCode.trim().toUpperCase());
 
-    // Call the connect-driver edge function
     const { data, error } = await supabase.functions.invoke('connect-driver', {
-      body: { 
-        action: 'connect',
-        code: connectionCode.trim().toUpperCase() 
-      }
+      body: { action: 'connect', code: connectionCode.trim().toUpperCase() }
     });
 
     console.log('Connect response:', data, error);
@@ -45,13 +34,8 @@ export async function connectDriver(connectionCode: string): Promise<{ success: 
 
     if (data?.success) {
       connectedDeviceId = data.device?.id;
-      // Start location tracking automatically after connection
       await startLocationTracking();
-      return { 
-        success: true, 
-        message: 'Connected successfully', 
-        deviceName: data.device?.name 
-      };
+      return { success: true, message: 'Connected successfully', deviceName: data.device?.name };
     } else {
       return { success: false, message: data?.error || 'Connection failed' };
     }
@@ -61,9 +45,6 @@ export async function connectDriver(connectionCode: string): Promise<{ success: 
   }
 }
 
-/**
- * Disconnect driver from current device
- */
 export async function disconnectDriver(): Promise<{ success: boolean; message: string }> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -71,10 +52,8 @@ export async function disconnectDriver(): Promise<{ success: boolean; message: s
       return { success: false, message: 'Not authenticated' };
     }
 
-    // Stop location tracking first
     await stopLocationTracking();
 
-    // Call the disconnect function
     const { data, error } = await supabase.functions.invoke('connect-driver', {
       body: { action: 'disconnect' }
     });
@@ -89,11 +68,8 @@ export async function disconnectDriver(): Promise<{ success: boolean; message: s
   }
 }
 
-/**
- * Get current connection status
- */
-export async function getConnectionStatus(): Promise<{ 
-  connected: boolean; 
+export async function getConnectionStatus(): Promise<{
+  connected: boolean;
   deviceName?: string;
   deviceId?: string;
 }> {
@@ -111,11 +87,7 @@ export async function getConnectionStatus(): Promise<{
 
     if (data?.connected && data?.device) {
       connectedDeviceId = data.device.id;
-      return {
-        connected: true,
-        deviceName: data.device.name,
-        deviceId: data.device.id
-      };
+      return { connected: true, deviceName: data.device.name, deviceId: data.device.id };
     }
 
     return { connected: false };
@@ -125,12 +97,12 @@ export async function getConnectionStatus(): Promise<{
   }
 }
 
-/**
- * Start background location tracking
- */
+const isNative = detectNativePlatform();
+const isNativeAndroid = isNative && isAndroid();
+const useNativePlugin = isNative && isGeolocationPluginAvailable();
+
 export async function startLocationTracking(): Promise<{ success: boolean; message: string }> {
   try {
-    // Get or verify connected device
     if (!connectedDeviceId) {
       const status = await getConnectionStatus();
       if (!status.connected || !status.deviceId) {
@@ -139,13 +111,12 @@ export async function startLocationTracking(): Promise<{ success: boolean; messa
       connectedDeviceId = status.deviceId;
     }
 
-    // Stop existing watch if any
     await stopLocationTracking();
 
-    if (detectNativePlatform() && isGeolocationPluginAvailable()) {
-      // Native platform - use Capacitor Geolocation (plugin confirmed available)
+    if (useNativePlugin) {
+      // Native (Android or iOS) — use Capacitor exclusively
       const permission = await Geolocation.checkPermissions();
-      
+
       if (permission.location !== 'granted') {
         const requested = await Geolocation.requestPermissions();
         if (requested.location !== 'granted') {
@@ -153,21 +124,14 @@ export async function startLocationTracking(): Promise<{ success: boolean; messa
         }
       }
 
-      // Start watching position using Capacitor
       locationWatchId = await Geolocation.watchPosition(
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
         (position, err) => {
           if (err) {
             console.error('Location error:', err);
             return;
           }
-
           if (position && connectedDeviceId) {
-            // Send location to backend
             sendLocationUpdate(
               connectedDeviceId,
               position.coords.latitude,
@@ -177,8 +141,8 @@ export async function startLocationTracking(): Promise<{ success: boolean; messa
           }
         }
       );
-    } else {
-      // Web browser - use navigator.geolocation
+    } else if (!isNativeAndroid) {
+      // Web/PWA only — browser geolocation is acceptable
       if (!navigator.geolocation) {
         return { success: false, message: 'Geolocation not supported' };
       }
@@ -194,15 +158,13 @@ export async function startLocationTracking(): Promise<{ success: boolean; messa
             ).catch(console.error);
           }
         },
-        (error) => {
-          console.error('Location error:', error);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        }
+        (error) => console.error('Location error:', error),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
+    } else {
+      // Native Android but plugin unavailable — configuration error
+      console.error('[driverAppConnection] Native Android but Geolocation plugin unavailable.');
+      return { success: false, message: 'Location plugin unavailable. Reinstall the app.' };
     }
 
     return { success: true, message: 'Location tracking started' };
@@ -212,12 +174,9 @@ export async function startLocationTracking(): Promise<{ success: boolean; messa
   }
 }
 
-/**
- * Stop location tracking
- */
 export async function stopLocationTracking(): Promise<void> {
   if (locationWatchId !== null) {
-    if (detectNativePlatform() && isGeolocationPluginAvailable()) {
+    if (useNativePlugin) {
       await Geolocation.clearWatch({ id: locationWatchId as string });
     } else {
       navigator.geolocation.clearWatch(locationWatchId as number);
@@ -226,9 +185,6 @@ export async function stopLocationTracking(): Promise<void> {
   }
 }
 
-/**
- * Send location update to server
- */
 async function sendLocationUpdate(
   deviceId: string,
   latitude: number,
@@ -248,32 +204,20 @@ async function sendLocationUpdate(
 
     if (error) throw error;
 
-    // Update device status to active
     await supabase
       .from('devices')
-      .update({ 
-        status: 'active',
-        updated_at: new Date().toISOString()
-      })
+      .update({ status: 'active', updated_at: new Date().toISOString() })
       .eq('id', deviceId);
-
   } catch (error) {
     console.error('Location update error:', error);
   }
 }
 
-/**
- * Initialize driver app on startup
- * Call this when your app starts
- */
 export async function initializeDriverApp(): Promise<void> {
   try {
-    // Check if there's an existing connection
     const status = await getConnectionStatus();
-    
     if (status.connected && status.deviceId) {
       connectedDeviceId = status.deviceId;
-      // Restart location tracking if connected
       await startLocationTracking();
       console.log('Driver app initialized with device:', status.deviceName);
     } else {
@@ -284,7 +228,6 @@ export async function initializeDriverApp(): Promise<void> {
   }
 }
 
-// Export the current device ID for external use
 export function getConnectedDeviceId(): string | null {
   return connectedDeviceId;
 }

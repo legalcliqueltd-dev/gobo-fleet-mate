@@ -1,7 +1,8 @@
 #!/bin/bash
 # Post-sync script for Android
 # Removes Transistorsoft plugin from Android build (it's iOS-only)
-# Verifies @capacitor/geolocation plugin is preserved
+# Verifies @capacitor/geolocation and @capacitor/camera plugins are preserved
+# Ensures AndroidManifest.xml has required permissions and features
 # Run after: npx cap sync android
 
 ANDROID_DIR="android"
@@ -66,6 +67,14 @@ fi
 
 MANIFEST_FILE="$ANDROID_DIR/app/src/main/AndroidManifest.xml"
 
+# Check if manifest is suspiciously minimal (less than 5 lines)
+MANIFEST_LINES=$(wc -l < "$MANIFEST_FILE" | tr -d ' ')
+if [ "$MANIFEST_LINES" -lt 5 ]; then
+  echo "[WARN] AndroidManifest.xml looks suspiciously minimal ($MANIFEST_LINES lines)."
+  echo "       This may cause runtime permission errors even if permissions appear present."
+  echo "       Expected at least: uses-permission entries + uses-feature + application tag."
+fi
+
 ensure_manifest_permission() {
   local permission="$1"
 
@@ -85,9 +94,29 @@ ensure_manifest_permission() {
   echo "[OK] Added $permission to AndroidManifest.xml"
 }
 
+ensure_manifest_feature() {
+  local feature="$1"
+
+  if grep -q "$feature" "$MANIFEST_FILE"; then
+    echo "[OK] AndroidManifest.xml already includes uses-feature $feature"
+    return
+  fi
+
+  awk -v feature="$feature" '
+    !inserted && /<application/ {
+      print "    <uses-feature android:name=\"" feature "\" android:required=\"false\" />"
+      inserted=1
+    }
+    { print }
+  ' "$MANIFEST_FILE" > "$MANIFEST_FILE.tmp" && mv "$MANIFEST_FILE.tmp" "$MANIFEST_FILE"
+
+  echo "[OK] Added uses-feature $feature to AndroidManifest.xml"
+}
+
 echo "--- Manifest Permission Check ---"
 ensure_manifest_permission "android.permission.ACCESS_COARSE_LOCATION"
 ensure_manifest_permission "android.permission.ACCESS_FINE_LOCATION"
+ensure_manifest_feature "android.hardware.location.gps"
 echo ""
 
 # 3. Verify required Capacitor plugins are present
@@ -128,8 +157,9 @@ verify_plugin() {
     echo "       The plugin may not be registered. Try:"
     echo "       1. Delete the android/ folder entirely"
     echo "       2. Run: npx cap add android"
-    echo "       3. Run: npx cap sync android"
-    echo "       4. Run this script again"
+    echo "       3. Run: npm run build"
+    echo "       4. Run: npm run cap:sync:android"
+    echo "       5. Run this script again"
   fi
 }
 
@@ -139,3 +169,6 @@ verify_plugin "Camera" "capacitor-camera" "node_modules/@capacitor/camera/androi
 
 echo ""
 echo "--- End Verification ---"
+echo ""
+echo "IMPORTANT: Always use 'npm run cap:sync:android' instead of plain 'npx cap sync android'"
+echo "           to ensure this post-sync script runs automatically."

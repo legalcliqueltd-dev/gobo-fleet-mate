@@ -7,7 +7,7 @@
  */
 
 import { Capacitor } from '@capacitor/core';
-import { detectNativePlatform } from '@/utils/platformDetection';
+import { detectNativePlatform, isAndroid } from '@/utils/platformDetection';
 
 /**
  * Returns true when the Capacitor Geolocation native plugin is actually
@@ -40,10 +40,19 @@ export function isGeolocationPluginAvailable(): boolean {
 /**
  * Returns true when ANY geolocation method is available —
  * either the native Capacitor plugin or the browser navigator.geolocation API.
- * Use this to decide whether to block the user vs allow them through.
+ * 
+ * IMPORTANT: On native Android, browser geolocation is NOT considered a valid
+ * fallback because it bypasses the Capacitor permission flow. Only the native
+ * plugin counts as "available" on Android.
  */
 export function isAnyGeolocationAvailable(): boolean {
   if (isGeolocationPluginAvailable()) return true;
+
+  // On native Android, do NOT fall back to browser geolocation
+  if (detectNativePlatform() && isAndroid()) {
+    return false;
+  }
+
   return typeof navigator !== 'undefined' && !!navigator.geolocation;
 }
 
@@ -55,9 +64,22 @@ export function getGeolocationUnavailableReason(): string | null {
   // If native plugin is available, we're good
   if (isGeolocationPluginAvailable()) return null;
 
-  // If browser geolocation is available, we can use it as fallback
+  // On native Android without the plugin, this is a configuration error
+  if (detectNativePlatform() && isAndroid()) {
+    return 'Native Geolocation plugin is not available. The AndroidManifest.xml may be missing required location permissions, or the plugin was not registered during cap sync. Reinstall the app after running: npm run build && npx cap sync android';
+  }
+
+  // If browser geolocation is available, we can use it as fallback (web/PWA only)
   if (typeof navigator !== 'undefined' && navigator.geolocation) return null;
 
   // Nothing available at all
   return 'Neither the native Geolocation plugin nor the browser geolocation API is available.';
+}
+
+/**
+ * Returns true when the current platform should use the native Capacitor
+ * Geolocation plugin exclusively (no browser fallback).
+ */
+export function shouldUseNativeOnly(): boolean {
+  return detectNativePlatform() && isAndroid() && isGeolocationPluginAvailable();
 }

@@ -16,7 +16,9 @@ import LocationBlocker from '@/components/driver/LocationBlocker';
 import ActiveTaskCard from '@/components/driver/ActiveTaskCard';
 import TaskNavigationMap from '@/components/map/TaskNavigationMap';
 import { cn } from '@/lib/utils';
-import { detectNativePlatform, isIOS } from '@/utils/platformDetection';
+import { detectNativePlatform, isIOS, isAndroid } from '@/utils/platformDetection';
+import { isGeolocationPluginAvailable } from '@/utils/nativeGeolocation';
+import { Geolocation } from '@capacitor/geolocation';
 
 type Task = {
   id: string;
@@ -69,6 +71,8 @@ export default function DriverAppDashboard() {
   const [followMode, setFollowMode] = useState(true);
 
   const isNativeIOS = detectNativePlatform() && isIOS();
+  const isNativeAndroid = detectNativePlatform() && isAndroid();
+  const useNativePlugin = (isNativeIOS || isNativeAndroid) && isGeolocationPluginAvailable();
 
   const [onDuty] = useState(() => {
     const stored = localStorage.getItem('driverOnDuty');
@@ -101,7 +105,7 @@ export default function DriverAppDashboard() {
     }
   }, [trail]);
 
-  // Browser-based tracking
+  // Browser-based tracking (used for web/PWA and as Android non-iOS native tracker)
   const { isTracking: browserIsTracking, batteryLevel: browserBattery, lastUpdate: browserLastUpdate } = useBackgroundLocationTracking(onDuty && locationPermissionGranted, {
     updateIntervalMs: 30000,
     batterySavingMode: localStorage.getItem('batterySavingMode') === 'true',
@@ -168,46 +172,93 @@ export default function DriverAppDashboard() {
     }
   }, [isNativeIOS, iosTracking.lastLocation, iosTracking.lastUpdate, onDuty]);
 
-  // Web position watch
+  // Position watch — uses Capacitor on native Android, browser on web/PWA
   useEffect(() => {
-    if (isNativeIOS) return;
-    if (!locationPermissionGranted || !navigator.geolocation) return;
+    if (isNativeIOS) return; // iOS handled by iosTracking above
+    if (!locationPermissionGranted) return;
 
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        const newLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setCurrentLocation(newLocation);
-        setAccuracy(pos.coords.accuracy);
-        if (pos.coords.speed !== null) setSpeed(pos.coords.speed * 3.6);
-        if (pos.coords.heading !== null) setHeading(pos.coords.heading);
-        setLastSyncTime(new Date());
+    let watchId: string | number | null = null;
 
-        // Initial center
-        if (!hasInitialCentered.current && mapRef.current) {
-          mapRef.current.panTo(newLocation);
-          mapRef.current.setZoom(16);
-          hasInitialCentered.current = true;
+    const addTrailPoint = (lat: number, lng: number, spd: number | null) => {
+      if (!onDuty) return;
+      setTrail(prev => {
+        const now = Date.now();
+        const lastPoint = prev[prev.length - 1];
+        if (lastPoint && now - lastPoint.timestamp < 10000) return prev;
+        const newTrail = [
+          ...prev.filter(p => now - p.timestamp < MAX_TRAIL_AGE_MS),
+          { lat, lng, timestamp: now, speed: spd }
+        ];
+        return newTrail.length > 500 ? newTrail.slice(-500) : newTrail;
+      });
+    };
+
+    const updateState = (lat: number, lng: number, acc: number, spd: number | null, hdg: number | null) => {
+      const newLocation = { lat, lng };
+      setCurrentLocation(newLocation);
+      setAccuracy(acc);
+      if (spd !== null) setSpeed(spd * 3.6);
+      if (hdg !== null) setHeading(hdg);
+      setLastSyncTime(new Date());
+
+      if (!hasInitialCentered.current && mapRef.current) {
+        mapRef.current.panTo(newLocation);
+        mapRef.current.setZoom(16);
+        hasInitialCentered.current = true;
+      }
+
+      if (acc < 100) addTrailPoint(lat, lng, spd !== null ? spd * 3.6 : null);
+    };
+
+    if (isNativeAndroid && isGeolocationPluginAvailable()) {
+      // Native Android — use Capacitor Geolocation exclusively
+      console.log('[Dashboard] Using native Capacitor Geolocation for Android');
+      Geolocation.watchPosition(
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
+        (pos, err) => {
+          if (err) {
+            console.error('[Dashboard] Native watch error:', err);
+            return;
+          }
+          if (pos) {
+            updateState(
+              pos.coords.latitude,
+              pos.coords.longitude,
+              pos.coords.accuracy || 0,
+              pos.coords.speed,
+              pos.coords.heading
+            );
+          }
         }
+      ).then(id => { watchId = id; });
+    } else if (!detectNativePlatform() && navigator.geolocation) {
+      // Web/PWA — use browser geolocation
+      console.log('[Dashboard] Using browser geolocation');
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          updateState(
+            pos.coords.latitude,
+            pos.coords.longitude,
+            pos.coords.accuracy,
+            pos.coords.speed,
+            pos.coords.heading
+          );
+        },
+        (err) => console.error('Location watch error:', err),
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+      );
+    }
 
-        if (onDuty && pos.coords.accuracy < 100) {
-          setTrail(prev => {
-            const now = Date.now();
-            const lastPoint = prev[prev.length - 1];
-            if (lastPoint && now - lastPoint.timestamp < 10000) return prev;
-            const newTrail = [
-              ...prev.filter(p => now - p.timestamp < MAX_TRAIL_AGE_MS),
-              { lat: newLocation.lat, lng: newLocation.lng, timestamp: now, speed: pos.coords.speed !== null ? pos.coords.speed * 3.6 : null }
-            ];
-            return newTrail.length > 500 ? newTrail.slice(-500) : newTrail;
-          });
+    return () => {
+      if (watchId !== null) {
+        if (isNativeAndroid && isGeolocationPluginAvailable()) {
+          Geolocation.clearWatch({ id: watchId as string }).catch(console.error);
+        } else {
+          navigator.geolocation.clearWatch(watchId as number);
         }
-      },
-      (err) => console.error('Location watch error:', err),
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
-    );
-
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, [locationPermissionGranted, onDuty, isNativeIOS]);
+      }
+    };
+  }, [locationPermissionGranted, onDuty, isNativeIOS, isNativeAndroid]);
 
   // Load tasks
   const loadTasks = useCallback(async () => {
@@ -439,7 +490,6 @@ export default function DriverAppDashboard() {
                 'shadow-lg h-11 w-11 rounded-full',
                 followMode && 'ring-2 ring-primary'
               )}
-              title="Center on my location"
             >
               <Crosshair className="h-5 w-5" />
             </Button>
@@ -448,30 +498,30 @@ export default function DriverAppDashboard() {
               variant="secondary"
               onClick={toggleMapType}
               className="shadow-lg h-11 w-11 rounded-full"
-              title="Toggle map type"
             >
               <Layers className="h-5 w-5" />
             </Button>
           </div>
+        </div>
 
-          {/* Active task card - Bolt style bottom card */}
-          {activeTask && (
+        {/* Bottom card area */}
+        <div className="absolute bottom-0 left-0 right-0 p-3 pointer-events-auto">
+          {activeTask ? (
             <ActiveTaskCard
               task={activeTask}
               driverLocation={currentLocation}
               onNavigate={() => setNavigatingTask(activeTask)}
             />
+          ) : (
+            <DriverStatusCard
+              isTracking={isTracking}
+              batteryLevel={batteryLevel}
+              lastSyncTime={lastUpdate}
+              speed={speed}
+              accuracy={accuracy}
+            />
           )}
         </div>
-
-        {/* Status bar at bottom */}
-        <DriverStatusCard
-          speed={speed}
-          batteryLevel={batteryLevel}
-          lastSyncTime={lastSyncTime || lastUpdate}
-          isTracking={isTracking}
-          accuracy={accuracy}
-        />
       </div>
     </DriverAppLayout>
   );

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
 import { detectNativePlatform, isAndroid, isIOS } from '@/utils/platformDetection';
-import { isGeolocationPluginAvailable, isAnyGeolocationAvailable } from '@/utils/nativeGeolocation';
+import { isGeolocationPluginAvailable, isAnyGeolocationAvailable, shouldUseNativeOnly } from '@/utils/nativeGeolocation';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
@@ -33,7 +33,8 @@ export default function LocationDiagnostics() {
     const pluginAvail = Capacitor.isPluginAvailable('Geolocation');
     const helperAvail = isGeolocationPluginAvailable();
     const anyAvail = isAnyGeolocationAvailable();
-    log('Plugin Available', `Capacitor.isPluginAvailable=${pluginAvail} helper=${helperAvail} any=${anyAvail}`, pluginAvail || helperAvail);
+    const nativeOnly = shouldUseNativeOnly();
+    log('Plugin Available', `Capacitor.isPluginAvailable=${pluginAvail} helper=${helperAvail} any=${anyAvail} nativeOnly=${nativeOnly}`, pluginAvail || helperAvail);
 
     // 3. Window.Capacitor bridge check
     try {
@@ -44,45 +45,78 @@ export default function LocationDiagnostics() {
       log('Bridge Check', `Error: ${e?.message || e}`, false);
     }
 
-    // 4. checkPermissions
+    // 4. Native checkPermissions
     try {
       const status = await Geolocation.checkPermissions();
-      log('checkPermissions', JSON.stringify(status), status.location === 'granted');
+      const isManifestError = false;
+      log('Native checkPermissions', JSON.stringify(status), status.location === 'granted');
     } catch (e: any) {
-      log('checkPermissions', `ERROR: ${e?.message || e}`, false);
+      const msg = e?.message || String(e);
+      const isManifestMissing = msg.includes('Missing the following permissions in AndroidManifest');
+      log(
+        'Native checkPermissions',
+        `ERROR: ${msg}${isManifestMissing ? '\n⚠️ MANIFEST ISSUE: Location permissions are missing from the packaged AndroidManifest.xml. Rebuild after: npm run build && npx cap sync android' : ''}`,
+        false
+      );
     }
 
-    // 5. requestPermissions
+    // 5. Native requestPermissions
     try {
       const result = await Geolocation.requestPermissions();
-      log('requestPermissions', JSON.stringify(result), result.location === 'granted' || result.coarseLocation === 'granted');
+      log('Native requestPermissions', JSON.stringify(result), result.location === 'granted' || result.coarseLocation === 'granted');
     } catch (e: any) {
-      log('requestPermissions', `ERROR: ${e?.message || e}`, false);
+      const msg = e?.message || String(e);
+      const isManifestMissing = msg.includes('Missing the following permissions in AndroidManifest');
+      log(
+        'Native requestPermissions',
+        `ERROR: ${msg}${isManifestMissing ? '\n⚠️ MANIFEST ISSUE: Permissions not in manifest. Rebuild required.' : ''}`,
+        false
+      );
     }
 
     // 6. Re-check after request
     try {
       const recheck = await Geolocation.checkPermissions();
-      log('checkPermissions (after)', JSON.stringify(recheck), recheck.location === 'granted');
+      log('Native checkPermissions (after)', JSON.stringify(recheck), recheck.location === 'granted');
     } catch (e: any) {
-      log('checkPermissions (after)', `ERROR: ${e?.message || e}`, false);
+      log('Native checkPermissions (after)', `ERROR: ${e?.message || e}`, false);
     }
 
-    // 7. getCurrentPosition
+    // 7. Native getCurrentPosition
     try {
       const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 20000 });
-      log('getCurrentPosition', `lat=${pos.coords.latitude} lng=${pos.coords.longitude} acc=${pos.coords.accuracy}`, true);
+      log('Native getCurrentPosition', `lat=${pos.coords.latitude} lng=${pos.coords.longitude} acc=${pos.coords.accuracy}`, true);
     } catch (e: any) {
-      log('getCurrentPosition', `ERROR: ${e?.message || e}`, false);
+      log('Native getCurrentPosition', `ERROR: ${e?.message || e}`, false);
     }
 
-    // 8. Browser navigator.geolocation
+    // 8. Browser geolocation — separate section
+    log('--- Browser/WebView ---', `(separate from native Capacitor)`, true);
+
     try {
       const hasBrowser = typeof navigator !== 'undefined' && !!navigator.geolocation;
       log('navigator.geolocation', `exists=${hasBrowser}`, hasBrowser);
+
       if (hasBrowser && navigator.permissions?.query) {
         const perm = await navigator.permissions.query({ name: 'geolocation' });
         log('navigator.permissions', `state=${perm.state}`, perm.state === 'granted');
+      }
+
+      // Warn if native Android is incorrectly using browser fallback
+      if (isNative && android && hasBrowser && !pluginAvail) {
+        log(
+          '⚠️ Android Fallback Warning',
+          'Native Android detected but Capacitor Geolocation plugin is unavailable. The app would fall back to browser geolocation which bypasses native permissions. This indicates a build/manifest issue.',
+          false
+        );
+      }
+
+      if (isNative && android && pluginAvail) {
+        log(
+          'Android Geolocation Source',
+          'Using native Capacitor Geolocation plugin (correct). Browser geolocation is disabled on native Android.',
+          true
+        );
       }
     } catch (e: any) {
       log('Browser Geolocation', `ERROR: ${e?.message || e}`, false);
@@ -152,7 +186,7 @@ export default function LocationDiagnostics() {
               <span className="font-semibold text-foreground">{entry.label}</span>
               <span className="text-muted-foreground text-xs ml-auto">{entry.time}</span>
             </div>
-            <div className="text-xs text-muted-foreground">{entry.value}</div>
+            <div className="text-xs text-muted-foreground whitespace-pre-wrap">{entry.value}</div>
           </div>
         ))}
       </div>
