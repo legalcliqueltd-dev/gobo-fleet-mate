@@ -1,45 +1,71 @@
 
 
-## Plan: New Play Console Listing with `app.fleettrackmate.driver`
+# Plan: Persistent Android Background Tracking + Location-Off Admin Alert
 
-### What's happening
-Your existing Play Console listing uses the old Lovable default package ID (`app.lovable.d78756af...`). Since package IDs can't be changed, you need to create a brand-new app listing for `app.fleettrackmate.driver`.
+## Problem
+1. On Android, location tracking dies when the app is backgrounded or screen locks — the WebView gets suspended
+2. No mechanism exists to alert the admin when a driver intentionally disables their location
 
-### Steps
+## Solution
 
-**1. Create New App in Play Console**
-- Go to **Google Play Console → All apps → Create app**
-- Fill in: App name = "FleetTrackMate Driver", language, app/game, free/paid
-- Accept declarations → **Create app**
+### Part 1: Android Foreground Service (keeps tracking alive)
 
-**2. Fix versionCode (if needed)**
-Since this is a brand-new listing, `versionCode 1` is fine. But verify in your local Android Studio project:
-- Open `android/app/build.gradle` → confirm `versionCode` is `1` and `versionName` is `"1.0"`
+**Install** `@capawesome-team/capacitor-android-foreground-service` plugin.
 
-**3. Sign & Build AAB**
-- **Build → Generate Signed Bundle / APK → Android App Bundle**
-- Keystore: `C:\Users\PC\fleettrackmate`
-- Alias: `key0`
-- Enter your password carefully
-- Select **release** → Finish
+**New file**: `src/utils/androidForegroundService.ts`
+- Wrapper to start/stop a persistent Android foreground service
+- Shows a notification: "FleetTrackMate — Location tracking active"
+- Only activates on native Android platform
 
-**4. Upload AAB to New Listing**
-- In the new app listing: **Production → Create new release → Upload** the AAB
-- The package ID `app.fleettrackmate.driver` will now match
+**Update**: `src/hooks/useBackgroundLocationTracking.ts`
+- Before starting `watchPosition` on Android, start the foreground service
+- When tracking stops, stop the foreground service
+- This keeps the app process alive so `watchPosition` continues firing in background
 
-**5. Complete Store Listing**
-Fill in required sections before submitting for review:
-- **Main store listing**: Title, short/full description, screenshots, icon
-- **Content rating**: Complete questionnaire
-- **Pricing & distribution**: Select countries
-- **App content**: Privacy policy URL, ads declaration, target audience
-- **Background location declaration**: Use the justification text you prepared earlier
+**Update**: `android/app/src/main/AndroidManifest.xml` (via post-sync script)
+- Add permissions: `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`, `ACCESS_BACKGROUND_LOCATION`, `WAKE_LOCK`
 
-**6. (Optional) Unpublish Old Listing**
-Once the new listing is live, you can unpublish or deactivate the old `app.lovable...` listing if it was ever published.
+**Update**: `capacitor.config.ts`
+- Add `@capawesome-team/capacitor-android-foreground-service` to `includePlugins`
 
-### Important Notes
-- Your keystore file and signing key stay the same — no changes needed there
-- All your compliance materials (background location video, privacy policy, etc.) can be reused
-- The old listing's reviews/installs won't transfer — this is a fresh start
+**Update**: `scripts/android-post-sync.ps1` and `.sh`
+- Ensure the foreground service plugin is not stripped during cleanup
+
+**What this achieves**: App stays alive when minimized, screen locked, or switching apps. Covers 95% of real-world background usage. Does NOT survive force-kill (that would require a headless native service — significantly more complex).
+
+### Part 2: Admin Alert When Driver Disables Location
+
+**Update**: `src/hooks/useBackgroundLocationTracking.ts`
+- Add a `permissions.onChange` / periodic permission check
+- When location permission changes from granted to denied, or GPS is turned off:
+  - Call the `connect-driver` edge function with a new action: `location-disabled`
+
+**Update**: `supabase/functions/connect-driver/index.ts`
+- Add handler for `action: 'location-disabled'`
+- Inserts a record into a new `driver_alerts` table (or reuses `sos_events` with a special hazard type)
+- Sends an email to the admin via the existing `send-email` function
+
+**New migration**: Create `driver_alerts` table
+- Columns: `id`, `driver_id`, `admin_code`, `alert_type` (e.g. `location_disabled`), `message`, `created_at`, `acknowledged_at`
+- RLS: admins can read, anonymous drivers can insert via edge function
+
+**Update**: Admin dashboard notification
+- Show a warning badge/toast when a driver disables location
+- Display in the existing notification bell or as a new alert type
+
+### Files to change
+- `src/utils/androidForegroundService.ts` — new file, foreground service manager
+- `src/hooks/useBackgroundLocationTracking.ts` — start foreground service on Android + detect location-off
+- `capacitor.config.ts` — add foreground service plugin
+- `scripts/android-post-sync.ps1` / `.sh` — preserve foreground service plugin + permissions
+- `supabase/functions/connect-driver/index.ts` — add `location-disabled` action
+- New migration for `driver_alerts` table
+- Admin dashboard — display location-disabled alerts
+
+### Post-implementation steps
+1. `npm install @capawesome-team/capacitor-android-foreground-service`
+2. `npm run build && npx cap sync android`
+3. Run `android-post-sync.ps1`
+4. Test: minimize app, lock screen — verify locations still arrive on admin dashboard
+5. Test: disable location on phone — verify admin receives alert
 
