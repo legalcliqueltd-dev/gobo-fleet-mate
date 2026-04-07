@@ -15,4 +15,13 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      external: [
+        '@capawesome-team/capacitor-android-foreground-service',
+        '@transistorsoft/capacitor-background-geolocation',
+        '@transistorsoft/capacitor-background-fetch',
+      ],
+    },
+  },
 }));
