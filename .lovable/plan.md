@@ -1,31 +1,30 @@
 
 
-## Plan
+## Fix: Driver Dashboard Map Not Visible + Layout Overflow
 
-### Task 1: Rename app from "gobo-fleet-track" to "FleetTrackMate Driver"
+**Root cause**: In a CSS flex column, children with `flex-1` default to `min-height: auto`, which prevents them from shrinking below their content size. The Google Map container has `height: 100%` but its parent chain never resolves to an actual pixel height — it collapses to 0.
 
-There is one reference to `gobo-fleet-mate.lovable.app` in `supabase/functions/create-checkout/index.ts` (line 102). This fallback URL should be changed to `https://fleettrackmate.com`.
+**Fix** (3 files):
 
-The published Lovable URL (`gobo-fleet-mate.lovable.app`) is a project setting outside the codebase — but the code fallback can be fixed.
+### 1. `src/components/layout/DriverAppLayout.tsx` (line 60)
+Change `<main>` to include `min-h-0`:
+```
+<main className="flex-1 min-h-0 overflow-hidden">
+```
 
-**Change:**
-- `supabase/functions/create-checkout/index.ts` line 102: replace `gobo-fleet-mate.lovable.app` with `fleettrackmate.com`
+### 2. `src/pages/app/DriverAppDashboard.tsx` (lines 419-420)
+Add `min-h-0` to the flex containers so the map can inherit a real height:
+```
+<div className="relative h-full w-full flex flex-col min-h-0">
+  <div className="flex-1 relative min-h-0">
+```
+Remove `flex-1` from the outer div (it already has `h-full`).
 
-### Task 2: Fix zoomed/overflowing layout on the driver dashboard
+### 3. `src/components/layout/DriverAppLayout.tsx` (line 27)
+Change root container from `min-h-screen` to `h-screen` to give a fixed height for the flex chain:
+```
+<div className="h-screen bg-background flex flex-col overflow-hidden">
+```
 
-The driver dashboard map creates scrollbars because:
-- The outer wrapper uses `minHeight: 'calc(100vh - 140px)'` (line 419) and the map uses `minHeight: 'calc(100vh - 200px)'` (line 422), which can exceed the available space inside `DriverAppLayout` (which already has a header + bottom nav eating ~140px).
-- The `<main>` in `DriverAppLayout` uses `overflow-auto` but the content overflows beyond the viewport.
-
-**Fix:**
-1. In `DriverAppLayout.tsx`: change `<main>` from `overflow-auto` to `overflow-hidden` (the map should fill, not scroll).
-2. In `DriverAppDashboard.tsx` line 419: remove the `style={{ minHeight: ... }}` and use `h-full` only — let flexbox handle sizing.
-3. In `DriverAppDashboard.tsx` line 422: change the map container style to `{ width: '100%', height: '100%' }` — remove the `minHeight`.
-4. In `index.html` line 5: add `viewport-fit=cover` to the viewport meta and ensure `maximum-scale=1.0, user-scalable=no` for the native app context to prevent pinch-zoom causing layout overflow.
-
-### Technical Details
-
-- The root cause is competing `min-height` values that push content taller than the viewport, triggering scrollbars.
-- Removing explicit `minHeight` styles and relying on flexbox (`flex-1` + `h-full`) will let the map fill exactly the available space.
-- Setting `user-scalable=no` on viewport prevents accidental pinch-zoom on the native app (standard for mobile apps).
+**Why this works**: `h-screen` on root gives a concrete height. `min-h-0` on each flex child allows it to shrink. `height: 100%` on the map then resolves to actual pixels instead of collapsing.
 
