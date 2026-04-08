@@ -57,7 +57,7 @@ export default function DriverAppLayout({ children }: PropsWithChildren) {
       </header>
 
       {/* Main Content - fills available space */}
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-hidden">
         {children}
       </main>
 
