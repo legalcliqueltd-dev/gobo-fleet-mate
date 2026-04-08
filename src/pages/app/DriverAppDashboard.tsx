@@ -38,6 +38,7 @@ type TrailPoint = {
 
 const TRAIL_STORAGE_KEY = 'driver_location_trail';
 const MAX_TRAIL_AGE_MS = 24 * 60 * 60 * 1000;
+const IOS_TRANSISTOR_FAILED_KEY = 'ios_transistor_failed';
 
 // Clean, minimal map style for better navigation UX
 const CLEAN_MAP_STYLE: google.maps.MapTypeStyle[] = [
