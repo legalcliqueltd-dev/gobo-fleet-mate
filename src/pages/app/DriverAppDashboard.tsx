@@ -231,9 +231,11 @@ export default function DriverAppDashboard() {
       if (acc < 100) addTrailPoint(lat, lng, spd !== null ? spd * 3.6 : null);
     };
 
-    if (isNativeAndroid && isGeolocationPluginAvailable()) {
-      // Native Android — use Capacitor Geolocation exclusively
-      console.log('[Dashboard] Using native Capacitor Geolocation for Android');
+    const useNativeCapacitor = (isNativeAndroid || useIOSFallback) && isGeolocationPluginAvailable();
+
+    if (useNativeCapacitor) {
+      // Native Android or iOS fallback — use Capacitor Geolocation
+      console.log('[Dashboard] Using native Capacitor Geolocation for', useIOSFallback ? 'iOS (fallback)' : 'Android');
       Geolocation.watchPosition(
         { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
         (pos, err) => {
@@ -272,14 +274,14 @@ export default function DriverAppDashboard() {
 
     return () => {
       if (watchId !== null) {
-        if (isNativeAndroid && isGeolocationPluginAvailable()) {
+        if (useNativeCapacitor) {
           Geolocation.clearWatch({ id: watchId as string }).catch(console.error);
         } else {
           navigator.geolocation.clearWatch(watchId as number);
         }
       }
     };
-  }, [locationPermissionGranted, onDuty, isNativeIOS, isNativeAndroid]);
+  }, [locationPermissionGranted, onDuty, isNativeIOS, isNativeAndroid, useIOSFallback]);
 
   // Load tasks
   const loadTasks = useCallback(async () => {
