@@ -472,8 +472,8 @@ export default function DriverAppDashboard() {
             )}
           </GoogleMap>
 
-          {/* Top-left: tracking status */}
-          <div className="absolute top-4 left-4 pointer-events-auto">
+          {/* Top bar: tracking status + GPS quality */}
+          <div className="absolute top-4 left-4 right-4 pointer-events-auto flex items-center justify-between">
             <div className={cn(
               'flex items-center gap-2 px-3 py-2 rounded-full shadow-lg backdrop-blur-md',
               isTracking ? 'bg-success/90 text-success-foreground' : 'bg-muted/90 text-muted-foreground'
@@ -486,10 +486,7 @@ export default function DriverAppDashboard() {
                 <span className="text-sm font-medium ml-1">{Math.round(speed)} km/h</span>
               )}
             </div>
-          </div>
 
-          {/* Top-right: GPS quality */}
-          <div className="absolute top-4 right-4 pointer-events-auto">
             <div className="bg-background/90 backdrop-blur-md px-3 py-2 rounded-full shadow-lg">
               <div className="flex items-center gap-1.5">
                 <Signal className={cn('h-3.5 w-3.5', signalQuality.color)} />
