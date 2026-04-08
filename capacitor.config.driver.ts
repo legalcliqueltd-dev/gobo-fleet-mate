@@ -27,6 +27,8 @@ const config: CapacitorConfig = {
     '@capacitor/haptics',
     '@capacitor/keyboard',
     '@capacitor/status-bar',
+    '@transistorsoft/capacitor-background-geolocation',
+    '@transistorsoft/capacitor-background-fetch',
   ],
 
   // IMPORTANT:
