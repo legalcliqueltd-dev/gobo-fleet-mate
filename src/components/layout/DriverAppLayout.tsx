@@ -24,7 +24,7 @@ export default function DriverAppLayout({ children }: PropsWithChildren) {
   const isHomePage = location.pathname === '/app' || location.pathname === '/app/dashboard';
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-screen bg-background flex flex-col overflow-hidden">
       {/* Header with back button */}
       <header 
         className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border"
@@ -57,7 +57,7 @@ export default function DriverAppLayout({ children }: PropsWithChildren) {
       </header>
 
       {/* Main Content - fills available space */}
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 min-h-0 overflow-hidden">
         {children}
       </main>
 
