@@ -38,6 +38,7 @@ type TrailPoint = {
 
 const TRAIL_STORAGE_KEY = 'driver_location_trail';
 const MAX_TRAIL_AGE_MS = 24 * 60 * 60 * 1000;
+const IOS_TRANSISTOR_FAILED_KEY = 'ios_transistor_failed';
 
 // Clean, minimal map style for better navigation UX
 const CLEAN_MAP_STYLE: google.maps.MapTypeStyle[] = [
@@ -114,16 +115,36 @@ export default function DriverAppDashboard() {
     adminCode: session?.adminCode,
   });
 
-  // Native iOS tracking
-  const iosTracking = useIOSBackgroundTracking(onDuty && locationPermissionGranted, {
+  // Detect if Transistorsoft failed to start on iOS — fall back to Capacitor Geolocation
+  const [iosTransistorFailed, setIosTransistorFailed] = useState(() => {
+    return isNativeIOS && localStorage.getItem(IOS_TRANSISTOR_FAILED_KEY) === 'true';
+  });
+
+  // Native iOS tracking (Transistorsoft)
+  const iosTracking = useIOSBackgroundTracking(onDuty && locationPermissionGranted && !iosTransistorFailed, {
     updateIntervalMs: 30000,
     driverId: session?.driverId,
     adminCode: session?.adminCode,
   });
 
-  const isTracking = isNativeIOS ? iosTracking.isTracking : browserIsTracking;
-  const batteryLevel = isNativeIOS ? iosTracking.batteryLevel : browserBattery;
-  const lastUpdate = isNativeIOS ? iosTracking.lastUpdate : browserLastUpdate;
+  // If iOS tracking was enabled but never started after 5 seconds, mark as failed
+  useEffect(() => {
+    if (!isNativeIOS || !locationPermissionGranted || !onDuty || iosTransistorFailed) return;
+    const timeout = setTimeout(() => {
+      if (!iosTracking.isTracking && !iosTracking.lastLocation) {
+        console.warn('[Dashboard] Transistorsoft failed to start on iOS, falling back to Capacitor Geolocation');
+        setIosTransistorFailed(true);
+        localStorage.setItem(IOS_TRANSISTOR_FAILED_KEY, 'true');
+      }
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, [isNativeIOS, locationPermissionGranted, onDuty, iosTracking.isTracking, iosTracking.lastLocation, iosTransistorFailed]);
+
+  // Use iOS Transistorsoft if available, otherwise fall back to Capacitor tracking
+  const useIOSFallback = isNativeIOS && iosTransistorFailed;
+  const isTracking = (isNativeIOS && !iosTransistorFailed) ? iosTracking.isTracking : browserIsTracking;
+  const batteryLevel = (isNativeIOS && !iosTransistorFailed) ? iosTracking.batteryLevel : browserBattery;
+  const lastUpdate = (isNativeIOS && !iosTransistorFailed) ? iosTracking.lastUpdate : browserLastUpdate;
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -172,9 +193,9 @@ export default function DriverAppDashboard() {
     }
   }, [isNativeIOS, iosTracking.lastLocation, iosTracking.lastUpdate, onDuty]);
 
-  // Position watch — uses Capacitor on native Android, browser on web/PWA
+  // Position watch — uses Capacitor on native (Android + iOS fallback), browser on web/PWA
   useEffect(() => {
-    if (isNativeIOS) return; // iOS handled by iosTracking above
+    if (isNativeIOS && !useIOSFallback) return; // iOS handled by Transistorsoft above (unless it failed)
     if (!locationPermissionGranted) return;
 
     let watchId: string | number | null = null;
@@ -210,9 +231,11 @@ export default function DriverAppDashboard() {
       if (acc < 100) addTrailPoint(lat, lng, spd !== null ? spd * 3.6 : null);
     };
 
-    if (isNativeAndroid && isGeolocationPluginAvailable()) {
-      // Native Android — use Capacitor Geolocation exclusively
-      console.log('[Dashboard] Using native Capacitor Geolocation for Android');
+    const useNativeCapacitor = (isNativeAndroid || useIOSFallback) && isGeolocationPluginAvailable();
+
+    if (useNativeCapacitor) {
+      // Native Android or iOS fallback — use Capacitor Geolocation
+      console.log('[Dashboard] Using native Capacitor Geolocation for', useIOSFallback ? 'iOS (fallback)' : 'Android');
       Geolocation.watchPosition(
         { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
         (pos, err) => {
@@ -251,14 +274,14 @@ export default function DriverAppDashboard() {
 
     return () => {
       if (watchId !== null) {
-        if (isNativeAndroid && isGeolocationPluginAvailable()) {
+        if (useNativeCapacitor) {
           Geolocation.clearWatch({ id: watchId as string }).catch(console.error);
         } else {
           navigator.geolocation.clearWatch(watchId as number);
         }
       }
     };
-  }, [locationPermissionGranted, onDuty, isNativeIOS, isNativeAndroid]);
+  }, [locationPermissionGranted, onDuty, isNativeIOS, isNativeAndroid, useIOSFallback]);
 
   // Load tasks
   const loadTasks = useCallback(async () => {
@@ -449,8 +472,8 @@ export default function DriverAppDashboard() {
             )}
           </GoogleMap>
 
-          {/* Top-left: tracking status */}
-          <div className="absolute top-4 left-4 pointer-events-auto">
+          {/* Top bar: tracking status + GPS quality */}
+          <div className="absolute top-4 left-4 right-4 pointer-events-auto flex items-center justify-between">
             <div className={cn(
               'flex items-center gap-2 px-3 py-2 rounded-full shadow-lg backdrop-blur-md',
               isTracking ? 'bg-success/90 text-success-foreground' : 'bg-muted/90 text-muted-foreground'
@@ -463,10 +486,7 @@ export default function DriverAppDashboard() {
                 <span className="text-sm font-medium ml-1">{Math.round(speed)} km/h</span>
               )}
             </div>
-          </div>
 
-          {/* Top-right: GPS quality */}
-          <div className="absolute top-4 right-4 pointer-events-auto">
             <div className="bg-background/90 backdrop-blur-md px-3 py-2 rounded-full shadow-lg">
               <div className="flex items-center gap-1.5">
                 <Signal className={cn('h-3.5 w-3.5', signalQuality.color)} />
