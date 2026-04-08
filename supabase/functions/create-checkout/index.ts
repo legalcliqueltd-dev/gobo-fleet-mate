@@ -99,7 +99,7 @@ serve(async (req) => {
     }
 
     // Build checkout session config
-    const origin = req.headers.get("origin") || "https://gobo-fleet-mate.lovable.app";
+    const origin = req.headers.get("origin") || "https://fleettrackmate.com";
     const sessionConfig: any = {
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
