@@ -94,6 +94,33 @@ echo "=== Background Modes ==="
 add_background_modes
 
 echo ""
+echo "=== BGTaskScheduler Permitted Identifiers ==="
+# Required when UIBackgroundModes includes 'processing'
+if ! $PLIST_BUDDY -c "Print :BGTaskSchedulerPermittedIdentifiers" "$PLIST_PATH" 2>/dev/null; then
+  $PLIST_BUDDY -c "Add :BGTaskSchedulerPermittedIdentifiers array" "$PLIST_PATH"
+  echo "➕ BGTaskSchedulerPermittedIdentifiers (created array)"
+else
+  echo "✓ BGTaskSchedulerPermittedIdentifiers (array exists)"
+fi
+
+# Add the Transistorsoft background fetch identifier
+bg_id="com.transistorsoft.fetch"
+bg_exists=false
+i=0
+while true; do
+  current=$($PLIST_BUDDY -c "Print :BGTaskSchedulerPermittedIdentifiers:$i" "$PLIST_PATH" 2>/dev/null)
+  if [ $? -ne 0 ]; then break; fi
+  if [ "$current" = "$bg_id" ]; then bg_exists=true; break; fi
+  ((i++))
+done
+if [ "$bg_exists" = false ]; then
+  $PLIST_BUDDY -c "Add :BGTaskSchedulerPermittedIdentifiers: string '$bg_id'" "$PLIST_PATH"
+  echo "   ➕ Added '$bg_id'"
+else
+  echo "   ✓ '$bg_id' already present"
+fi
+
+echo ""
 echo "✅ Info.plist permission entries ensured successfully!"
 echo ""
 
