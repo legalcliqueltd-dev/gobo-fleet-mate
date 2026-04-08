@@ -193,9 +193,9 @@ export default function DriverAppDashboard() {
     }
   }, [isNativeIOS, iosTracking.lastLocation, iosTracking.lastUpdate, onDuty]);
 
-  // Position watch — uses Capacitor on native Android, browser on web/PWA
+  // Position watch — uses Capacitor on native (Android + iOS fallback), browser on web/PWA
   useEffect(() => {
-    if (isNativeIOS) return; // iOS handled by iosTracking above
+    if (isNativeIOS && !useIOSFallback) return; // iOS handled by Transistorsoft above (unless it failed)
     if (!locationPermissionGranted) return;
 
     let watchId: string | number | null = null;
