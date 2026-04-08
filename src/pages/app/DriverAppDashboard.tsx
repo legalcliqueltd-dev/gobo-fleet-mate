@@ -115,16 +115,16 @@ export default function DriverAppDashboard() {
     adminCode: session?.adminCode,
   });
 
+  // Detect if Transistorsoft failed to start on iOS — fall back to Capacitor Geolocation
+  const [iosTransistorFailed, setIosTransistorFailed] = useState(() => {
+    return isNativeIOS && localStorage.getItem(IOS_TRANSISTOR_FAILED_KEY) === 'true';
+  });
+
   // Native iOS tracking (Transistorsoft)
   const iosTracking = useIOSBackgroundTracking(onDuty && locationPermissionGranted && !iosTransistorFailed, {
     updateIntervalMs: 30000,
     driverId: session?.driverId,
     adminCode: session?.adminCode,
-  });
-
-  // Detect if Transistorsoft failed to start on iOS — fall back to Capacitor Geolocation
-  const [iosTransistorFailed, setIosTransistorFailed] = useState(() => {
-    return isNativeIOS && localStorage.getItem(IOS_TRANSISTOR_FAILED_KEY) === 'true';
   });
 
   // If iOS tracking was enabled but never started after 5 seconds, mark as failed
@@ -140,7 +140,7 @@ export default function DriverAppDashboard() {
     return () => clearTimeout(timeout);
   }, [isNativeIOS, locationPermissionGranted, onDuty, iosTracking.isTracking, iosTracking.lastLocation, iosTransistorFailed]);
 
-  // Use iOS Transistorsoft if available, otherwise fall back to browser/Capacitor tracking
+  // Use iOS Transistorsoft if available, otherwise fall back to Capacitor tracking
   const useIOSFallback = isNativeIOS && iosTransistorFailed;
   const isTracking = (isNativeIOS && !iosTransistorFailed) ? iosTracking.isTracking : browserIsTracking;
   const batteryLevel = (isNativeIOS && !iosTransistorFailed) ? iosTracking.batteryLevel : browserBattery;
