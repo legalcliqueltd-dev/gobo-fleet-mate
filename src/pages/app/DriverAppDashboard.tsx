@@ -416,8 +416,8 @@ export default function DriverAppDashboard() {
         />
       )}
 
-      <div className="relative h-full w-full flex flex-col flex-1">
-        <div className="flex-1 relative">
+      <div className="relative h-full w-full flex flex-col min-h-0">
+        <div className="flex-1 relative min-h-0">
           <GoogleMap
             mapContainerStyle={{ width: '100%', height: '100%' }}
             center={currentLocation || { lat: 0, lng: 0 }}
