@@ -115,16 +115,36 @@ export default function DriverAppDashboard() {
     adminCode: session?.adminCode,
   });
 
-  // Native iOS tracking
-  const iosTracking = useIOSBackgroundTracking(onDuty && locationPermissionGranted, {
+  // Native iOS tracking (Transistorsoft)
+  const iosTracking = useIOSBackgroundTracking(onDuty && locationPermissionGranted && !iosTransistorFailed, {
     updateIntervalMs: 30000,
     driverId: session?.driverId,
     adminCode: session?.adminCode,
   });
 
-  const isTracking = isNativeIOS ? iosTracking.isTracking : browserIsTracking;
-  const batteryLevel = isNativeIOS ? iosTracking.batteryLevel : browserBattery;
-  const lastUpdate = isNativeIOS ? iosTracking.lastUpdate : browserLastUpdate;
+  // Detect if Transistorsoft failed to start on iOS — fall back to Capacitor Geolocation
+  const [iosTransistorFailed, setIosTransistorFailed] = useState(() => {
+    return isNativeIOS && localStorage.getItem(IOS_TRANSISTOR_FAILED_KEY) === 'true';
+  });
+
+  // If iOS tracking was enabled but never started after 5 seconds, mark as failed
+  useEffect(() => {
+    if (!isNativeIOS || !locationPermissionGranted || !onDuty || iosTransistorFailed) return;
+    const timeout = setTimeout(() => {
+      if (!iosTracking.isTracking && !iosTracking.lastLocation) {
+        console.warn('[Dashboard] Transistorsoft failed to start on iOS, falling back to Capacitor Geolocation');
+        setIosTransistorFailed(true);
+        localStorage.setItem(IOS_TRANSISTOR_FAILED_KEY, 'true');
+      }
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, [isNativeIOS, locationPermissionGranted, onDuty, iosTracking.isTracking, iosTracking.lastLocation, iosTransistorFailed]);
+
+  // Use iOS Transistorsoft if available, otherwise fall back to browser/Capacitor tracking
+  const useIOSFallback = isNativeIOS && iosTransistorFailed;
+  const isTracking = (isNativeIOS && !iosTransistorFailed) ? iosTracking.isTracking : browserIsTracking;
+  const batteryLevel = (isNativeIOS && !iosTransistorFailed) ? iosTracking.batteryLevel : browserBattery;
+  const lastUpdate = (isNativeIOS && !iosTransistorFailed) ? iosTracking.lastUpdate : browserLastUpdate;
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
