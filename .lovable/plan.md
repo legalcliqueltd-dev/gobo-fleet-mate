@@ -1,71 +1,31 @@
 
 
-# Plan: Persistent Android Background Tracking + Location-Off Admin Alert
+## Plan
 
-## Problem
-1. On Android, location tracking dies when the app is backgrounded or screen locks — the WebView gets suspended
-2. No mechanism exists to alert the admin when a driver intentionally disables their location
+### Task 1: Rename app from "gobo-fleet-track" to "FleetTrackMate Driver"
 
-## Solution
+There is one reference to `gobo-fleet-mate.lovable.app` in `supabase/functions/create-checkout/index.ts` (line 102). This fallback URL should be changed to `https://fleettrackmate.com`.
 
-### Part 1: Android Foreground Service (keeps tracking alive)
+The published Lovable URL (`gobo-fleet-mate.lovable.app`) is a project setting outside the codebase — but the code fallback can be fixed.
 
-**Install** `@capawesome-team/capacitor-android-foreground-service` plugin.
+**Change:**
+- `supabase/functions/create-checkout/index.ts` line 102: replace `gobo-fleet-mate.lovable.app` with `fleettrackmate.com`
 
-**New file**: `src/utils/androidForegroundService.ts`
-- Wrapper to start/stop a persistent Android foreground service
-- Shows a notification: "FleetTrackMate — Location tracking active"
-- Only activates on native Android platform
+### Task 2: Fix zoomed/overflowing layout on the driver dashboard
 
-**Update**: `src/hooks/useBackgroundLocationTracking.ts`
-- Before starting `watchPosition` on Android, start the foreground service
-- When tracking stops, stop the foreground service
-- This keeps the app process alive so `watchPosition` continues firing in background
+The driver dashboard map creates scrollbars because:
+- The outer wrapper uses `minHeight: 'calc(100vh - 140px)'` (line 419) and the map uses `minHeight: 'calc(100vh - 200px)'` (line 422), which can exceed the available space inside `DriverAppLayout` (which already has a header + bottom nav eating ~140px).
+- The `<main>` in `DriverAppLayout` uses `overflow-auto` but the content overflows beyond the viewport.
 
-**Update**: `android/app/src/main/AndroidManifest.xml` (via post-sync script)
-- Add permissions: `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`, `ACCESS_BACKGROUND_LOCATION`, `WAKE_LOCK`
+**Fix:**
+1. In `DriverAppLayout.tsx`: change `<main>` from `overflow-auto` to `overflow-hidden` (the map should fill, not scroll).
+2. In `DriverAppDashboard.tsx` line 419: remove the `style={{ minHeight: ... }}` and use `h-full` only — let flexbox handle sizing.
+3. In `DriverAppDashboard.tsx` line 422: change the map container style to `{ width: '100%', height: '100%' }` — remove the `minHeight`.
+4. In `index.html` line 5: add `viewport-fit=cover` to the viewport meta and ensure `maximum-scale=1.0, user-scalable=no` for the native app context to prevent pinch-zoom causing layout overflow.
 
-**Update**: `capacitor.config.ts`
-- Add `@capawesome-team/capacitor-android-foreground-service` to `includePlugins`
+### Technical Details
 
-**Update**: `scripts/android-post-sync.ps1` and `.sh`
-- Ensure the foreground service plugin is not stripped during cleanup
-
-**What this achieves**: App stays alive when minimized, screen locked, or switching apps. Covers 95% of real-world background usage. Does NOT survive force-kill (that would require a headless native service — significantly more complex).
-
-### Part 2: Admin Alert When Driver Disables Location
-
-**Update**: `src/hooks/useBackgroundLocationTracking.ts`
-- Add a `permissions.onChange` / periodic permission check
-- When location permission changes from granted to denied, or GPS is turned off:
-  - Call the `connect-driver` edge function with a new action: `location-disabled`
-
-**Update**: `supabase/functions/connect-driver/index.ts`
-- Add handler for `action: 'location-disabled'`
-- Inserts a record into a new `driver_alerts` table (or reuses `sos_events` with a special hazard type)
-- Sends an email to the admin via the existing `send-email` function
-
-**New migration**: Create `driver_alerts` table
-- Columns: `id`, `driver_id`, `admin_code`, `alert_type` (e.g. `location_disabled`), `message`, `created_at`, `acknowledged_at`
-- RLS: admins can read, anonymous drivers can insert via edge function
-
-**Update**: Admin dashboard notification
-- Show a warning badge/toast when a driver disables location
-- Display in the existing notification bell or as a new alert type
-
-### Files to change
-- `src/utils/androidForegroundService.ts` — new file, foreground service manager
-- `src/hooks/useBackgroundLocationTracking.ts` — start foreground service on Android + detect location-off
-- `capacitor.config.ts` — add foreground service plugin
-- `scripts/android-post-sync.ps1` / `.sh` — preserve foreground service plugin + permissions
-- `supabase/functions/connect-driver/index.ts` — add `location-disabled` action
-- New migration for `driver_alerts` table
-- Admin dashboard — display location-disabled alerts
-
-### Post-implementation steps
-1. `npm install @capawesome-team/capacitor-android-foreground-service`
-2. `npm run build && npx cap sync android`
-3. Run `android-post-sync.ps1`
-4. Test: minimize app, lock screen — verify locations still arrive on admin dashboard
-5. Test: disable location on phone — verify admin receives alert
+- The root cause is competing `min-height` values that push content taller than the viewport, triggering scrollbars.
+- Removing explicit `minHeight` styles and relying on flexbox (`flex-1` + `h-full`) will let the map fill exactly the available space.
+- Setting `user-scalable=no` on viewport prevents accidental pinch-zoom on the native app (standard for mobile apps).
 
