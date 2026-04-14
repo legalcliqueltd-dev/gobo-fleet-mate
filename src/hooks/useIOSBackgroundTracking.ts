@@ -1,6 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  addOfflineLocation,
+  getPendingBatch,
+  removeSyncedLocations,
+  getPendingCount,
+} from '@/utils/offlineLocationStore';
 
 // Dynamic import for background geolocation (only available on native)
 let BackgroundGeolocation: any = null;
@@ -25,6 +32,9 @@ interface LocationData {
 const SUPABASE_FUNCTIONS_URL = 'https://invbnyxieoyohahqhbir.supabase.co/functions/v1/connect-driver';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImludmJueXhpZW95b2hhaHFoYmlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyNTAxMDUsImV4cCI6MjA3NzgyNjEwNX0.bOHyM6iexSMj-EtMoyjMEm92ydF5Yy-J7DHgocn4AKI';
 
+const SYNC_RETRY_INTERVAL_MS = 60_000;
+const SYNC_BATCH_SIZE = 50;
+
 export const useIOSBackgroundTracking = (
   enabled: boolean = true,
   options: BackgroundTrackingOptions = {}
@@ -40,31 +50,84 @@ export const useIOSBackgroundTracking = (
   const [lastLocation, setLastLocation] = useState<LocationData | null>(null);
   const [batteryLevel, setBatteryLevel] = useState<number>(100);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [pendingOfflineCount, setPendingOfflineCount] = useState(0);
   const isConfiguredRef = useRef(false);
   const driverIdRef = useRef<string | undefined>(driverId);
   const adminCodeRef = useRef<string | undefined>(adminCode);
+  const syncRetryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Check if we're on native iOS — explicitly skip Android to prevent
-  // Transistorsoft license errors from interfering with @capacitor/geolocation
+  // Check if we're on native iOS
   const isNativeIOS = Capacitor.getPlatform() === 'ios' && (
     Capacitor.isNativePlatform() || (window as any).Capacitor?.isNativePlatform?.()
   );
 
-  // Keep refs updated
   useEffect(() => {
     driverIdRef.current = driverId;
     adminCodeRef.current = adminCode;
   }, [driverId, adminCode]);
 
-  useEffect(() => {
-    if (!enabled || !isNativeIOS) {
-      return;
+  // ─── IndexedDB offline sync (for fallback path & extra resilience) ───
+  const drainOfflineQueue = useCallback(async () => {
+    const currentDriverId = driverIdRef.current;
+    const currentAdminCode = adminCodeRef.current;
+    if (!currentDriverId || !currentAdminCode) return;
+
+    try {
+      const batch = await getPendingBatch(SYNC_BATCH_SIZE);
+      if (batch.length === 0) return;
+
+      const trailPoints = batch.map(loc => ({
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        speed: loc.speed,
+        accuracy: loc.accuracy,
+        batteryLevel: loc.batteryLevel,
+        timestamp: loc.timestamp,
+      }));
+
+      const { data, error } = await supabase.functions.invoke('connect-driver', {
+        body: {
+          action: 'sync-trail',
+          driverId: currentDriverId,
+          adminCode: currentAdminCode,
+          trailPoints,
+        },
+      });
+
+      if (!error && data?.success) {
+        const ids = batch.map(l => l.id!).filter(Boolean);
+        await removeSyncedLocations(ids);
+        console.log(`[iOS-BG] Synced ${ids.length} offline locations`);
+      }
+    } catch (err) {
+      console.warn('[iOS-BG] Offline queue drain failed, will retry:', err);
     }
 
+    const count = await getPendingCount();
+    setPendingOfflineCount(count);
+  }, []);
+
+  const startSyncRetry = useCallback(() => {
+    drainOfflineQueue();
+    syncRetryIntervalRef.current = setInterval(drainOfflineQueue, SYNC_RETRY_INTERVAL_MS);
+  }, [drainOfflineQueue]);
+
+  const stopSyncRetry = useCallback(() => {
+    if (syncRetryIntervalRef.current) {
+      clearInterval(syncRetryIntervalRef.current);
+      syncRetryIntervalRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!enabled || !isNativeIOS) return;
+
     initializeBackgroundTracking();
+    startSyncRetry();
 
     return () => {
       stopTracking();
+      stopSyncRetry();
     };
   }, [enabled, isNativeIOS]);
 
@@ -81,45 +144,31 @@ export const useIOSBackgroundTracking = (
       const currentDriverId = driverIdRef.current || localStorage.getItem('ftm_driver_id');
       const currentAdminCode = adminCodeRef.current || localStorage.getItem('ftm_admin_code');
 
-      // Configure with native HTTP service for offline persistence
       const state = await BackgroundGeolocation.ready({
-        // Location Config
         desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_NAVIGATION,
         distanceFilter: 3,
         stationaryRadius: 10,
         stopOnTerminate: false,
         startOnBoot: true,
-        
-        // Activity Recognition
         stopTimeout: 3,
         activityRecognitionInterval: 5000,
-        
-        // Application config
         debug: false,
         logLevel: BackgroundGeolocation.LOG_LEVEL_WARNING,
-        
-        // iOS specific
         preventSuspend: true,
         pausesLocationUpdatesAutomatically: false,
         locationAuthorizationRequest: 'Always',
         showsBackgroundLocationIndicator: true,
-        
-        // Location update intervals
         locationUpdateInterval: 10000,
         fastestLocationUpdateInterval: 5000,
-        
-        // Heartbeat
         heartbeatInterval: Math.floor(updateIntervalMs / 1000),
-        
-        // Background fetch
         enableHeadless: true,
 
-        // === NATIVE HTTP SERVICE (persists offline, syncs automatically) ===
+        // Native HTTP service — persists in native SQLite, auto-syncs
         url: SUPABASE_FUNCTIONS_URL,
         method: 'POST',
         autoSync: true,
-        autoSyncThreshold: 1, // Upload as soon as 1 location is available
-        batchSync: false, // Send individual locations for simplicity
+        autoSyncThreshold: 1,
+        batchSync: false,
         maxBatchSize: 50,
         headers: {
           'Content-Type': 'application/json',
@@ -135,19 +184,11 @@ export const useIOSBackgroundTracking = (
 
       console.log('[BackgroundGeolocation] Ready:', state);
 
-      // Listen for location updates (UI state only — native HTTP handles server sync)
       BackgroundGeolocation.onLocation(onLocation, onLocationError);
-      
-      // Listen for motion changes
       BackgroundGeolocation.onMotionChange(onMotionChange);
-      
-      // Listen for provider changes (GPS enabled/disabled)
       BackgroundGeolocation.onProviderChange(onProviderChange);
-      
-      // Listen for heartbeat events
       BackgroundGeolocation.onHeartbeat(onHeartbeat);
 
-      // Listen for HTTP responses to monitor sync health
       BackgroundGeolocation.onHttp((response: any) => {
         console.log('[BackgroundGeolocation] HTTP response:', response.status, response.responseText?.substring(0, 200));
         if (response.success) {
@@ -156,8 +197,6 @@ export const useIOSBackgroundTracking = (
       });
 
       isConfiguredRef.current = true;
-
-      // Start tracking
       await startTracking();
     } catch (error) {
       console.error('[BackgroundGeolocation] Init error:', error);
@@ -167,7 +206,7 @@ export const useIOSBackgroundTracking = (
 
   const onLocation = (location: any) => {
     console.log('[BackgroundGeolocation] Location:', location.coords);
-    
+
     const locationData: LocationData = {
       latitude: location.coords.latitude,
       longitude: location.coords.longitude,
@@ -180,7 +219,6 @@ export const useIOSBackgroundTracking = (
     setLastLocation(locationData);
     setLastUpdate(new Date());
 
-    // Update battery from plugin data
     if (location.battery?.level != null) {
       setBatteryLevel(Math.round(location.battery.level * 100));
     }
@@ -203,7 +241,6 @@ export const useIOSBackgroundTracking = (
 
   const onHeartbeat = async (event: any) => {
     console.log('[BackgroundGeolocation] Heartbeat:', event);
-    
     if (BackgroundGeolocation) {
       try {
         const location = await BackgroundGeolocation.getCurrentPosition({
@@ -211,9 +248,8 @@ export const useIOSBackgroundTracking = (
           timeout: 30000,
           desiredAccuracy: 5,
           samples: 3,
-          persist: true, // This will trigger native HTTP upload
+          persist: true,
         });
-        // Update UI state
         onLocation(location);
       } catch (error) {
         console.error('[BackgroundGeolocation] Heartbeat getCurrentPosition error:', error);
@@ -254,8 +290,10 @@ export const useIOSBackgroundTracking = (
     lastLocation,
     lastUpdate,
     batteryLevel,
+    pendingOfflineCount,
     startTracking,
     stopTracking,
+    drainOfflineQueue,
     isNativeIOS,
   };
 };
