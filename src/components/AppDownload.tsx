@@ -51,7 +51,7 @@ const AppDownload = () => {
                   <Smartphone className="w-10 h-10 text-primary" />
                 </div>
                 
-                <h3 className="text-2xl font-bold mb-2">Rocket Driver APK</h3>
+                <h3 className="text-2xl font-bold mb-2">FleetTrackMate Driver APK</h3>
                 <p className="text-muted-foreground mb-6">
                   Android 8.0+ required • ~50MB download
                 </p>
