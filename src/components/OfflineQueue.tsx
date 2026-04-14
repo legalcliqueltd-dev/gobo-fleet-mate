@@ -2,9 +2,15 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wifi, WifiOff, RefreshCw, Trash2 } from 'lucide-react';
+import { Wifi, WifiOff, RefreshCw, Trash2, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  getPendingCount,
+  getPendingBatch,
+  removeSyncedLocations,
+  clearAllPendingLocations,
+} from '@/utils/offlineLocationStore';
 
 type QueuedAction = {
   id: string;
@@ -19,38 +25,55 @@ export default function OfflineQueue() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [queue, setQueue] = useState<QueuedAction[]>([]);
   const [syncing, setSyncing] = useState(false);
+  const [offlineLocationCount, setOfflineLocationCount] = useState(0);
   const syncQueueRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     loadQueue();
+    refreshOfflineCount();
 
     const handleOnline = () => {
       setIsOnline(true);
       toast.success('Back online - syncing queued actions');
       syncQueueRef.current();
+      syncOfflineLocations();
     };
     const handleOffline = () => {
       setIsOnline(false);
       toast.error('You are offline - actions will be queued');
     };
-    const handleQueueUpdated = () => loadQueue();
+    const handleQueueUpdated = () => {
+      loadQueue();
+      refreshOfflineCount();
+    };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     window.addEventListener('offline-queue-updated', handleQueueUpdated);
 
+    // Periodically refresh the IndexedDB count
+    const countInterval = setInterval(refreshOfflineCount, 15000);
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('offline-queue-updated', handleQueueUpdated);
+      clearInterval(countInterval);
     };
   }, []);
+
+  const refreshOfflineCount = async () => {
+    const count = await getPendingCount();
+    setOfflineLocationCount(count);
+  };
 
   const loadQueue = () => {
     const savedQueue = localStorage.getItem('offline_queue');
     if (savedQueue) {
       try {
-        setQueue(JSON.parse(savedQueue));
+        // Filter out location items — those are now in IndexedDB
+        const parsed: QueuedAction[] = JSON.parse(savedQueue);
+        setQueue(parsed.filter(a => a.type !== 'location'));
       } catch (error) {
         console.error('Error loading queue:', error);
       }
@@ -62,6 +85,7 @@ export default function OfflineQueue() {
     setQueue(newQueue);
   };
 
+  /** Sync non-location items from localStorage */
   const syncQueue = useCallback(async () => {
     if (!navigator.onLine || queue.length === 0 || syncing) return;
 
@@ -78,13 +102,6 @@ export default function OfflineQueue() {
 
       try {
         switch (action.type) {
-          case 'location': {
-            const { error } = await supabase.functions.invoke('connect-driver', {
-              body: { action: 'update-location', ...action.data },
-            });
-            if (error) throw error;
-            break;
-          }
           case 'task_update': {
             const { error } = await supabase
               .from('tasks')
@@ -134,11 +151,48 @@ export default function OfflineQueue() {
     }
   }, [queue, syncing]);
 
+  /** Sync offline locations from IndexedDB via sync-trail */
+  const syncOfflineLocations = async () => {
+    const batch = await getPendingBatch(50);
+    if (batch.length === 0) return;
+
+    // Need driverId/adminCode from the first record
+    const { driverId, adminCode } = batch[0];
+    if (!driverId || !adminCode) return;
+
+    try {
+      const trailPoints = batch.map(loc => ({
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        speed: loc.speed,
+        accuracy: loc.accuracy,
+        batteryLevel: loc.batteryLevel,
+        timestamp: loc.timestamp,
+      }));
+
+      const { data, error } = await supabase.functions.invoke('connect-driver', {
+        body: { action: 'sync-trail', driverId, adminCode, trailPoints },
+      });
+
+      if (!error && data?.success) {
+        const ids = batch.map(l => l.id!).filter(Boolean);
+        await removeSyncedLocations(ids);
+        toast.success(`Synced ${ids.length} offline locations`);
+      }
+    } catch (err) {
+      console.error('Error syncing offline locations:', err);
+    }
+
+    await refreshOfflineCount();
+  };
+
   useEffect(() => { syncQueueRef.current = syncQueue; }, [syncQueue]);
 
-  const clearQueue = () => {
+  const clearQueue = async () => {
     if (confirm('Clear all queued actions? This cannot be undone.')) {
       saveQueue([]);
+      await clearAllPendingLocations();
+      setOfflineLocationCount(0);
       toast.success('Queue cleared');
     }
   };
@@ -149,8 +203,10 @@ export default function OfflineQueue() {
     toast.success('Action removed from queue');
   };
 
-  if (queue.length === 0 && isOnline) {
-    return null; // Don't show if no queued items and online
+  const totalPending = queue.length + offlineLocationCount;
+
+  if (totalPending === 0 && isOnline) {
+    return null;
   }
 
   return (
@@ -166,15 +222,18 @@ export default function OfflineQueue() {
             <div>
               <h3 className="font-semibold">Sync Queue</h3>
               <p className="text-xs text-muted-foreground">
-                {isOnline ? 'Online' : 'Offline'} • {queue.length} pending
+                {isOnline ? 'Online' : 'Offline'} • {totalPending} pending
+                {offlineLocationCount > 0 && (
+                  <span className="ml-1">({offlineLocationCount} locations)</span>
+                )}
               </p>
             </div>
           </div>
           <div className="flex gap-2">
-            {isOnline && queue.length > 0 && (
+            {isOnline && totalPending > 0 && (
               <Button
                 size="sm"
-                onClick={syncQueue}
+                onClick={() => { syncQueue(); syncOfflineLocations(); }}
                 disabled={syncing}
                 variant="outline"
               >
@@ -182,7 +241,7 @@ export default function OfflineQueue() {
                 Sync
               </Button>
             )}
-            {queue.length > 0 && (
+            {totalPending > 0 && (
               <Button
                 size="sm"
                 variant="ghost"
@@ -194,9 +253,22 @@ export default function OfflineQueue() {
           </div>
         </div>
       </CardHeader>
-      {queue.length > 0 && (
+      {(queue.length > 0 || offlineLocationCount > 0) && (
         <CardContent>
           <div className="space-y-2 max-h-60 overflow-y-auto">
+            {offlineLocationCount > 0 && (
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3 flex-1">
+                  <Badge variant="default" className="text-xs">
+                    <MapPin className="h-3 w-3 mr-1" />
+                    locations
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">
+                    {offlineLocationCount} stored offline
+                  </span>
+                </div>
+              </div>
+            )}
             {queue.map((action) => (
               <div
                 key={action.id}
@@ -244,11 +316,18 @@ export default function OfflineQueue() {
   );
 }
 
-// Helper function to add actions to queue (export for use in other components)
+// Helper function to add non-location actions to queue
 export const queueOfflineAction = (
   type: QueuedAction['type'],
   data: any
 ): void => {
+  // Location items now go to IndexedDB — see offlineLocationStore.ts
+  // This function is kept for backward compatibility but should only be used for non-location items
+  if (type === 'location') {
+    console.warn('[OfflineQueue] location items should use offlineLocationStore.addOfflineLocation instead');
+    return;
+  }
+
   const savedQueue = localStorage.getItem('offline_queue');
   const queue: QueuedAction[] = savedQueue ? JSON.parse(savedQueue) : [];
 
@@ -263,7 +342,5 @@ export const queueOfflineAction = (
 
   queue.push(newAction);
   localStorage.setItem('offline_queue', JSON.stringify(queue));
-
-  // Dispatch custom event to notify OfflineQueue component
   window.dispatchEvent(new CustomEvent('offline-queue-updated'));
 };
