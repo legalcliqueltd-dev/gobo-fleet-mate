@@ -1,60 +1,53 @@
 
 
-# Fix Continuous Offline Location Tracking (Android + iOS)
+## Goal
+Make iOS background + offline tracking actually persist and resume.
 
-## Problem
+## Root causes found
 
-Location tracking stops when the app is backgrounded or goes offline because:
-- **Android**: `watchPosition` JS callbacks freeze when the WebView is suspended, despite the foreground service keeping the process alive. No native-level location persistence.
-- **iOS**: Transistorsoft has native persistence but requires a license. The fallback path has zero background or offline capability.
-- **Both**: `localStorage` queue is volatile (can be cleared by OS) and has no periodic retry — it only syncs on the browser `online` event or manual tap.
+1. **Transistorsoft `params` baked once with empty values.** In `useIOSBackgroundTracking.ts` (line 147-183), `BackgroundGeolocation.ready({ params: { driverId, adminCode, ... }})` is called once at mount. If the session isn't ready yet (or after a fresh install), `params.driverId` is `''`. The native SQLite queue keeps recording points but every auto-sync POST hits the edge function with `driverId: ""` → 400 error → points never clear. We never call `BackgroundGeolocation.setConfig({ params })` when the session id arrives.
 
-## Plan
+2. **No JS-level offline write on iOS.** `useIOSBackgroundTracking.onLocation` only updates React state. It never calls `addOfflineLocation`. So when the iOS WebView is collapsed and Transistorsoft auto-sync fails, the IndexedDB queue stays empty and the `OfflineQueue` badge always shows zero — exactly what the user reported.
 
-### 1. Android: Replace watchPosition with polling via setInterval + getCurrentPosition
+3. **`OfflineQueue` component not mounted on the driver dashboard**, so the user can't see pending counts or trigger a manual sync.
 
-`watchPosition` callbacks freeze when Android suspends the WebView. Instead, use a `setInterval` loop calling `Geolocation.getCurrentPosition()` every 30s. The foreground service keeps the process alive, and `setInterval` is more resilient than watch callbacks.
+4. **`stopOnTerminate: false` + `startOnBoot: true` are set, but `enableHeadless: true` is also true** — that's fine. However iOS Background Modes need `location` + `processing` registered. Per memory `mem://deployment/ios/background-tasks` the BGTaskScheduler identifiers are added, but we should verify `Info.plist` has both `location` and `fetch` modes via `scripts/ios-post-sync.sh`.
 
-**File**: `src/hooks/useBackgroundLocationTracking.ts`
+5. **Heartbeat update from UI runs only when WebView is alive.** When iOS suspends the WebView, only Transistorsoft's native HTTP keeps the heartbeat fresh. If its `params` are wrong (cause #1), `last_seen_at` stops updating → driver shows offline.
 
-### 2. Upgrade offline queue from localStorage to IndexedDB
+## Fix plan
 
-IndexedDB is more resilient — handles larger datasets, isn't cleared as aggressively, and supports structured data.
+### A. `src/hooks/useIOSBackgroundTracking.ts`
+- After `ready()` succeeds, expose a `setConfig` effect that re-pushes `params: { driverId, adminCode, ... }` whenever `driverIdRef`/`adminCodeRef` change — so Transistorsoft's native auto-sync POSTs always carry valid IDs.
+- Defer `start()` until both `driverId` and `adminCode` are non-empty.
+- In `onLocation`: also write the point to IndexedDB via `addOfflineLocation` so the JS-side queue mirrors what's pending. Trim it on successful `onHttp` 2xx by clearing the matching IDs.
+- In `onHttp`: when `response.success === false`, leave the IndexedDB copy in place so the `drainOfflineQueue` retry can flush via the JS path even if Transistorsoft's native retry is stuck.
+- Switch `autoSyncThreshold: 5` and enable `batchSync: true` so single failures don't block the queue forever, with `maxRecordsToPersist: 10000` for power-off resilience.
+- Add `notification.title/text` and `foregroundService: true` config (already iOS-noop) for clarity.
 
-**New file**: `src/utils/offlineLocationStore.ts`
-- Simple IndexedDB wrapper: `addLocation()`, `getAllPending()`, `removeSynced()`, `count()`
+### B. `src/pages/app/DriverAppDashboard.tsx`
+- Mount `<OfflineQueue />` at top of the dashboard so the badge & "Sync" button are always visible to drivers.
+- Surface `iosTracking.pendingOfflineCount` next to the "Live/Off" pill.
 
-**Update**: `src/hooks/useBackgroundLocationTracking.ts` and `src/components/OfflineQueue.tsx`
-- Store failed/offline locations in IndexedDB instead of localStorage
-- Read pending count from IndexedDB for display
+### C. `src/components/OfflineQueue.tsx`
+- Currently `syncOfflineLocations` reads `driverId/adminCode` from the first record only. Fall back to `localStorage.ftm_driver_id` / `ftm_admin_code` so the manual "Sync" button works even before any record exists.
 
-### 3. Add periodic sync retry loop
+### D. `scripts/ios-post-sync.sh`
+- Verify (and add if missing) `UIBackgroundModes` includes both `location` and `fetch`, plus `BGTaskSchedulerPermittedIdentifiers` for `com.transistorsoft.fetch` and `com.transistorsoft.customtask`. This guarantees iOS keeps the app alive when collapsed.
 
-**Update**: `src/hooks/useBackgroundLocationTracking.ts`
-- 60-second `setInterval` checks IndexedDB for pending locations and batch-uploads via the existing `sync-trail` edge function action
-- Runs independently of the unreliable `navigator.onLine` event
+### E. Driver session bootstrap
+- In `DriverSessionContext`, when `setSession(...)` is called, also write `localStorage.setItem('ftm_driver_id', ...)` and `ftm_admin_code` so the Transistorsoft cold-start path (when JS hasn't rehydrated React state yet) reads valid values.
 
-### 4. iOS fallback: add offline persistence to Capacitor Geolocation path
+### F. Honest expectation on "device turned off"
+Once a phone is fully powered off, no app can record GPS — the OS isn't running. What we *can* guarantee:
+- Records buffered in Transistorsoft's native SQLite + IndexedDB persist across reboot.
+- On boot, `startOnBoot: true` re-arms the tracker and queued points flush as soon as network returns.
 
-When Transistorsoft fails and the app falls back to `@capacitor/geolocation`:
+I'll add a one-line note in the diagnostics screen explaining this so it's not mistaken for a bug.
 
-**Update**: `src/hooks/useIOSBackgroundTracking.ts`
-- When Transistorsoft fails, start a Capacitor `watchPosition` with IndexedDB persistence and the same periodic sync retry as Android
-
-### 5. Update OfflineQueue UI
-
-**Update**: `src/components/OfflineQueue.tsx`
-- Show pending location count from IndexedDB
-- Manual sync button triggers batch upload
-
-## Files Changed
-
-| File | Change |
-|------|--------|
-| `src/utils/offlineLocationStore.ts` | **New** — IndexedDB wrapper for offline locations |
-| `src/hooks/useBackgroundLocationTracking.ts` | Polling instead of watchPosition on Android; IndexedDB storage; periodic sync retry |
-| `src/hooks/useIOSBackgroundTracking.ts` | Capacitor fallback with IndexedDB offline persistence |
-| `src/components/OfflineQueue.tsx` | Read location count from IndexedDB |
-
-No database or edge function changes needed — the existing `sync-trail` action already handles batched uploads.
+## Verification steps after deploy
+1. Reconnect a driver, confirm `localStorage.ftm_driver_id` is set.
+2. Run app, collapse for 2 min, reopen → DB shows points with timestamps from the gap.
+3. Enable Airplane Mode 1 min → `OfflineQueue` badge shows pending count.
+4. Disable Airplane Mode → badge drains within ~60 s; `driver_location_history` rows appear.
 
