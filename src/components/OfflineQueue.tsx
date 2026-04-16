@@ -156,9 +156,14 @@ export default function OfflineQueue() {
     const batch = await getPendingBatch(50);
     if (batch.length === 0) return;
 
-    // Need driverId/adminCode from the first record
-    const { driverId, adminCode } = batch[0];
-    if (!driverId || !adminCode) return;
+    // Prefer first record's IDs; fall back to localStorage so manual "Sync" works
+    // even when the native plugin recorded points without IDs in the row payload.
+    const driverId = batch[0]?.driverId || localStorage.getItem('ftm_driver_id') || '';
+    const adminCode = batch[0]?.adminCode || localStorage.getItem('ftm_admin_code') || '';
+    if (!driverId || !adminCode) {
+      toast.error('Cannot sync: driver session missing. Reconnect first.');
+      return;
+    }
 
     try {
       const trailPoints = batch.map(loc => ({
