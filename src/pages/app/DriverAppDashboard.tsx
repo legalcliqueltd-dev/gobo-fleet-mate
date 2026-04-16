@@ -15,6 +15,7 @@ import DriverStatusCard from '@/components/driver/DriverStatusCard';
 import LocationBlocker from '@/components/driver/LocationBlocker';
 import ActiveTaskCard from '@/components/driver/ActiveTaskCard';
 import TaskNavigationMap from '@/components/map/TaskNavigationMap';
+import OfflineQueue from '@/components/OfflineQueue';
 import { cn } from '@/lib/utils';
 import { detectNativePlatform, isIOS, isAndroid } from '@/utils/platformDetection';
 import { isGeolocationPluginAvailable } from '@/utils/nativeGeolocation';
@@ -487,17 +488,31 @@ export default function DriverAppDashboard() {
               )}
             </div>
 
-            <div className="bg-background/90 backdrop-blur-md px-3 py-2 rounded-full shadow-lg">
-              <div className="flex items-center gap-1.5">
-                <Signal className={cn('h-3.5 w-3.5', signalQuality.color)} />
-                <span className={cn('text-xs font-semibold', signalQuality.color)}>
-                  {signalQuality.label}
-                </span>
-                {accuracy !== null && (
-                  <span className="text-xs text-muted-foreground">±{Math.round(accuracy)}m</span>
-                )}
+            <div className="flex items-center gap-2">
+              {isNativeIOS && iosTracking.pendingOfflineCount > 0 && (
+                <div className="bg-warning/90 text-warning-foreground backdrop-blur-md px-3 py-2 rounded-full shadow-lg">
+                  <span className="text-xs font-semibold">
+                    {iosTracking.pendingOfflineCount} queued
+                  </span>
+                </div>
+              )}
+              <div className="bg-background/90 backdrop-blur-md px-3 py-2 rounded-full shadow-lg">
+                <div className="flex items-center gap-1.5">
+                  <Signal className={cn('h-3.5 w-3.5', signalQuality.color)} />
+                  <span className={cn('text-xs font-semibold', signalQuality.color)}>
+                    {signalQuality.label}
+                  </span>
+                  {accuracy !== null && (
+                    <span className="text-xs text-muted-foreground">±{Math.round(accuracy)}m</span>
+                  )}
+                </div>
               </div>
             </div>
+          </div>
+
+          {/* Offline sync queue overlay (visible only when there's pending data) */}
+          <div className="absolute top-20 left-0 right-0 z-10 pointer-events-auto">
+            <OfflineQueue />
           </div>
 
           {/* Map controls - right side */}

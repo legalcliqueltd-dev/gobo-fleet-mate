@@ -41,7 +41,6 @@ export const useIOSBackgroundTracking = (
 ) => {
   const {
     updateIntervalMs = 30000,
-    distanceFilter = 5,
     driverId,
     adminCode,
   } = options;
@@ -52,6 +51,7 @@ export const useIOSBackgroundTracking = (
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [pendingOfflineCount, setPendingOfflineCount] = useState(0);
   const isConfiguredRef = useRef(false);
+  const hasStartedRef = useRef(false);
   const driverIdRef = useRef<string | undefined>(driverId);
   const adminCodeRef = useRef<string | undefined>(adminCode);
   const syncRetryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -61,16 +61,44 @@ export const useIOSBackgroundTracking = (
     Capacitor.isNativePlatform() || (window as any).Capacitor?.isNativePlatform?.()
   );
 
+  // Resolve effective IDs (props > localStorage cold-start fallback)
+  const resolveIds = useCallback(() => {
+    const did = driverIdRef.current || localStorage.getItem('ftm_driver_id') || '';
+    const code = adminCodeRef.current || localStorage.getItem('ftm_admin_code') || '';
+    return { did, code };
+  }, []);
+
   useEffect(() => {
     driverIdRef.current = driverId;
     adminCodeRef.current = adminCode;
   }, [driverId, adminCode]);
 
-  // ─── IndexedDB offline sync (for fallback path & extra resilience) ───
+  // Push fresh params into Transistorsoft whenever IDs change so native auto-sync
+  // POSTs always carry valid driverId/adminCode (root cause #1 of the offline bug).
+  useEffect(() => {
+    if (!isConfiguredRef.current || !BackgroundGeolocation) return;
+    const { did, code } = resolveIds();
+    if (!did || !code) return;
+    BackgroundGeolocation.setConfig({
+      params: {
+        action: 'update-location',
+        driverId: did,
+        adminCode: code,
+        isBackground: true,
+      },
+    }).then(() => {
+      console.log('[BackgroundGeolocation] Updated params with driverId=', did);
+      // If we deferred start because IDs were missing, start now.
+      if (!hasStartedRef.current) {
+        startTracking();
+      }
+    }).catch((e: any) => console.warn('[BackgroundGeolocation] setConfig failed:', e));
+  }, [driverId, adminCode, resolveIds]);
+
+  // ─── IndexedDB offline sync (mirrors native SQLite for visibility & extra resilience) ───
   const drainOfflineQueue = useCallback(async () => {
-    const currentDriverId = driverIdRef.current;
-    const currentAdminCode = adminCodeRef.current;
-    if (!currentDriverId || !currentAdminCode) return;
+    const { did, code } = resolveIds();
+    if (!did || !code) return;
 
     try {
       const batch = await getPendingBatch(SYNC_BATCH_SIZE);
@@ -88,8 +116,8 @@ export const useIOSBackgroundTracking = (
       const { data, error } = await supabase.functions.invoke('connect-driver', {
         body: {
           action: 'sync-trail',
-          driverId: currentDriverId,
-          adminCode: currentAdminCode,
+          driverId: did,
+          adminCode: code,
           trailPoints,
         },
       });
@@ -97,7 +125,7 @@ export const useIOSBackgroundTracking = (
       if (!error && data?.success) {
         const ids = batch.map(l => l.id!).filter(Boolean);
         await removeSyncedLocations(ids);
-        console.log(`[iOS-BG] Synced ${ids.length} offline locations`);
+        console.log(`[iOS-BG] Synced ${ids.length} offline locations from IndexedDB`);
       }
     } catch (err) {
       console.warn('[iOS-BG] Offline queue drain failed, will retry:', err);
@@ -105,7 +133,8 @@ export const useIOSBackgroundTracking = (
 
     const count = await getPendingCount();
     setPendingOfflineCount(count);
-  }, []);
+    window.dispatchEvent(new CustomEvent('offline-queue-updated'));
+  }, [resolveIds]);
 
   const startSyncRetry = useCallback(() => {
     drainOfflineQueue();
@@ -129,6 +158,7 @@ export const useIOSBackgroundTracking = (
       stopTracking();
       stopSyncRetry();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, isNativeIOS]);
 
   const initializeBackgroundTracking = async () => {
@@ -141,8 +171,7 @@ export const useIOSBackgroundTracking = (
         return;
       }
 
-      const currentDriverId = driverIdRef.current || localStorage.getItem('ftm_driver_id');
-      const currentAdminCode = adminCodeRef.current || localStorage.getItem('ftm_admin_code');
+      const { did, code } = resolveIds();
 
       const state = await BackgroundGeolocation.ready({
         desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_NAVIGATION,
@@ -163,41 +192,60 @@ export const useIOSBackgroundTracking = (
         heartbeatInterval: Math.floor(updateIntervalMs / 1000),
         enableHeadless: true,
 
-        // Native HTTP service — persists in native SQLite, auto-syncs
+        // Native HTTP service — persists in native SQLite, auto-syncs.
+        // batchSync + threshold 5 prevents a single failure from blocking the queue.
+        // maxRecordsToPersist gives us power-off resilience (up to 10k points).
         url: SUPABASE_FUNCTIONS_URL,
         method: 'POST',
         autoSync: true,
-        autoSyncThreshold: 1,
-        batchSync: false,
+        autoSyncThreshold: 5,
+        batchSync: true,
         maxBatchSize: 50,
+        maxRecordsToPersist: 10000,
         headers: {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_ANON_KEY,
         },
         params: {
           action: 'update-location',
-          driverId: currentDriverId || '',
-          adminCode: currentAdminCode || '',
+          driverId: did,
+          adminCode: code,
           isBackground: true,
+        },
+        // iOS notification config (no-op on iOS, harmless)
+        notification: {
+          title: 'FleetTrackMate',
+          text: 'Tracking your location for your fleet manager',
         },
       });
 
-      console.log('[BackgroundGeolocation] Ready:', state);
+      console.log('[BackgroundGeolocation] Ready:', state, 'IDs:', { did, code });
 
       BackgroundGeolocation.onLocation(onLocation, onLocationError);
       BackgroundGeolocation.onMotionChange(onMotionChange);
       BackgroundGeolocation.onProviderChange(onProviderChange);
       BackgroundGeolocation.onHeartbeat(onHeartbeat);
 
-      BackgroundGeolocation.onHttp((response: any) => {
+      BackgroundGeolocation.onHttp(async (response: any) => {
         console.log('[BackgroundGeolocation] HTTP response:', response.status, response.responseText?.substring(0, 200));
         if (response.success) {
           setLastUpdate(new Date());
+          // Native SQLite confirmed delivery — drain our IndexedDB mirror too.
+          drainOfflineQueue();
+        } else {
+          // Failure: leave IndexedDB copy in place; the JS retry interval will flush it.
+          console.warn('[BackgroundGeolocation] HTTP failed; relying on IndexedDB mirror retry.');
         }
       });
 
       isConfiguredRef.current = true;
-      await startTracking();
+
+      // Only start if we have valid IDs; otherwise the setConfig effect will start later.
+      if (did && code) {
+        await startTracking();
+      } else {
+        console.warn('[BackgroundGeolocation] Deferring start until driverId/adminCode are available.');
+      }
     } catch (error) {
       console.error('[BackgroundGeolocation] Init error:', error);
       toast.error('Failed to initialize background location tracking');
@@ -221,6 +269,28 @@ export const useIOSBackgroundTracking = (
 
     if (location.battery?.level != null) {
       setBatteryLevel(Math.round(location.battery.level * 100));
+    }
+
+    // Mirror to IndexedDB so the OfflineQueue UI shows pending count, AND so the JS-side
+    // sync retry can flush points even if Transistorsoft's native HTTP is stuck.
+    const { did, code } = resolveIds();
+    if (did && code) {
+      addOfflineLocation({
+        driverId: did,
+        adminCode: code,
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        speed: locationData.speed ?? 0,
+        accuracy: location.coords.accuracy ?? 0,
+        batteryLevel: location.battery?.level != null ? Math.round(location.battery.level * 100) : 100,
+        timestamp: new Date(location.timestamp).toISOString(),
+        createdAt: Date.now(),
+      }).then(() => {
+        getPendingCount().then(c => {
+          setPendingOfflineCount(c);
+          window.dispatchEvent(new CustomEvent('offline-queue-updated'));
+        });
+      });
     }
   };
 
@@ -265,6 +335,7 @@ export const useIOSBackgroundTracking = (
 
     try {
       await BackgroundGeolocation.start();
+      hasStartedRef.current = true;
       setIsTracking(true);
       console.log('[BackgroundGeolocation] Started');
       toast.success('Background tracking active');
@@ -278,6 +349,7 @@ export const useIOSBackgroundTracking = (
 
     try {
       await BackgroundGeolocation.stop();
+      hasStartedRef.current = false;
       setIsTracking(false);
       console.log('[BackgroundGeolocation] Stopped');
     } catch (error) {

@@ -39,6 +39,8 @@ export function DriverSessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const connect = useCallback((driverId: string, driverName: string, adminCode: string) => {
+    // CRITICAL: write to localStorage SYNCHRONOUSLY so the native Transistorsoft
+    // cold-start path (which reads localStorage before React rehydrates) sees valid IDs.
     localStorage.setItem(STORAGE_KEYS.DRIVER_ID, driverId);
     localStorage.setItem(STORAGE_KEYS.DRIVER_NAME, driverName);
     localStorage.setItem(STORAGE_KEYS.ADMIN_CODE, adminCode);
