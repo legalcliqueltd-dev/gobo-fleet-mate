@@ -315,6 +315,19 @@ export default function OfflineQueue() {
       {(queue.length > 0 || offlineLocationCount > 0 || nativeQueueCount > 0) && (
         <CardContent>
           <div className="space-y-2 max-h-60 overflow-y-auto">
+            {nativeQueueCount > 0 && (
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3 flex-1">
+                  <Badge variant="default" className="text-xs">
+                    <MapPin className="h-3 w-3 mr-1" />
+                    native iOS
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">
+                    {nativeQueueCount} in native SQLite
+                  </span>
+                </div>
+              </div>
+            )}
             {offlineLocationCount > 0 && (
               <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-3 flex-1">
