@@ -54,6 +54,7 @@ export default function OfflineQueue() {
   const [queue, setQueue] = useState<QueuedAction[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [offlineLocationCount, setOfflineLocationCount] = useState(0);
+  const [nativeQueueCount, setNativeQueueCount] = useState(0);
   const syncQueueRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -65,6 +66,7 @@ export default function OfflineQueue() {
       toast.success('Back online - syncing queued actions');
       syncQueueRef.current();
       syncOfflineLocations();
+      forceNativeIosSync().then(() => refreshOfflineCount());
     };
     const handleOffline = () => {
       setIsOnline(false);
@@ -79,8 +81,8 @@ export default function OfflineQueue() {
     window.addEventListener('offline', handleOffline);
     window.addEventListener('offline-queue-updated', handleQueueUpdated);
 
-    // Periodically refresh the IndexedDB count
-    const countInterval = setInterval(refreshOfflineCount, 15000);
+    // Periodically refresh both queue counts (IndexedDB + native iOS SQLite)
+    const countInterval = setInterval(refreshOfflineCount, 5000);
 
     return () => {
       window.removeEventListener('online', handleOnline);
@@ -91,8 +93,12 @@ export default function OfflineQueue() {
   }, []);
 
   const refreshOfflineCount = async () => {
-    const count = await getPendingCount();
-    setOfflineLocationCount(count);
+    const [idbCount, nativeCount] = await Promise.all([
+      getPendingCount(),
+      getNativeIosCount(),
+    ]);
+    setOfflineLocationCount(idbCount);
+    setNativeQueueCount(nativeCount);
   };
 
   const loadQueue = () => {
