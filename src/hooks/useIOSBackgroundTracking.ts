@@ -412,10 +412,15 @@ export const useIOSBackgroundTracking = (
     lastLocation,
     lastUpdate,
     batteryLevel,
-    pendingOfflineCount,
+    // Total pending = native SQLite (the truth) + IndexedDB mirror
+    pendingOfflineCount: nativePendingCount + pendingOfflineCount,
+    nativePendingCount,
+    indexedDbPendingCount: pendingOfflineCount,
     startTracking,
     stopTracking,
     drainOfflineQueue,
+    pollNativePendingCount,
+    forceNativeSync,
     isNativeIOS,
   };
 };
