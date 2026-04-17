@@ -150,15 +150,50 @@ export const useIOSBackgroundTracking = (
     }
   }, []);
 
+  // Poll Transistorsoft's native SQLite queue count — this is the REAL pending count
+  // for offline points (the IndexedDB mirror often stays at 0 because onLocation is
+  // suppressed while stationary).
+  const pollNativePendingCount = useCallback(async () => {
+    if (!BackgroundGeolocation) return 0;
+    try {
+      const count = await BackgroundGeolocation.getCount();
+      setNativePendingCount(typeof count === 'number' ? count : 0);
+      return count;
+    } catch (e) {
+      console.warn('[BackgroundGeolocation] getCount failed:', e);
+      return 0;
+    }
+  }, []);
+
+  const forceNativeSync = useCallback(async () => {
+    if (!BackgroundGeolocation) return;
+    try {
+      const result = await BackgroundGeolocation.sync();
+      console.log('[BackgroundGeolocation] sync() flushed', result?.length ?? 0, 'records');
+      await pollNativePendingCount();
+      await drainOfflineQueue();
+      return result;
+    } catch (e) {
+      console.warn('[BackgroundGeolocation] sync() failed:', e);
+    }
+  }, [pollNativePendingCount, drainOfflineQueue]);
+
   useEffect(() => {
     if (!enabled || !isNativeIOS) return;
 
     initializeBackgroundTracking();
     startSyncRetry();
 
+    // Poll native queue every 5s for live UI updates
+    nativeCountIntervalRef.current = setInterval(pollNativePendingCount, 5000);
+
     return () => {
       stopTracking();
       stopSyncRetry();
+      if (nativeCountIntervalRef.current) {
+        clearInterval(nativeCountIntervalRef.current);
+        nativeCountIntervalRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, isNativeIOS]);
