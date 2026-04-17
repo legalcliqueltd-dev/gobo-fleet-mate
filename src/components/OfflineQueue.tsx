@@ -242,7 +242,23 @@ export default function OfflineQueue() {
     toast.success('Action removed from queue');
   };
 
-  const totalPending = queue.length + offlineLocationCount;
+  const totalPending = queue.length + offlineLocationCount + nativeQueueCount;
+
+  const handleSyncAll = async () => {
+    setSyncing(true);
+    try {
+      // Native iOS first — flushes Transistorsoft's SQLite queue
+      if (isNativeIOS) {
+        const flushed = await forceNativeIosSync();
+        if (flushed > 0) toast.success(`Flushed ${flushed} native queued points`);
+      }
+      await syncQueue();
+      await syncOfflineLocations();
+      await refreshOfflineCount();
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   if (totalPending === 0 && isOnline) {
     return null;
@@ -262,9 +278,13 @@ export default function OfflineQueue() {
               <h3 className="font-semibold">Sync Queue</h3>
               <p className="text-xs text-muted-foreground">
                 {isOnline ? 'Online' : 'Offline'} • {totalPending} pending
-                {offlineLocationCount > 0 && (
-                  <span className="ml-1">({offlineLocationCount} locations)</span>
+                {nativeQueueCount > 0 && (
+                  <span className="ml-1">({nativeQueueCount} native</span>
                 )}
+                {offlineLocationCount > 0 && (
+                  <span className="ml-1">{nativeQueueCount > 0 ? '+ ' : '('}{offlineLocationCount} mirror</span>
+                )}
+                {(nativeQueueCount > 0 || offlineLocationCount > 0) && <span>)</span>}
               </p>
             </div>
           </div>
@@ -272,7 +292,7 @@ export default function OfflineQueue() {
             {isOnline && totalPending > 0 && (
               <Button
                 size="sm"
-                onClick={() => { syncQueue(); syncOfflineLocations(); }}
+                onClick={handleSyncAll}
                 disabled={syncing}
                 variant="outline"
               >
@@ -292,7 +312,7 @@ export default function OfflineQueue() {
           </div>
         </div>
       </CardHeader>
-      {(queue.length > 0 || offlineLocationCount > 0) && (
+      {(queue.length > 0 || offlineLocationCount > 0 || nativeQueueCount > 0) && (
         <CardContent>
           <div className="space-y-2 max-h-60 overflow-y-auto">
             {offlineLocationCount > 0 && (
