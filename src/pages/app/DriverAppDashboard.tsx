@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
 import DriverLocationMarker from '@/components/map/DriverLocationMarker';
 import DriverStatusCard from '@/components/driver/DriverStatusCard';
+import DebugStatusPanel from '@/components/driver/DebugStatusPanel';
 import LocationBlocker from '@/components/driver/LocationBlocker';
 import ActiveTaskCard from '@/components/driver/ActiveTaskCard';
 import TaskNavigationMap from '@/components/map/TaskNavigationMap';
@@ -541,6 +542,11 @@ export default function DriverAppDashboard() {
 
         {/* Bottom card area */}
         <div className="absolute bottom-0 left-0 right-0 p-3 pointer-events-auto">
+          <DebugStatusPanel
+            isTracking={isTracking}
+            lastUpdate={lastUpdate}
+            pendingOfflineCount={isNativeIOS && !iosTransistorFailed ? iosTracking.pendingOfflineCount : 0}
+          />
           {activeTask ? (
             <ActiveTaskCard
               task={activeTask}
