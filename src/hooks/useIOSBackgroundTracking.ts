@@ -213,7 +213,8 @@ export const useIOSBackgroundTracking = (
       const state = await BackgroundGeolocation.ready({
         desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_NAVIGATION,
         distanceFilter: 3,
-        stationaryRadius: 10,
+        stationaryRadius: 5,
+        disableMotionActivityUpdates: true,
         stopOnTerminate: false,
         startOnBoot: true,
         stopTimeout: 3,
