@@ -55,6 +55,8 @@ export const useIOSBackgroundTracking = (
   const driverIdRef = useRef<string | undefined>(driverId);
   const adminCodeRef = useRef<string | undefined>(adminCode);
   const syncRetryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const nativeCountIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [nativePendingCount, setNativePendingCount] = useState(0);
 
   // Check if we're on native iOS
   const isNativeIOS = Capacitor.getPlatform() === 'ios' && (
@@ -148,15 +150,50 @@ export const useIOSBackgroundTracking = (
     }
   }, []);
 
+  // Poll Transistorsoft's native SQLite queue count — this is the REAL pending count
+  // for offline points (the IndexedDB mirror often stays at 0 because onLocation is
+  // suppressed while stationary).
+  const pollNativePendingCount = useCallback(async () => {
+    if (!BackgroundGeolocation) return 0;
+    try {
+      const count = await BackgroundGeolocation.getCount();
+      setNativePendingCount(typeof count === 'number' ? count : 0);
+      return count;
+    } catch (e) {
+      console.warn('[BackgroundGeolocation] getCount failed:', e);
+      return 0;
+    }
+  }, []);
+
+  const forceNativeSync = useCallback(async () => {
+    if (!BackgroundGeolocation) return;
+    try {
+      const result = await BackgroundGeolocation.sync();
+      console.log('[BackgroundGeolocation] sync() flushed', result?.length ?? 0, 'records');
+      await pollNativePendingCount();
+      await drainOfflineQueue();
+      return result;
+    } catch (e) {
+      console.warn('[BackgroundGeolocation] sync() failed:', e);
+    }
+  }, [pollNativePendingCount, drainOfflineQueue]);
+
   useEffect(() => {
     if (!enabled || !isNativeIOS) return;
 
     initializeBackgroundTracking();
     startSyncRetry();
 
+    // Poll native queue every 5s for live UI updates
+    nativeCountIntervalRef.current = setInterval(pollNativePendingCount, 5000);
+
     return () => {
       stopTracking();
       stopSyncRetry();
+      if (nativeCountIntervalRef.current) {
+        clearInterval(nativeCountIntervalRef.current);
+        nativeCountIntervalRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, isNativeIOS]);
@@ -176,7 +213,8 @@ export const useIOSBackgroundTracking = (
       const state = await BackgroundGeolocation.ready({
         desiredAccuracy: BackgroundGeolocation.DESIRED_ACCURACY_NAVIGATION,
         distanceFilter: 3,
-        stationaryRadius: 10,
+        stationaryRadius: 5,
+        disableMotionActivityUpdates: true,
         stopOnTerminate: false,
         startOnBoot: true,
         stopTimeout: 3,
@@ -236,7 +274,19 @@ export const useIOSBackgroundTracking = (
           // Failure: leave IndexedDB copy in place; the JS retry interval will flush it.
           console.warn('[BackgroundGeolocation] HTTP failed; relying on IndexedDB mirror retry.');
         }
+        await pollNativePendingCount();
       });
+
+      // Connectivity transitions: refresh count + force sync when back online
+      if (typeof BackgroundGeolocation.onConnectivityChange === 'function') {
+        BackgroundGeolocation.onConnectivityChange(async (event: any) => {
+          console.log('[BackgroundGeolocation] Connectivity change:', event);
+          await pollNativePendingCount();
+          if (event?.connected) {
+            forceNativeSync();
+          }
+        });
+      }
 
       isConfiguredRef.current = true;
 
@@ -362,10 +412,15 @@ export const useIOSBackgroundTracking = (
     lastLocation,
     lastUpdate,
     batteryLevel,
-    pendingOfflineCount,
+    // Total pending = native SQLite (the truth) + IndexedDB mirror
+    pendingOfflineCount: nativePendingCount + pendingOfflineCount,
+    nativePendingCount,
+    indexedDbPendingCount: pendingOfflineCount,
     startTracking,
     stopTracking,
     drainOfflineQueue,
+    pollNativePendingCount,
+    forceNativeSync,
     isNativeIOS,
   };
 };

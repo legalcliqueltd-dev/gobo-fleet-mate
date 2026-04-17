@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,33 @@ import {
   removeSyncedLocations,
   clearAllPendingLocations,
 } from '@/utils/offlineLocationStore';
+
+const isNativeIOS = Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform();
+
+async function getNativeIosCount(): Promise<number> {
+  if (!isNativeIOS) return 0;
+  try {
+    const mod = await import('@transistorsoft/capacitor-background-geolocation');
+    const BG: any = mod.default;
+    const c = await BG.getCount();
+    return typeof c === 'number' ? c : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function forceNativeIosSync(): Promise<number> {
+  if (!isNativeIOS) return 0;
+  try {
+    const mod = await import('@transistorsoft/capacitor-background-geolocation');
+    const BG: any = mod.default;
+    const result = await BG.sync();
+    return Array.isArray(result) ? result.length : 0;
+  } catch (e) {
+    console.warn('[OfflineQueue] native sync failed:', e);
+    return 0;
+  }
+}
 
 type QueuedAction = {
   id: string;
@@ -26,6 +54,7 @@ export default function OfflineQueue() {
   const [queue, setQueue] = useState<QueuedAction[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [offlineLocationCount, setOfflineLocationCount] = useState(0);
+  const [nativeQueueCount, setNativeQueueCount] = useState(0);
   const syncQueueRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -37,6 +66,7 @@ export default function OfflineQueue() {
       toast.success('Back online - syncing queued actions');
       syncQueueRef.current();
       syncOfflineLocations();
+      forceNativeIosSync().then(() => refreshOfflineCount());
     };
     const handleOffline = () => {
       setIsOnline(false);
@@ -51,8 +81,8 @@ export default function OfflineQueue() {
     window.addEventListener('offline', handleOffline);
     window.addEventListener('offline-queue-updated', handleQueueUpdated);
 
-    // Periodically refresh the IndexedDB count
-    const countInterval = setInterval(refreshOfflineCount, 15000);
+    // Periodically refresh both queue counts (IndexedDB + native iOS SQLite)
+    const countInterval = setInterval(refreshOfflineCount, 5000);
 
     return () => {
       window.removeEventListener('online', handleOnline);
@@ -63,8 +93,12 @@ export default function OfflineQueue() {
   }, []);
 
   const refreshOfflineCount = async () => {
-    const count = await getPendingCount();
-    setOfflineLocationCount(count);
+    const [idbCount, nativeCount] = await Promise.all([
+      getPendingCount(),
+      getNativeIosCount(),
+    ]);
+    setOfflineLocationCount(idbCount);
+    setNativeQueueCount(nativeCount);
   };
 
   const loadQueue = () => {
@@ -208,7 +242,23 @@ export default function OfflineQueue() {
     toast.success('Action removed from queue');
   };
 
-  const totalPending = queue.length + offlineLocationCount;
+  const totalPending = queue.length + offlineLocationCount + nativeQueueCount;
+
+  const handleSyncAll = async () => {
+    setSyncing(true);
+    try {
+      // Native iOS first — flushes Transistorsoft's SQLite queue
+      if (isNativeIOS) {
+        const flushed = await forceNativeIosSync();
+        if (flushed > 0) toast.success(`Flushed ${flushed} native queued points`);
+      }
+      await syncQueue();
+      await syncOfflineLocations();
+      await refreshOfflineCount();
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   if (totalPending === 0 && isOnline) {
     return null;
@@ -228,9 +278,13 @@ export default function OfflineQueue() {
               <h3 className="font-semibold">Sync Queue</h3>
               <p className="text-xs text-muted-foreground">
                 {isOnline ? 'Online' : 'Offline'} • {totalPending} pending
-                {offlineLocationCount > 0 && (
-                  <span className="ml-1">({offlineLocationCount} locations)</span>
+                {nativeQueueCount > 0 && (
+                  <span className="ml-1">({nativeQueueCount} native</span>
                 )}
+                {offlineLocationCount > 0 && (
+                  <span className="ml-1">{nativeQueueCount > 0 ? '+ ' : '('}{offlineLocationCount} mirror</span>
+                )}
+                {(nativeQueueCount > 0 || offlineLocationCount > 0) && <span>)</span>}
               </p>
             </div>
           </div>
@@ -238,7 +292,7 @@ export default function OfflineQueue() {
             {isOnline && totalPending > 0 && (
               <Button
                 size="sm"
-                onClick={() => { syncQueue(); syncOfflineLocations(); }}
+                onClick={handleSyncAll}
                 disabled={syncing}
                 variant="outline"
               >
@@ -258,9 +312,22 @@ export default function OfflineQueue() {
           </div>
         </div>
       </CardHeader>
-      {(queue.length > 0 || offlineLocationCount > 0) && (
+      {(queue.length > 0 || offlineLocationCount > 0 || nativeQueueCount > 0) && (
         <CardContent>
           <div className="space-y-2 max-h-60 overflow-y-auto">
+            {nativeQueueCount > 0 && (
+              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3 flex-1">
+                  <Badge variant="default" className="text-xs">
+                    <MapPin className="h-3 w-3 mr-1" />
+                    native iOS
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">
+                    {nativeQueueCount} in native SQLite
+                  </span>
+                </div>
+              </div>
+            )}
             {offlineLocationCount > 0 && (
               <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-3 flex-1">
