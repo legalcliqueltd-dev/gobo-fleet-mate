@@ -55,6 +55,8 @@ export const useIOSBackgroundTracking = (
   const driverIdRef = useRef<string | undefined>(driverId);
   const adminCodeRef = useRef<string | undefined>(adminCode);
   const syncRetryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const nativeCountIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [nativePendingCount, setNativePendingCount] = useState(0);
 
   // Check if we're on native iOS
   const isNativeIOS = Capacitor.getPlatform() === 'ios' && (
