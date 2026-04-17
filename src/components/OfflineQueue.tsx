@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,33 @@ import {
   removeSyncedLocations,
   clearAllPendingLocations,
 } from '@/utils/offlineLocationStore';
+
+const isNativeIOS = Capacitor.getPlatform() === 'ios' && Capacitor.isNativePlatform();
+
+async function getNativeIosCount(): Promise<number> {
+  if (!isNativeIOS) return 0;
+  try {
+    const mod = await import('@transistorsoft/capacitor-background-geolocation');
+    const BG: any = mod.default;
+    const c = await BG.getCount();
+    return typeof c === 'number' ? c : 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function forceNativeIosSync(): Promise<number> {
+  if (!isNativeIOS) return 0;
+  try {
+    const mod = await import('@transistorsoft/capacitor-background-geolocation');
+    const BG: any = mod.default;
+    const result = await BG.sync();
+    return Array.isArray(result) ? result.length : 0;
+  } catch (e) {
+    console.warn('[OfflineQueue] native sync failed:', e);
+    return 0;
+  }
+}
 
 type QueuedAction = {
   id: string;
