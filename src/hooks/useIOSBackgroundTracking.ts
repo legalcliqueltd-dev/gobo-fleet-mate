@@ -274,7 +274,19 @@ export const useIOSBackgroundTracking = (
           // Failure: leave IndexedDB copy in place; the JS retry interval will flush it.
           console.warn('[BackgroundGeolocation] HTTP failed; relying on IndexedDB mirror retry.');
         }
+        await pollNativePendingCount();
       });
+
+      // Connectivity transitions: refresh count + force sync when back online
+      if (typeof BackgroundGeolocation.onConnectivityChange === 'function') {
+        BackgroundGeolocation.onConnectivityChange(async (event: any) => {
+          console.log('[BackgroundGeolocation] Connectivity change:', event);
+          await pollNativePendingCount();
+          if (event?.connected) {
+            forceNativeSync();
+          }
+        });
+      }
 
       isConfiguredRef.current = true;
 
