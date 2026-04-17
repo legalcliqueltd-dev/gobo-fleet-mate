@@ -196,6 +196,22 @@ export default function LocationDiagnostics() {
         </Button>
       </div>
 
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Button onClick={() => runNativeQueue('count')} variant="secondary" size="sm">
+          🗄️ Show Native Queue Count
+        </Button>
+        <Button onClick={() => runNativeQueue('list')} variant="secondary" size="sm">
+          📋 List Native Queued Points
+        </Button>
+        <Button onClick={() => runNativeQueue('sync')} variant="secondary" size="sm">
+          🚀 Force Native Sync
+        </Button>
+      </div>
+
+      <div className="mb-4 p-3 rounded-lg bg-muted/40 border border-border text-xs text-muted-foreground">
+        ℹ️ iOS suppresses location updates while stationary. To test offline, enable Airplane Mode and walk a few meters with the app open or backgrounded. A fully powered-off device cannot record GPS — but queued points persist across reboot and flush on boot once network returns.
+      </div>
+
       <div className="space-y-2">
         {logs.length === 0 && (
           <p className="text-muted-foreground text-sm">Tap "Run All Tests" to start diagnostics.</p>
