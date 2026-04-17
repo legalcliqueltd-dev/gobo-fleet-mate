@@ -187,7 +187,7 @@ export default function OfflineQueue() {
 
   /** Sync offline locations from IndexedDB via sync-trail */
   const syncOfflineLocations = async () => {
-    const batch = await getPendingBatch(50);
+    const batch = await getPendingBatch(50, { excludeSources: ['native_mirror'] });
     if (batch.length === 0) return;
 
     // Prefer first record's IDs; fall back to localStorage so manual "Sync" works
@@ -242,7 +242,7 @@ export default function OfflineQueue() {
     toast.success('Action removed from queue');
   };
 
-  const totalPending = queue.length + offlineLocationCount + nativeQueueCount;
+  const totalPending = queue.length + Math.max(offlineLocationCount, nativeQueueCount);
 
   const handleSyncAll = async () => {
     setSyncing(true);

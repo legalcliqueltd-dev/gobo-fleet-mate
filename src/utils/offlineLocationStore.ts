@@ -10,11 +10,13 @@
  */
 
 const DB_NAME = 'ftm_offline_locations';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'locations';
 
 export interface OfflineLocation {
   id?: number; // auto-increment key
+  syncKey?: string;
+  source?: 'js' | 'native_mirror';
   driverId: string;
   adminCode: string;
   latitude: number;
@@ -42,6 +44,12 @@ function openDB(): Promise<IDBDatabase> {
           autoIncrement: true,
         });
         store.createIndex('createdAt', 'createdAt', { unique: false });
+        store.createIndex('syncKey', 'syncKey', { unique: true });
+      } else {
+        const store = request.transaction?.objectStore(STORE_NAME);
+        if (store && !store.indexNames.contains('syncKey')) {
+          store.createIndex('syncKey', 'syncKey', { unique: true });
+        }
       }
     };
 
@@ -62,9 +70,33 @@ export async function addOfflineLocation(location: Omit<OfflineLocation, 'id'>):
     const db = await openDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readwrite');
-      tx.objectStore(STORE_NAME).add(location);
+      const store = tx.objectStore(STORE_NAME);
+
+      if (location.syncKey && store.indexNames.contains('syncKey')) {
+        const index = store.index('syncKey');
+        const existingReq = index.getKey(location.syncKey);
+
+        existingReq.onsuccess = () => {
+          if (existingReq.result !== undefined) {
+            resolve();
+            return;
+          }
+          store.add(location);
+        };
+
+        existingReq.onerror = () => reject(existingReq.error);
+      } else {
+        store.add(location);
+      }
+
       tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
+      tx.onerror = () => {
+        if (tx.error?.name === 'ConstraintError') {
+          resolve();
+          return;
+        }
+        reject(tx.error);
+      };
     });
   } catch (error) {
     console.error('[OfflineLocationStore] addOfflineLocation error:', error);
@@ -88,7 +120,10 @@ export async function getAllPendingLocations(): Promise<OfflineLocation[]> {
 }
 
 /** Get up to `limit` oldest pending locations */
-export async function getPendingBatch(limit: number = 50): Promise<OfflineLocation[]> {
+export async function getPendingBatch(
+  limit: number = 50,
+  options?: { excludeSources?: Array<OfflineLocation['source']> }
+): Promise<OfflineLocation[]> {
   try {
     const db = await openDB();
     return new Promise((resolve, reject) => {
@@ -100,7 +135,10 @@ export async function getPendingBatch(limit: number = 50): Promise<OfflineLocati
       cursorReq.onsuccess = () => {
         const cursor = cursorReq.result;
         if (cursor && results.length < limit) {
-          results.push(cursor.value);
+          const value = cursor.value as OfflineLocation;
+          if (!options?.excludeSources?.includes(value.source)) {
+            results.push(value);
+          }
           cursor.continue();
         } else {
           resolve(results);
@@ -161,5 +199,32 @@ export async function clearAllPendingLocations(): Promise<void> {
     });
   } catch (error) {
     console.error('[OfflineLocationStore] clearAllPendingLocations error:', error);
+  }
+}
+
+export async function clearLocationsBySource(source: OfflineLocation['source']): Promise<void> {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const cursorReq = store.openCursor();
+
+      cursorReq.onsuccess = () => {
+        const cursor = cursorReq.result;
+        if (!cursor) return;
+
+        if (cursor.value?.source === source) {
+          cursor.delete();
+        }
+        cursor.continue();
+      };
+
+      cursorReq.onerror = () => reject(cursorReq.error);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (error) {
+    console.error('[OfflineLocationStore] clearLocationsBySource error:', error);
   }
 }

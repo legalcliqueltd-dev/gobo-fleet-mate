@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import {
   addOfflineLocation,
+  clearLocationsBySource,
   getPendingBatch,
   removeSyncedLocations,
   getPendingCount,
@@ -35,6 +36,18 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const SYNC_RETRY_INTERVAL_MS = 60_000;
 const SYNC_BATCH_SIZE = 50;
 
+const buildLocationSyncKey = ({
+  driverId,
+  latitude,
+  longitude,
+  timestamp,
+}: {
+  driverId: string;
+  latitude: number;
+  longitude: number;
+  timestamp: string;
+}) => `${driverId}:${timestamp}:${latitude.toFixed(6)}:${longitude.toFixed(6)}`;
+
 export const useIOSBackgroundTracking = (
   enabled: boolean = true,
   options: BackgroundTrackingOptions = {}
@@ -56,6 +69,8 @@ export const useIOSBackgroundTracking = (
   const adminCodeRef = useRef<string | undefined>(adminCode);
   const syncRetryIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const nativeCountIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const listenerSubscriptionsRef = useRef<Array<{ remove: () => void }>>([]);
+  const mirrorInFlightRef = useRef(false);
   const [nativePendingCount, setNativePendingCount] = useState(0);
 
   // Check if we're on native iOS
@@ -103,7 +118,9 @@ export const useIOSBackgroundTracking = (
     if (!did || !code) return;
 
     try {
-      const batch = await getPendingBatch(SYNC_BATCH_SIZE);
+      const batch = await getPendingBatch(SYNC_BATCH_SIZE, {
+        excludeSources: ['native_mirror'],
+      });
       if (batch.length === 0) return;
 
       const trailPoints = batch.map(loc => ({
@@ -178,25 +195,136 @@ export const useIOSBackgroundTracking = (
     }
   }, [pollNativePendingCount, drainOfflineQueue]);
 
+  const removeListenerSubscriptions = useCallback(() => {
+    for (const subscription of listenerSubscriptionsRef.current) {
+      try {
+        subscription.remove();
+      } catch (error) {
+        console.warn('[BackgroundGeolocation] Failed to remove listener:', error);
+      }
+    }
+    listenerSubscriptionsRef.current = [];
+  }, []);
+
+  const registerSubscription = useCallback((candidate: any) => {
+    if (!candidate) return;
+
+    if (typeof candidate.then === 'function') {
+      Promise.resolve(candidate)
+        .then((resolved) => {
+          if (resolved && typeof resolved.remove === 'function') {
+            listenerSubscriptionsRef.current.push(resolved);
+          }
+        })
+        .catch((error) => console.warn('[BackgroundGeolocation] Listener registration failed:', error));
+      return;
+    }
+
+    if (typeof candidate.remove === 'function') {
+      listenerSubscriptionsRef.current.push(candidate);
+    }
+  }, []);
+
+  const syncNativeQueueMirror = useCallback(async () => {
+    if (!BackgroundGeolocation || mirrorInFlightRef.current) return;
+
+    const { did, code } = resolveIds();
+    if (!did || !code) return;
+
+    mirrorInFlightRef.current = true;
+
+    try {
+      const nativeLocations = await BackgroundGeolocation.getLocations();
+      await clearLocationsBySource('native_mirror');
+
+      if (Array.isArray(nativeLocations) && nativeLocations.length > 0) {
+        await Promise.all(nativeLocations.map((location: any) => {
+          const latitude = location.coords?.latitude;
+          const longitude = location.coords?.longitude;
+          const timestamp = new Date(location.timestamp).toISOString();
+
+          if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+            return Promise.resolve();
+          }
+
+          return addOfflineLocation({
+            syncKey: buildLocationSyncKey({
+              driverId: did,
+              latitude,
+              longitude,
+              timestamp,
+            }),
+            driverId: did,
+            adminCode: code,
+            source: 'native_mirror',
+            latitude,
+            longitude,
+            speed: location.coords?.speed != null ? location.coords.speed * 3.6 : 0,
+            accuracy: location.coords?.accuracy ?? 0,
+            batteryLevel: location.battery?.level != null ? Math.round(location.battery.level * 100) : 100,
+            timestamp,
+            createdAt: new Date(location.timestamp).getTime() || Date.now(),
+          });
+        }));
+      }
+
+      const count = await getPendingCount();
+      setPendingOfflineCount(count);
+      window.dispatchEvent(new CustomEvent('offline-queue-updated'));
+    } catch (error) {
+      console.warn('[BackgroundGeolocation] Failed to mirror native queue into IndexedDB:', error);
+    } finally {
+      mirrorInFlightRef.current = false;
+    }
+  }, [resolveIds]);
+
   useEffect(() => {
     if (!enabled || !isNativeIOS) return;
 
     initializeBackgroundTracking();
     startSyncRetry();
+    pollNativePendingCount();
+    syncNativeQueueMirror();
 
     // Poll native queue every 5s for live UI updates
     nativeCountIntervalRef.current = setInterval(pollNativePendingCount, 5000);
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        pollNativePendingCount();
+        syncNativeQueueMirror();
+      }
+    };
+
+    const handleOnline = () => {
+      pollNativePendingCount();
+      syncNativeQueueMirror();
+      forceNativeSync();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('online', handleOnline);
+
     return () => {
-      stopTracking();
       stopSyncRetry();
+      removeListenerSubscriptions();
       if (nativeCountIntervalRef.current) {
         clearInterval(nativeCountIntervalRef.current);
         nativeCountIntervalRef.current = null;
       }
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('online', handleOnline);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, isNativeIOS]);
+  }, [enabled, isNativeIOS, pollNativePendingCount, syncNativeQueueMirror, forceNativeSync, removeListenerSubscriptions, startSyncRetry, stopSyncRetry]);
+
+  useEffect(() => {
+    if (!isNativeIOS || enabled) return;
+
+    stopTracking();
+    stopSyncRetry();
+    removeListenerSubscriptions();
+  }, [enabled, isNativeIOS, stopSyncRetry, removeListenerSubscriptions]);
 
   const initializeBackgroundTracking = async () => {
     try {
@@ -259,33 +387,38 @@ export const useIOSBackgroundTracking = (
 
       console.log('[BackgroundGeolocation] Ready:', state, 'IDs:', { did, code });
 
-      BackgroundGeolocation.onLocation(onLocation, onLocationError);
-      BackgroundGeolocation.onMotionChange(onMotionChange);
-      BackgroundGeolocation.onProviderChange(onProviderChange);
-      BackgroundGeolocation.onHeartbeat(onHeartbeat);
+      removeListenerSubscriptions();
 
-      BackgroundGeolocation.onHttp(async (response: any) => {
+      registerSubscription(BackgroundGeolocation.onLocation(onLocation, onLocationError));
+      registerSubscription(BackgroundGeolocation.onMotionChange(onMotionChange));
+      registerSubscription(BackgroundGeolocation.onProviderChange(onProviderChange));
+      registerSubscription(BackgroundGeolocation.onHeartbeat(onHeartbeat));
+
+      registerSubscription(BackgroundGeolocation.onHttp(async (response: any) => {
         console.log('[BackgroundGeolocation] HTTP response:', response.status, response.responseText?.substring(0, 200));
         if (response.success) {
           setLastUpdate(new Date());
           // Native SQLite confirmed delivery — drain our IndexedDB mirror too.
+          await syncNativeQueueMirror();
           drainOfflineQueue();
         } else {
           // Failure: leave IndexedDB copy in place; the JS retry interval will flush it.
           console.warn('[BackgroundGeolocation] HTTP failed; relying on IndexedDB mirror retry.');
+          await syncNativeQueueMirror();
         }
         await pollNativePendingCount();
-      });
+      }));
 
       // Connectivity transitions: refresh count + force sync when back online
       if (typeof BackgroundGeolocation.onConnectivityChange === 'function') {
-        BackgroundGeolocation.onConnectivityChange(async (event: any) => {
+        registerSubscription(BackgroundGeolocation.onConnectivityChange(async (event: any) => {
           console.log('[BackgroundGeolocation] Connectivity change:', event);
+          await syncNativeQueueMirror();
           await pollNativePendingCount();
           if (event?.connected) {
-            forceNativeSync();
+            await forceNativeSync();
           }
-        });
+        }));
       }
 
       isConfiguredRef.current = true;
@@ -293,6 +426,8 @@ export const useIOSBackgroundTracking = (
       // Only start if we have valid IDs; otherwise the setConfig effect will start later.
       if (did && code) {
         await startTracking();
+        await syncNativeQueueMirror();
+        await pollNativePendingCount();
       } else {
         console.warn('[BackgroundGeolocation] Deferring start until driverId/adminCode are available.');
       }
@@ -325,15 +460,23 @@ export const useIOSBackgroundTracking = (
     // sync retry can flush points even if Transistorsoft's native HTTP is stuck.
     const { did, code } = resolveIds();
     if (did && code) {
+      const timestamp = new Date(location.timestamp).toISOString();
       addOfflineLocation({
+        syncKey: buildLocationSyncKey({
+          driverId: did,
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          timestamp,
+        }),
         driverId: did,
         adminCode: code,
+        source: 'js',
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
         speed: locationData.speed ?? 0,
         accuracy: location.coords.accuracy ?? 0,
         batteryLevel: location.battery?.level != null ? Math.round(location.battery.level * 100) : 100,
-        timestamp: new Date(location.timestamp).toISOString(),
+        timestamp,
         createdAt: Date.now(),
       }).then(() => {
         getPendingCount().then(c => {
@@ -367,7 +510,7 @@ export const useIOSBackgroundTracking = (
           maximumAge: 0,
           timeout: 30000,
           desiredAccuracy: 5,
-          samples: 3,
+          samples: 1,
           persist: true,
         });
         onLocation(location);
@@ -413,7 +556,7 @@ export const useIOSBackgroundTracking = (
     lastUpdate,
     batteryLevel,
     // Total pending = native SQLite (the truth) + IndexedDB mirror
-    pendingOfflineCount: nativePendingCount + pendingOfflineCount,
+    pendingOfflineCount: Math.max(nativePendingCount, pendingOfflineCount),
     nativePendingCount,
     indexedDbPendingCount: pendingOfflineCount,
     startTracking,
