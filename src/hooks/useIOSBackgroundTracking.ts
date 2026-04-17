@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import {
   addOfflineLocation,
+  clearLocationsBySource,
   getPendingBatch,
   removeSyncedLocations,
   getPendingCount,
@@ -117,7 +118,9 @@ export const useIOSBackgroundTracking = (
     if (!did || !code) return;
 
     try {
-      const batch = await getPendingBatch(SYNC_BATCH_SIZE);
+      const batch = await getPendingBatch(SYNC_BATCH_SIZE, {
+        excludeSources: ['native_mirror'],
+      });
       if (batch.length === 0) return;
 
       const trailPoints = batch.map(loc => ({
@@ -232,6 +235,8 @@ export const useIOSBackgroundTracking = (
 
     try {
       const nativeLocations = await BackgroundGeolocation.getLocations();
+      await clearLocationsBySource('native_mirror');
+
       if (Array.isArray(nativeLocations) && nativeLocations.length > 0) {
         await Promise.all(nativeLocations.map((location: any) => {
           const latitude = location.coords?.latitude;
@@ -251,6 +256,7 @@ export const useIOSBackgroundTracking = (
             }),
             driverId: did,
             adminCode: code,
+            source: 'native_mirror',
             latitude,
             longitude,
             speed: location.coords?.speed != null ? location.coords.speed * 3.6 : 0,
@@ -464,6 +470,7 @@ export const useIOSBackgroundTracking = (
         }),
         driverId: did,
         adminCode: code,
+        source: 'js',
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
         speed: locationData.speed ?? 0,
@@ -549,7 +556,7 @@ export const useIOSBackgroundTracking = (
     lastUpdate,
     batteryLevel,
     // Total pending = native SQLite (the truth) + IndexedDB mirror
-    pendingOfflineCount: nativePendingCount + pendingOfflineCount,
+    pendingOfflineCount: Math.max(nativePendingCount, pendingOfflineCount),
     nativePendingCount,
     indexedDbPendingCount: pendingOfflineCount,
     startTracking,

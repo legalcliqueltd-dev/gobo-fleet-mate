@@ -16,6 +16,7 @@ const STORE_NAME = 'locations';
 export interface OfflineLocation {
   id?: number; // auto-increment key
   syncKey?: string;
+  source?: 'js' | 'native_mirror';
   driverId: string;
   adminCode: string;
   latitude: number;
@@ -119,7 +120,10 @@ export async function getAllPendingLocations(): Promise<OfflineLocation[]> {
 }
 
 /** Get up to `limit` oldest pending locations */
-export async function getPendingBatch(limit: number = 50): Promise<OfflineLocation[]> {
+export async function getPendingBatch(
+  limit: number = 50,
+  options?: { excludeSources?: Array<OfflineLocation['source']> }
+): Promise<OfflineLocation[]> {
   try {
     const db = await openDB();
     return new Promise((resolve, reject) => {
@@ -131,7 +135,10 @@ export async function getPendingBatch(limit: number = 50): Promise<OfflineLocati
       cursorReq.onsuccess = () => {
         const cursor = cursorReq.result;
         if (cursor && results.length < limit) {
-          results.push(cursor.value);
+          const value = cursor.value as OfflineLocation;
+          if (!options?.excludeSources?.includes(value.source)) {
+            results.push(value);
+          }
           cursor.continue();
         } else {
           resolve(results);
@@ -192,5 +199,32 @@ export async function clearAllPendingLocations(): Promise<void> {
     });
   } catch (error) {
     console.error('[OfflineLocationStore] clearAllPendingLocations error:', error);
+  }
+}
+
+export async function clearLocationsBySource(source: OfflineLocation['source']): Promise<void> {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const cursorReq = store.openCursor();
+
+      cursorReq.onsuccess = () => {
+        const cursor = cursorReq.result;
+        if (!cursor) return;
+
+        if (cursor.value?.source === source) {
+          cursor.delete();
+        }
+        cursor.continue();
+      };
+
+      cursorReq.onerror = () => reject(cursorReq.error);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (error) {
+    console.error('[OfflineLocationStore] clearLocationsBySource error:', error);
   }
 }
