@@ -142,6 +142,34 @@ export default function LocationDiagnostics() {
     }
   };
 
+  const runNativeQueue = async (action: 'count' | 'list' | 'sync') => {
+    try {
+      const mod = await import('@transistorsoft/capacitor-background-geolocation');
+      const BG: any = mod.default;
+      if (action === 'count') {
+        const c = await BG.getCount();
+        log('Native queue count', `${c} points pending in Transistorsoft SQLite`, true);
+      } else if (action === 'list') {
+        const locs = await BG.getLocations();
+        const sample = (locs || []).slice(0, 5).map((l: any) => ({
+          ts: l.timestamp,
+          lat: l.coords?.latitude,
+          lng: l.coords?.longitude,
+        }));
+        log(
+          'Native queued points',
+          `total=${locs?.length ?? 0}\nfirst 5: ${JSON.stringify(sample, null, 2)}`,
+          (locs?.length ?? 0) >= 0
+        );
+      } else if (action === 'sync') {
+        const result = await BG.sync();
+        log('Force native sync', `flushed=${Array.isArray(result) ? result.length : 'unknown'}`, true);
+      }
+    } catch (e: any) {
+      log(`native:${action}`, `ERROR: ${e?.message || e}`, false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-4 pb-20">
       <h1 className="text-xl font-bold text-foreground mb-4">📍 Location Diagnostics</h1>
