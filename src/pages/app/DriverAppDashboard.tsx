@@ -174,120 +174,9 @@ export default function DriverAppDashboard() {
     }
   }, [currentLocation, heading, speed, followMode]);
 
-  // iOS location updates
-  useEffect(() => {
-    if (isNativeIOS && iosTracking.lastLocation) {
-      const loc = iosTracking.lastLocation;
-      setCurrentLocation({ lat: loc.latitude, lng: loc.longitude });
-      setSpeed(loc.speed);
-      setHeading(loc.heading);
-      setAccuracy(loc.accuracy);
-      setLastSyncTime(iosTracking.lastUpdate);
-
-      if (onDuty && loc.accuracy !== null && loc.accuracy < 100) {
-        setTrail(prev => {
-          const now = Date.now();
-          const lastPoint = prev[prev.length - 1];
-          if (lastPoint && now - lastPoint.timestamp < 10000) return prev;
-          const newTrail = [
-            ...prev.filter(p => now - p.timestamp < MAX_TRAIL_AGE_MS),
-            { lat: loc.latitude, lng: loc.longitude, timestamp: now, speed: loc.speed }
-          ];
-          return newTrail.length > 500 ? newTrail.slice(-500) : newTrail;
-        });
-      }
-    }
-  }, [isNativeIOS, iosTracking.lastLocation, iosTracking.lastUpdate, onDuty]);
-
-  // Position watch — uses Capacitor on native (Android + iOS fallback), browser on web/PWA
-  useEffect(() => {
-    if (isNativeIOS && !useIOSFallback) return; // iOS handled by Transistorsoft above (unless it failed)
-    if (!locationPermissionGranted) return;
-
-    let watchId: string | number | null = null;
-
-    const addTrailPoint = (lat: number, lng: number, spd: number | null) => {
-      if (!onDuty) return;
-      setTrail(prev => {
-        const now = Date.now();
-        const lastPoint = prev[prev.length - 1];
-        if (lastPoint && now - lastPoint.timestamp < 10000) return prev;
-        const newTrail = [
-          ...prev.filter(p => now - p.timestamp < MAX_TRAIL_AGE_MS),
-          { lat, lng, timestamp: now, speed: spd }
-        ];
-        return newTrail.length > 500 ? newTrail.slice(-500) : newTrail;
-      });
-    };
-
-    const updateState = (lat: number, lng: number, acc: number, spd: number | null, hdg: number | null) => {
-      const newLocation = { lat, lng };
-      setCurrentLocation(newLocation);
-      setAccuracy(acc);
-      if (spd !== null) setSpeed(spd * 3.6);
-      if (hdg !== null) setHeading(hdg);
-      setLastSyncTime(new Date());
-
-      if (!hasInitialCentered.current && mapRef.current) {
-        mapRef.current.panTo(newLocation);
-        mapRef.current.setZoom(16);
-        hasInitialCentered.current = true;
-      }
-
-      if (acc < 100) addTrailPoint(lat, lng, spd !== null ? spd * 3.6 : null);
-    };
-
-    const useNativeCapacitor = (isNativeAndroid || useIOSFallback) && isGeolocationPluginAvailable();
-
-    if (useNativeCapacitor) {
-      // Native Android or iOS fallback — use Capacitor Geolocation
-      console.log('[Dashboard] Using native Capacitor Geolocation for', useIOSFallback ? 'iOS (fallback)' : 'Android');
-      Geolocation.watchPosition(
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 },
-        (pos, err) => {
-          if (err) {
-            console.error('[Dashboard] Native watch error:', err);
-            return;
-          }
-          if (pos) {
-            updateState(
-              pos.coords.latitude,
-              pos.coords.longitude,
-              pos.coords.accuracy || 0,
-              pos.coords.speed,
-              pos.coords.heading
-            );
-          }
-        }
-      ).then(id => { watchId = id; });
-    } else if (!detectNativePlatform() && navigator.geolocation) {
-      // Web/PWA — use browser geolocation
-      console.log('[Dashboard] Using browser geolocation');
-      watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          updateState(
-            pos.coords.latitude,
-            pos.coords.longitude,
-            pos.coords.accuracy,
-            pos.coords.speed,
-            pos.coords.heading
-          );
-        },
-        (err) => console.error('Location watch error:', err),
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
-      );
-    }
-
-    return () => {
-      if (watchId !== null) {
-        if (useNativeCapacitor) {
-          Geolocation.clearWatch({ id: watchId as string }).catch(console.error);
-        } else {
-          navigator.geolocation.clearWatch(watchId as number);
-        }
-      }
-    };
-  }, [locationPermissionGranted, onDuty, isNativeIOS, isNativeAndroid, useIOSFallback]);
+  // NOTE: All location watching is handled by trackingService (singleton).
+  // The earlier React-scoped watch effects were removed because they
+  // stopped tracking on component unmount, defeating persistence.
 
   // Load tasks
   const loadTasks = useCallback(async () => {
@@ -494,10 +383,10 @@ export default function DriverAppDashboard() {
             </div>
 
             <div className="flex items-center gap-2">
-              {isNativeIOS && iosTracking.pendingOfflineCount > 0 && (
+              {pendingOfflineCount > 0 && (
                 <div className="bg-warning/90 text-warning-foreground backdrop-blur-md px-3 py-2 rounded-full shadow-lg">
                   <span className="text-xs font-semibold">
-                    {iosTracking.pendingOfflineCount} queued
+                    {pendingOfflineCount} queued
                   </span>
                 </div>
               )}
@@ -549,7 +438,7 @@ export default function DriverAppDashboard() {
           <DebugStatusPanel
             isTracking={isTracking}
             lastUpdate={lastUpdate}
-            pendingOfflineCount={isNativeIOS && !iosTransistorFailed ? iosTracking.pendingOfflineCount : 0}
+            pendingOfflineCount={pendingOfflineCount}
           />
           {activeTask ? (
             <ActiveTaskCard
