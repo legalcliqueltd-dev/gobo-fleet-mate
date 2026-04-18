@@ -64,9 +64,20 @@ export default function TaskList() {
   useAdminTaskNotifications();
 
   useEffect(() => {
+    if (!user) return;
     loadTasks();
     const unsubscribe = subscribeToTasks();
-    return unsubscribe;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') loadTasks();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      unsubscribe();
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterStatus, user]);
 
   const loadTasks = async () => {
