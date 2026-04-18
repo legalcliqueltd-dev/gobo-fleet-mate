@@ -8,7 +8,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import LocationPermissionPrompt from '@/components/LocationPermissionPrompt';
 import SOSNotificationBell from '@/components/sos/SOSNotificationBell';
+import BackButton from '@/components/ui/BackButton';
 import { AlertTriangle as AlertTriangleIcon2, Timer } from 'lucide-react';
+
+// Routes where the back button should NOT appear (top-level destinations)
+const NO_BACK_ROUTES = new Set([
+  '/',
+  '/dashboard',
+  '/admin',
+  '/admin/dashboard',
+]);
 
 export default function AppLayout({ children }: PropsWithChildren) {
   const { user, signOut, loading, subscription } = useAuth();
@@ -180,7 +189,14 @@ export default function AppLayout({ children }: PropsWithChildren) {
           )}
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-3 xs:px-4 py-6 md:py-8 mb-24">{children}</main>
+      <main className="mx-auto max-w-7xl px-3 xs:px-4 py-6 md:py-8 mb-24">
+        {user && !NO_BACK_ROUTES.has(location.pathname) && (
+          <div className="mb-3">
+            <BackButton />
+          </div>
+        )}
+        {children}
+      </main>
       
       {/* Floating Navigation - Desktop */}
       {user && (
