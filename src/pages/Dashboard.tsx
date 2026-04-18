@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRefreshOnVisible } from '@/hooks/useRefreshOnVisible';
 
 const APK_DOWNLOAD_URL = "https://fleettrackmate.com/downloads/FleetTrackMate.apk";
 export default function Dashboard() {
