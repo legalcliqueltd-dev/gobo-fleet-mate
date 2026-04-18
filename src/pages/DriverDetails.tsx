@@ -20,6 +20,7 @@ import clsx from 'clsx';
 import DriverLocationMap from '@/components/map/DriverLocationMap';
 import { useDriverInsights, getTimeRange } from '@/hooks/useDriverInsights';
 import LockedFeature from '@/components/LockedFeature';
+import { useRefreshOnVisible } from '@/hooks/useRefreshOnVisible';
 
 type DriverDetail = {
   driver_id: string;
@@ -164,6 +165,17 @@ export default function DriverDetails() {
 
     fetchHistory();
   }, [driverId, selectedTimeRange, useCustomDate, dateRange]);
+
+  // Auto-refresh current location and history when tab regains focus
+  useRefreshOnVisible(() => {
+    if (!driverId) return;
+    supabase
+      .from('driver_locations')
+      .select('latitude, longitude, speed, accuracy, updated_at')
+      .eq('driver_id', driverId)
+      .single()
+      .then(({ data }) => { if (data) setCurrentLocation(data as CurrentLocation); });
+  });
 
   const handleSaveName = async () => {
     if (!driver) return;

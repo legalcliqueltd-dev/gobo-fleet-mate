@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import LockedFeature from '@/components/LockedFeature';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRefreshOnVisible } from '@/hooks/useRefreshOnVisible';
 import { GoogleMap, useJsApiLoader, Polyline, InfoWindow } from '@react-google-maps/api';
 import AdvancedMarker from '@/components/map/AdvancedMarker';
 import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
@@ -108,6 +109,9 @@ export default function Incidents() {
     const cleanup = subscribeToEvents();
     return cleanup;
   }, []);
+
+  // Refresh when user returns to the tab
+  useRefreshOnVisible(() => { loadEvents(); });
 
   useEffect(() => {
     if (selectedEvent) {
