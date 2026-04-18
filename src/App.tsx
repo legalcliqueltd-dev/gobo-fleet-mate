@@ -44,6 +44,8 @@ import Terms from '@/pages/Terms';
 import DeleteAccount from '@/pages/DeleteAccount';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { detectNativePlatform } from '@/utils/platformDetection';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import LandingTopButton from '@/components/LandingTopButton';
 
 // Driver App (Mobile-only pages) - No email/password required
 import DriverApp from '@/pages/app/DriverApp';
@@ -110,12 +112,22 @@ export default function App() {
 
           {/* Public share route without layout */}
           <Route path="/share/:token" element={<TempShare />} />
-          
+
+          {/* Landing page - standalone, no AppLayout nav bar */}
+          <Route path="/" element={
+            isNativeApp ? <Navigate to="/app" replace /> : (
+              <>
+                <LandingTopButton />
+                <Landing />
+              </>
+            )
+          } />
+
           {/* All other routes with AppLayout */}
           <Route path="/*" element={
             <AppLayout>
+              <ErrorBoundary>
               <Routes>
-                <Route path="/" element={isNativeApp ? <Navigate to="/app" replace /> : <Landing />} />
                 <Route path="/demo/background-paths" element={<BackgroundPathsDemo />} />
                 <Route path="/demo/hero-geometric" element={<HeroGeometricDemo />} />
                 <Route path="/demo/pulse-beams" element={<PulseBeamsDemo />} />
@@ -351,6 +363,7 @@ export default function App() {
                 />
                 <Route path="*" element={<Navigate to={isNativeApp ? "/app" : "/"} replace />} />
               </Routes>
+              </ErrorBoundary>
             </AppLayout>
           } />
         </Routes>
