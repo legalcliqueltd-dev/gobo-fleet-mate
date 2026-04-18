@@ -18,12 +18,17 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRefreshOnVisible } from '@/hooks/useRefreshOnVisible';
 
 const APK_DOWNLOAD_URL = "https://fleettrackmate.com/downloads/FleetTrackMate.apk";
 export default function Dashboard() {
   const { items, setItems, markers, loading, error } = useDeviceLocations();
   const { drivers } = useDriverLocations();
   const { subscription, hasFullAccess, refreshSubscription } = useAuth();
+
+  // Refresh subscription state when tab regains focus (devices/drivers already auto-refresh)
+  useRefreshOnVisible(() => { refreshSubscription(); });
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
