@@ -25,6 +25,10 @@ export default function Dashboard() {
   const { items, setItems, markers, loading, error } = useDeviceLocations();
   const { drivers } = useDriverLocations();
   const { subscription, hasFullAccess, refreshSubscription } = useAuth();
+
+  // Refresh subscription state when tab regains focus (devices/drivers already auto-refresh)
+  useRefreshOnVisible(() => { refreshSubscription(); });
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
