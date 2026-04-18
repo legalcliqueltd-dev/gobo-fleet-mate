@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { supabase } from '@/integrations/supabase/client';
+import { trackingService } from '@/services/trackingService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -42,11 +43,12 @@ export default function DriverAppSettings() {
   );
 
   const handleDutyChange = (checked: boolean) => {
-    // If turning off, this is handled by the AlertDialog
-    // If turning on, just do it
     if (checked) {
       setOnDuty(true);
       localStorage.setItem('driverOnDuty', 'true');
+      if (session?.driverId && session?.adminCode) {
+        trackingService.start(session.driverId, session.adminCode).catch(console.error);
+      }
       toast.success('Tracking enabled - you are now on duty');
     }
   };
@@ -54,6 +56,7 @@ export default function DriverAppSettings() {
   const confirmTurnOffDuty = () => {
     setOnDuty(false);
     localStorage.setItem('driverOnDuty', 'false');
+    trackingService.stop().catch(console.error);
     toast.warning('Tracking disabled - your location is no longer being shared');
   };
 
@@ -72,9 +75,12 @@ export default function DriverAppSettings() {
   const handleDisconnect = async () => {
     setDisconnecting(true);
     try {
+      // Stop persistent tracking immediately
+      await trackingService.stop().catch(() => {});
+
       // Call the edge function to update status
       await supabase.functions.invoke('connect-driver', {
-        body: { 
+        body: {
           action: 'disconnect',
           driverId: session?.driverId,
         },
