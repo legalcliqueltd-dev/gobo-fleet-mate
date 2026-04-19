@@ -16,7 +16,7 @@ import DebugStatusPanel from '@/components/driver/DebugStatusPanel';
 import LocationBlocker from '@/components/driver/LocationBlocker';
 import ActiveTaskCard from '@/components/driver/ActiveTaskCard';
 import TaskNavigationMap from '@/components/map/TaskNavigationMap';
-import OfflineQueue from '@/components/OfflineQueue';
+
 import { cn } from '@/lib/utils';
 import { detectNativePlatform, isIOS, isAndroid } from '@/utils/platformDetection';
 
@@ -404,10 +404,6 @@ export default function DriverAppDashboard() {
             </div>
           </div>
 
-          {/* Offline sync queue overlay (visible only when there's pending data) */}
-          <div className="absolute top-20 left-0 right-0 z-10 pointer-events-auto">
-            <OfflineQueue />
-          </div>
 
           {/* Map controls - right side */}
           <div className="absolute bottom-28 right-4 flex flex-col gap-2 pointer-events-auto">
