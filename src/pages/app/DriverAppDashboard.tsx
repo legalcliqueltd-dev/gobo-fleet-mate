@@ -6,7 +6,7 @@ import { trackingService } from '@/services/trackingService';
 import { useTrackingService } from '@/hooks/useTrackingService';
 import { GoogleMap, useJsApiLoader, Polyline } from '@react-google-maps/api';
 import AdvancedMarker from '@/components/map/AdvancedMarker';
-import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { Crosshair, Map, Wifi, Signal, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
@@ -155,6 +155,7 @@ export default function DriverAppDashboard() {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   // Auto-rotate and follow driver on map

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, DirectionsRenderer } from '@react-google-maps/api';
 import AdvancedMarker from '@/components/map/AdvancedMarker';
 import DriverLocationMarker from '@/components/map/DriverLocationMarker';
-import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { Button } from '@/components/ui/button';
 import { X, Navigation, LocateFixed } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -41,6 +41,7 @@ export default function TaskNavigationMap({
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   const [currentPosition, setCurrentPosition] = useState<{ lat: number; lng: number } | null>(null);

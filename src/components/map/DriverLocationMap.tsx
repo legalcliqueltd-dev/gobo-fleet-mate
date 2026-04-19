@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { GoogleMap, useJsApiLoader, Polyline, InfoWindow } from '@react-google-maps/api';
 import AdvancedMarker from '@/components/map/AdvancedMarker';
-import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { MapPin, Navigation, Clock, Crosshair, Maximize2, ChevronDown, ChevronUp, Layers } from 'lucide-react';
 import { format } from 'date-fns';
 import clsx from 'clsx';
@@ -155,6 +155,7 @@ export default function DriverLocationMap({ driverName, currentLocation, locatio
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   const center = useMemo(() => {
