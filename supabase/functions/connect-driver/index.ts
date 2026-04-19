@@ -770,14 +770,23 @@ Deno.serve(async (req) => {
       let batteryLevel = body.batteryLevel;
       const isBackground = body.isBackground;
 
+      // Sanitize: native GPS often emits -1 for unknown speed/heading/accuracy.
+      const sanitize = () => {
+        if (typeof speed === 'number' && speed < 0) speed = 0;
+        if (typeof bearing === 'number' && bearing < 0) bearing = undefined;
+        if (typeof accuracyVal === 'number' && accuracyVal < 0) accuracyVal = 0;
+      };
+      sanitize();
+
       // Transistorsoft single-location payload: { location: { coords: {...}, battery: {...} } }
       if (body.location?.coords) {
         const coords = body.location.coords;
         latitude = coords.latitude;
         longitude = coords.longitude;
-        speed = coords.speed != null ? coords.speed * 3.6 : null; // m/s -> km/h
-        accuracyVal = coords.accuracy;
-        bearing = coords.heading;
+        const rawSpd = coords.speed;
+        speed = rawSpd != null && rawSpd >= 0 ? rawSpd * 3.6 : 0; // m/s -> km/h, clamp negatives
+        accuracyVal = coords.accuracy != null && coords.accuracy >= 0 ? coords.accuracy : 0;
+        bearing = coords.heading != null && coords.heading >= 0 ? coords.heading : undefined;
         if (body.location.battery?.level != null) {
           batteryLevel = Math.round(body.location.battery.level * 100); // 0-1 -> 0-100
         }
@@ -808,8 +817,9 @@ Deno.serve(async (req) => {
           const c = loc.coords || loc;
           const lat = c.latitude;
           const lng = c.longitude;
-          const spd = c.speed != null ? c.speed * 3.6 : null;
-          const acc = c.accuracy || 0;
+          const rawSpd2 = c.speed;
+          const spd = rawSpd2 != null && rawSpd2 >= 0 ? rawSpd2 * 3.6 : 0;
+          const acc = c.accuracy != null && c.accuracy >= 0 ? c.accuracy : 0;
 
           if (!validateLatitude(lat) || !validateLongitude(lng)) continue;
           
