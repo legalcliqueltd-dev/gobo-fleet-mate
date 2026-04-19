@@ -817,8 +817,9 @@ Deno.serve(async (req) => {
           const c = loc.coords || loc;
           const lat = c.latitude;
           const lng = c.longitude;
-          const spd = c.speed != null ? c.speed * 3.6 : null;
-          const acc = c.accuracy || 0;
+          const rawSpd2 = c.speed;
+          const spd = rawSpd2 != null && rawSpd2 >= 0 ? rawSpd2 * 3.6 : 0;
+          const acc = c.accuracy != null && c.accuracy >= 0 ? c.accuracy : 0;
 
           if (!validateLatitude(lat) || !validateLongitude(lng)) continue;
           
