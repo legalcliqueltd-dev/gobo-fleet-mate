@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { useGeofences } from '@/hooks/useGeofences';
 import { useGeofenceEvents } from '@/hooks/useGeofenceEvents';
 import { GoogleMap, Polygon, Polyline, Circle as GoogleCircle, useJsApiLoader } from '@react-google-maps/api';
-import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { Plus, MapPin, Circle, Trash2, Eye, EyeOff, Bell, Check, X, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -25,6 +25,7 @@ export default function Geofences() {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   const handleMapClick = (e: google.maps.MapMouseEvent) => {

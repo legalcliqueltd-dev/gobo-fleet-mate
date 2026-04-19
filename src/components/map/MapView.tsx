@@ -3,7 +3,7 @@ import { GoogleMap, useJsApiLoader, InfoWindow } from '@react-google-maps/api';
 import AdvancedMarker from '@/components/map/AdvancedMarker';
 import { Button } from '@/components/ui/button';
 import { Layers, Scan, Navigation, MapPin } from 'lucide-react';
-import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import clsx from 'clsx';
 
 type MarkerItem = {
@@ -112,6 +112,7 @@ export default function MapView({ items, selectedId, onMarkerClick }: Props) {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   // Items with valid coordinates (not 0,0)

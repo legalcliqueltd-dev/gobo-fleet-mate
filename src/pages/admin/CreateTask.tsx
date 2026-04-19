@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import LockedFeature from '@/components/LockedFeature';
 import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
 import AdvancedMarker from '@/components/map/AdvancedMarker';
-import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,8 +22,8 @@ import { Package, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 
-// Google Maps libraries - must be constant to avoid re-renders
-const LIBRARIES: ('places')[] = ['places'];
+// Google Maps libraries are imported from shared config to ensure all
+// useJsApiLoader instances share identical options.
 
 // Driver type matching the drivers table (mobile app drivers)
 type Driver = {
@@ -68,7 +68,7 @@ export default function CreateTask() {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: LIBRARIES,
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   useEffect(() => {
