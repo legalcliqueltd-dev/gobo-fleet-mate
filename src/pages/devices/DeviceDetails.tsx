@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { GoogleMap, Polyline, useJsApiLoader } from '@react-google-maps/api';
 import DeviceMarker from '@/components/map/DeviceMarker';
 import { Play, Pause, Pencil, Trash2, ChevronLeft, Gauge, Timer, Route as RouteIcon, AlertTriangle, Copy, Check } from 'lucide-react';
-import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { useDeviceInsights } from '@/hooks/useDeviceInsights';
 
 type DeviceRow = {
@@ -57,6 +57,7 @@ export default function DeviceDetails() {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   const fetchDevice = async () => {

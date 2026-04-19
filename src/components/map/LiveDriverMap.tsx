@@ -7,7 +7,7 @@ import {
   Clock, Zap, Maximize2, Minimize2, Car, Mountain, Route, Compass, Battery, BatteryLow,
   BatteryWarning, AlertTriangle, WifiOff
 } from 'lucide-react';
-import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { useRealtimeDriverLocations, LiveDriverLocation } from '@/hooks/useRealtimeDriverLocations';
 import { formatTimeAgo, interpolatePosition, easeOutCubic } from '@/utils/mapInterpolation';
 import clsx from 'clsx';
@@ -405,6 +405,7 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   // Toggle fullscreen
@@ -509,6 +510,26 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
     }
     prevSelectedRef.current = selectedDriverId || null;
   }, [selectedDriverId]);
+
+  // Auto-fit map to all valid items as soon as they arrive (only once),
+  // so the map doesn't sit on the world view while waiting for data.
+  const hasAutoFittedRef = useRef(false);
+  useEffect(() => {
+    if (hasAutoFittedRef.current) return;
+    if (!mapRef.current) return;
+    const allItems = [...validDrivers, ...validDevices];
+    if (allItems.length === 0) return;
+
+    if (allItems.length === 1) {
+      mapRef.current.panTo({ lat: allItems[0].latitude, lng: allItems[0].longitude });
+      mapRef.current.setZoom(15);
+    } else {
+      const bounds = new google.maps.LatLngBounds();
+      allItems.forEach(i => bounds.extend({ lat: i.latitude, lng: i.longitude }));
+      mapRef.current.fitBounds(bounds, 80);
+    }
+    hasAutoFittedRef.current = true;
+  }, [validDrivers, validDevices]);
 
   const fitToAll = () => {
     if (!mapRef.current) return;

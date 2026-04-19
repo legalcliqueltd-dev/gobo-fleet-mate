@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRefreshOnVisible } from '@/hooks/useRefreshOnVisible';
 import { GoogleMap, useJsApiLoader, Polyline, InfoWindow } from '@react-google-maps/api';
 import AdvancedMarker from '@/components/map/AdvancedMarker';
-import { GOOGLE_MAPS_API_KEY } from '@/lib/googleMapsConfig';
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { AlertTriangle, CheckCircle, Clock, MapPin, Image, Calendar, ZoomIn, Map, Satellite, Trash2, ExternalLink, X, Navigation } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -101,6 +101,7 @@ export default function Incidents() {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
   });
 
   useEffect(() => {
