@@ -16,7 +16,7 @@ import DebugStatusPanel from '@/components/driver/DebugStatusPanel';
 import LocationBlocker from '@/components/driver/LocationBlocker';
 import ActiveTaskCard from '@/components/driver/ActiveTaskCard';
 import TaskNavigationMap from '@/components/map/TaskNavigationMap';
-import OfflineQueue from '@/components/OfflineQueue';
+
 import { cn } from '@/lib/utils';
 import { detectNativePlatform, isIOS, isAndroid } from '@/utils/platformDetection';
 
