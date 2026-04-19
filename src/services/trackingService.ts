@@ -325,12 +325,21 @@ class TrackingService extends EventTarget {
     const adminCode = this.state.adminCode;
     if (!driverId || !adminCode) return;
 
+    // Native GPS may return -1 for speed/heading when unavailable.
+    // Coerce to 0/null so server-side validation (speed >= 0) passes.
+    const rawSpeed = location.coords.speed;
+    const safeSpeed = rawSpeed != null && rawSpeed >= 0 ? rawSpeed * 3.6 : 0;
+    const rawHeading = location.coords.heading;
+    const safeHeading = rawHeading != null && rawHeading >= 0 ? rawHeading : null;
+    const rawAccuracy = location.coords.accuracy;
+    const safeAccuracy = rawAccuracy != null && rawAccuracy >= 0 ? rawAccuracy : 0;
+
     const loc: TrackingLocation = {
       latitude: location.coords.latitude,
       longitude: location.coords.longitude,
-      speed: location.coords.speed != null ? location.coords.speed * 3.6 : null,
-      accuracy: location.coords.accuracy ?? null,
-      heading: location.coords.heading ?? null,
+      speed: safeSpeed,
+      accuracy: safeAccuracy,
+      heading: safeHeading,
       timestamp: new Date(location.timestamp),
     };
 
@@ -421,12 +430,21 @@ class TrackingService extends EventTarget {
 
   // ─── Common position handler (Android + Web) ──────────────────
   private handlePosition(coords: GeolocationCoordinates | any) {
+    // Native/web GPS can report -1 for unavailable speed/heading.
+    // Sanitize before passing to the edge function (speed must be >= 0).
+    const rawSpeed = coords.speed;
+    const safeSpeed = rawSpeed != null && rawSpeed >= 0 ? rawSpeed * 3.6 : 0;
+    const rawHeading = coords.heading;
+    const safeHeading = rawHeading != null && rawHeading >= 0 ? rawHeading : null;
+    const rawAccuracy = coords.accuracy;
+    const safeAccuracy = rawAccuracy != null && rawAccuracy >= 0 ? rawAccuracy : 0;
+
     const loc: TrackingLocation = {
       latitude: coords.latitude,
       longitude: coords.longitude,
-      speed: coords.speed != null ? coords.speed * 3.6 : null,
-      accuracy: coords.accuracy ?? null,
-      heading: coords.heading ?? null,
+      speed: safeSpeed,
+      accuracy: safeAccuracy,
+      heading: safeHeading,
       timestamp: new Date(),
     };
 
