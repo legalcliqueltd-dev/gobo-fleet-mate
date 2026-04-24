@@ -780,6 +780,7 @@ Deno.serve(async (req) => {
 
       // Transistorsoft single-location payload: { location: { coords: {...}, battery: {...} } }
       if (body.location?.coords) {
+        console.log('[Native iOS] Processing Transistorsoft single-location payload');
         const coords = body.location.coords;
         latitude = coords.latitude;
         longitude = coords.longitude;
@@ -794,7 +795,7 @@ Deno.serve(async (req) => {
 
       // Transistorsoft batch payload: { locations: [...] }
       if (Array.isArray(body.locations) && body.locations.length > 0) {
-        console.log(`[Batch] Processing ${body.locations.length} locations`);
+        console.log(`[Native iOS Batch] Processing ${body.locations.length} Transistorsoft locations. Background=${isBackground}`);
         
         // Get driver's admin_code once
         const { data: batchDriver } = await supabaseAdmin

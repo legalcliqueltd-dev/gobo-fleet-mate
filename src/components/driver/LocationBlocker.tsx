@@ -53,6 +53,21 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
         appendDebug(`check: location=${status.location} coarse=${status.coarseLocation}`);
 
         if (status.location === 'granted' || status.coarseLocation === 'granted') {
+          if (Capacitor.getPlatform() === 'ios') {
+            try {
+              const mod = await import('@transistorsoft/capacitor-background-geolocation');
+              const BG: any = (mod as any).default ?? mod;
+              await BG.ready({
+                locationAuthorizationRequest: 'Always',
+                geolocation: { locationAuthorizationRequest: 'Always' },
+              });
+              await BG.requestPermission();
+              const provider = await BG.getProviderState();
+              appendDebug(`iOS background provider: ${JSON.stringify(provider)}`);
+            } catch (e: any) {
+              appendDebug(`iOS Always permission check failed: ${e?.message || e}`);
+            }
+          }
           setState('granted');
           onPermissionGranted();
           return;
@@ -166,7 +181,7 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
       } catch { /* ignore */ }
     } else if (isNative) {
       try { window.location.href = 'app-settings:'; } catch { /* ignore */ }
-      alert('Open Settings > FleetTrackMate > Location and allow access, then return here.');
+      alert('Open Settings > FleetTrackMate > Location and select Always, then return here.');
     } else {
       alert('Click the location icon in your browser address bar and allow location access.');
     }
@@ -233,7 +248,7 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
       <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 p-6 text-center">
         <AlertTriangle className="h-16 w-16 text-warning" />
         <h2 className="text-xl font-bold text-foreground">Location Permission Required</h2>
-        <p className="text-muted-foreground">Location access was denied. Please enable it in your device settings.</p>
+        <p className="text-muted-foreground">Location access was denied. Please enable Always location access in your device settings.</p>
         <div className="flex flex-col gap-2 w-full max-w-xs">
           <Button onClick={openSettings}>
             <Settings className="h-4 w-4 mr-2" />Open Settings
