@@ -104,7 +104,14 @@ npx cap open ios
 
 Configure signing in Xcode and run on device/simulator.
 
-Before archiving for App Store upload, always run `npm run cap:build:ios`. This runs the iOS post-sync script and ensures `BGTaskSchedulerPermittedIdentifiers` is present when `UIBackgroundModes` includes `processing`.
+Before archiving for App Store upload, always run `npm run cap:build:ios`.
+
+That command now does all of this automatically:
+- copies `capacitor.config.driver.ts` into `capacitor.config.ts`
+- runs `npx cap sync ios`
+- patches `ios/App/App/Info.plist`
+
+Do not use plain `npx cap sync ios` for release builds, or the background-task identifiers can be missed and App Store Connect can reject the archive with `ITMS-90771`.
 
 ## Troubleshooting
 

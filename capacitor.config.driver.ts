@@ -7,10 +7,9 @@ import { CapacitorConfig } from '@capacitor/cli';
  * The admin dashboard remains web-only.
  * 
  * Usage:
- * 1. Copy this file to capacitor.config.ts before building
- * 2. Run: npm run build
- * 3. Run: npx cap sync
- * 4. Run: npx cap open ios (or android)
+ * 1. Run: npm run build
+ * 2. Run: npm run cap:sync:ios (or npm run cap:sync:android)
+ * 3. Run: npx cap open ios (or android)
  * 
  * For production builds, remove the 'server' section to bundle
  * assets locally instead of loading from preview URL.
@@ -71,7 +70,7 @@ const config: CapacitorConfig = {
 export default config;
 
 /**
- * iOS Info.plist entries required (add after running npx cap add ios):
+ * iOS Info.plist entries required (automatically patched by npm run cap:sync:ios):
  * 
  * <key>NSLocationWhenInUseUsageDescription</key>
  * <string>FleetTrackMate needs your location to share your position with your fleet manager.</string>
