@@ -1,8 +1,22 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
+/**
+ * Capacitor Configuration for Driver App (iOS/Android)
+ * 
+ * This configuration is specifically for the driver mobile app.
+ * The admin dashboard remains web-only.
+ * 
+ * Usage:
+ * 1. Run: npm run build
+ * 2. Run: npm run cap:sync:ios (or npm run cap:sync:android)
+ * 3. Run: npx cap open ios (or android)
+ * 
+ * For production builds, remove the 'server' section to bundle
+ * assets locally instead of loading from preview URL.
+ */
 const config: CapacitorConfig = {
   appId: 'app.fleettrackmate.driver',
-  appName: 'FleetTrackMate-Driver',
+  appName: 'FleetTrackMate Driver',
   webDir: 'dist',
   bundledWebRuntime: false,
   includePlugins: [
@@ -12,24 +26,68 @@ const config: CapacitorConfig = {
     '@capacitor/haptics',
     '@capacitor/keyboard',
     '@capacitor/status-bar',
-    '@capawesome-team/capacitor-android-foreground-service',
+    '@transistorsoft/capacitor-background-geolocation',
+    '@transistorsoft/capacitor-background-fetch',
   ],
-  // Android loads from bundled dist/ so native plugins (Geolocation etc.) work.
-  // For dev/debug with hot-reload, temporarily uncomment the server block.
+
+  // IMPORTANT:
+  // Keep native builds on bundled local assets.
+  // Remote `server.url` loading can make native plugins (especially Geolocation)
+  // show up in metadata while still failing at runtime with
+  // "plugin is not implemented on android".
+  //
+  // For temporary UI-only hot reload, uncomment locally, then re-sync with the
+  // server block removed before testing native plugins again.
   // server: {
   //   url: 'https://fleettrackmate.com/app?forceHideBadge=true',
   //   cleartext: true,
-  //   androidScheme: 'https'
+  //   androidScheme: 'https',
   // },
-  android: {
-    // After syncing, run: powershell -ExecutionPolicy Bypass -File scripts/android-post-sync.ps1
-    // to remove Transistorsoft (iOS-only) from the Android build
+
+  // iOS-specific configuration
+  ios: {
+    // Background location updates
+    // Note: Must also enable "Background Modes > Location updates" in Xcode
+    contentInset: 'automatic',
+    backgroundColor: '#ffffff',
   },
+
+  // Android-specific configuration  
+  android: {
+    backgroundColor: '#ffffff',
+  },
+
+  // Plugins configuration
   plugins: {
+    // Geolocation plugin config
     Geolocation: {
+      // Request background location permission on iOS
       requestAlwaysPermission: true,
     },
   },
 };
 
 export default config;
+
+/**
+ * iOS Info.plist entries required (automatically patched by npm run cap:sync:ios):
+ * 
+ * <key>NSLocationWhenInUseUsageDescription</key>
+ * <string>FleetTrackMate needs your location to share your position with your fleet manager.</string>
+ * 
+ * <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+ * <string>FleetTrackMate needs continuous location access to track your position even when the app is in the background.</string>
+ * 
+ * <key>UIBackgroundModes</key>
+ * <array>
+ *   <string>location</string>
+ *   <string>fetch</string>
+ *   <string>processing</string>
+ * </array>
+ *
+ * <key>BGTaskSchedulerPermittedIdentifiers</key>
+ * <array>
+ *   <string>com.transistorsoft.fetch</string>
+ *   <string>com.transistorsoft.customtask</string>
+ * </array>
+ */
