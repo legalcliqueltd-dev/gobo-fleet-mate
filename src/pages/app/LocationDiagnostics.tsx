@@ -8,11 +8,6 @@ import { useNavigate } from 'react-router-dom';
 
 type LogEntry = { time: string; label: string; value: string; ok: boolean };
 
-const loadBackgroundGeolocation = async () => {
-  const mod = await import('@transistorsoft/capacitor-background-geolocation');
-  return (mod as any).default ?? mod;
-};
-
 export default function LocationDiagnostics() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [running, setRunning] = useState(false);
@@ -95,39 +90,7 @@ export default function LocationDiagnostics() {
       log('Native getCurrentPosition', `ERROR: ${e?.message || e}`, false);
     }
 
-    // 8. iOS Transistorsoft background tracker — separate from foreground Capacitor Geolocation.
-    if (isNative && ios) {
-      try {
-        const BG = await loadBackgroundGeolocation();
-        log('iOS BG plugin import', 'Transistorsoft BackgroundGeolocation loaded', true);
-
-        const state = await BG.getState().catch(() => null);
-        log(
-          'iOS BG state',
-          JSON.stringify({
-            enabled: state?.enabled,
-            isMoving: state?.isMoving,
-            trackingMode: state?.trackingMode,
-            authorization: state?.authorization,
-            stopOnTerminate: state?.stopOnTerminate,
-            startOnBoot: state?.startOnBoot,
-            preventSuspend: state?.preventSuspend,
-            url: state?.url,
-          }, null, 2),
-          !!state?.enabled
-        );
-
-        const provider = await BG.getProviderState().catch(() => null);
-        log('iOS BG provider', JSON.stringify(provider, null, 2), !!provider?.enabled);
-
-        const count = await BG.getCount();
-        log('iOS native SQLite queue', `${count} pending native records`, true);
-      } catch (e: any) {
-        log('iOS BG plugin import', `ERROR: ${e?.message || e}\nIf this fails on iPhone, rebuild with: npm run cap:build:ios`, false);
-      }
-    }
-
-    // Browser geolocation — separate section
+    // 8. Browser geolocation — separate section
     log('--- Browser/WebView ---', `(separate from native Capacitor)`, true);
 
     try {
@@ -181,7 +144,8 @@ export default function LocationDiagnostics() {
 
   const runNativeQueue = async (action: 'count' | 'list' | 'sync') => {
     try {
-      const BG: any = await loadBackgroundGeolocation();
+      const mod = await import('@transistorsoft/capacitor-background-geolocation');
+      const BG: any = mod.default;
       if (action === 'count') {
         const c = await BG.getCount();
         log('Native queue count', `${c} points pending in Transistorsoft SQLite`, true);
@@ -203,32 +167,6 @@ export default function LocationDiagnostics() {
       }
     } catch (e: any) {
       log(`native:${action}`, `ERROR: ${e?.message || e}`, false);
-    }
-  };
-
-  const runNativeTracker = async (action: 'state' | 'start' | 'permission') => {
-    try {
-      const BG: any = await loadBackgroundGeolocation();
-      if (action === 'permission') {
-        await BG.ready({
-          locationAuthorizationRequest: 'Always',
-          geolocation: { locationAuthorizationRequest: 'Always' },
-        });
-        const status = await BG.requestPermission();
-        const provider = await BG.getProviderState().catch(() => null);
-        log('Request iOS Always', `status=${JSON.stringify(status)}\nprovider=${JSON.stringify(provider, null, 2)}`, true);
-      } else if (action === 'state') {
-        const state = await BG.getState();
-        const provider = await BG.getProviderState().catch(() => null);
-        log('Native tracker state', `state=${JSON.stringify(state, null, 2)}\nprovider=${JSON.stringify(provider, null, 2)}`, !!state?.enabled);
-      } else if (action === 'start') {
-        await BG.start();
-        if (typeof BG.changePace === 'function') await BG.changePace(true);
-        const state = await BG.getState();
-        log('Start native tracker', JSON.stringify({ enabled: state?.enabled, isMoving: state?.isMoving }, null, 2), !!state?.enabled);
-      }
-    } catch (e: any) {
-      log(`native-tracker:${action}`, `ERROR: ${e?.message || e}`, false);
     }
   };
 
@@ -267,15 +205,6 @@ export default function LocationDiagnostics() {
         </Button>
         <Button onClick={() => runNativeQueue('sync')} variant="secondary" size="sm">
           🚀 Force Native Sync
-        </Button>
-        <Button onClick={() => runNativeTracker('permission')} variant="secondary" size="sm">
-          🔐 Request iOS Always
-        </Button>
-        <Button onClick={() => runNativeTracker('state')} variant="secondary" size="sm">
-          🧭 Native Tracker State
-        </Button>
-        <Button onClick={() => runNativeTracker('start')} variant="secondary" size="sm">
-          ▶️ Start Native Tracker
         </Button>
       </div>
 
