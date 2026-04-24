@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { supabase } from '@/integrations/supabase/client';
+import { SUPABASE_ANON_KEY, SUPABASE_FUNCTIONS_URL } from '@/services/trackingService';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Package, MapPin, Clock, CheckCircle2, Navigation } from 'lucide-react';
@@ -23,13 +24,49 @@ export default function DriverAppTasks() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [navigatingTask, setNavigatingTask] = useState<Task | null>(null);
 
   const loadTasks = useCallback(async () => {
     if (!session?.driverId || !session?.adminCode) return;
     
     try {
-      const { data, error } = await supabase.functions.invoke('connect-driver', {
+      setLoadError('');
+      const body = {
+        action: 'get-tasks',
+        driverId: session.driverId,
+        adminCode: session.adminCode,
+        statuses: ['assigned', 'en_route', 'completed'],
+      };
+
+      let { data, error } = await supabase.functions.invoke('connect-driver', {
+        body,
+      });
+
+      if (error && error.name === 'FunctionsFetchError') {
+        const response = await fetch(SUPABASE_FUNCTIONS_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            'x-supabase-client-platform': 'ios-driver-app',
+          },
+          body: JSON.stringify(body),
+        });
+        data = await response.json().catch(() => null);
+        error = response.ok ? null : ({ message: data?.error || `HTTP ${response.status}` } as any);
+      }
+
+      if (error) throw error;
+      if (data?.tasks) setTasks(data.tasks);
+    } catch (err: any) {
+      console.error('Failed to load tasks:', err);
+      setLoadError(err?.message || 'Failed to load tasks');
+    } finally {
+      setLoading(false);
+    }
+  }, [session?.driverId, session?.adminCode]);
         body: {
           action: 'get-tasks',
           driverId: session.driverId,
