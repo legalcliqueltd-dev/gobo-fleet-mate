@@ -122,6 +122,15 @@ export default function DriverAppTasks() {
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
+        ) : loadError ? (
+          <Card>
+            <CardContent className="p-8 text-center space-y-3">
+              <Package className="h-12 w-12 mx-auto text-muted-foreground" />
+              <h3 className="font-semibold">Could not load tasks</h3>
+              <p className="text-sm text-muted-foreground">{loadError}</p>
+              <Button variant="outline" onClick={loadTasks}>Retry</Button>
+            </CardContent>
+          </Card>
         ) : tasks.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center">
