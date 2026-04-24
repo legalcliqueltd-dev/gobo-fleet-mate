@@ -228,7 +228,7 @@ class TrackingService extends EventTarget {
   private async startIOS(driverId: string, adminCode: string) {
     try {
       const mod = await import('@transistorsoft/capacitor-background-geolocation');
-      this.BackgroundGeolocation = mod.default;
+      this.BackgroundGeolocation = (mod as any).default ?? mod;
     } catch (e) {
       console.warn('[TrackingService] Transistorsoft not available, falling back to Capacitor Geolocation:', e);
       await this.startAndroid(); // Use the Capacitor watch path
@@ -243,29 +243,77 @@ class TrackingService extends EventTarget {
 
     const BG = this.BackgroundGeolocation;
 
-    await BG.ready({
+    const config = {
+      reset: true,
+      geolocation: {
+        desiredAccuracy: BG.DESIRED_ACCURACY_NAVIGATION,
+        distanceFilter: 3,
+        stationaryRadius: 5,
+        stopTimeout: 1,
+        disableStopDetection: true,
+        disableElasticity: true,
+        pausesLocationUpdatesAutomatically: false,
+        locationAuthorizationRequest: 'Always',
+        showsBackgroundLocationIndicator: true,
+        locationUpdateInterval: 10000,
+        fastestLocationUpdateInterval: 5000,
+        allowIdenticalLocations: false,
+      },
+      app: {
+        stopOnTerminate: false,
+        startOnBoot: true,
+        preventSuspend: true,
+        heartbeatInterval: 60,
+      },
+      activity: {
+        disableMotionActivityUpdates: true,
+        activityRecognitionInterval: 5000,
+      },
+      http: {
+        url: SUPABASE_FUNCTIONS_URL,
+        method: 'POST',
+        autoSync: true,
+        autoSyncThreshold: 3,
+        batchSync: true,
+        maxBatchSize: 50,
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+        },
+        params: {
+          action: 'update-location',
+          driverId,
+          adminCode,
+          isBackground: true,
+        },
+      },
+      persistence: {
+        maxRecordsToPersist: 10000,
+      },
+      logger: {
+        debug: false,
+        logLevel: BG.LOG_LEVEL_INFO ?? BG.LOG_LEVEL_WARNING,
+      },
+      // Legacy flat keys retained for v8 compatibility.
       desiredAccuracy: BG.DESIRED_ACCURACY_NAVIGATION,
       distanceFilter: 3,
       stationaryRadius: 5,
-      disableMotionActivityUpdates: true,
+      stopTimeout: 1,
+      disableStopDetection: true,
+      disableElasticity: true,
       stopOnTerminate: false,
       startOnBoot: true,
-      stopTimeout: 3,
-      activityRecognitionInterval: 5000,
-      debug: false,
-      logLevel: BG.LOG_LEVEL_WARNING,
       preventSuspend: true,
       pausesLocationUpdatesAutomatically: false,
       locationAuthorizationRequest: 'Always',
       showsBackgroundLocationIndicator: true,
       locationUpdateInterval: 10000,
       fastestLocationUpdateInterval: 5000,
-      heartbeatInterval: 30,
-      enableHeadless: true,
+      heartbeatInterval: 60,
       url: SUPABASE_FUNCTIONS_URL,
       method: 'POST',
       autoSync: true,
-      autoSyncThreshold: 5,
+      autoSyncThreshold: 3,
       batchSync: true,
       maxBatchSize: 50,
       maxRecordsToPersist: 10000,
@@ -279,14 +327,35 @@ class TrackingService extends EventTarget {
         adminCode,
         isBackground: true,
       },
-      notification: {
-        title: 'FleetTrackMate',
-        text: 'Tracking your location for your fleet manager',
-      },
+    };
+
+    const readyState = await BG.ready(config);
+    console.log('[TrackingService] iOS BG ready:', {
+      enabled: readyState?.enabled,
+      isMoving: readyState?.isMoving,
+      authorization: readyState?.authorization,
     });
+
+    try {
+      await BG.requestPermission();
+    } catch (permissionError) {
+      console.warn('[TrackingService] iOS Always permission request failed:', permissionError);
+    }
+
+    try {
+      const provider = await BG.getProviderState();
+      console.log('[TrackingService] iOS provider state:', provider);
+      const status = String(provider?.status ?? provider?.authorizationStatus ?? '').toLowerCase();
+      if (status && !status.includes('always') && !status.includes('authorized_always')) {
+        console.warn('[TrackingService] iOS background tracking needs Location permission set to Always:', provider);
+      }
+    } catch (providerError) {
+      console.warn('[TrackingService] iOS provider state unavailable:', providerError);
+    }
 
     // If already configured and IDs changed, push update.
     await BG.setConfig({
+      http: { params: { action: 'update-location', driverId, adminCode, isBackground: true } },
       params: { action: 'update-location', driverId, adminCode, isBackground: true },
     }).catch(() => {});
 
