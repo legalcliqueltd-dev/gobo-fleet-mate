@@ -98,10 +98,13 @@ npm run cap:sync:android
 ```bash
 npm i @capacitor/ios
 npx cap add ios
+npm run cap:build:ios
 npx cap open ios
 ```
 
 Configure signing in Xcode and run on device/simulator.
+
+Before archiving for App Store upload, always run `npm run cap:build:ios`. This runs the iOS post-sync script and ensures `BGTaskSchedulerPermittedIdentifiers` is present when `UIBackgroundModes` includes `processing`.
 
 ## Troubleshooting
 
