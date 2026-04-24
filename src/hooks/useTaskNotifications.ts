@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { SUPABASE_ANON_KEY, SUPABASE_FUNCTIONS_URL } from '@/services/trackingService';
 import { toast } from 'sonner';
 
 /**
@@ -50,14 +51,31 @@ export function useTaskNotifications(driverId: string | undefined, adminCode?: s
     if (!effectiveAdminCode) return;
 
     try {
-      const { data, error } = await supabase.functions.invoke('connect-driver', {
-        body: {
-          action: 'get-tasks',
-          driverId,
-          adminCode: effectiveAdminCode,
-          statuses: ['assigned', 'en_route'],
-        },
+      const body = {
+        action: 'get-tasks',
+        driverId,
+        adminCode: effectiveAdminCode,
+        statuses: ['assigned', 'en_route'],
+      };
+
+      let { data, error } = await supabase.functions.invoke('connect-driver', {
+        body,
       });
+
+      if (error && error.name === 'FunctionsFetchError') {
+        const response = await fetch(SUPABASE_FUNCTIONS_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            'x-supabase-client-platform': 'ios-driver-app',
+          },
+          body: JSON.stringify(body),
+        });
+        data = await response.json().catch(() => null);
+        error = response.ok ? null : ({ message: data?.error || `HTTP ${response.status}` } as any);
+      }
 
       if (error || !data?.tasks) return;
 
