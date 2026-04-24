@@ -19,8 +19,6 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       external: [
         '@capawesome-team/capacitor-android-foreground-service',
-        '@transistorsoft/capacitor-background-geolocation',
-        '@transistorsoft/capacitor-background-fetch',
       ],
     },
   },
