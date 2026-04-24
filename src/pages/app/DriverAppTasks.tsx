@@ -67,22 +67,6 @@ export default function DriverAppTasks() {
       setLoading(false);
     }
   }, [session?.driverId, session?.adminCode]);
-        body: {
-          action: 'get-tasks',
-          driverId: session.driverId,
-          adminCode: session.adminCode,
-          statuses: ['assigned', 'en_route', 'completed'],
-        },
-      });
-
-      if (error) throw error;
-      if (data?.tasks) setTasks(data.tasks);
-    } catch (err) {
-      console.error('Failed to load tasks:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [session?.driverId, session?.adminCode]);
 
   useEffect(() => {
     loadTasks();
