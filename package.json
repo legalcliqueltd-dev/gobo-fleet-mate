@@ -12,7 +12,9 @@
     "cap:doctor:android": "node scripts/verify-android-platform.mjs",
     "cap:sync:android": "npx cap sync android && bash scripts/android-post-sync.sh && npm run cap:doctor:android",
     "cap:clean:android": "powershell -ExecutionPolicy Bypass -File scripts/android-post-sync.ps1",
-    "cap:build:android": "npm run build && npm run cap:sync:android"
+    "cap:build:android": "npm run build && npm run cap:sync:android",
+    "cap:sync:ios": "cp capacitor.config.driver.ts capacitor.config.ts && npx cap sync ios && bash scripts/ios-post-sync.sh",
+    "cap:build:ios": "cp capacitor.config.driver.ts capacitor.config.ts && npm run build && npx cap sync ios && bash scripts/ios-post-sync.sh"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.4",
