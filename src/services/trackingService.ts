@@ -318,6 +318,11 @@ class TrackingService extends EventTarget {
     this.startNativeCountPoll();
     await this.mirrorNativeQueue();
     await this.pollNativeCount();
+
+    // If the app opens while already online, Transistorsoft may keep older
+    // SQLite records queued until a later motion/connectivity event. Force a
+    // flush on startup so "connected" immediately means "syncing".
+    await this.forceNativeSync();
   }
 
   private onIOSLocation(location: any) {
@@ -345,7 +350,6 @@ class TrackingService extends EventTarget {
 
     this.setState({
       lastLocation: loc,
-      lastSyncTime: new Date(),
       batteryLevel: location.battery?.level != null
         ? Math.round(location.battery.level * 100)
         : this.state.batteryLevel,
@@ -483,6 +487,7 @@ class TrackingService extends EventTarget {
         return;
       }
       this.setState({ lastSyncTime: new Date() });
+      await this.drainOfflineQueue();
     } catch (err) {
       console.warn('[TrackingService] send failed, persisting offline:', err);
       const timestamp = loc.timestamp.toISOString();
@@ -545,8 +550,18 @@ class TrackingService extends EventTarget {
   }
 
   private startSyncRetry() {
-    this.drainOfflineQueue();
-    this.syncRetryTimer = setInterval(() => this.drainOfflineQueue(), SYNC_RETRY_INTERVAL_MS);
+    if (this.syncRetryTimer) return;
+
+    const sync = async () => {
+      if (this.BackgroundGeolocation) {
+        await this.forceNativeSync();
+      } else {
+        await this.drainOfflineQueue();
+      }
+    };
+
+    sync();
+    this.syncRetryTimer = setInterval(sync, SYNC_RETRY_INTERVAL_MS);
   }
 
   private stopSyncRetry() {
