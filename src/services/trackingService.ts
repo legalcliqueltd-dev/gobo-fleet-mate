@@ -366,6 +366,11 @@ class TrackingService extends EventTarget {
     }));
 
     this.registerListener(BG.onHttp(async (response: any) => {
+      console.log('[TrackingService] iOS native HTTP:', {
+        success: response?.success,
+        status: response?.status,
+        responseText: response?.responseText,
+      });
       if (response.success) {
         this.setState({ lastSyncTime: new Date() });
         await this.mirrorNativeQueue();
@@ -373,6 +378,31 @@ class TrackingService extends EventTarget {
       }
       await this.pollNativeCount();
     }));
+
+    if (typeof BG.onProviderChange === 'function') {
+      this.registerListener(BG.onProviderChange((event: any) => {
+        console.log('[TrackingService] iOS provider change:', event);
+      }));
+    }
+
+    if (typeof BG.onMotionChange === 'function') {
+      this.registerListener(BG.onMotionChange((event: any) => {
+        console.log('[TrackingService] iOS motion change:', {
+          isMoving: event?.isMoving,
+          location: event?.location?.coords,
+        });
+      }));
+    }
+
+    if (typeof BG.onHeartbeat === 'function') {
+      this.registerListener(BG.onHeartbeat(async () => {
+        try {
+          await BG.getCurrentPosition({ samples: 1, persist: true, timeout: 30 });
+        } catch (heartbeatError) {
+          console.warn('[TrackingService] iOS heartbeat position failed:', heartbeatError);
+        }
+      }));
+    }
 
     if (typeof BG.onConnectivityChange === 'function') {
       this.registerListener(BG.onConnectivityChange(async (event: any) => {
@@ -383,6 +413,24 @@ class TrackingService extends EventTarget {
     }
 
     await BG.start();
+    if (typeof BG.changePace === 'function') {
+      await BG.changePace(true).catch((paceError: any) => {
+        console.warn('[TrackingService] iOS changePace failed:', paceError);
+      });
+    }
+
+    try {
+      const state = await BG.getState();
+      console.log('[TrackingService] iOS BG started:', {
+        enabled: state?.enabled,
+        isMoving: state?.isMoving,
+        trackingMode: state?.trackingMode,
+      });
+      if (!state?.enabled) throw new Error('Transistorsoft BackgroundGeolocation did not enable');
+    } catch (stateError) {
+      console.warn('[TrackingService] iOS BG state check failed:', stateError);
+      throw stateError;
+    }
 
     this.startNativeCountPoll();
     await this.mirrorNativeQueue();
