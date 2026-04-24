@@ -82,5 +82,13 @@ export default config;
  * <key>UIBackgroundModes</key>
  * <array>
  *   <string>location</string>
+ *   <string>fetch</string>
+ *   <string>processing</string>
+ * </array>
+ *
+ * <key>BGTaskSchedulerPermittedIdentifiers</key>
+ * <array>
+ *   <string>com.transistorsoft.fetch</string>
+ *   <string>com.transistorsoft.customtask</string>
  * </array>
  */

@@ -9,6 +9,8 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
+    "cap:sync:ios": "npx cap sync ios && bash scripts/ios-post-sync.sh",
+    "cap:build:ios": "npm run build && npm run cap:sync:ios",
     "cap:doctor:android": "node scripts/verify-android-platform.mjs",
     "cap:sync:android": "npx cap sync android && bash scripts/android-post-sync.sh && npm run cap:doctor:android",
     "cap:clean:android": "powershell -ExecutionPolicy Bypass -File scripts/android-post-sync.ps1",
