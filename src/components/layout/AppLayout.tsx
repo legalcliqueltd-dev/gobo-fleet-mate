@@ -1,6 +1,6 @@
 import { PropsWithChildren, useState, useRef, useEffect } from 'react';
 import { Menu, X, Home, Settings as SettingsIcon, ClipboardList, AlertTriangle, Plus } from 'lucide-react';
-import logo from '@/assets/logo.png';
+import logo from '@/assets/logo.webp';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { motion } from 'framer-motion';

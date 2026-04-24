@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Link2, Check, AlertCircle, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import logo from '@/assets/logo.png';
+import logo from '@/assets/logo.webp';
 import DriverOnboarding, { isOnboardingCompleted } from '@/components/driver/DriverOnboarding';
 
 export default function DriverAppConnect() {

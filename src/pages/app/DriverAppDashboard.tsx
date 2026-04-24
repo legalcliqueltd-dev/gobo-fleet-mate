@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { SUPABASE_ANON_KEY, SUPABASE_FUNCTIONS_URL, trackingService } from '@/services/trackingService';
+import { trackingService } from '@/services/trackingService';
 import { useTrackingService } from '@/hooks/useTrackingService';
 import { GoogleMap, useJsApiLoader, Polyline } from '@react-google-maps/api';
 import AdvancedMarker from '@/components/map/AdvancedMarker';
@@ -183,32 +183,14 @@ export default function DriverAppDashboard() {
   const loadTasks = useCallback(async () => {
     if (!session?.driverId || !session?.adminCode) return;
     try {
-      const body = {
-        action: 'get-tasks',
-        driverId: session.driverId,
-        adminCode: session.adminCode,
-        statuses: ['assigned', 'en_route'],
-      };
-
-      let { data, error } = await supabase.functions.invoke('connect-driver', {
-        body,
+      const { data, error } = await supabase.functions.invoke('connect-driver', {
+        body: {
+          action: 'get-tasks',
+          driverId: session.driverId,
+          adminCode: session.adminCode,
+          statuses: ['assigned', 'en_route'],
+        },
       });
-
-      if (error && error.name === 'FunctionsFetchError') {
-        const response = await fetch(SUPABASE_FUNCTIONS_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-            'x-supabase-client-platform': 'ios-driver-app',
-          },
-          body: JSON.stringify(body),
-        });
-        data = await response.json().catch(() => null);
-        error = response.ok ? null : ({ message: data?.error || `HTTP ${response.status}` } as any);
-      }
-
       if (error) throw error;
       if (data?.tasks) setTasks(data.tasks);
     } catch (err) {

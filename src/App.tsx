@@ -56,7 +56,6 @@ import DriverAppCompleteTask from '@/pages/app/DriverAppCompleteTask';
 import DriverAppSOS from '@/pages/app/DriverAppSOS';
 import DriverAppSettings from '@/pages/app/DriverAppSettings';
 import LocationDiagnostics from '@/pages/app/LocationDiagnostics';
-import BackgroundTrackingTest from '@/pages/app/BackgroundTrackingTest';
 
 export default function App() {
   const isNativeApp = detectNativePlatform();
@@ -107,11 +106,6 @@ export default function App() {
                   </DriverProtectedRoute>
                 } />
                 <Route path="/diagnostics" element={<LocationDiagnostics />} />
-                <Route path="/background-test" element={
-                  <DriverProtectedRoute>
-                    <BackgroundTrackingTest />
-                  </DriverProtectedRoute>
-                } />
               </Routes>
             </DriverSessionProvider>
           } />

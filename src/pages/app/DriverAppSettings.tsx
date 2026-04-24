@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { User, Battery, MapPin, Unlink, Power, AlertTriangle, Palette, Timer } from 'lucide-react';
+import { User, Battery, MapPin, Unlink, Power, AlertTriangle, Palette } from 'lucide-react';
 import { toast } from 'sonner';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -230,16 +230,6 @@ export default function DriverAppSettings() {
                 onCheckedChange={handleBatterySavingChange}
               />
             </div>
-
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full justify-start"
-              onClick={() => navigate('/app/background-test')}
-            >
-              <Timer className="h-4 w-4 mr-2" />
-              Background Tracking Test
-            </Button>
           </CardContent>
         </Card>
 

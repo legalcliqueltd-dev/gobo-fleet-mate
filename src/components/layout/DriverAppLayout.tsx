@@ -1,7 +1,7 @@
 import { PropsWithChildren } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, ClipboardList, AlertTriangle, Settings, ArrowLeft } from 'lucide-react';
-import logo from '@/assets/logo.png';
+import logo from '@/assets/logo.webp';
 import { cn } from '@/lib/utils';
 import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { useTaskNotifications } from '@/hooks/useTaskNotifications';
