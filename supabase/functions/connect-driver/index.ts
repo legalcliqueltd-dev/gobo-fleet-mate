@@ -621,6 +621,61 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ========================================
+    // ACTION: get-emergency-contact
+    // Returns the admin-configured emergency contact (name + phone) for the
+    // driver's admin_code, or null if the admin has not set one. Used by the
+    // driver SOS screen — replaces the previous hardcoded country-code lookup
+    // so dispatchers can route SOS calls wherever they want.
+    // ========================================
+    if (action === 'get-emergency-contact') {
+      const { adminCode } = body;
+      if (!driverId || !adminCode) {
+        return new Response(
+          JSON.stringify({ error: 'driverId and adminCode are required', server_time: serverTime }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const driver = await validateDriverIdentity(driverId, adminCode);
+      if (!driver) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid driver identity', server_time: serverTime }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Service-role client bypasses RLS; we already proved the driver belongs
+      // to this admin_code via validateDriverIdentity, so this is safe.
+      const { data: contacts, error: ecErr } = await supabaseAdmin
+        .from('emergency_contacts')
+        .select('contact_name, contact_phone, contact_type')
+        .eq('admin_code', adminCode)
+        .eq('is_active', true)
+        // Prefer the admin's primary contact if more than one row exists
+        .order('contact_type', { ascending: false })
+        .order('created_at', { ascending: true })
+        .limit(1);
+
+      if (ecErr) {
+        console.error('emergency_contacts select error:', ecErr);
+        return new Response(
+          JSON.stringify({ error: 'Failed to load emergency contact', server_time: serverTime }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const row = contacts?.[0];
+      const contact = row && row.contact_phone
+        ? { name: row.contact_name || '', phone: row.contact_phone }
+        : null;
+
+      return new Response(
+        JSON.stringify({ contact, server_time: serverTime }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (action === 'get-connection') {
       if (!driverId) {
         return new Response(

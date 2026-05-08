@@ -7,14 +7,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
 import { isNativePlatform, capturePhotoAsFile } from '@/utils/nativeCamera';
-import { getEmergencyNumber } from '@/utils/emergencyNumber';
-
-const EMERGENCY_NUMBER = getEmergencyNumber();
+import { useEmergencyContact } from '@/hooks/useEmergencyContact';
 
 type Hazard = 'accident' | 'medical' | 'robbery' | 'breakdown' | 'other';
 
 export default function DriverAppSOS() {
   const { session } = useDriverSession();
+  const { contact: emergencyContact } = useEmergencyContact(session?.driverId, session?.adminCode);
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState('');
   const [hazard, setHazard] = useState<Hazard>('other');
@@ -227,12 +226,19 @@ export default function DriverAppSOS() {
           )}
 
           <div className="w-full max-w-xs space-y-3">
-            <Button variant="outline" className="w-full gap-2" asChild>
-              <a href={`tel:${EMERGENCY_NUMBER}`}>
+            {emergencyContact ? (
+              <Button variant="outline" className="w-full gap-2" asChild>
+                <a href={`tel:${emergencyContact.phone}`}>
+                  <Phone className="h-4 w-4" />
+                  Call {emergencyContact.name || 'Emergency Contact'} ({emergencyContact.phone})
+                </a>
+              </Button>
+            ) : (
+              <Button variant="outline" className="w-full gap-2" disabled>
                 <Phone className="h-4 w-4" />
-                Call Emergency Services ({EMERGENCY_NUMBER})
-              </a>
-            </Button>
+                Emergency contact not set — ask your dispatcher
+              </Button>
+            )}
 
             <Button
               variant="ghost"
@@ -377,12 +383,19 @@ export default function DriverAppSOS() {
 
         {/* Quick Actions */}
         <div className="mt-4 space-y-2">
-          <Button variant="outline" className="w-full gap-2" asChild>
-            <a href={`tel:${EMERGENCY_NUMBER}`}>
+          {emergencyContact ? (
+            <Button variant="outline" className="w-full gap-2" asChild>
+              <a href={`tel:${emergencyContact.phone}`}>
+                <Phone className="h-4 w-4" />
+                Call {emergencyContact.name || 'Emergency Contact'} ({emergencyContact.phone})
+              </a>
+            </Button>
+          ) : (
+            <Button variant="outline" className="w-full gap-2" disabled>
               <Phone className="h-4 w-4" />
-              Call Emergency Services ({EMERGENCY_NUMBER})
-            </a>
-          </Button>
+              Emergency contact not set — ask your dispatcher
+            </Button>
+          )}
         </div>
       </div>
     </DriverAppLayout>

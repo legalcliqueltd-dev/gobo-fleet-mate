@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Bell, Info, Palette, MapPin, Battery, Settings as SettingsIcon, User, CreditCard, Crown, Calendar, CheckCircle2, Mail, Send, Loader2 } from 'lucide-react';
+import { Bell, Info, Palette, MapPin, Battery, Settings as SettingsIcon, User, CreditCard, Crown, Calendar, CheckCircle2, Mail, Send, Loader2, Phone, AlertTriangle } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import PaymentModal from '@/components/PaymentModal';
 import { toast } from 'sonner';
 
@@ -28,6 +29,121 @@ export default function Settings() {
     return localStorage.getItem('batterySavingMode') === 'true';
   });
 
+  // Emergency contact — one value applied to every device this admin owns.
+  const [emergencyName, setEmergencyName] = useState('');
+  const [emergencyPhone, setEmergencyPhone] = useState('');
+  const [emergencyLoading, setEmergencyLoading] = useState(true);
+  const [emergencySaving, setEmergencySaving] = useState(false);
+  const [adminConnectionCodes, setAdminConnectionCodes] = useState<string[]>([]);
+
+  const loadEmergencyContact = async () => {
+    if (!user) return;
+    setEmergencyLoading(true);
+    try {
+      const { data: devices, error: devErr } = await supabase
+        .from('devices')
+        .select('connection_code')
+        .eq('user_id', user.id);
+      if (devErr) throw devErr;
+
+      const codes = (devices ?? [])
+        .map((d) => d.connection_code)
+        .filter((c): c is string => typeof c === 'string' && c.length > 0);
+      setAdminConnectionCodes(codes);
+
+      if (codes.length === 0) {
+        setEmergencyName('');
+        setEmergencyPhone('');
+        return;
+      }
+
+      const { data: contacts, error: ecErr } = await supabase
+        .from('emergency_contacts')
+        .select('contact_name, contact_phone')
+        .in('admin_code', codes)
+        .eq('is_active', true)
+        .order('contact_type', { ascending: false })
+        .order('created_at', { ascending: true })
+        .limit(1);
+      if (ecErr) throw ecErr;
+
+      const row = contacts?.[0];
+      setEmergencyName(row?.contact_name ?? '');
+      setEmergencyPhone(row?.contact_phone ?? '');
+    } catch (err) {
+      console.warn('Failed to load emergency contact:', err);
+    } finally {
+      setEmergencyLoading(false);
+    }
+  };
+
+  const handleSaveEmergencyContact = async () => {
+    if (!user) return;
+    const phone = emergencyPhone.trim();
+    if (!phone) {
+      toast.error('Phone number is required');
+      return;
+    }
+    if (adminConnectionCodes.length === 0) {
+      toast.error('Add a device first, then set the emergency contact.');
+      return;
+    }
+
+    setEmergencySaving(true);
+    try {
+      const name = emergencyName.trim() || 'Fleet Administrator';
+
+      // Replace any existing 'admin' contacts on each of this admin's devices
+      // with the new value. Delete-then-insert avoids relying on a particular
+      // unique constraint shape in the existing schema.
+      const { error: delErr } = await supabase
+        .from('emergency_contacts')
+        .delete()
+        .in('admin_code', adminConnectionCodes)
+        .eq('contact_type', 'admin');
+      if (delErr) throw delErr;
+
+      const rows = adminConnectionCodes.map((code) => ({
+        admin_code: code,
+        contact_name: name,
+        contact_phone: phone,
+        contact_type: 'admin',
+        contact_role: 'Fleet Administrator',
+        is_active: true,
+      }));
+      const { error: insErr } = await supabase.from('emergency_contacts').insert(rows);
+      if (insErr) throw insErr;
+
+      toast.success(`Emergency contact updated for ${rows.length} device${rows.length === 1 ? '' : 's'}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save emergency contact';
+      toast.error(message);
+    } finally {
+      setEmergencySaving(false);
+    }
+  };
+
+  const handleClearEmergencyContact = async () => {
+    if (!user || adminConnectionCodes.length === 0) return;
+    setEmergencySaving(true);
+    try {
+      const { error } = await supabase
+        .from('emergency_contacts')
+        .delete()
+        .in('admin_code', adminConnectionCodes)
+        .eq('contact_type', 'admin');
+      if (error) throw error;
+      setEmergencyName('');
+      setEmergencyPhone('');
+      toast.success('Emergency contact cleared. Drivers will see "not set" until you save a new number.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to clear emergency contact';
+      toast.error(message);
+    } finally {
+      setEmergencySaving(false);
+    }
+  };
+
   const loadTokens = async () => {
     if (!user) return;
     const { data, error } = await supabase
@@ -40,6 +156,8 @@ export default function Settings() {
 
   useEffect(() => {
     loadTokens();
+    loadEmergencyContact();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const handleLocationTrackingToggle = (enabled: boolean) => {
@@ -337,6 +455,90 @@ export default function Settings() {
                 ))}
               </ul>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="border-2 border-border">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-destructive/20">
+              <Phone className="h-4 w-4 text-destructive" />
+            </div>
+            <h3 className="font-heading font-semibold text-lg">Emergency Contact</h3>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            This number appears on every connected driver's SOS screen as the call-for-help button.
+            One number applies to all devices on your account.
+          </p>
+
+          {emergencyLoading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading current contact...
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="emergency-name">Contact name</Label>
+                  <Input
+                    id="emergency-name"
+                    placeholder="e.g. Dispatch Desk"
+                    value={emergencyName}
+                    onChange={(e) => setEmergencyName(e.target.value)}
+                    disabled={emergencySaving}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="emergency-phone">Phone number</Label>
+                  <Input
+                    id="emergency-phone"
+                    type="tel"
+                    placeholder="+1 555 555 5555"
+                    value={emergencyPhone}
+                    onChange={(e) => setEmergencyPhone(e.target.value)}
+                    disabled={emergencySaving}
+                  />
+                </div>
+              </div>
+
+              {adminConnectionCodes.length === 0 ? (
+                <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 text-warning flex-shrink-0" />
+                  <span className="text-muted-foreground">
+                    Add a device first; the emergency contact attaches to each of your devices.
+                  </span>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Will apply to {adminConnectionCodes.length} device{adminConnectionCodes.length === 1 ? '' : 's'}.
+                  Drivers see updates within ~60 seconds.
+                </p>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={handleSaveEmergencyContact}
+                  disabled={emergencySaving || adminConnectionCodes.length === 0}
+                >
+                  {emergencySaving ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
+                  ) : (
+                    <>Save</>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleClearEmergencyContact}
+                  disabled={emergencySaving || (!emergencyName && !emergencyPhone)}
+                >
+                  Clear
+                </Button>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

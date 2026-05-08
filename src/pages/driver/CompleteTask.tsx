@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import SignatureCanvas from 'react-signature-canvas';
-import QrScanner from 'react-qr-scanner';
+import { Scanner as QrScanner, type IDetectedBarcode } from '@yudiel/react-qr-scanner';
 
 type Task = {
   id: string;
@@ -389,10 +389,12 @@ export default function CompleteTask() {
               ) : (
                 <div className="border rounded-lg overflow-hidden">
                   <QrScanner
-                    delay={300}
+                    onScan={(codes: IDetectedBarcode[]) => {
+                      const value = codes[0]?.rawValue;
+                      if (value) handleQrScan({ text: value });
+                    }}
                     onError={(err) => console.error(err)}
-                    onScan={handleQrScan}
-                    style={{ width: '100%' }}
+                    styles={{ container: { width: '100%' } }}
                   />
                   <Button
                     variant="outline"
