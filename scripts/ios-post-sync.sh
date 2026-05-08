@@ -86,8 +86,6 @@ echo ""
 echo "=== Camera & Media Permissions ==="
 add_string_key "NSCameraUsageDescription" "FleetTrackMate needs camera access to capture photos for emergency reports and delivery proof."
 add_string_key "NSPhotoLibraryUsageDescription" "FleetTrackMate needs photo library access to select photos and videos for emergency reports and delivery proof."
-add_string_key "NSPhotoLibraryAddUsageDescription" "FleetTrackMate needs permission to save captured media to your library."
-add_string_key "NSMicrophoneUsageDescription" "FleetTrackMate needs microphone access when recording delivery proof videos."
 
 echo ""
 echo "=== Background Modes ==="
@@ -128,7 +126,7 @@ echo ""
 # Verification - show all permission-related keys
 echo "📋 Verification (current values):"
 echo "─────────────────────────────────"
-for key in "NSLocationWhenInUseUsageDescription" "NSLocationAlwaysAndWhenInUseUsageDescription" "NSMotionUsageDescription" "NSCameraUsageDescription" "NSPhotoLibraryUsageDescription" "NSPhotoLibraryAddUsageDescription" "NSMicrophoneUsageDescription"; do
+for key in "NSLocationWhenInUseUsageDescription" "NSLocationAlwaysAndWhenInUseUsageDescription" "NSMotionUsageDescription" "NSCameraUsageDescription" "NSPhotoLibraryUsageDescription"; do
   value=$($PLIST_BUDDY -c "Print :$key" "$PLIST_PATH" 2>/dev/null)
   if [ $? -eq 0 ]; then
     # Truncate long values for display

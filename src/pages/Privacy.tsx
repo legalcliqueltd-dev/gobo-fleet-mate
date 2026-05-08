@@ -9,71 +9,69 @@ const Privacy = () => {
       icon: Database,
       title: "Information We Collect",
       content: [
-        "Account information (name, email, phone number)",
-        "Device and vehicle location data for fleet tracking purposes",
-        "Usage data and analytics to improve our services",
-        "Communication preferences and support interactions"
-      ]
+        "Driver name and the connection code provided by the fleet administrator (the only personal information we ask drivers to enter).",
+        "Real-time GPS location, speed, heading, and accuracy while On Duty is enabled.",
+        "Photos, videos, and signatures you submit as delivery proof or SOS evidence.",
+        "Device battery level and a heartbeat timestamp (every 60 seconds) so dispatchers know the device is online.",
+        "Fleet administrator account: email, name, and billing email (for the web dashboard only — not collected from the driver app).",
+      ],
     },
     {
       icon: Eye,
       title: "How We Use Your Information",
       content: [
-        "Provide real-time fleet tracking and management services",
-        "Send notifications about driver status and geofence events",
-        "Improve and optimize our platform features",
-        "Comply with legal obligations and protect our rights"
-      ]
+        "Show your live position to your fleet administrator while you are On Duty.",
+        "Deliver, accept, and complete tasks assigned to you by your fleet administrator.",
+        "Send Emergency SOS alerts (with your location and any photo you attach) to your dispatcher.",
+        "Comply with legal obligations and lawful requests when required.",
+      ],
     },
     {
       icon: Lock,
-      title: "Data Security",
+      title: "How We Protect Your Information",
       content: [
-        "End-to-end encryption for all data transmission",
-        "SOC 2 compliant infrastructure and processes",
-        "Regular security audits and penetration testing",
-        "Secure data centers with 24/7 monitoring"
-      ]
+        "All network requests use HTTPS / TLS in transit.",
+        "Database access is gated by Supabase Row-Level Security so a driver record is only readable by the dispatcher that issued its connection code.",
+        "Photo and video proofs are stored in private Supabase Storage buckets.",
+        "We do not sell or share your data with advertisers, analytics services, or other third parties.",
+      ],
     },
     {
       icon: UserCheck,
       title: "Your Rights",
       content: [
-        "Access and download your personal data",
-        "Request correction of inaccurate information",
-        "Delete your account and associated data",
-        "Opt-out of marketing communications"
-      ]
+        "Toggle Off Duty in the app to immediately stop sharing your location.",
+        "Disconnect from the fleet at any time from Settings; this clears the local session.",
+        "Request deletion of your driver profile and historical data at any time (see below).",
+        "Contact us with any privacy question and we will respond within 7 business days.",
+      ],
     },
     {
       icon: Bell,
-      title: "Cookies & Tracking",
+      title: "Data Retention",
       content: [
-        "Essential cookies for platform functionality",
-        "Analytics cookies to understand usage patterns",
-        "You can manage cookie preferences in your browser",
-        "We do not sell your data to third parties"
-      ]
-    }
+        "Live location is retained for trip history and reporting; older points are pruned by your fleet administrator's retention settings.",
+        "SOS evidence and delivery proofs are retained until the administrator deletes them.",
+        "When you request account deletion, your driver row, location history, and submitted media are permanently removed within 7 days.",
+      ],
+    },
   ];
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
             <Link to="/">
               <Button variant="ghost" size="sm">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Home
+                Back
               </Button>
             </Link>
           </div>
         </div>
       </header>
 
-      {/* Hero */}
       <section className="py-16 bg-gradient-to-b from-primary/5 to-background">
         <div className="container mx-auto px-4 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-2xl mb-6">
@@ -81,16 +79,13 @@ const Privacy = () => {
           </div>
           <h1 className="text-4xl font-bold mb-4">Privacy Policy</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Your privacy matters to us. This policy explains how Fleet Track Mate collects, 
-            uses, and protects your personal information.
+            This policy explains what FleetTrackMate collects from drivers using the mobile app and from
+            fleet administrators using the web dashboard, and how that information is used and protected.
           </p>
-          <p className="text-sm text-muted-foreground mt-4">
-            Last updated: December 10, 2025
-          </p>
+          <p className="text-sm text-muted-foreground mt-4">Last updated: 2026-05-05</p>
         </div>
       </section>
 
-      {/* Content */}
       <section className="py-16">
         <div className="container mx-auto px-4 max-w-4xl">
           <div className="space-y-8">
@@ -118,16 +113,16 @@ const Privacy = () => {
             ))}
           </div>
 
-          {/* Contact */}
           <Card className="mt-12 bg-muted/30">
             <CardContent className="pt-6">
-              <h3 className="font-semibold mb-2">Questions about privacy?</h3>
+              <h3 className="font-semibold mb-2">Contact</h3>
               <p className="text-muted-foreground mb-4">
-                If you have any questions about this Privacy Policy, please contact us.
+                If you have questions about this policy or wish to exercise any of the rights listed above,
+                contact us:
               </p>
               <p className="text-sm">
-                <strong>Email:</strong> privacy@gftm.com<br />
-                <strong>Address:</strong> San Francisco, CA, USA
+                <strong>Email:</strong> gobeth.ltd@gmail.com<br />
+                <strong>Operator:</strong> Gobeth Ltd
               </p>
             </CardContent>
           </Card>

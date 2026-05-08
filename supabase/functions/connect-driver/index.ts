@@ -546,6 +546,81 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ========================================
+    // ACTION: delete-driver
+    // Permanently deletes the driver row, location history, current location,
+    // alerts, and SOS evidence owned by this driver. Used by the driver app's
+    // in-app account deletion (App Store guideline 5.1.1(v)).
+    // ========================================
+    if (action === 'delete-driver') {
+      const { adminCode } = body;
+      if (!driverId || !adminCode) {
+        return new Response(
+          JSON.stringify({ error: 'driverId and adminCode are required', server_time: serverTime }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const driver = await validateDriverIdentity(driverId, adminCode);
+      if (!driver) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid driver identity', server_time: serverTime }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Detach this driver from any device that still references it
+      await supabaseAdmin
+        .from('devices')
+        .update({ connected_driver_id: null, connected_at: null, status: 'offline' })
+        .eq('connected_driver_id', driverId);
+
+      // Best-effort cascade. Each delete is wrapped so a single failure does not
+      // abort the rest; we want to remove as much as possible even if a table
+      // does not exist in this Supabase project.
+      const tables = [
+        'driver_location_history',
+        'driver_locations',
+        'driver_alerts',
+        'sos_events',
+        'task_reports',
+      ];
+      const deletionResults: Record<string, string> = {};
+      for (const table of tables) {
+        const { error: delErr } = await supabaseAdmin.from(table).delete().eq('driver_id', driverId);
+        if (delErr) {
+          deletionResults[table] = `error: ${delErr.message}`;
+          console.warn(`delete-driver: ${table} delete failed:`, delErr.message);
+        } else {
+          deletionResults[table] = 'ok';
+        }
+      }
+
+      // Finally, delete the driver row itself
+      const { error: driverDelErr } = await supabaseAdmin
+        .from('drivers')
+        .delete()
+        .eq('driver_id', driverId);
+
+      if (driverDelErr) {
+        console.error('delete-driver: drivers row delete failed:', driverDelErr);
+        return new Response(
+          JSON.stringify({
+            error: 'Failed to delete driver record',
+            details: driverDelErr.message,
+            partial: deletionResults,
+            server_time: serverTime,
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, deleted: deletionResults, server_time: serverTime }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (action === 'get-connection') {
       if (!driverId) {
         return new Response(

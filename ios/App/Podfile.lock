@@ -1,0 +1,63 @@
+PODS:
+  - Capacitor (7.4.5):
+    - CapacitorCordova
+  - CapacitorCamera (7.0.3):
+    - Capacitor
+  - CapacitorCordova (7.4.5)
+  - CapacitorGeolocation (7.1.5):
+    - Capacitor
+    - IONGeolocationLib (= 1.0.1)
+  - CocoaLumberjack (3.7.4):
+    - CocoaLumberjack/Core (= 3.7.4)
+  - CocoaLumberjack/Core (3.7.4)
+  - IONGeolocationLib (1.0.1)
+  - TransistorsoftCapacitorBackgroundFetch (8.0.0):
+    - Capacitor
+    - TSBackgroundFetch (~> 4.0)
+  - TransistorsoftCapacitorBackgroundGeolocation (8.0.1):
+    - Capacitor
+    - CocoaLumberjack (~> 3.7.2)
+  - TSBackgroundFetch (4.0.6)
+
+DEPENDENCIES:
+  - "Capacitor (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorCamera (from `../../node_modules/@capacitor/camera`)"
+  - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorGeolocation (from `../../node_modules/@capacitor/geolocation`)"
+  - "TransistorsoftCapacitorBackgroundFetch (from `../../node_modules/@transistorsoft/capacitor-background-fetch`)"
+  - "TransistorsoftCapacitorBackgroundGeolocation (from `../../node_modules/@transistorsoft/capacitor-background-geolocation`)"
+
+SPEC REPOS:
+  trunk:
+    - CocoaLumberjack
+    - IONGeolocationLib
+    - TSBackgroundFetch
+
+EXTERNAL SOURCES:
+  Capacitor:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorCamera:
+    :path: "../../node_modules/@capacitor/camera"
+  CapacitorCordova:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorGeolocation:
+    :path: "../../node_modules/@capacitor/geolocation"
+  TransistorsoftCapacitorBackgroundFetch:
+    :path: "../../node_modules/@transistorsoft/capacitor-background-fetch"
+  TransistorsoftCapacitorBackgroundGeolocation:
+    :path: "../../node_modules/@transistorsoft/capacitor-background-geolocation"
+
+SPEC CHECKSUMS:
+  Capacitor: 12914e6f1b7835e161a74ebd19cb361efa37a7dd
+  CapacitorCamera: 6746827d82376f31cea9224945c0458c9fd0b0b2
+  CapacitorCordova: 31bbe4466000c6b86d9b7f1181ee286cff0205aa
+  CapacitorGeolocation: 84f868bea4c2499aebc3bb3a88fd0a508f87ab87
+  CocoaLumberjack: 543c79c114dadc3b1aba95641d8738b06b05b646
+  IONGeolocationLib: 20f9d0248a0b5264511fb57a37e25dd2badf797a
+  TransistorsoftCapacitorBackgroundFetch: 12dc742682562c9339241d12615f27ef7dbfb88f
+  TransistorsoftCapacitorBackgroundGeolocation: bb25918e2b847d71edabdd62d84b771b05d0878f
+  TSBackgroundFetch: 0afbeaae4e1132866e1d4b6e55265af26b5958ae
+
+PODFILE CHECKSUM: 87bdd52245b35d87c72a83ddcf37f64da178485f
+
+COCOAPODS: 1.16.2

@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { User, Battery, MapPin, Unlink, Power, AlertTriangle, Palette } from 'lucide-react';
+import { User, Battery, MapPin, Unlink, Power, AlertTriangle, Palette, Trash2, Shield, FileText } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -27,6 +28,7 @@ export default function DriverAppSettings() {
   const { session, disconnect } = useDriverSession();
   const navigate = useNavigate();
   const [disconnecting, setDisconnecting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   
   // Duty status - defaults to true
   const [onDuty, setOnDuty] = useState(() => {
@@ -70,6 +72,51 @@ export default function DriverAppSettings() {
     setHighAccuracy(checked);
     localStorage.setItem('highAccuracyMode', String(checked));
     toast.success(checked ? 'High accuracy enabled' : 'High accuracy disabled');
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!session?.driverId || !session?.adminCode) {
+      toast.error('Not connected. Nothing to delete.');
+      return;
+    }
+    setDeleting(true);
+    try {
+      await trackingService.stop().catch(() => {});
+
+      const { data, error } = await supabase.functions.invoke('connect-driver', {
+        body: {
+          action: 'delete-driver',
+          driverId: session.driverId,
+          adminCode: session.adminCode,
+        },
+      });
+
+      if (error || !data?.success) {
+        const message = (error as { message?: string } | null)?.message
+          || (data as { error?: string } | null)?.error
+          || 'Failed to delete account';
+        toast.error(message);
+        return;
+      }
+
+      // Clear all local app state
+      try {
+        localStorage.removeItem('driverOnDuty');
+        localStorage.removeItem('driver_location_trail');
+        localStorage.removeItem('trail_last_sync_ts');
+        localStorage.removeItem('batterySavingMode');
+        localStorage.removeItem('highAccuracyMode');
+      } catch { /* ignore */ }
+
+      disconnect();
+      toast.success('Your driver profile and history have been deleted.');
+      navigate('/app/connect', { replace: true });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete account';
+      toast.error(message);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const handleDisconnect = async () => {
@@ -284,6 +331,58 @@ export default function DriverAppSettings() {
             </AlertDialog>
           </CardContent>
         </Card>
+
+        {/* Delete Account */}
+        <Card className="border-destructive/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-destructive" />
+              Delete My Account
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-3">
+              Permanently delete your driver profile, location history, and submitted SOS or delivery
+              evidence. This cannot be undone.
+            </p>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="w-full" disabled={deleting}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  {deleting ? 'Deleting...' : 'Delete My Account'}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Your driver profile, location history, and any photos or videos you have submitted
+                    will be permanently removed. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteAccount}
+                    className="bg-destructive hover:bg-destructive/90"
+                  >
+                    Yes, delete everything
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </CardContent>
+        </Card>
+
+        {/* Legal links */}
+        <div className="flex items-center justify-center gap-4 text-xs">
+          <Link to="/privacy" className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
+            <Shield className="h-3 w-3" /> Privacy Policy
+          </Link>
+          <Link to="/terms" className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
+            <FileText className="h-3 w-3" /> Terms of Service
+          </Link>
+        </div>
 
         {/* App Info */}
         <div className="text-center text-xs text-muted-foreground pt-4">

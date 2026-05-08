@@ -10,12 +10,14 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "cap:prepare:driver": "bash scripts/prepare-driver-capacitor-config.sh",
+    "build:native": "VITE_BUILD_TARGET=driver-native vite build",
     "cap:sync:ios": "npm run cap:prepare:driver && npx cap sync ios && bash scripts/ios-post-sync.sh",
-    "cap:build:ios": "npm run build && npm run cap:sync:ios",
+    "cap:build:ios": "npm run build:native && npm run cap:sync:ios && npm run cap:verify:bundle",
     "cap:doctor:android": "node scripts/verify-android-platform.mjs",
     "cap:sync:android": "npm run cap:prepare:driver && npx cap sync android && bash scripts/android-post-sync.sh && npm run cap:doctor:android",
     "cap:clean:android": "powershell -ExecutionPolicy Bypass -File scripts/android-post-sync.ps1",
-    "cap:build:android": "npm run build && npm run cap:sync:android"
+    "cap:build:android": "npm run build:native && npm run cap:sync:android && npm run cap:verify:bundle",
+    "cap:verify:bundle": "bash scripts/verify-native-bundle.sh"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.4",

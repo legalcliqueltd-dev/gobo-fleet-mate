@@ -1,10 +1,11 @@
 import { PropsWithChildren } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, ClipboardList, AlertTriangle, Settings, ArrowLeft } from 'lucide-react';
+import { Home, ClipboardList, AlertTriangle, Settings, ArrowLeft, Car } from 'lucide-react';
 import logo from '@/assets/logo.webp';
 import { cn } from '@/lib/utils';
 import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { useTaskNotifications } from '@/hooks/useTaskNotifications';
+import { useDrivingMode } from '@/hooks/useDrivingMode';
 import OfflineQueue from '@/components/OfflineQueue';
 
 const baseNavItems = [
@@ -19,7 +20,8 @@ export default function DriverAppLayout({ children }: PropsWithChildren) {
   const navigate = useNavigate();
   const { session } = useDriverSession();
   const { unreadCount } = useTaskNotifications(session?.driverId, session?.adminCode);
-  
+  const { isDriving, speedKmh } = useDrivingMode();
+
   // Check if on home page
   const isHomePage = location.pathname === '/app' || location.pathname === '/app/dashboard';
 
@@ -55,6 +57,22 @@ export default function DriverAppLayout({ children }: PropsWithChildren) {
           {!isHomePage && <div className="w-10" />}
         </div>
       </header>
+
+      {/* Driving-mode hint — passive banner that nudges the driver to pull
+          over before interacting. The SOS button on the bottom nav remains
+          fully reachable. */}
+      {isDriving && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="bg-warning/15 border-b border-warning/30 px-4 py-2 flex items-center justify-center gap-2"
+        >
+          <Car className="h-4 w-4 text-warning" />
+          <span className="text-xs font-medium text-warning">
+            Driving detected ({Math.round(speedKmh)} km/h) — please pull over before interacting.
+          </span>
+        </div>
+      )}
 
       {/* Main Content - fills available space */}
       <main className="flex-1 min-h-0 overflow-y-auto">

@@ -32,13 +32,8 @@ import AdminDashboard from '@/pages/admin/AdminDashboard';
 import DriversManagement from '@/pages/admin/DriversManagement';
 import CreateTask from '@/pages/admin/CreateTask';
 import TaskList from '@/pages/admin/TaskList';
-import LocationSimulator from '@/pages/app/LocationSimulator';
 import TempShare from '@/pages/TempShare';
 import TempTracking from '@/pages/TempTracking';
-import BackgroundPathsDemo from '@/pages/BackgroundPathsDemo';
-import HeroGeometricDemo from '@/pages/HeroGeometricDemo';
-import PulseBeamsDemo from '@/pages/PulseBeamsDemo';
-import Header3Demo from '@/pages/Header3Demo';
 import Privacy from '@/pages/Privacy';
 import Terms from '@/pages/Terms';
 import DeleteAccount from '@/pages/DeleteAccount';
@@ -55,7 +50,6 @@ import DriverAppTasks from '@/pages/app/DriverAppTasks';
 import DriverAppCompleteTask from '@/pages/app/DriverAppCompleteTask';
 import DriverAppSOS from '@/pages/app/DriverAppSOS';
 import DriverAppSettings from '@/pages/app/DriverAppSettings';
-import LocationDiagnostics from '@/pages/app/LocationDiagnostics';
 
 export default function App() {
   const isNativeApp = detectNativePlatform();
@@ -105,7 +99,6 @@ export default function App() {
                     <DriverAppSettings />
                   </DriverProtectedRoute>
                 } />
-                <Route path="/diagnostics" element={<LocationDiagnostics />} />
               </Routes>
             </DriverSessionProvider>
           } />
@@ -128,11 +121,6 @@ export default function App() {
             <AppLayout>
               <ErrorBoundary>
               <Routes>
-                <Route path="/demo/background-paths" element={<BackgroundPathsDemo />} />
-                <Route path="/demo/hero-geometric" element={<HeroGeometricDemo />} />
-                <Route path="/demo/pulse-beams" element={<PulseBeamsDemo />} />
-                <Route path="/demo/header-3" element={<Header3Demo />} />
-                
                 <Route path="/auth/login" element={<Login />} />
                 <Route path="/auth/signup" element={<Signup />} />
                 <Route path="/auth/forgot" element={<ForgotPassword />} />
@@ -335,15 +323,6 @@ export default function App() {
                     </ProtectedRoute>
                   }
                 />
-                <Route
-                  path="/admin/simulator"
-                  element={
-                    <ProtectedRoute>
-                      <LocationSimulator />
-                    </ProtectedRoute>
-                  }
-                />
-                
                 {/* Legacy Operations Routes */}
                 <Route
                   path="/ops/incidents"

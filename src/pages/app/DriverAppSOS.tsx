@@ -7,6 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
 import { isNativePlatform, capturePhotoAsFile } from '@/utils/nativeCamera';
+import { getEmergencyNumber } from '@/utils/emergencyNumber';
+
+const EMERGENCY_NUMBER = getEmergencyNumber();
 
 type Hazard = 'accident' | 'medical' | 'robbery' | 'breakdown' | 'other';
 
@@ -225,9 +228,9 @@ export default function DriverAppSOS() {
 
           <div className="w-full max-w-xs space-y-3">
             <Button variant="outline" className="w-full gap-2" asChild>
-              <a href="tel:112">
+              <a href={`tel:${EMERGENCY_NUMBER}`}>
                 <Phone className="h-4 w-4" />
-                Call Emergency Services
+                Call Emergency Services ({EMERGENCY_NUMBER})
               </a>
             </Button>
 
@@ -375,9 +378,9 @@ export default function DriverAppSOS() {
         {/* Quick Actions */}
         <div className="mt-4 space-y-2">
           <Button variant="outline" className="w-full gap-2" asChild>
-            <a href="tel:112">
+            <a href={`tel:${EMERGENCY_NUMBER}`}>
               <Phone className="h-4 w-4" />
-              Call Emergency Services (112)
+              Call Emergency Services ({EMERGENCY_NUMBER})
             </a>
           </Button>
         </div>

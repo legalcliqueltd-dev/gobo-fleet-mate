@@ -3,6 +3,15 @@
 	"appName": "FleetTrackMate-Driver",
 	"webDir": "dist",
 	"bundledWebRuntime": false,
+	"includePlugins": [
+		"@capacitor/camera",
+		"@capacitor/geolocation",
+		"@capacitor/app",
+		"@capacitor/haptics",
+		"@capacitor/keyboard",
+		"@capacitor/status-bar",
+		"@capawesome-team/capacitor-android-foreground-service"
+	],
 	"android": {},
 	"plugins": {
 		"Geolocation": {

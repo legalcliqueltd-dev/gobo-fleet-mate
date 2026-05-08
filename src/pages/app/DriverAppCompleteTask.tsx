@@ -11,6 +11,7 @@ import { Camera, X, CheckCircle2, MapPin, Loader2, Video, FileWarning, Play, Nav
 import TaskNavigationMap from '@/components/map/TaskNavigationMap';
 import { toast } from 'sonner';
 import { isNativePlatform, capturePhotoAsFile } from '@/utils/nativeCamera';
+import { useDrivingMode } from '@/hooks/useDrivingMode';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -43,6 +44,7 @@ export default function DriverAppCompleteTask() {
   const [notes, setNotes] = useState('');
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [showNavigation, setShowNavigation] = useState(false);
+  const { isDriving } = useDrivingMode();
 
   useEffect(() => {
     loadTask();
@@ -362,15 +364,23 @@ export default function DriverAppCompleteTask() {
         )}
 
         <div className="fixed bottom-20 left-0 right-0 p-4 bg-background/95 backdrop-blur border-t">
-          <div className="flex gap-3 max-w-lg mx-auto">
-            <Button variant="outline" className="flex-1" onClick={() => navigate('/app/tasks')} disabled={submitting}>Cancel</Button>
-            <Button className="flex-1" onClick={handleSubmit} disabled={submitting}>
-              {submitting ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Submitting...</>
-              ) : (
-                <><CheckCircle2 className="h-4 w-4 mr-2" />Complete Task</>
-              )}
-            </Button>
+          <div className="max-w-lg mx-auto space-y-2">
+            {isDriving && (
+              <div className="flex items-center gap-2 p-2 bg-warning/10 border border-warning/30 rounded-md text-xs text-warning">
+                <FileWarning className="h-4 w-4 flex-shrink-0" />
+                <span>Pull over before completing a task. Submit is disabled while moving.</span>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => navigate('/app/tasks')} disabled={submitting}>Cancel</Button>
+              <Button className="flex-1" onClick={handleSubmit} disabled={submitting || isDriving}>
+                {submitting ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Submitting...</>
+                ) : (
+                  <><CheckCircle2 className="h-4 w-4 mr-2" />Complete Task</>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
