@@ -13,6 +13,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # The build only reads the working tree and uploads via FTP; it never
+          # pushes back to GitHub. Skipping credential persistence avoids the
+          # cosmetic "git exit 128" warning from the post-checkout cleanup.
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
