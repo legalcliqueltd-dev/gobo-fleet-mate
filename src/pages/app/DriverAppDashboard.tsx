@@ -406,8 +406,15 @@ export default function DriverAppDashboard() {
           </div>
 
 
-          {/* Map controls - right side */}
-          <div className="absolute bottom-28 right-4 flex flex-col gap-2 pointer-events-auto">
+          {/* Map controls - right side. Bottom offset adapts so the buttons
+              always sit ABOVE the bottom card stack — ActiveTaskCard is ~180px
+              tall, plain DriverStatusCard is ~80px. */}
+          <div
+            className={cn(
+              'absolute right-4 flex flex-col gap-2 pointer-events-auto transition-[bottom] duration-200',
+              activeTask ? 'bottom-52' : 'bottom-32'
+            )}
+          >
             <Button
               size="icon"
               variant="secondary"
@@ -416,6 +423,7 @@ export default function DriverAppDashboard() {
                 'shadow-lg h-11 w-11 rounded-full',
                 followMode && 'ring-2 ring-primary'
               )}
+              aria-label={followMode ? 'Following location' : 'Recenter map on you'}
             >
               <Crosshair className="h-5 w-5" />
             </Button>
@@ -424,6 +432,7 @@ export default function DriverAppDashboard() {
               variant="secondary"
               onClick={toggleMapType}
               className="shadow-lg h-11 w-11 rounded-full"
+              aria-label={mapType === 'roadmap' ? 'Switch to satellite view' : 'Switch to road view'}
             >
               <Layers className="h-5 w-5" />
             </Button>
@@ -432,11 +441,13 @@ export default function DriverAppDashboard() {
 
         {/* Bottom card area */}
         <div className="absolute bottom-0 left-0 right-0 p-3 pointer-events-auto">
-          <DebugStatusPanel
-            isTracking={isTracking}
-            lastUpdate={lastUpdate}
-            pendingOfflineCount={pendingOfflineCount}
-          />
+          {import.meta.env.DEV && (
+            <DebugStatusPanel
+              isTracking={isTracking}
+              lastUpdate={lastUpdate}
+              pendingOfflineCount={pendingOfflineCount}
+            />
+          )}
           {activeTask ? (
             <ActiveTaskCard
               task={activeTask}

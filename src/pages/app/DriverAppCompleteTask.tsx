@@ -363,7 +363,10 @@ export default function DriverAppCompleteTask() {
           </div>
         )}
 
-        <div className="fixed bottom-20 left-0 right-0 p-4 bg-background/95 backdrop-blur border-t">
+        <div
+          className="fixed left-0 right-0 p-4 bg-background/95 backdrop-blur border-t"
+          style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)' }}
+        >
           <div className="max-w-lg mx-auto space-y-2">
             {isDriving && (
               <div className="flex items-center gap-2 p-2 bg-warning/10 border border-warning/30 rounded-md text-xs text-warning">

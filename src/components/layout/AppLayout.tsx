@@ -189,7 +189,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
           )}
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-3 xs:px-4 py-6 md:py-8 mb-24">
+      <main className="mx-auto max-w-7xl px-3 xs:px-4 pt-6 md:pt-8 pb-32 md:pb-40 mb-8">
         {user && !NO_BACK_ROUTES.has(location.pathname) && (
           <div className="mb-3">
             <BackButton />

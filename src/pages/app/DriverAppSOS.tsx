@@ -295,11 +295,12 @@ export default function DriverAppSOS() {
               <button
                 key={h}
                 onClick={() => setHazard(h)}
+                aria-pressed={hazard === h}
                 className={
-                  `px-2 py-2 rounded-lg border text-xs font-medium transition ` +
+                  `min-h-[44px] px-3 py-3 rounded-lg border text-sm font-medium transition ` +
                   (hazard === h
-                    ? 'border-red-500 bg-red-500/10 text-red-600 dark:text-red-400'
-                    : 'border-border hover:border-red-500/50')
+                    ? 'border-destructive bg-destructive/10 text-destructive'
+                    : 'border-border hover:border-destructive/50')
                 }
               >
                 {h.charAt(0).toUpperCase() + h.slice(1)}
