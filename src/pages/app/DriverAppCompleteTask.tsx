@@ -266,7 +266,7 @@ export default function DriverAppCompleteTask() {
               </div>
             )}
             {task.dropoff_lat && task.dropoff_lng && (
-              <Button variant="outline" size="sm" onClick={() => setShowNavigation(true)} className="w-full">
+              <Button variant="outline" onClick={() => setShowNavigation(true)} className="w-full min-h-[44px]">
                 <Navigation className="h-4 w-4 mr-2" />
                 View Route
               </Button>
@@ -315,7 +315,12 @@ export default function DriverAppCompleteTask() {
                           </div>
                         </div>
                       )}
-                      <button type="button" onClick={() => removeMedia(index)} className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 shadow-lg">
+                      <button
+                        type="button"
+                        onClick={() => removeMedia(index)}
+                        aria-label={`Remove ${media.type} ${index + 1}`}
+                        className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1.5 shadow-lg min-h-[28px] min-w-[28px] flex items-center justify-center"
+                      >
                         <X className="h-4 w-4" />
                       </button>
                       {media.type === 'video' && (

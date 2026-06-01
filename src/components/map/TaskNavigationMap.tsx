@@ -1,11 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { GoogleMap, useJsApiLoader, DirectionsRenderer } from '@react-google-maps/api';
+import { Capacitor } from '@capacitor/core';
 import AdvancedMarker from '@/components/map/AdvancedMarker';
 import DriverLocationMarker from '@/components/map/DriverLocationMarker';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { Button } from '@/components/ui/button';
 import { X, Navigation, LocateFixed } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// Apple App Review Guideline 4 requires apps with location/mapping features to
+// offer the option to launch the native Apple Maps app. We show the Apple Maps
+// button on iOS (native or Safari) and keep Google Maps available as a fallback.
+const isIOSDevice =
+  Capacitor.getPlatform() === 'ios' ||
+  (typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent));
 
 type TaskNavigationMapProps = {
   dropoffLat: number;
@@ -150,6 +158,14 @@ export default function TaskNavigationMap({
     }
   };
 
+  const openInAppleMaps = () => {
+    // Apple's universal-link format. Opens Apple Maps app on iOS, the web
+    // version elsewhere. Omitting saddr lets Maps use the user's current
+    // location automatically.
+    const url = `https://maps.apple.com/?daddr=${dropoffLat},${dropoffLng}&dirflg=d`;
+    window.open(url, '_blank');
+  };
+
   if (!isLoaded) {
     return (
       <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
@@ -263,8 +279,19 @@ export default function TaskNavigationMap({
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t bg-background">
-        <Button className="w-full" size="lg" onClick={openInGoogleMaps}>
+      <div className="p-4 border-t bg-background space-y-2">
+        {isIOSDevice && (
+          <Button className="w-full" size="lg" onClick={openInAppleMaps}>
+            <Navigation className="h-5 w-5 mr-2" />
+            Open in Apple Maps
+          </Button>
+        )}
+        <Button
+          className="w-full"
+          size="lg"
+          variant={isIOSDevice ? 'outline' : 'default'}
+          onClick={openInGoogleMaps}
+        >
           <Navigation className="h-5 w-5 mr-2" />
           Open in Google Maps
         </Button>

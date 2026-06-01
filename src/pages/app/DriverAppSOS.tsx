@@ -327,8 +327,7 @@ export default function DriverAppSOS() {
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
-                className="flex-1"
+                className="flex-1 min-h-[44px]"
                 onClick={handleCameraCapture}
                 disabled={sending || uploadingPhoto}
               >
@@ -338,8 +337,7 @@ export default function DriverAppSOS() {
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
-                className="flex-1"
+                className="flex-1 min-h-[44px]"
                 onClick={handleGallerySelect}
                 disabled={sending || uploadingPhoto}
               >

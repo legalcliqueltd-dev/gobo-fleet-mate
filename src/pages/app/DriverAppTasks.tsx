@@ -150,11 +150,13 @@ export default function DriverAppTasks() {
                           </div>
                         </div>
                         
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 shrink-0">
                           {task.dropoff_lat && task.dropoff_lng && (
                             <Button
-                              size="sm"
+                              size="icon"
                               variant="outline"
+                              className="h-11 w-11"
+                              aria-label={`Navigate to ${task.title}`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setNavigatingTask(task);
@@ -164,7 +166,7 @@ export default function DriverAppTasks() {
                             </Button>
                           )}
                           <Button
-                            size="sm"
+                            className="h-11 px-4"
                             onClick={() => navigate(`/app/tasks/${task.id}/complete`)}
                           >
                             Complete
