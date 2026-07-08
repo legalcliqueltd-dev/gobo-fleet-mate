@@ -2,172 +2,147 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: light dark; }
-html, body, #root { height: 100%; }
-
-/* Neobrutalist utilities — minimal, balanced */
-.nb-card { 
-  @apply bg-white dark:bg-slate-900 border-2 border-slate-900 dark:border-white rounded-xl; 
-  box-shadow: 6px 6px 0 0 rgba(15,23,42,0.8); 
-}
-.nb-shadow { box-shadow: 6px 6px 0 0 rgba(15,23,42,0.8); }
-.nb-border { @apply border-2 border-slate-900 dark:border-white; }
-.nb-button { 
-  @apply inline-flex items-center justify-center rounded-lg px-4 py-2 font-semibold nb-border bg-white dark:bg-slate-900 transition-all; 
-}
-.nb-button:hover { 
-  @apply -translate-y-0.5; 
-  box-shadow: 8px 8px 0 0 rgba(15,23,42,0.8); 
-}
-.nb-button:active {
-  transform: translateY(0px);
-  box-shadow: 4px 4px 0 0 rgba(15,23,42,0.8);
-}
-.nb-muted { @apply border-slate-300 dark:border-slate-700; }
-
-/* Enhanced input styles */
-input:focus, select:focus, textarea:focus {
-  @apply outline-none ring-2 ring-cyan-500 ring-offset-2;
-}
-
-/* Typography */
-.h1 { font-family: Sora, Inter, ui-sans-serif, system-ui, sans-serif; font-weight: 700; }
-.h2 { font-family: Sora, Inter, ui-sans-serif, system-ui, sans-serif; font-weight: 700; }
-.h3 { font-family: Sora, Inter, ui-sans-serif, system-ui, sans-serif; font-weight: 600; }
-
-/* Map heights - enlarged for better visibility */
-.map-shell { height: 70dvh; min-height: 500px; }
-@media (min-width: 768px) { .map-shell { height: calc(100dvh - 200px); } }
-
-/* Accessibility */
-button, a, input, select, textarea { min-height: 44px; }
-*:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(6,182,212,0.45); border-radius: 8px; }
-
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  .marker-pulse, .animate-pulse { animation: none !important; }
-}
-
-/* Safe area */
-:root { --safe-bottom: env(safe-area-inset-bottom); }
-.safe-bottom { padding-bottom: max(16px, var(--safe-bottom)); }
-
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* ============================================================
+   FleetTrackMate design system — "Asphalt & Signal"
+   Palette: asphalt ink / cool paper, dispatch blue (primary),
+   signal green (live), hazard amber (warning), flare red.
+   Type: Barlow Semi Condensed (display) · Barlow (UI) ·
+   IBM Plex Mono (telemetry: coordinates, speeds, codes).
+   All colors are HSL triplets consumed via hsl(var(--token)).
+   Light is the default; `.dark` is toggled by ThemeContext.
+   ============================================================ */
 
 @layer base {
   :root {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
+    color-scheme: light;
 
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
+    --background: 220 27% 97%;
+    --foreground: 224 44% 11%;
 
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
+    --card: 0 0% 100%;
+    --card-foreground: 224 44% 11%;
 
-    --primary: 221 83% 53%;
-    --primary-foreground: 0 0% 98%;
-    --primary-glow: 221 83% 63%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 224 44% 11%;
 
-    --secondary: 240 4% 16%;
-    --secondary-foreground: 0 0% 98%;
+    --primary: 217 90% 44%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 213 92% 56%;
 
-    --muted: 240 4% 16%;
-    --muted-foreground: 240 5% 65%;
+    --secondary: 220 20% 92%;
+    --secondary-foreground: 224 35% 18%;
 
-    --accent: 240 4% 16%;
-    --accent-foreground: 0 0% 98%;
+    --muted: 220 20% 93%;
+    --muted-foreground: 223 12% 42%;
 
-    --success: 142 76% 36%;
-    --success-foreground: 0 0% 98%;
+    --accent: 217 90% 95%;
+    --accent-foreground: 217 90% 32%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 98%;
+    --success: 152 65% 31%;
+    --success-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
+    --warning: 33 94% 44%;
+    --warning-foreground: 0 0% 100%;
 
-    --border: 240 4% 16%;
-    --input: 240 4% 16%;
-    --ring: 221 83% 53%;
+    --destructive: 4 72% 46%;
+    --destructive-foreground: 0 0% 100%;
 
-    /* Fleet specific colors */
-    --fleet-blue: 221 83% 53%;
-    --fleet-blue-light: 221 83% 63%;
-    --fleet-blue-dark: 221 83% 43%;
-    --fleet-green: 142 76% 36%;
-    --fleet-orange: 38 92% 50%;
-    --fleet-red: 0 84% 60%;
+    --border: 220 18% 87%;
+    --input: 220 16% 82%;
+    --ring: 217 90% 44%;
+
+    /* Fleet status hues */
+    --fleet-blue: 217 90% 44%;
+    --fleet-blue-light: 213 92% 56%;
+    --fleet-blue-dark: 219 85% 34%;
+    --fleet-green: 152 65% 31%;
+    --fleet-orange: 33 94% 44%;
+    --fleet-red: 4 72% 46%;
 
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-    --gradient-hero: linear-gradient(135deg, hsl(240 10% 3.9%), hsl(240 4% 16%));
-    --gradient-card: linear-gradient(135deg, hsl(240 4% 16% / 0.5), hsl(240 10% 3.9% / 0.8));
+    --gradient-hero: linear-gradient(180deg, hsl(220 27% 97%), hsl(219 30% 94%));
+    --gradient-card: linear-gradient(160deg, hsl(0 0% 100%), hsl(220 27% 97.5%));
 
     /* Shadows */
-    --shadow-glow: 0 0 20px hsl(var(--primary) / 0.3);
-    --shadow-card: 0 10px 30px -10px hsl(0 0% 0% / 0.3);
+    --shadow-glow: 0 0 24px hsl(var(--primary) / 0.18);
+    --shadow-card: 0 1px 2px hsl(224 44% 11% / 0.05), 0 8px 24px -12px hsl(224 44% 11% / 0.12);
 
-    /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
-    --radius: 0.5rem;
+    --radius: 0.625rem;
 
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 224 30% 24%;
+    --sidebar-primary: 217 90% 44%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 20% 94%;
+    --sidebar-accent-foreground: 224 35% 18%;
+    --sidebar-border: 220 18% 88%;
+    --sidebar-ring: 217 90% 44%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --safe-bottom: env(safe-area-inset-bottom);
   }
 
-  .light {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+  .dark {
+    color-scheme: dark;
 
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --background: 222 41% 7%;
+    --foreground: 218 25% 92%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
+    --card: 222 36% 10%;
+    --card-foreground: 218 25% 92%;
 
-    --primary: 221 83% 53%;
-    --primary-foreground: 0 0% 98%;
+    --popover: 222 36% 9%;
+    --popover-foreground: 218 25% 92%;
 
-    --secondary: 240 5% 96%;
-    --secondary-foreground: 240 6% 10%;
+    --primary: 214 95% 62%;
+    --primary-foreground: 222 45% 8%;
+    --primary-glow: 209 100% 70%;
 
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 4% 46%;
+    --secondary: 221 28% 16%;
+    --secondary-foreground: 218 25% 90%;
 
-    --accent: 240 5% 96%;
-    --accent-foreground: 240 6% 10%;
+    --muted: 221 28% 15%;
+    --muted-foreground: 220 12% 62%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
+    --accent: 216 60% 17%;
+    --accent-foreground: 212 95% 74%;
 
-    --border: 240 6% 90%;
-    --input: 240 6% 90%;
-    --ring: 221 83% 53%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --success: 152 55% 45%;
+    --success-foreground: 160 60% 6%;
+
+    --warning: 38 95% 55%;
+    --warning-foreground: 30 70% 8%;
+
+    --destructive: 4 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 221 26% 17%;
+    --input: 221 24% 22%;
+    --ring: 214 95% 62%;
+
+    --fleet-blue: 214 95% 62%;
+    --fleet-blue-light: 209 100% 70%;
+    --fleet-blue-dark: 217 80% 48%;
+    --fleet-green: 152 55% 45%;
+    --fleet-orange: 38 95% 55%;
+    --fleet-red: 4 84% 60%;
+
+    --gradient-hero: linear-gradient(180deg, hsl(222 41% 7%), hsl(222 36% 10%));
+    --gradient-card: linear-gradient(160deg, hsl(222 34% 11%), hsl(222 40% 8%));
+
+    --shadow-glow: 0 0 28px hsl(var(--primary) / 0.22);
+    --shadow-card: 0 1px 2px hsl(0 0% 0% / 0.3), 0 10px 30px -12px hsl(0 0% 0% / 0.5);
+
+    --sidebar-background: 222 38% 9%;
+    --sidebar-foreground: 218 20% 86%;
+    --sidebar-primary: 214 95% 62%;
+    --sidebar-primary-foreground: 222 45% 8%;
+    --sidebar-accent: 221 28% 15%;
+    --sidebar-accent-foreground: 218 25% 90%;
+    --sidebar-border: 221 26% 16%;
+    --sidebar-ring: 214 95% 62%;
   }
 }
 
@@ -176,11 +151,62 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+  html,
+  body,
+  #root {
+    height: 100%;
   }
 
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-heading;
+    text-wrap: balance;
+  }
+
+  /* Bare form fields (outside shadcn components) pick up a quiet,
+     token-driven base. :where() keeps specificity at zero so any
+     component class always wins. */
+  :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]), select, textarea) {
+    @apply rounded-md border border-input bg-card px-3 py-2 text-foreground;
+  }
+
+  :where(button, input, select, textarea) {
+    min-height: 2.5rem;
+  }
+
+  *:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* ── Typography helpers ── */
+  .h1 { @apply font-heading font-bold; }
+  .h2 { @apply font-heading font-bold; }
+  .h3 { @apply font-heading font-semibold; }
+
+  /* Section eyebrow: small mono label with a signal dot */
+  .eyebrow {
+    @apply inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground;
+  }
+  .eyebrow::before {
+    content: "";
+    @apply h-1.5 w-1.5 rounded-full bg-primary;
+  }
+
+  /* Telemetry readout: tabular mono for coordinates, speeds, codes */
+  .telemetry {
+    @apply font-mono;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Surfaces ── */
   .gradient-text {
     @apply bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent;
   }
@@ -191,34 +217,56 @@ All colors MUST be HSL.
 
   .card-gradient {
     background: var(--gradient-card);
-    backdrop-filter: blur(10px);
   }
 
-  /* Glass + glow utilities */
   .glass-card {
-    @apply bg-white/60 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-slate-800/60;
+    @apply border-b border-border/70 bg-background/85 backdrop-blur-xl;
   }
+
   .soft-shadow {
-    box-shadow: 0 10px 30px -14px rgba(6, 182, 212, 0.25);
+    box-shadow: var(--shadow-card);
   }
+
   .bg-radial {
     background:
-      radial-gradient(60% 50% at 0% 0%, rgba(34,211,238,0.15), transparent 50%),
-      radial-gradient(60% 50% at 100% 100%, rgba(37,99,235,0.15), transparent 50%);
+      radial-gradient(50% 40% at 15% 0%, hsl(var(--primary) / 0.06), transparent 60%),
+      radial-gradient(50% 40% at 100% 100%, hsl(var(--primary) / 0.05), transparent 60%);
   }
 
-  /* Marker pulse */
+  /* ── Legacy "nb-" utilities, restyled on-system ── */
+  .nb-card {
+    @apply rounded-xl border border-border bg-card;
+    box-shadow: var(--shadow-card);
+  }
+  .nb-shadow { box-shadow: var(--shadow-card); }
+  .nb-border { @apply border border-border; }
+  .nb-button {
+    @apply inline-flex items-center justify-center rounded-lg border border-border bg-card px-4 py-2 font-semibold transition-all;
+  }
+  .nb-button:hover {
+    @apply -translate-y-0.5 border-primary/40;
+    box-shadow: var(--shadow-card);
+  }
+  .nb-button:active {
+    transform: translateY(0);
+    box-shadow: none;
+  }
+  .nb-muted { @apply border-border/60; }
+
+  /* ── Map & markers ── */
+  .map-shell { height: 70dvh; min-height: 500px; }
+  @media (min-width: 768px) { .map-shell { height: calc(100dvh - 200px); } }
+
   @keyframes pulse {
     0% { transform: scale(0.95); opacity: 0.6; }
     70% { transform: scale(1.25); opacity: 0; }
     100% { transform: scale(0.95); opacity: 0; }
   }
   .marker-pulse {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5);
+    box-shadow: 0 0 0 0 hsl(var(--success) / 0.5);
     animation: pulse 1.8s infinite;
   }
 
-  /* Driver marker pulse animation */
   @keyframes driver-pulse {
     0% { transform: scale(1); opacity: 0.6; }
     50% { transform: scale(1.8); opacity: 0; }
@@ -228,13 +276,12 @@ All colors MUST be HSL.
     animation: driver-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
-  /* Driver status card glass effect */
+  /* ── Driver app instrument surfaces ── */
   .driver-status-card {
-    @apply bg-background/80 backdrop-blur-lg border border-border/50;
-    box-shadow: 0 -4px 20px -4px hsl(var(--primary) / 0.15);
+    @apply border border-border/60 bg-card/90 backdrop-blur-lg;
+    box-shadow: var(--shadow-card);
   }
 
-  /* On Duty button glow */
   .btn-glow-active {
     box-shadow: 0 0 20px hsl(var(--primary) / 0.5), 0 0 40px hsl(var(--primary) / 0.3);
     animation: glow-pulse 2s ease-in-out infinite;
@@ -245,10 +292,8 @@ All colors MUST be HSL.
     50% { box-shadow: 0 0 30px hsl(var(--primary) / 0.6), 0 0 60px hsl(var(--primary) / 0.4); }
   }
 
-  /* Inputs base (used by forms) */
-  input, select, textarea {
-    @apply rounded-md border px-3 py-2 bg-white/70 dark:bg-slate-800 border-slate-200 dark:border-slate-800;
-  }
+  /* Safe area */
+  .safe-bottom { padding-bottom: max(16px, var(--safe-bottom)); }
 }
 
 /* Shake animation for invalid input */
@@ -259,4 +304,15 @@ All colors MUST be HSL.
 }
 .animate-shake {
   animation: shake 0.5s ease-in-out;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

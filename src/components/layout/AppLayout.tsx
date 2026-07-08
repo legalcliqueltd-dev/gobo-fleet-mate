@@ -63,9 +63,9 @@ export default function AppLayout({ children }: PropsWithChildren) {
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   return (
-    <div className={clsx('min-h-screen bg-gradient-to-br from-cyan-500/10 to-indigo-800/10 dark:from-[#0b1220] dark:to-[#0f172a] bg-radial')}>
+    <div className="min-h-screen bg-background bg-radial">
       {user && <LocationPermissionPrompt />}
-      
+
       {/* Trial expiration warning banner */}
       {user && subscription.status === 'trial' && subscription.trialDaysRemaining <= 3 && subscription.trialDaysRemaining > 0 && (
         <div className="bg-warning/15 border-b border-warning/30 px-4 py-2 text-center">
@@ -75,8 +75,8 @@ export default function AppLayout({ children }: PropsWithChildren) {
               {subscription.trialDaysRemaining} day{subscription.trialDaysRemaining !== 1 ? 's' : ''} left in your free trial
             </span>
             <a href="/dashboard?upgrade=true">
-              <Button variant="warning" size="sm" className="h-5 text-[10px] px-2 bg-warning text-warning-foreground hover:bg-warning/90">
-                Upgrade Now
+              <Button variant="warning" size="sm" className="h-6 text-[11px] px-2.5">
+                Upgrade now
               </Button>
             </a>
           </div>
@@ -120,7 +120,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
               )}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition"
+                className="p-2 hover:bg-muted rounded-md transition"
                 aria-label="Toggle menu"
               >
                 {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -130,20 +130,20 @@ export default function AppLayout({ children }: PropsWithChildren) {
 
           {/* Mobile Navigation */}
           {mobileMenuOpen && (
-            <nav className="md:hidden mt-4 pb-4 border-t border-white/10 dark:border-slate-800/60 pt-4 animate-fade-in">
+            <nav className="md:hidden mt-4 pb-4 border-t border-border pt-4 animate-fade-in">
               <div className="flex flex-col gap-2">
                 {navItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = location.pathname.startsWith(item.path);
                   return (
-                    <Link 
+                    <Link
                       key={item.path}
-                      to={item.path} 
+                      to={item.path}
                       className={clsx(
                         "px-3 py-2.5 rounded-md transition flex items-center gap-3",
-                        isActive 
-                          ? "bg-primary/10 text-primary font-medium" 
-                          : "hover:bg-slate-100 dark:hover:bg-slate-800"
+                        isActive
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "hover:bg-muted"
                       )}
                       onClick={closeMobileMenu}
                     >
@@ -154,8 +154,8 @@ export default function AppLayout({ children }: PropsWithChildren) {
                 })}
                 {user && (
                   <>
-                    <div className="border-t border-white/10 dark:border-slate-800/60 my-2"></div>
-                    <div className="px-3 py-2 text-sm text-slate-600 dark:text-slate-400">{user.email}</div>
+                    <div className="border-t border-border my-2"></div>
+                    <div className="px-3 py-2 text-sm text-muted-foreground">{user.email}</div>
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -168,16 +168,16 @@ export default function AppLayout({ children }: PropsWithChildren) {
                 )}
                 {!loading && !user && (
                   <>
-                    <Link 
-                      to="/auth/login" 
-                      className="px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition"
+                    <Link
+                      to="/auth/login"
+                      className="px-3 py-2 hover:bg-muted rounded-md transition"
                       onClick={closeMobileMenu}
                     >
                       Log in
                     </Link>
-                    <Link 
-                      to="/auth/signup" 
-                      className="px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition"
+                    <Link
+                      to="/auth/signup"
+                      className="px-3 py-2 hover:bg-muted rounded-md transition"
                       onClick={closeMobileMenu}
                     >
                       Sign up
@@ -203,7 +203,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
         <div className="hidden md:block fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-4">
           <div
             ref={containerRef}
-            className="relative flex items-center justify-between bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl shadow-xl shadow-black/10 dark:shadow-black/30 rounded-2xl px-3 py-2.5 border border-slate-200/60 dark:border-slate-700/60"
+            className="relative flex items-center justify-between bg-card/95 backdrop-blur-xl shadow-xl shadow-black/10 dark:shadow-black/30 rounded-2xl px-3 py-2.5 border border-border"
           >
             {navItems.map((item, index) => {
               const Icon = item.icon;
@@ -215,9 +215,9 @@ export default function AppLayout({ children }: PropsWithChildren) {
                   ref={(el) => (btnRefs.current[index] = el)}
                   className={clsx(
                     "relative flex items-center justify-center gap-2.5 px-5 py-2.5 text-sm font-medium transition-all duration-200 rounded-xl",
-                    isActive 
-                      ? "text-primary" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-slate-100/50 dark:hover:bg-slate-800/50"
+                    isActive
+                      ? "text-primary"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                   )}
                 >
                   <Icon className="h-5 w-5 z-10" />
@@ -247,7 +247,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
         </div>
       )}
 
-      <footer className="mx-auto max-w-7xl px-3 xs:px-4 py-8 text-xs text-slate-500">
+      <footer className="mx-auto max-w-7xl px-3 xs:px-4 py-8 text-xs text-muted-foreground">
         © {new Date().getFullYear()} FleetTrackMate
       </footer>
     </div>

@@ -1,129 +1,114 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Download, Smartphone, Shield, Zap, CheckCircle2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { ShareAppButton } from "@/components/ShareAppButton";
 
 const APK_DOWNLOAD_URL = "https://fleettrackmate.com/downloads/FleetTrackMate.apk";
 
-const AppDownload = () => {
-  const steps = [
-    { step: 1, title: "Download APK", description: "Click the download button below" },
-    { step: 2, title: "Enable Install", description: "Allow installation from unknown sources" },
-    { step: 3, title: "Install App", description: "Open the APK and tap Install" },
-    { step: 4, title: "Connect", description: "Enter your admin's connection code" },
-  ];
+const steps = [
+  { number: "01", title: "Download the APK", description: "Use the download button on this page." },
+  { number: "02", title: "Allow the install", description: "Approve installs from unknown sources when Android asks." },
+  { number: "03", title: "Install the app", description: "Open the downloaded file and tap Install." },
+  { number: "04", title: "Connect", description: "Enter your name and the connection code from your admin." },
+];
 
+const AppDownload = () => {
   return (
-    <section id="download" className="py-20 bg-gradient-to-b from-background to-muted/30">
+    <section id="download" className="bg-muted/40 py-20 md:py-24">
       <div className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           viewport={{ once: true }}
-          className="text-center mb-12"
+          className="mx-auto mb-12 max-w-2xl text-center"
         >
-          <Badge variant="secondary" className="mb-4">
-            Driver App
-          </Badge>
-          <h2 className="text-3xl md:text-5xl font-bold mb-4">
-            Download Rocket Driver
+          <p className="eyebrow mb-4 justify-center">Driver app</p>
+          <h2 className="mb-4 font-heading text-4xl font-bold tracking-tight md:text-5xl">
+            Put the tracker in every cab
           </h2>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Get the mobile app for your drivers. Real-time location sharing, 
-            task management, and SOS emergency features.
+          <p className="text-lg text-muted-foreground">
+            Drivers install one app, enter a code, and go on duty. Location sharing, tasks and SOS —
+            no account or password needed.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
-          {/* Download Card */}
+        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-4 lg:grid-cols-2">
+          {/* Download card */}
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
             viewport={{ once: true }}
           >
-            <Card className="relative overflow-hidden border-2 border-primary/20 bg-gradient-to-br from-primary/10 to-primary/5 h-full">
-              <CardContent className="p-8 flex flex-col items-center text-center h-full">
-                <div className="w-20 h-20 rounded-2xl bg-primary/20 flex items-center justify-center mb-6">
-                  <Smartphone className="w-10 h-10 text-primary" />
-                </div>
-                
-                <h3 className="text-2xl font-bold mb-2">FleetTrackMate Driver APK</h3>
-                <p className="text-muted-foreground mb-6">
-                  Android 8.0+ required • ~50MB download
-                </p>
+            <div className="flex h-full flex-col items-center rounded-xl border border-border bg-card p-8 text-center">
+              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-accent">
+                <Smartphone className="h-10 w-10 text-accent-foreground" />
+              </div>
 
-                <div className="flex flex-col gap-3 w-full max-w-xs mb-6">
-                  <a href={APK_DOWNLOAD_URL} download>
-                    <Button variant="hero" size="lg" className="w-full">
-                      <Download className="w-5 h-5 mr-2" />
-                      Download APK
-                    </Button>
-                  </a>
-                  <ShareAppButton variant="outline" size="lg" className="w-full" />
-                </div>
+              <h3 className="mb-2 font-heading text-2xl font-bold">FleetTrackMate Driver</h3>
+              <p className="telemetry mb-6 text-xs uppercase tracking-[0.15em] text-muted-foreground">
+                Android 8.0+ · ~50 MB · APK
+              </p>
 
-                <div className="flex flex-wrap justify-center gap-4 text-sm text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <Shield className="w-4 h-4 text-success" />
-                    <span>Secure</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Zap className="w-4 h-4 text-warning" />
-                    <span>Fast</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <CheckCircle2 className="w-4 h-4 text-primary" />
-                    <span>Free</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              <div className="mb-6 flex w-full max-w-xs flex-col gap-3">
+                <a href={APK_DOWNLOAD_URL} download>
+                  <Button variant="hero" size="lg" className="w-full">
+                    <Download className="mr-2 h-5 w-5" />
+                    Download APK
+                  </Button>
+                </a>
+                <ShareAppButton variant="outline" size="lg" className="w-full" />
+              </div>
+
+              <div className="mt-auto flex flex-wrap justify-center gap-4 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Shield className="h-4 w-4 text-success" />
+                  Secure
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Zap className="h-4 w-4 text-warning" />
+                  Light on battery
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  Always free
+                </span>
+              </div>
+            </div>
           </motion.div>
 
-          {/* Installation Steps */}
+          {/* Install steps */}
           <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
             viewport={{ once: true }}
           >
-            <Card className="border-2 border-border h-full">
-              <CardContent className="p-8">
-                <h3 className="text-xl font-bold mb-6">Installation Guide</h3>
-                
-                <div className="space-y-4">
-                  {steps.map((item, index) => (
-                    <motion.div
-                      key={item.step}
-                      initial={{ opacity: 0, y: 10 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.4, delay: 0.1 * index }}
-                      viewport={{ once: true }}
-                      className="flex items-start gap-4"
-                    >
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 text-primary font-bold flex items-center justify-center text-sm">
-                        {item.step}
-                      </div>
-                      <div>
-                        <h4 className="font-semibold">{item.title}</h4>
-                        <p className="text-sm text-muted-foreground">{item.description}</p>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
+            <div className="h-full rounded-xl border border-border bg-card p-8">
+              <h3 className="mb-6 font-heading text-xl font-bold">Install in four steps</h3>
 
-                <div className="mt-8 p-4 rounded-xl bg-warning/10 border border-warning/20">
-                  <p className="text-sm text-warning-foreground">
-                    <strong>Note:</strong> You'll need to enable "Install from unknown sources" 
-                    in your Android settings to install the APK.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+              <ol className="space-y-5">
+                {steps.map((step) => (
+                  <li key={step.number} className="flex items-start gap-4">
+                    <span className="mt-0.5 font-mono text-sm font-medium text-primary">
+                      {step.number}
+                    </span>
+                    <div>
+                      <h4 className="font-semibold leading-tight">{step.title}</h4>
+                      <p className="mt-0.5 text-sm text-muted-foreground">{step.description}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+
+              <div className="mt-8 rounded-lg border border-warning/30 bg-warning/10 p-4">
+                <p className="text-sm text-foreground">
+                  <strong>Heads up:</strong> Android will ask you to allow installs from unknown
+                  sources the first time. That's normal for apps installed outside the Play Store.
+                </p>
+              </div>
+            </div>
           </motion.div>
         </div>
       </div>

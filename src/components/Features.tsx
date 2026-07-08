@@ -1,125 +1,95 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { 
-  MapPin, 
-  Truck, 
-  BarChart3, 
-  Shield, 
-  Clock, 
-  Fuel, 
-  AlertTriangle, 
-  Users,
+import {
+  MapPin,
   Route,
-  Smartphone
+  BarChart3,
+  CircleDot,
+  ClipboardList,
+  Siren,
 } from "lucide-react";
 
-const Features = () => {
-  const features = [
-    {
-      icon: MapPin,
-      title: "Real-time GPS Tracking",
-      description: "Track your entire fleet in real-time with precise GPS coordinates and live location updates.",
-      badge: "Live",
-      color: "text-fleet-blue"
-    },
-    {
-      icon: Route,
-      title: "Route Optimization",
-      description: "AI-powered route planning to reduce fuel costs, save time, and improve delivery efficiency.",
-      badge: "AI Powered",
-      color: "text-fleet-green"
-    },
-    {
-      icon: BarChart3,
-      title: "Advanced Analytics",
-      description: "Comprehensive reports on driver behavior, fuel consumption, and fleet performance metrics.",
-      badge: "Insights",
-      color: "text-primary"
-    },
-    {
-      icon: AlertTriangle,
-      title: "Smart Alerts",
-      description: "Instant notifications for speeding, unauthorized use, maintenance reminders, and emergencies.",
-      badge: "Instant",
-      color: "text-fleet-orange"
-    },
-    {
-      icon: Fuel,
-      title: "Fuel Management",
-      description: "Monitor fuel consumption, detect fuel theft, and optimize fuel efficiency across your fleet.",
-      badge: "Savings",
-      color: "text-fleet-green"
-    },
-    {
-      icon: Shield,
-      title: "Security & Safety",
-      description: "Anti-theft protection, panic buttons, and comprehensive security features for your vehicles.",
-      badge: "Secure",
-      color: "text-fleet-red"
-    },
-    {
-      icon: Users,
-      title: "Driver Management",
-      description: "Track driver performance, manage schedules, and improve driver behavior with detailed insights.",
-      badge: "Manage",
-      color: "text-primary"
-    },
-    {
-      icon: Smartphone,
-      title: "Mobile App",
-      description: "Full-featured mobile apps for drivers and managers with offline capabilities.",
-      badge: "Mobile",
-      color: "text-fleet-blue"
-    },
-    {
-      icon: Clock,
-      title: "Maintenance Alerts",
-      description: "Automated maintenance scheduling and alerts to keep your fleet running smoothly.",
-      badge: "Auto",
-      color: "text-fleet-orange"
-    }
-  ];
+const features = [
+  {
+    icon: MapPin,
+    tag: "MAP",
+    title: "Live tracking",
+    description:
+      "Watch every driver move on one map — speed, heading and battery, updated as it happens.",
+  },
+  {
+    icon: ClipboardList,
+    tag: "TASKS",
+    title: "Task dispatch",
+    description:
+      "Assign pickups and drop-offs to drivers, with photo and signature proof on completion.",
+  },
+  {
+    icon: CircleDot,
+    tag: "ZONES",
+    title: "Geofence alerts",
+    description:
+      "Draw zones around depots and customers. Get an alert the moment a vehicle enters or leaves.",
+  },
+  {
+    icon: Route,
+    tag: "TRIPS",
+    title: "Trip history",
+    description:
+      "Every journey recorded — distance, duration and route — ready to replay whenever you need it.",
+  },
+  {
+    icon: Siren,
+    tag: "SOS",
+    title: "SOS response",
+    description:
+      "One tap sends an emergency alert with live location to every admin. Built for driver safety.",
+  },
+  {
+    icon: BarChart3,
+    tag: "REPORTS",
+    title: "Fleet analytics",
+    description:
+      "Distance, active hours and utilisation per driver — see where the fleet's time actually goes.",
+  },
+];
 
+const Features = () => {
   return (
-    <section className="py-20 bg-muted/20">
+    <section className="py-20 md:py-24">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-16">
-          <Badge variant="secondary" className="mb-4">
-            Features
-          </Badge>
-          <h2 className="text-3xl md:text-5xl font-bold mb-4">
-            Everything You Need to Manage Your Fleet
+        <div className="mx-auto mb-14 max-w-2xl text-center md:mb-16">
+          <p className="eyebrow mb-4 justify-center">Features</p>
+          <h2 className="mb-4 font-heading text-4xl font-bold tracking-tight md:text-5xl">
+            Run the whole fleet from one console
           </h2>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Comprehensive fleet management tools designed to streamline operations, 
-            reduce costs, and improve efficiency across your entire fleet.
+          <p className="text-lg text-muted-foreground">
+            Each feature maps to a screen your team already understands — no training courses, no
+            hardware installers.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feature, index) => {
+        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {features.map((feature) => {
             const Icon = feature.icon;
             return (
-              <Card key={index} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 card-gradient border-border/50">
-                <CardHeader>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className={`p-3 rounded-lg bg-background/50 ${feature.color}`}>
-                      <Icon className="w-6 h-6" />
-                    </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {feature.badge}
-                    </Badge>
+              <div
+                key={feature.tag}
+                className="group rounded-xl border border-border bg-card p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5"
+              >
+                <div className="mb-4 flex items-start justify-between">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+                    <Icon className="h-5 w-5" />
                   </div>
-                  <CardTitle className="text-xl group-hover:text-primary transition-colors">
-                    {feature.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-base leading-relaxed">
-                    {feature.description}
-                  </CardDescription>
-                </CardContent>
-              </Card>
+                  <span className="font-mono text-[11px] font-medium tracking-[0.18em] text-muted-foreground/70">
+                    {feature.tag}
+                  </span>
+                </div>
+                <h3 className="mb-1.5 font-heading text-xl font-semibold group-hover:text-primary">
+                  {feature.title}
+                </h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {feature.description}
+                </p>
+              </div>
             );
           })}
         </div>

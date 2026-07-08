@@ -12,22 +12,22 @@ export default function Landing() {
   return (
     <div className="space-y-10 md:space-y-14">
       <HeroGeometric
-        badge="Cloud-Based Fleet Management"
-        title1="Real-time Fleet"
-        title2="Tracking"
-        description="Monitor multiple devices live on an interactive map with professional GPS tracking and fleet analytics."
+        badge="Fleet operations, live"
+        title1="Every vehicle."
+        title2="One live map."
+        description="FleetTrackMate puts your whole fleet on a live map — driver locations, trips, geofences and SOS alerts, updated in real time."
       >
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
           <Link to="/auth/signup">
             <Button variant="hero" size="lg" className="group">
-              Get Started
+              Start tracking free
               <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
           </Link>
           <a href="#download">
             <Button variant="outline" size="lg">
               <Download className="w-5 h-5 mr-2" />
-              Download Driver Tracker App
+              Get the driver app
             </Button>
           </a>
         </div>
