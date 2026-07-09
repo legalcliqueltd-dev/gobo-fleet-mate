@@ -12,6 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
+import { useTheme } from '@/contexts/ThemeContext';
+import { getMapStyle } from '@/lib/mapStyles';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -85,6 +87,7 @@ const createSOSMarkerIcon = (index: number, status: string, isSelected: boolean)
 
 export default function Incidents() {
   const { user } = useAuth();
+  const { isDark } = useTheme();
   const [events, setEvents] = useState<SOSEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<SOSEvent | null>(null);
   const [resolveNote, setResolveNote] = useState('');
@@ -518,6 +521,8 @@ export default function Incidents() {
                 fullscreenControl: true,
                 mapTypeId: mapType,
                 gestureHandling: 'greedy',
+                // Same theme-aware style as the dashboard map — one map language
+                styles: mapType === 'roadmap' ? getMapStyle(isDark) : [],
               }}
             >
               {events

@@ -66,6 +66,19 @@ if (exists('android', 'app', 'src', 'main', 'assets', 'capacitor.plugins.json'))
     } else {
       oks.push('capacitor.plugins.json includes the Camera plugin');
     }
+
+    // Transistorsoft is excluded from the Android Gradle build, so any entry
+    // left in this JSON makes Capacitor throw PluginLoadException at startup
+    // and NO plugins register ("Geolocation is not implemented on android").
+    const strayTransistorsoft = plugins.filter((plugin) => /transistorsoft/i.test(plugin?.pkg ?? '') || /transistorsoft/i.test(plugin?.classpath ?? ''));
+    if (strayTransistorsoft.length > 0) {
+      errors.push(
+        `capacitor.plugins.json still lists ${strayTransistorsoft.length} Transistorsoft plugin(s) whose classes are not in the APK — ` +
+        'this breaks ALL plugin loading at runtime. Re-run: bash scripts/android-post-sync.sh'
+      );
+    } else {
+      oks.push('capacitor.plugins.json contains no stray Transistorsoft entries');
+    }
   } catch (error) {
     errors.push(`Failed to parse android/app/src/main/assets/capacitor.plugins.json: ${error instanceof Error ? error.message : String(error)}`);
   }

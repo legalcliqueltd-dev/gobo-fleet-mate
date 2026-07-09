@@ -28,17 +28,23 @@ export const startAndroidForegroundService = async (): Promise<boolean> => {
 
     const { ForegroundService } = mod;
 
+    // Android 13+ requires the notification permission for the persistent
+    // notification to be visible. The service still runs either way, but a
+    // visible notification is the honest behavior.
+    try {
+      const status = await ForegroundService.checkPermissions();
+      if (status?.display !== 'granted') {
+        await ForegroundService.requestPermissions();
+      }
+    } catch (e) {
+      console.warn('[ForegroundService] Notification permission check failed:', e);
+    }
+
     await ForegroundService.startForegroundService({
       id: 1001,
       title: 'FleetTrackMate',
-      body: 'Location tracking active',
+      body: 'On duty — sharing your location with your fleet',
       smallIcon: 'ic_stat_directions_car',
-      buttons: [
-        {
-          title: 'Stop',
-          id: 1,
-        },
-      ],
     });
 
     console.log('[ForegroundService] Started successfully');

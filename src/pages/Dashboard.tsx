@@ -6,7 +6,7 @@ import FleetPanel from '@/components/FleetPanel';
 import GeofenceAlerts from '@/components/GeofenceAlerts';
 import PaymentWall from '@/components/PaymentWall';
 import LockedFeature from '@/components/LockedFeature';
-import { Plus, Car, Users, Activity, Download, Smartphone, Timer, CreditCard, AlertTriangle, Lock } from 'lucide-react';
+import { Plus, Users, Activity, Download, Smartphone, Timer, CreditCard, AlertTriangle, Lock } from 'lucide-react';
 
 import { ShareAppButton } from '@/components/ShareAppButton';
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -92,12 +92,19 @@ export default function Dashboard() {
     }
   }, [searchParams]);
 
-  // Convert device markers for LiveDriverMap (exclude paused devices)
+  // Convert device markers for LiveDriverMap. Excludes paused devices AND
+  // devices claimed by a connected driver — the driver's own live marker
+  // represents them; drawing both put two icons on the map for one person.
   const deviceMarkers = useMemo(() => {
+    const claimedCodes = new Set(drivers.map(d => d.admin_code));
+    const claimedDriverIds = new Set(drivers.map(d => d.driver_id));
     return markers
       .filter(m => {
         const device = items.find(d => d.id === m.device_id);
-        return !device?.is_paused;
+        if (!device || device.is_paused) return false;
+        if (device.connected_driver_id && claimedDriverIds.has(device.connected_driver_id)) return false;
+        if (device.connection_code && claimedCodes.has(device.connection_code)) return false;
+        return true;
       })
       .map(m => ({
         device_id: m.device_id,
@@ -166,9 +173,11 @@ export default function Dashboard() {
     }
   };
 
-  const activeDevices = items.filter(d => d.status === 'active').length;
-  const activeDrivers = drivers.filter(d => 
-    d.last_seen_at && Date.now() - new Date(d.last_seen_at).getTime() < 15 * 60 * 1000
+  // Online = same 5-minute rule as the Drivers panel badge, so the stats row
+  // and the cards can never contradict each other.
+  const onlineDrivers = drivers.filter(d =>
+    d.status !== 'offline' && d.status !== 'disconnected' &&
+    d.last_seen_at && Date.now() - new Date(d.last_seen_at).getTime() < 5 * 60 * 1000
   ).length;
 
   // Device limit logic
@@ -289,12 +298,11 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-2 md:gap-3">
+      {/* Stats — one driver drives one vehicle, so two numbers tell the story */}
+      <div className="grid grid-cols-2 gap-2 md:gap-3">
         {[
-          { icon: Car, tint: 'text-primary bg-primary/15', value: items.length, label: 'Vehicles' },
-          { icon: Users, tint: 'text-success bg-success/15', value: activeDrivers, label: 'Drivers' },
-          { icon: Activity, tint: 'text-warning bg-warning/15', value: activeDevices, label: 'Online' },
+          { icon: Users, tint: 'text-primary bg-primary/15', value: drivers.length, label: 'Drivers' },
+          { icon: Activity, tint: 'text-success bg-success/15', value: onlineDrivers, label: 'Online now' },
         ].map(({ icon: Icon, tint, value, label }) => (
           <Card key={label} className="border border-border">
             <CardContent className="p-3">

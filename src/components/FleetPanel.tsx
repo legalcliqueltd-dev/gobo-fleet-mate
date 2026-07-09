@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -81,6 +81,8 @@ export default function FleetPanel({
   onTogglePause,
   onDeleteDevice,
 }: Props) {
+  const navigate = useNavigate();
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [expandedCodes, setExpandedCodes] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<
@@ -89,10 +91,17 @@ export default function FleetPanel({
 
   const slots = useMemo<Slot[]>(() => {
     const driverById = new Map(drivers.map((d) => [d.driver_id, d]));
+    // Fallback join: a driver's admin_code is the connection code they redeemed.
+    // Older device rows never had connected_driver_id filled in, which split one
+    // person into two cards (an "online driver" + a "waiting vehicle").
+    const driverByCode = new Map(drivers.map((d) => [d.admin_code, d]));
     const claimedDriverIds = new Set<string>();
 
     const deviceSlots: Slot[] = devices.map((device) => {
-      const driver = device.connected_driver_id ? driverById.get(device.connected_driver_id) ?? null : null;
+      const driver =
+        (device.connected_driver_id ? driverById.get(device.connected_driver_id) : null) ??
+        (device.connection_code ? driverByCode.get(device.connection_code) : null) ??
+        null;
       if (driver) claimedDriverIds.add(driver.driver_id);
       return { key: `device-${device.id}`, device, driver };
     });
@@ -219,9 +228,23 @@ export default function FleetPanel({
                   {/* Header row: identity + housekeeping */}
                   <div className="flex items-center justify-between gap-2">
                     <button
-                      onClick={() => driver && onDriverSelect?.(driver)}
+                      onClick={() => {
+                        if (!driver) return;
+                        // Single click → fly the map to the driver.
+                        // Double click → open the driver's details page.
+                        if (clickTimerRef.current) {
+                          clearTimeout(clickTimerRef.current);
+                          clickTimerRef.current = null;
+                          navigate(`/driver/${driver.driver_id}`);
+                          return;
+                        }
+                        clickTimerRef.current = setTimeout(() => {
+                          clickTimerRef.current = null;
+                          onDriverSelect?.(driver);
+                        }, 250);
+                      }}
                       className={clsx('flex min-w-0 flex-1 items-center gap-2 text-left', !driver && 'cursor-default')}
-                      title={driver ? 'Show on map' : undefined}
+                      title={driver ? 'Click: show on map · Double-click: open details' : undefined}
                     >
                       {accent ? (
                         <span

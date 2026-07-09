@@ -8,11 +8,7 @@
 		"classpath": "com.capacitorjs.plugins.geolocation.GeolocationPlugin"
 	},
 	{
-		"pkg": "@transistorsoft/capacitor-background-geolocation",
-		"classpath": "com.transistorsoft.bggeo.capacitor.BackgroundGeolocationPlugin"
-	},
-	{
-		"pkg": "@transistorsoft/capacitor-background-fetch",
-		"classpath": "com.transistorsoft.bgfetch.capacitor.BackgroundFetchPlugin"
+		"pkg": "@capawesome-team/capacitor-android-foreground-service",
+		"classpath": "io.capawesome.capacitorjs.plugins.foregroundservice.ForegroundServicePlugin"
 	}
 ]

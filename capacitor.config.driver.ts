@@ -26,6 +26,8 @@ const config: CapacitorConfig = {
     '@capacitor/haptics',
     '@capacitor/keyboard',
     '@capacitor/status-bar',
+    // Keeps tracking alive while the app is backgrounded on Android
+    '@capawesome-team/capacitor-android-foreground-service',
     '@transistorsoft/capacitor-background-geolocation',
     '@transistorsoft/capacitor-background-fetch',
   ],

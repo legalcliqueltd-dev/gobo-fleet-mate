@@ -143,51 +143,43 @@ export default function DriverAppConnect() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
-      {/* Brand */}
-      <div className="mb-8 flex flex-col items-center">
-        <img src={logo} alt="FleetTrackMate" className="mb-3 h-16 w-16 rounded-xl" />
-        <h1 className="font-heading text-xl font-semibold tracking-tight">FleetTrackMate Driver</h1>
-        <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-          Live fleet tracking
-        </p>
-      </div>
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background p-5">
+      {/* Faint route-map backdrop — static, battery-friendly */}
+      <svg
+        viewBox="0 0 400 800"
+        className="pointer-events-none absolute inset-0 h-full w-full"
+        preserveAspectRatio="xMidYMid slice"
+        aria-hidden="true"
+      >
+        <path d="M-20,180 C90,150 160,240 260,200 S380,120 440,160" fill="none" className="stroke-warning/25" strokeWidth="2" strokeLinecap="round" />
+        <path d="M-20,620 C120,660 220,560 320,610 S420,680 460,640" fill="none" className="stroke-warning/15" strokeWidth="2" strokeLinecap="round" />
+        <path d="M90,-20 C110,180 40,340 120,520 S180,760 160,840" fill="none" className="stroke-primary/10" strokeWidth="1.5" />
+        <path d="M330,-20 C300,160 360,320 300,500 S260,740 290,840" fill="none" className="stroke-primary/10" strokeWidth="1.5" />
+        <circle cx="260" cy="200" r="4" className="fill-primary/60" />
+        <circle cx="120" cy="520" r="4" className="fill-primary/40" />
+      </svg>
 
-      <Card className="max-w-md w-full">
-        <CardContent className="space-y-6 p-6">
-          <div className="text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-accent">
-              <Link2 className="h-7 w-7 text-accent-foreground" />
-            </div>
-            <h2 className="mb-1.5 font-heading text-xl font-bold">Connect to your fleet</h2>
-            <p className="text-sm text-muted-foreground">
-              Enter your name and the connection code from your admin.
-            </p>
-          </div>
+      <div className="relative z-10 w-full max-w-md">
+        {/* Brand */}
+        <div className="mb-8 flex flex-col items-center text-center">
+          <img src={logo} alt="FleetTrackMate" className="mb-4 h-20 w-20 rounded-2xl shadow-lg" />
+          <h1 className="font-heading text-3xl font-bold tracking-tight">
+            Welcome, driver
+          </h1>
+          <p className="mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
+            One code connects you to your fleet. Your dispatcher sent it to you.
+          </p>
+        </div>
 
-          <div className="space-y-4">
+        <Card className="border-border/80 shadow-xl">
+          <CardContent className="space-y-5 p-6">
+            {/* The code is the hero action */}
             <div>
-              <label htmlFor="driver-name" className="mb-2 block text-sm font-medium">
-                Your name
-              </label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="driver-name"
-                  value={driverName}
-                  onChange={(e) => {
-                    setDriverName(e.target.value);
-                    setError(null);
-                  }}
-                  placeholder="Enter your name"
-                  className="h-12 pl-10"
-                  disabled={loading}
-                />
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="connection-code" className="mb-2 block text-sm font-medium">
+              <label
+                htmlFor="connection-code"
+                className="mb-2 flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
+              >
+                <Link2 className="h-3.5 w-3.5 text-primary" />
                 Connection code
               </label>
               <Input
@@ -203,8 +195,9 @@ export default function DriverAppConnect() {
                 autoCapitalize="characters"
                 autoCorrect="off"
                 spellCheck={false}
+                inputMode="text"
                 className={cn(
-                  'h-14 bg-muted/40 text-center font-mono text-2xl font-semibold uppercase tracking-[0.35em]',
+                  'h-16 border-primary/30 bg-accent/40 text-center font-mono text-3xl font-bold uppercase tracking-[0.3em]',
                   shakeInput && 'animate-shake'
                 )}
                 disabled={loading}
@@ -224,21 +217,45 @@ export default function DriverAppConnect() {
               )}
             </div>
 
+            <div>
+              <label htmlFor="driver-name" className="mb-2 block text-sm font-medium">
+                Your name
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  id="driver-name"
+                  value={driverName}
+                  onChange={(e) => {
+                    setDriverName(e.target.value);
+                    setError(null);
+                  }}
+                  placeholder="How your dispatcher knows you"
+                  className="h-12 pl-10"
+                  disabled={loading}
+                />
+              </div>
+            </div>
+
             <Button
               onClick={handleConnect}
               disabled={loading || !code.trim() || !driverName.trim()}
-              className="w-full"
+              className="h-12 w-full text-base"
               size="lg"
             >
-              {loading ? 'Connecting…' : 'Connect'}
+              {loading ? 'Connecting…' : 'Connect to fleet'}
             </Button>
-          </div>
 
-          <p className="text-center text-xs text-muted-foreground">
-            No code yet? Ask your fleet administrator.
-          </p>
-        </CardContent>
-      </Card>
+            <p className="text-center text-xs text-muted-foreground">
+              No code yet? Ask your fleet administrator.
+            </p>
+          </CardContent>
+        </Card>
+
+        <p className="mt-6 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70">
+          FleetTrackMate · Live fleet tracking
+        </p>
+      </div>
     </div>
   );
 }

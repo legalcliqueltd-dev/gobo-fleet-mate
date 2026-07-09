@@ -316,15 +316,23 @@ function DriverCard({ driver, onClose }: { driver: LiveDriverLocation; onClose: 
         </div>
       </div>
       
-      {/* Action buttons */}
+      {/* Action: open turn-by-turn directions to the driver's position.
+          ("Call Driver" removed — no phone number exists in the data model.) */}
       <div className="flex border-t border-slate-700/50">
-        <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-medium text-emerald-400 hover:bg-emerald-500/10 transition-colors border-r border-slate-700/50">
-          <Phone className="h-4 w-4" />
-          Call Driver
-        </button>
-        <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-medium text-blue-400 hover:bg-blue-500/10 transition-colors">
+        <button
+          onClick={() => {
+            if (lastLat && lastLng && lastLat !== 0) {
+              window.open(
+                `https://www.google.com/maps/dir/?api=1&destination=${lastLat},${lastLng}&travelmode=driving`,
+                '_blank'
+              );
+            }
+          }}
+          disabled={!lastLat || lastLat === 0}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-medium text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+        >
           <Navigation className="h-4 w-4" />
-          Navigate
+          Navigate to driver
         </button>
       </div>
       
@@ -707,11 +715,11 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
           </button>
         </div>
 
-        {/* Driver Markers */}
+        {/* Driver Markers — small car icons: identifiable without hiding roads */}
         {validDrivers.map(driver => {
           const isSelected = selectedDriverId === driver.driver_id;
           const position = getDriverPosition(driver);
-          const markerSize = isSelected ? 64 : 52;
+          const markerSize = isSelected ? 44 : 36;
           const initial = (driver.driver_name || 'D').charAt(0).toUpperCase();
 
           return (
@@ -733,7 +741,7 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
             The accent dot matches the driver's color chip in the Drivers panel. */}
         {validDrivers.map(driver => {
           const isSelected = selectedDriverId === driver.driver_id;
-          const markerSize = isSelected ? 64 : 52;
+          const markerSize = isSelected ? 44 : 36;
           return (
             <OverlayView
               key={`label-${driver.driver_id}`}
