@@ -2,14 +2,13 @@ import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useDeviceLocations } from '@/hooks/useDeviceLocations';
 import { useDriverLocations, DriverLocation } from '@/hooks/useDriverLocations';
 import LiveDriverMap from '@/components/map/LiveDriverMap';
-import DriversList from '@/components/DriversList';
+import FleetPanel from '@/components/FleetPanel';
 import GeofenceAlerts from '@/components/GeofenceAlerts';
 import PaymentWall from '@/components/PaymentWall';
 import LockedFeature from '@/components/LockedFeature';
-import { Clock, Plus, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone, Timer, Copy, Check, CreditCard, Pause, Play, AlertTriangle, Lock } from 'lucide-react';
+import { Plus, Car, Users, Activity, Download, Smartphone, Timer, CreditCard, AlertTriangle, Lock } from 'lucide-react';
 
 import { ShareAppButton } from '@/components/ShareAppButton';
-import { ShareCodeButton } from '@/components/ShareCodeButton';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import clsx from 'clsx';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -33,8 +32,6 @@ export default function Dashboard() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchParams] = useSearchParams();
 
   // Handle payment success callback
@@ -125,7 +122,6 @@ export default function Dashboard() {
 
   const [confirmAction, setConfirmAction] = useState<
     | { kind: 'delete-device'; deviceId: string; deviceName: string }
-    | { kind: 'clear-temp-history' }
     | null
   >(null);
 
@@ -148,18 +144,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleDeleteTempHistory = () => setConfirmAction({ kind: 'clear-temp-history' });
-
-  const performDeleteTempHistory = async () => {
-    try {
-      const { error } = await supabase.from('temp_track_sessions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      if (error) throw error;
-      toast.success('Temporary tracking history cleared');
-    } catch (err) {
-      console.error('Error clearing temp history:', err);
-      toast.error('Failed to clear temporary history');
-    }
-  };
 
   const handleTogglePause = async (deviceId: string, currentlyPaused: boolean) => {
     const newPaused = !currentlyPaused;
@@ -195,18 +179,6 @@ export default function Dashboard() {
   const activeNonPausedDevices = items.filter(d => !d.is_paused).length;
   const isOverLimit = activeNonPausedDevices > deviceLimit;
   const excessCount = Math.max(0, activeNonPausedDevices - deviceLimit);
-
-  const handleCopyCode = async (code: string, deviceId: string) => {
-    try {
-      await navigator.clipboard.writeText(code);
-      setCopiedId(deviceId);
-      toast.success('Code copied!');
-      setTimeout(() => setCopiedId(null), 2000);
-    } catch {
-      toast.error('Failed to copy');
-    }
-  };
-
 
   return (
     <div className="relative space-y-3 md:space-y-4">
@@ -295,7 +267,7 @@ export default function Dashboard() {
             <h2 className="mb-3 font-heading text-lg font-bold">Get your first driver on the map</h2>
             <ol className="grid gap-3 md:grid-cols-3">
               {[
-                { n: '01', t: 'Add a device', d: 'Create a device for the vehicle — you get a connection code.' },
+                { n: '01', t: 'Add a driver', d: 'Create a slot for the vehicle — you get a connection code.' },
                 { n: '02', t: 'Share the code', d: 'Send it to your driver by WhatsApp, SMS or email with one tap.' },
                 { n: '03', t: 'Watch them live', d: 'The driver enters the code in the app and appears on this map.' },
               ].map((s) => (
@@ -310,7 +282,7 @@ export default function Dashboard() {
             </ol>
             <Link to="/devices/new" className="mt-4 inline-block">
               <Button variant="hero">
-                <Plus className="mr-1.5 h-4 w-4" /> Add your first device
+                <Plus className="mr-1.5 h-4 w-4" /> Add your first driver
               </Button>
             </Link>
           </CardContent>
@@ -320,7 +292,7 @@ export default function Dashboard() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-2 md:gap-3">
         {[
-          { icon: Car, tint: 'text-primary bg-primary/15', value: items.length, label: 'Devices' },
+          { icon: Car, tint: 'text-primary bg-primary/15', value: items.length, label: 'Vehicles' },
           { icon: Users, tint: 'text-success bg-success/15', value: activeDrivers, label: 'Drivers' },
           { icon: Activity, tint: 'text-warning bg-warning/15', value: activeDevices, label: 'Online' },
         ].map(({ icon: Icon, tint, value, label }) => (
@@ -370,119 +342,17 @@ export default function Dashboard() {
         </section>
 
         <aside className="order-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-2 md:gap-2">
-          {/* Devices */}
-          <Card className="border border-border">
-            <CardHeader className="p-3 pb-2">
-              <div className="flex items-center justify-between">
-                <h3 className="flex items-center gap-2 font-heading text-sm font-semibold">
-                  <div className="rounded-md bg-primary/15 p-1.5">
-                    <Car className="h-3.5 w-3.5 text-primary" />
-                  </div>
-                  Devices
-                </h3>
-                <Link to="/devices/new">
-                  <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs">
-                    <Plus className="mr-1 h-3.5 w-3.5" /> Add
-                  </Button>
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent className="p-3 pt-0">
-              {loading && (
-                <div className="flex items-center justify-center py-3">
-                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
-                </div>
-              )}
-              {error && <div className="text-xs text-destructive">{error}</div>}
-              {!loading && items.length === 0 && (
-                <div className="py-3 text-center">
-                  <Car className="mx-auto mb-1 h-5 w-5 text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground">No devices yet.</p>
-                  <Link to="/devices/new" className="text-xs text-primary hover:underline">Add device →</Link>
-                </div>
-              )}
-              <ul className="max-h-[320px] space-y-2 overflow-y-auto">
-                {items.map((d) => {
-                  const hasFix = !!d.latest;
-                  return (
-                    <li key={d.id}>
-                      <div className={clsx(
-                        'rounded-lg border p-2.5 transition-all',
-                        d.is_paused
-                          ? 'border-muted bg-muted/30 opacity-60'
-                          : selectedId === d.id
-                            ? 'border-primary bg-primary/10'
-                            : 'border-border bg-card/50 hover:border-primary/50'
-                      )}>
-                        {/* Row 1: name + status + housekeeping */}
-                        <div className="flex items-center justify-between gap-2">
-                          <button onClick={() => setSelectedId(d.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
-                            <div className={clsx(
-                              'h-2 w-2 shrink-0 rounded-full',
-                              d.is_paused ? 'bg-muted-foreground' :
-                              d.status === 'active' ? 'bg-success animate-pulse' : d.status === 'idle' ? 'bg-warning' : 'bg-muted-foreground'
-                            )} />
-                            <span className={clsx('truncate text-sm font-semibold', d.is_paused && 'line-through text-muted-foreground')}>{d.name ?? 'Unnamed'}</span>
-                            {d.is_paused && (
-                              <Badge variant="outline" className="border-muted-foreground/30 px-1.5 py-0 text-[10px] text-muted-foreground">
-                                PAUSED
-                              </Badge>
-                            )}
-                            {d.is_temporary && (
-                              <Badge variant="outline" className="border-primary/30 px-1.5 py-0 text-[10px] text-primary">TEMP</Badge>
-                            )}
-                          </button>
-                          <div className="flex shrink-0 items-center gap-0.5">
-                            <button
-                              onClick={() => handleTogglePause(d.id, !!d.is_paused)}
-                              className={clsx('rounded-md p-1.5', d.is_paused ? 'hover:bg-success/10' : 'hover:bg-warning/10')}
-                              title={d.is_paused ? 'Resume tracking' : 'Pause tracking'}
-                            >
-                              {d.is_paused ? (
-                                <Play className="h-3.5 w-3.5 text-success" />
-                              ) : (
-                                <Pause className="h-3.5 w-3.5 text-warning" />
-                              )}
-                            </button>
-                            <button onClick={() => handleDeleteDevice(d.id)} className="rounded-md p-1.5 hover:bg-destructive/10" title="Delete device">
-                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Row 2: the connection code — the thing dispatchers share */}
-                        {d.connection_code && !d.is_paused && (
-                          <div className="mt-2 flex items-center justify-between gap-2 rounded-md border border-border bg-muted/40 p-1.5 pl-2.5">
-                            <button
-                              onClick={() => handleCopyCode(d.connection_code!, d.id)}
-                              className="flex min-w-0 items-center gap-1.5 text-left"
-                              title="Copy code"
-                            >
-                              <span className="telemetry truncate text-base font-semibold tracking-[0.2em]">{d.connection_code}</span>
-                              {copiedId === d.id ? (
-                                <Check className="h-3.5 w-3.5 shrink-0 text-success" />
-                              ) : (
-                                <Copy className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                              )}
-                            </button>
-                            <ShareCodeButton code={d.connection_code} deviceName={d.name ?? undefined} size="sm" className="h-8 shrink-0" />
-                          </div>
-                        )}
-
-                        {/* Row 3: last fix */}
-                        <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          <span className="truncate">{hasFix ? new Date(d.latest!.timestamp).toLocaleString() : 'No location yet'}</span>
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </CardContent>
-          </Card>
-
-          <DriversList onDriverSelect={handleDriverSelect} selectedDriverId={selectedDriverId} />
+          {/* One panel: vehicles, their codes, and the drivers connected to them */}
+          <FleetPanel
+            devices={items}
+            drivers={drivers}
+            loading={loading}
+            error={error}
+            selectedDriverId={selectedDriverId}
+            onDriverSelect={handleDriverSelect}
+            onTogglePause={handleTogglePause}
+            onDeleteDevice={handleDeleteDevice}
+          />
 
           {/* Everything else in one quiet card */}
           <Card className="border border-border">
@@ -540,26 +410,6 @@ export default function Dashboard() {
                 </Button>
               </div>
 
-              <div className="border-t border-border" />
-
-              {/* Temp tracking */}
-              <div className="flex gap-2">
-                <Link to="/temp-tracking" className="flex-1">
-                  <Button variant="outline" size="sm" className="h-9 w-full justify-start text-xs">
-                    <Link2 className="mr-1 h-3.5 w-3.5" />
-                    Temp tracking
-                  </Button>
-                </Link>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 text-xs text-destructive hover:bg-destructive/10"
-                  onClick={handleDeleteTempHistory}
-                  title="Clear temporary tracking history"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </aside>
@@ -582,24 +432,7 @@ export default function Dashboard() {
           setConfirmAction(null);
         }}
       />
-      <ConfirmDialog
-        open={confirmAction?.kind === 'clear-temp-history'}
-        onOpenChange={(open) => !open && setConfirmAction(null)}
-        title="Clear temporary tracking history?"
-        description="All temporary tracking sessions will be deleted. Active share links will stop working."
-        confirmLabel="Clear history"
-        destructive
-        onConfirm={() => {
-          performDeleteTempHistory();
-          setConfirmAction(null);
-        }}
-      />
 
-      <Link to="/devices/new" className="lg:hidden fixed bottom-4 right-4 md:bottom-6 md:right-6 z-20 safe-bottom">
-        <Button variant="default" size="icon" className="rounded-xl h-12 w-12 md:h-14 md:w-14 shadow-xl">
-          <Plus className="h-5 w-5 md:h-6 md:w-6" />
-        </Button>
-      </Link>
     </div>
   );
 }

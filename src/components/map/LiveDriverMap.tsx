@@ -12,6 +12,7 @@ import { useRealtimeDriverLocations, LiveDriverLocation } from '@/hooks/useRealt
 import { formatTimeAgo, interpolatePosition, easeOutCubic } from '@/utils/mapInterpolation';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getMapStyle } from '@/lib/mapStyles';
+import { getDriverAccent } from '@/lib/driverAccent';
 import clsx from 'clsx';
 
 type Props = {
@@ -495,12 +496,11 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
     return devices.filter(d => d.latitude !== 0 && d.longitude !== 0);
   }, [devices]);
 
-  const initial = useMemo(() => {
-    const allItems = [...validDrivers, ...validDevices];
-    if (allItems.length === 0) return { longitude: 8.6753, latitude: 9.0820, zoom: 5 };
-    const [lon, lat] = [allItems[0].longitude, allItems[0].latitude];
-    return { longitude: lon, latitude: lat, zoom: 13 };
-  }, [validDrivers, validDevices]);
+  // The map center is set ONCE (auto-fit below) and then never moved
+  // automatically. Passing live driver positions as the `center` prop made
+  // the map snap back to vehicle #1 on every location ping while the admin
+  // was trying to look elsewhere.
+  const INITIAL_VIEW = useRef({ center: { lat: 9.0820, lng: 8.6753 }, zoom: 5 }).current;
 
   // Fly to selected driver - only when selection changes, not on every driver update
   const prevSelectedRef = useRef<string | null>(null);
@@ -605,8 +605,8 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
     >
       <GoogleMap
         mapContainerStyle={{ width: '100%', height: '100%' }}
-        center={{ lat: initial.latitude, lng: initial.longitude }}
-        zoom={initial.zoom}
+        center={INITIAL_VIEW.center}
+        zoom={INITIAL_VIEW.zoom}
         mapTypeId={MAP_STYLES[mapType]}
         onClick={() => setOpenInfoWindowId(null)}
         onLoad={(map) => { 
@@ -713,7 +713,7 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
           const position = getDriverPosition(driver);
           const markerSize = isSelected ? 64 : 52;
           const initial = (driver.driver_name || 'D').charAt(0).toUpperCase();
-          
+
           return (
             <AdvancedMarker
               key={driver.driver_id}
@@ -726,6 +726,38 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
               }}
               zIndex={isSelected ? 1000 : driver.status === 'active' ? 500 : 100}
             />
+          );
+        })}
+
+        {/* Name labels — always visible so "who is that?" is never a question.
+            The accent dot matches the driver's color chip in the Drivers panel. */}
+        {validDrivers.map(driver => {
+          const isSelected = selectedDriverId === driver.driver_id;
+          const markerSize = isSelected ? 64 : 52;
+          return (
+            <OverlayView
+              key={`label-${driver.driver_id}`}
+              position={getDriverPosition(driver)}
+              mapPaneName={OverlayView.OVERLAY_LAYER}
+              getPixelPositionOffset={(width) => ({ x: -(width / 2), y: markerSize / 2 + 2 })}
+            >
+              <div
+                className={clsx(
+                  'pointer-events-none flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 shadow-md backdrop-blur-sm',
+                  isSelected
+                    ? 'border-primary bg-card/95 text-foreground'
+                    : 'border-border bg-card/90 text-foreground'
+                )}
+              >
+                <span
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: getDriverAccent(driver.driver_id) }}
+                />
+                <span className="text-[11px] font-semibold">
+                  {driver.driver_name || 'Driver'}
+                </span>
+              </div>
+            </OverlayView>
           );
         })}
 

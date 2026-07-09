@@ -33,7 +33,6 @@ import DriversManagement from '@/pages/admin/DriversManagement';
 import CreateTask from '@/pages/admin/CreateTask';
 import TaskList from '@/pages/admin/TaskList';
 import TempShare from '@/pages/TempShare';
-import TempTracking from '@/pages/TempTracking';
 import Privacy from '@/pages/Privacy';
 import Terms from '@/pages/Terms';
 import DeleteAccount from '@/pages/DeleteAccount';
@@ -198,14 +197,6 @@ export default function App() {
                   element={
                     <ProtectedRoute>
                       <Settings />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/temp-tracking"
-                  element={
-                    <ProtectedRoute>
-                      <TempTracking />
                     </ProtectedRoute>
                   }
                 />
