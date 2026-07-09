@@ -6,7 +6,7 @@ import { trackingService } from '@/services/trackingService';
 import { useTrackingService } from '@/hooks/useTrackingService';
 import { MapContainer, Polyline } from 'react-leaflet';
 import type { Map as LeafletMapType } from 'leaflet';
-import { AppTileLayer, DriverMarker, TaskMarker, FollowController, DEFAULT_CENTER } from '@/components/map/leaflet/LeafletMap';
+import { AppTileLayer, DriverMarker, TaskMarker, FollowController, AccuracyCircle, DEFAULT_CENTER } from '@/components/map/leaflet/LeafletMap';
 import { Crosshair, Wifi, Signal, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -292,17 +292,20 @@ export default function DriverAppDashboard() {
               onUserDrag={() => setFollowMode(false)}
             />
 
-            {/* Trail polyline */}
+            {/* Trail polyline — vivid so the journey reads at a glance */}
             {trailPath.length > 1 && (
               <Polyline
                 positions={trailPath.map(p => [p.lat, p.lng] as [number, number])}
-                pathOptions={{ color: getRouteStrokeColor(isDark), opacity: 0.85, weight: 5 }}
+                pathOptions={{ color: getRouteStrokeColor(isDark), opacity: 0.9, weight: 6 }}
               />
             )}
 
-            {/* Driver marker */}
+            {/* GPS accuracy ring + driver marker */}
             {currentLocation && (
-              <DriverMarker position={currentLocation} isTracking={isTracking} heading={heading} />
+              <>
+                <AccuracyCircle position={currentLocation} accuracy={accuracy} isTracking={isTracking} />
+                <DriverMarker position={currentLocation} isTracking={isTracking} heading={heading} />
+              </>
             )}
 
             {/* Task dropoff markers */}

@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getMapStyle } from '@/lib/mapStyles';
 import {
@@ -85,12 +86,19 @@ const createSOSMarkerIcon = (index: number, status: string, isSelected: boolean)
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 };
 
+// Stable reference — an inline object here makes react-google-maps re-apply
+// the center on EVERY re-render, yanking the map back right after a click
+// pans to an incident (the "have to click twice" bug).
+const INCIDENTS_DEFAULT_CENTER = { lat: 9.0820, lng: 8.6753 };
+
 export default function Incidents() {
   const { user } = useAuth();
   const { isDark } = useTheme();
   const [events, setEvents] = useState<SOSEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<SOSEvent | null>(null);
   const [resolveNote, setResolveNote] = useState('');
+  const [clearResolvedOpen, setClearResolvedOpen] = useState(false);
+  const [clearingResolved, setClearingResolved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [positionTrail, setPositionTrail] = useState<PositionUpdate[]>([]);
@@ -291,6 +299,26 @@ export default function Incidents() {
     setDeleteDialogOpen(true);
   };
 
+  // Bulk delete of resolved/cancelled incidents (active ones are never touched)
+  const handleClearResolved = async () => {
+    const ids = resolvedEvents.map((e) => e.id);
+    if (ids.length === 0) return;
+    setClearingResolved(true);
+    try {
+      const { error } = await supabase.from('sos_events').delete().in('id', ids);
+      if (error) throw error;
+      toast.success(`Cleared ${ids.length} resolved incident${ids.length !== 1 ? 's' : ''}`);
+      if (selectedEvent && ids.includes(selectedEvent.id)) setSelectedEvent(null);
+      loadEvents();
+    } catch (err) {
+      console.error('Error clearing resolved incidents:', err);
+      toast.error('Failed to clear resolved incidents');
+    } finally {
+      setClearingResolved(false);
+      setClearResolvedOpen(false);
+    }
+  };
+
   const selectAndZoom = useCallback((evt: SOSEvent) => {
     setSelectedEvent(evt);
     if (mapRef.current && evt.latitude && evt.longitude) {
@@ -450,10 +478,20 @@ export default function Incidents() {
           {/* Resolved Section */}
           {resolvedEvents.length > 0 && (
             <div className="p-2.5 border-t border-border">
-              <h2 className="font-semibold text-xs flex items-center gap-1.5 mb-2 text-muted-foreground">
-                <CheckCircle className="h-3.5 w-3.5" />
-                Resolved ({resolvedEvents.length})
-              </h2>
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="font-semibold text-xs flex items-center gap-1.5 text-muted-foreground">
+                  <CheckCircle className="h-3.5 w-3.5" />
+                  Resolved ({resolvedEvents.length})
+                </h2>
+                <button
+                  onClick={() => setClearResolvedOpen(true)}
+                  className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-destructive hover:bg-destructive/10"
+                  title="Delete all resolved incidents"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Clear all
+                </button>
+              </div>
               <div className="space-y-1">
                 {resolvedEvents.slice(0, 10).map((evt) => {
                   const markerNum = eventIndexMap[evt.id];
@@ -502,7 +540,7 @@ export default function Incidents() {
           ) : (
             <GoogleMap
               mapContainerStyle={{ width: '100%', height: '100%' }}
-              center={{ lat: 9.0820, lng: 8.6753 }}
+              center={INCIDENTS_DEFAULT_CENTER}
               zoom={6}
               onLoad={(map) => {
                 mapRef.current = map;
@@ -562,6 +600,17 @@ export default function Incidents() {
               ))}
             </GoogleMap>
           )}
+
+          {/* Bulk clear confirmation */}
+          <ConfirmDialog
+            open={clearResolvedOpen}
+            onOpenChange={setClearResolvedOpen}
+            title={`Clear ${resolvedEvents.length} resolved incident${resolvedEvents.length !== 1 ? 's' : ''}?`}
+            description="All resolved and cancelled SOS incidents will be permanently deleted. Active incidents are not affected. This cannot be undone."
+            confirmLabel={clearingResolved ? 'Clearing…' : 'Clear resolved'}
+            destructive
+            onConfirm={handleClearResolved}
+          />
         </div>
 
         {/* Right Panel - Incident Details (outside the map) */}

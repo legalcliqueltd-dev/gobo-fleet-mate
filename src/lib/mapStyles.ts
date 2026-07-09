@@ -42,5 +42,5 @@ export function getMapStyle(isDark: boolean): google.maps.MapTypeStyle[] {
 
 /** Route/trail polyline colors that read on both map themes. */
 export function getRouteStrokeColor(isDark: boolean): string {
-  return isDark ? '#5ba3f7' : '#1d63d8';
+  return isDark ? '#6fb4ff' : '#1d63d8';
 }

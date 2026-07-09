@@ -87,10 +87,13 @@ sync on reconnect.
 ## 8. Final verification
 - [x] Web: `npm run build`, screenshot dashboard (one card, one marker, 2-stat row)
       and incidents map (themed) via playwright-core + msedge channel.
-- [ ] Owner device test (manual): uninstall old app → install fresh APK → connect
-      with code → grant location → go on duty → press Home, wait 10+ min → dashboard
-      keeps updating → enable airplane mode, move around, disable → queued points
-      flush ("Sync Queue" empties).
+- [x] Emulator verification via adb (2026-07-10): uninstalled old app, installed
+      fresh APK, launched. Logcat confirms NO PluginLoadException and all plugins
+      register: Camera, **Geolocation**, **ForegroundService**. App renders the new
+      connect screen. The runtime plugin bug is conclusively fixed.
+- [ ] Owner live test (needs a real connection code): connect → go on duty (expect
+      the persistent "On duty" notification) → press Home, wait 10+ min → dashboard
+      keeps updating → airplane mode round-trip → queued points flush.
 
 ## Known context (do not re-derive)
 - npm installs need `--legacy-peer-deps`.

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import L from 'leaflet';
-import { TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
+import { TileLayer, Marker, Circle, useMap, useMapEvents } from 'react-leaflet';
 import { useEffect } from 'react';
 import 'leaflet/dist/leaflet.css';
 
@@ -35,6 +35,8 @@ export function AppTileLayer({ isDark, mapType }: { isDark: boolean; mapType: 'r
       attribution={OSM_ATTRIBUTION}
       subdomains="abcd"
       maxZoom={20}
+      // Dark Matter is too dim in a cab at night — lift it (CSS filter in index.css)
+      className="tiles-dark-boost"
     />
   ) : (
     <TileLayer
@@ -76,6 +78,28 @@ export function DriverMarker({
   }, [isTracking, heading]);
 
   return <Marker position={[position.lat, position.lng]} icon={icon} interactive={false} />;
+}
+
+/** GPS accuracy ring around the driver — makes the fix quality visible. */
+export function AccuracyCircle({
+  position,
+  accuracy,
+  isTracking,
+}: {
+  position: { lat: number; lng: number };
+  accuracy: number | null;
+  isTracking: boolean;
+}) {
+  if (!accuracy || accuracy <= 0 || accuracy > 500) return null;
+  const color = isTracking ? 'hsl(152 65% 45%)' : 'hsl(220 12% 55%)';
+  return (
+    <Circle
+      center={[position.lat, position.lng]}
+      radius={accuracy}
+      pathOptions={{ color, weight: 1, opacity: 0.5, fillColor: color, fillOpacity: 0.08 }}
+      interactive={false}
+    />
+  );
 }
 
 /** Task drop-off pin. */

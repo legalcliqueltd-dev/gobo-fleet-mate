@@ -523,23 +523,23 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
     prevSelectedRef.current = selectedDriverId || null;
   }, [selectedDriverId]);
 
-  // Auto-fit map to all valid items as soon as they arrive (only once),
-  // so the map doesn't sit on the world view while waiting for data.
+  // Open the map on the MOST RECENTLY UPDATED driver (once, when data first
+  // arrives). Fitting all markers framed stale/far ones and landed the view in
+  // "a random place"; the fleet-wide view stays one click away via "Fit all".
   const hasAutoFittedRef = useRef(false);
   useEffect(() => {
     if (hasAutoFittedRef.current) return;
     if (!mapRef.current) return;
-    const allItems = [...validDrivers, ...validDevices];
-    if (allItems.length === 0) return;
 
-    if (allItems.length === 1) {
-      mapRef.current.panTo({ lat: allItems[0].latitude, lng: allItems[0].longitude });
-      mapRef.current.setZoom(15);
-    } else {
-      const bounds = new google.maps.LatLngBounds();
-      allItems.forEach(i => bounds.extend({ lat: i.latitude, lng: i.longitude }));
-      mapRef.current.fitBounds(bounds, 80);
-    }
+    const freshness = (v: any) =>
+      new Date(v?.updated_at ?? v?.last_seen_at ?? v?.timestamp ?? 0).getTime();
+    const latestDriver = [...validDrivers].sort((a, b) => freshness(b) - freshness(a))[0];
+    const latestDevice = [...validDevices].sort((a, b) => freshness(b) - freshness(a))[0];
+    const target = latestDriver ?? latestDevice;
+    if (!target) return;
+
+    mapRef.current.panTo({ lat: target.latitude, lng: target.longitude });
+    mapRef.current.setZoom(15);
     hasAutoFittedRef.current = true;
   }, [validDrivers, validDevices]);
 
@@ -617,11 +617,10 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
         zoom={INITIAL_VIEW.zoom}
         mapTypeId={MAP_STYLES[mapType]}
         onClick={() => setOpenInfoWindowId(null)}
-        onLoad={(map) => { 
+        onLoad={(map) => {
           mapRef.current = map;
-          if (validDrivers.length + validDevices.length > 1) {
-            setTimeout(() => fitToAll(), 100);
-          }
+          // Initial framing is handled by the "latest driver" effect above;
+          // fitting all here framed stale markers and looked like a random place.
         }}
         options={{
           zoomControl: false,
