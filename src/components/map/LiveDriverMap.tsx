@@ -715,11 +715,11 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
           </button>
         </div>
 
-        {/* Driver Markers — small car icons: identifiable without hiding roads */}
+        {/* Driver Markers — small precise car icons: identifiable without hiding roads */}
         {validDrivers.map(driver => {
           const isSelected = selectedDriverId === driver.driver_id;
           const position = getDriverPosition(driver);
-          const markerSize = isSelected ? 44 : 36;
+          const markerSize = isSelected ? 34 : 28;
           const initial = (driver.driver_name || 'D').charAt(0).toUpperCase();
 
           return (
@@ -741,27 +741,25 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
             The accent dot matches the driver's color chip in the Drivers panel. */}
         {validDrivers.map(driver => {
           const isSelected = selectedDriverId === driver.driver_id;
-          const markerSize = isSelected ? 44 : 36;
+          const markerSize = isSelected ? 34 : 28;
           return (
             <OverlayView
               key={`label-${driver.driver_id}`}
               position={getDriverPosition(driver)}
               mapPaneName={OverlayView.OVERLAY_LAYER}
-              getPixelPositionOffset={(width) => ({ x: -(width / 2), y: markerSize / 2 + 2 })}
+              // Fused to the car's bottom edge — one visual unit, never a second marker
+              getPixelPositionOffset={(width) => ({ x: -(width / 2), y: markerSize / 2 - 3 })}
             >
               <div
                 className={clsx(
-                  'pointer-events-none flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 shadow-md backdrop-blur-sm',
+                  'pointer-events-none whitespace-nowrap rounded-md border px-1.5 py-px shadow-sm',
                   isSelected
                     ? 'border-primary bg-card/95 text-foreground'
                     : 'border-border bg-card/90 text-foreground'
                 )}
+                style={{ borderLeftWidth: 3, borderLeftColor: getDriverAccent(driver.driver_id) }}
               >
-                <span
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: getDriverAccent(driver.driver_id) }}
-                />
-                <span className="text-[11px] font-semibold">
+                <span className="text-[10px] font-semibold leading-tight">
                   {driver.driver_name || 'Driver'}
                 </span>
               </div>
