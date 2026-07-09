@@ -395,7 +395,13 @@ export default function Incidents() {
             {loading ? (
               <p className="text-[10px] text-muted-foreground py-4 text-center">Loading...</p>
             ) : activeEvents.length === 0 ? (
-              <p className="text-[10px] text-muted-foreground py-4 text-center">No active incidents</p>
+              <div className="py-5 text-center">
+                <CheckCircle className="mx-auto mb-1.5 h-5 w-5 text-success" />
+                <p className="text-xs font-medium">All clear</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  SOS alerts from drivers will appear here the moment they're sent.
+                </p>
+              </div>
             ) : (
               <div className="space-y-1.5">
                 {activeEvents.map((evt) => {
@@ -653,24 +659,30 @@ export default function Incidents() {
                 </div>
               )}
 
-              {/* Action Buttons */}
+              {/* Action Buttons — resolve is available from any active state so
+                  stale or test incidents can be closed in one step */}
               {selectedEvent.status === 'open' && (
-                <Button size="sm" onClick={() => acknowledgeEvent(selectedEvent.id)} className="w-full h-8 text-xs">
-                  <Clock className="h-3.5 w-3.5 mr-1.5" /> Acknowledge
+                <Button size="sm" onClick={() => acknowledgeEvent(selectedEvent.id)} className="w-full h-9 text-xs">
+                  <Clock className="h-3.5 w-3.5 mr-1.5" /> Acknowledge — I'm on it
                 </Button>
               )}
 
-              {selectedEvent.status === 'acknowledged' && (
-                <div className="space-y-2">
+              {(selectedEvent.status === 'open' || selectedEvent.status === 'acknowledged') && (
+                <div className="space-y-2 pt-1">
                   <Textarea
-                    placeholder="Resolution note..."
+                    placeholder="Resolution note (optional)…"
                     value={resolveNote}
                     onChange={(e) => setResolveNote(e.target.value)}
                     rows={2}
                     className="text-xs min-h-[50px]"
                   />
-                  <Button size="sm" onClick={() => resolveEvent(selectedEvent.id)} className="w-full h-8 text-xs">
-                    <CheckCircle className="h-3.5 w-3.5 mr-1.5" /> Resolve
+                  <Button
+                    size="sm"
+                    variant={selectedEvent.status === 'acknowledged' ? 'default' : 'outline'}
+                    onClick={() => resolveEvent(selectedEvent.id)}
+                    className="w-full h-9 text-xs"
+                  >
+                    <CheckCircle className="h-3.5 w-3.5 mr-1.5" /> Resolve incident
                   </Button>
                 </div>
               )}

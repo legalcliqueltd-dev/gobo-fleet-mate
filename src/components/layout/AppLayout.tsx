@@ -1,9 +1,8 @@
-import { PropsWithChildren, useState, useRef, useEffect } from 'react';
+import { PropsWithChildren, useState } from 'react';
 import { Menu, X, Home, Settings as SettingsIcon, ClipboardList, AlertTriangle, Plus } from 'lucide-react';
 import logo from '@/assets/logo.webp';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
-import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import LocationPermissionPrompt from '@/components/LocationPermissionPrompt';
@@ -24,9 +23,6 @@ export default function AppLayout({ children }: PropsWithChildren) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const [indicatorStyle, setIndicatorStyle] = useState({ width: 0, left: 0 });
-  const containerRef = useRef<HTMLDivElement>(null);
-  const btnRefs = useRef<(HTMLAnchorElement | null)[]>([]);
 
   // Navigation items including Tasks and SOS
   const navItems = [
@@ -35,30 +31,6 @@ export default function AppLayout({ children }: PropsWithChildren) {
     { path: '/ops/incidents', icon: AlertTriangle, label: 'SOS' },
     { path: '/settings', icon: SettingsIcon, label: 'Settings' },
   ];
-
-  const activeIndex = navItems.findIndex(item => location.pathname.startsWith(item.path));
-
-  // Update indicator position when active changes or resize
-  useEffect(() => {
-    const updateIndicator = () => {
-      if (activeIndex >= 0 && btnRefs.current[activeIndex] && containerRef.current) {
-        const btn = btnRefs.current[activeIndex];
-        const container = containerRef.current;
-        if (!btn) return;
-        const btnRect = btn.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
-
-        setIndicatorStyle({
-          width: btnRect.width,
-          left: btnRect.left - containerRect.left,
-        });
-      }
-    };
-
-    updateIndicator();
-    window.addEventListener('resize', updateIndicator);
-    return () => window.removeEventListener('resize', updateIndicator);
-  }, [activeIndex]);
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
@@ -90,6 +62,40 @@ export default function AppLayout({ children }: PropsWithChildren) {
               <img src={logo} alt="FleetTrackMate" className="h-9 w-9 rounded-lg" />
               <span className="text-lg">FleetTrackMate</span>
             </Link>
+
+            {/* Desktop navigation */}
+            {user && (
+              <nav className="hidden md:flex items-center gap-1">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname.startsWith(item.path);
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={clsx(
+                        'flex items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors',
+                        isActive
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="ml-2"
+                  onClick={() => navigate('/admin/tasks/new')}
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  New task
+                </Button>
+              </nav>
+            )}
 
             {/* Desktop Actions */}
             <div className="hidden md:flex items-center gap-3">
@@ -189,7 +195,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
           )}
         </div>
       </header>
-      <main className="mx-auto max-w-7xl px-3 xs:px-4 pt-6 md:pt-8 pb-32 md:pb-40 mb-8">
+      <main className="mx-auto max-w-7xl px-3 xs:px-4 pt-6 md:pt-8 pb-28 md:pb-12">
         {user && !NO_BACK_ROUTES.has(location.pathname) && (
           <div className="mb-3">
             <BackButton />
@@ -198,53 +204,41 @@ export default function AppLayout({ children }: PropsWithChildren) {
         {children}
       </main>
       
-      {/* Floating Navigation - Desktop */}
+      {/* Bottom navigation — mobile only; desktop uses the header nav */}
       {user && (
-        <div className="hidden md:block fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-4">
-          <div
-            ref={containerRef}
-            className="relative flex items-center justify-between bg-card/95 backdrop-blur-xl shadow-xl shadow-black/10 dark:shadow-black/30 rounded-2xl px-3 py-2.5 border border-border"
-          >
-            {navItems.map((item, index) => {
+        <nav className="md:hidden fixed bottom-0 inset-x-0 z-50 border-t border-border bg-background/95 backdrop-blur safe-bottom">
+          <div className="flex items-center px-2 py-1.5">
+            {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname.startsWith(item.path);
               return (
                 <Link
                   key={item.path}
                   to={item.path}
-                  ref={(el) => (btnRefs.current[index] = el)}
                   className={clsx(
-                    "relative flex items-center justify-center gap-2.5 px-5 py-2.5 text-sm font-medium transition-all duration-200 rounded-xl",
-                    isActive
-                      ? "text-primary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                    'flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 rounded-lg py-1 transition-colors',
+                    isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
                   )}
                 >
-                  <Icon className="h-5 w-5 z-10" />
-                  <span className="z-10 hidden sm:inline">{item.label}</span>
+                  <Icon className="h-5 w-5" />
+                  <span className={clsx('text-[11px]', isActive ? 'font-semibold' : 'font-medium')}>
+                    {item.label}
+                  </span>
                 </Link>
               );
             })}
-
-            {/* Quick Create Task Button */}
             <button
               onClick={() => navigate('/admin/tasks/new')}
-              className="flex items-center justify-center p-2.5 ml-2 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors shadow-lg"
-              title="Create Task"
+              className="mx-1 flex min-h-[44px] flex-col items-center justify-center gap-0.5 rounded-lg px-3 text-primary"
+              aria-label="Create a new task"
             >
-              <Plus className="h-5 w-5" />
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md">
+                <Plus className="h-4 w-4" />
+              </span>
+              <span className="text-[11px] font-medium">New</span>
             </button>
-
-            {/* Sliding Active Indicator */}
-            {activeIndex >= 0 && (
-              <motion.div
-                animate={indicatorStyle}
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                className="absolute top-1.5 bottom-1.5 rounded-xl bg-primary/15 dark:bg-primary/20"
-              />
-            )}
           </div>
-        </div>
+        </nav>
       )}
 
       <footer className="mx-auto max-w-7xl px-3 xs:px-4 py-8 text-xs text-muted-foreground">

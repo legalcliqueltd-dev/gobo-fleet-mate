@@ -10,6 +10,8 @@ import {
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { useRealtimeDriverLocations, LiveDriverLocation } from '@/hooks/useRealtimeDriverLocations';
 import { formatTimeAgo, interpolatePosition, easeOutCubic } from '@/utils/mapInterpolation';
+import { useTheme } from '@/contexts/ThemeContext';
+import { getMapStyle } from '@/lib/mapStyles';
 import clsx from 'clsx';
 
 type Props = {
@@ -376,22 +378,24 @@ function MapControlButton({
   return (
     <button
       onClick={onClick}
+      title={label}
+      aria-label={label}
       className={clsx(
-        'flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200',
+        'flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-200',
         'backdrop-blur-md border shadow-lg',
-        active 
-          ? 'bg-primary text-primary-foreground border-primary' 
+        active
+          ? 'bg-primary text-primary-foreground border-primary'
           : 'bg-card/90 text-foreground border-border hover:bg-card hover:border-primary/50',
         className
       )}
     >
       <Icon className="h-4 w-4" />
-      <span className="hidden sm:inline">{label}</span>
     </button>
   );
 }
 
 export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDevices = true, devices = [] }: Props) {
+  const { isDark } = useTheme();
   const mapRef = useRef<google.maps.Map | null>(null);
   const [mapType, setMapType] = useState<keyof typeof MAP_STYLES>('roadmap');
   const [showTraffic, setShowTraffic] = useState(false);
@@ -618,7 +622,7 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
           fullscreenControl: false,
           rotateControl: true,
           scaleControl: true,
-          styles: mapType === 'roadmap' ? DARK_MAP_STYLES : []
+          styles: mapType === 'roadmap' ? getMapStyle(isDark) : []
         }}
       >
         {/* Traffic Layer */}
@@ -636,22 +640,24 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
           <div className="bg-card/95 backdrop-blur-md border-2 border-border rounded-xl shadow-2xl px-4 py-3">
             <div className="flex flex-col gap-2">
               <ConnectionIndicator status={connectionStatus} lastUpdate={lastUpdate} />
-              <div className="flex items-center gap-3 pt-2 border-t border-border">
-                <div className="flex items-center gap-1.5" title="Active Drivers on Map">
-                  <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/50"></div>
-                  <span className="text-sm font-bold text-foreground">
-                    {validDrivers.filter(d => d.status === 'active').length}
-                  </span>
-                  <span className="text-xs text-muted-foreground">active</span>
-                </div>
-                <div className="w-px h-4 bg-border"></div>
-                <span className="text-xs text-muted-foreground font-medium">
-                  {validDrivers.length} total
+              {/* Marker legend (replaces the counters duplicated in the stats cards) */}
+              <div className="flex items-center gap-3 border-t border-border pt-2 text-xs">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-success" />
+                  <span className="text-muted-foreground font-medium">Active</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-warning" />
+                  <span className="text-muted-foreground font-medium">Idle</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground" />
+                  <span className="text-muted-foreground font-medium">Offline</span>
                 </span>
               </div>
               {/* Warning for drivers without location */}
               {driversWithoutLocation.length > 0 && (
-                <div className="flex items-center gap-2 pt-2 border-t border-amber-500/30 text-amber-400">
+                <div className="flex items-center gap-2 pt-2 border-t border-warning/30 text-warning">
                   <AlertTriangle className="h-3.5 w-3.5" />
                   <span className="text-xs font-medium">
                     {driversWithoutLocation.length} driver{driversWithoutLocation.length > 1 ? 's' : ''} online but no GPS
@@ -699,26 +705,6 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
           >
             {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
           </button>
-        </div>
-
-        {/* Bottom Left - Legend */}
-        <div className="absolute bottom-4 left-4 z-10">
-          <div className="bg-card/95 backdrop-blur-md border-2 border-border rounded-xl shadow-2xl px-4 py-3">
-            <div className="flex items-center gap-4 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/30"></div>
-                <span className="text-muted-foreground font-medium">Active</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-amber-500 shadow-lg shadow-amber-500/30"></div>
-                <span className="text-muted-foreground font-medium">Idle</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-gray-500"></div>
-                <span className="text-muted-foreground font-medium">Offline</span>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Driver Markers */}

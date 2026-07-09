@@ -286,7 +286,9 @@ export default function TaskList() {
                 );
               })}
               {report.photos.length > 3 && (
-                <div className="w-10 h-10 bg-muted rounded flex items-center justify-center text-xs">+{report.photos.length - 3}</div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-md border border-border bg-muted text-xs font-medium">
+                  +{report.photos.length - 3}
+                </div>
               )}
             </div>
           )}
@@ -346,13 +348,15 @@ export default function TaskList() {
           {/* Pending Tasks */}
           <div>
             <h2 className="font-semibold mb-3 flex items-center gap-2">
-              <Clock className="h-4 w-4 text-yellow-500" />
+              <Clock className="h-4 w-4 text-warning" />
               Pending ({pendingTasks.length})
             </h2>
             <div className="space-y-3">
               {pendingTasks.map(task => <TaskCard key={task.id} task={task} />)}
               {pendingTasks.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">No pending tasks</p>
+                <p className="rounded-lg border border-dashed border-border py-4 text-center text-sm text-muted-foreground">
+                  Nothing waiting — create a task to dispatch a driver.
+                </p>
               )}
             </div>
           </div>
@@ -360,13 +364,15 @@ export default function TaskList() {
           {/* In Progress */}
           <div>
             <h2 className="font-semibold mb-3 flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-blue-500" />
+              <MapPin className="h-4 w-4 text-primary" />
               In Progress ({inProgressTasks.length})
             </h2>
             <div className="space-y-3">
               {inProgressTasks.map(task => <TaskCard key={task.id} task={task} />)}
               {inProgressTasks.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">No tasks in progress</p>
+                <p className="rounded-lg border border-dashed border-border py-4 text-center text-sm text-muted-foreground">
+                  Tasks move here when a driver taps Navigate and heads out.
+                </p>
               )}
             </div>
           </div>
@@ -374,7 +380,7 @@ export default function TaskList() {
           {/* Completed */}
           <div>
             <h2 className="font-semibold mb-3 flex items-center gap-2">
-              <FileText className="h-4 w-4 text-green-500" />
+              <FileText className="h-4 w-4 text-success" />
               Completed ({completedTasks.length})
             </h2>
             <div className="space-y-3 max-h-[600px] overflow-y-auto">

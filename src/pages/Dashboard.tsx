@@ -4,13 +4,13 @@ import { useDriverLocations, DriverLocation } from '@/hooks/useDriverLocations';
 import LiveDriverMap from '@/components/map/LiveDriverMap';
 import DriversList from '@/components/DriversList';
 import GeofenceAlerts from '@/components/GeofenceAlerts';
-import TempTrackingManager from '@/components/TempTrackingManager';
 import PaymentWall from '@/components/PaymentWall';
 import LockedFeature from '@/components/LockedFeature';
 import { Clock, Plus, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone, Timer, Copy, Check, CreditCard, Pause, Play, AlertTriangle, Lock } from 'lucide-react';
 
 import { ShareAppButton } from '@/components/ShareAppButton';
 import { ShareCodeButton } from '@/components/ShareCodeButton';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import clsx from 'clsx';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -123,11 +123,18 @@ export default function Dashboard() {
     setSelectedId(null);
   }, []);
 
-  const handleDeleteDevice = async (deviceId: string) => {
-    const device = items.find(d => d.id === deviceId);
-    const confirmed = window.confirm(`Delete ${device?.name || 'this device'} and all its data?`);
-    if (!confirmed) return;
+  const [confirmAction, setConfirmAction] = useState<
+    | { kind: 'delete-device'; deviceId: string; deviceName: string }
+    | { kind: 'clear-temp-history' }
+    | null
+  >(null);
 
+  const handleDeleteDevice = (deviceId: string) => {
+    const device = items.find(d => d.id === deviceId);
+    setConfirmAction({ kind: 'delete-device', deviceId, deviceName: device?.name || 'this device' });
+  };
+
+  const performDeleteDevice = async (deviceId: string) => {
     try {
       await supabase.from('locations').delete().eq('device_id', deviceId);
       await supabase.from('trips').delete().eq('device_id', deviceId);
@@ -141,10 +148,9 @@ export default function Dashboard() {
     }
   };
 
-  const handleDeleteTempHistory = async () => {
-    const confirmed = window.confirm('Delete all temporary tracking sessions?');
-    if (!confirmed) return;
+  const handleDeleteTempHistory = () => setConfirmAction({ kind: 'clear-temp-history' });
 
+  const performDeleteTempHistory = async () => {
     try {
       const { error } = await supabase.from('temp_track_sessions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       if (error) throw error;
@@ -559,12 +565,35 @@ export default function Dashboard() {
         </aside>
       </div>
 
-      <LockedFeature featureName="Temp Tracking">
-        <TempTrackingManager />
-      </LockedFeature>
       <LockedFeature featureName="Geofence Alerts">
         <GeofenceAlerts />
       </LockedFeature>
+
+      {/* Styled confirmations (replaces window.confirm) */}
+      <ConfirmDialog
+        open={confirmAction?.kind === 'delete-device'}
+        onOpenChange={(open) => !open && setConfirmAction(null)}
+        title={confirmAction?.kind === 'delete-device' ? `Delete ${confirmAction.deviceName}?` : ''}
+        description="The device, its location history and trips will be permanently deleted. This cannot be undone."
+        confirmLabel="Delete device"
+        destructive
+        onConfirm={() => {
+          if (confirmAction?.kind === 'delete-device') performDeleteDevice(confirmAction.deviceId);
+          setConfirmAction(null);
+        }}
+      />
+      <ConfirmDialog
+        open={confirmAction?.kind === 'clear-temp-history'}
+        onOpenChange={(open) => !open && setConfirmAction(null)}
+        title="Clear temporary tracking history?"
+        description="All temporary tracking sessions will be deleted. Active share links will stop working."
+        confirmLabel="Clear history"
+        destructive
+        onConfirm={() => {
+          performDeleteTempHistory();
+          setConfirmAction(null);
+        }}
+      />
 
       <Link to="/devices/new" className="lg:hidden fixed bottom-4 right-4 md:bottom-6 md:right-6 z-20 safe-bottom">
         <Button variant="default" size="icon" className="rounded-xl h-12 w-12 md:h-14 md:w-14 shadow-xl">

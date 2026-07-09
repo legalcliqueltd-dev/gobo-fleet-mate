@@ -13,8 +13,16 @@ import { Input } from '@/components/ui/input';
 import PaymentModal from '@/components/PaymentModal';
 import { toast } from 'sonner';
 
+// Platform-owner actions (bulk emails etc.) are hidden from regular fleet
+// admins. Override with VITE_PLATFORM_ADMIN_EMAILS (comma-separated).
+const PLATFORM_ADMIN_EMAILS = (import.meta.env.VITE_PLATFORM_ADMIN_EMAILS || 'gobeth.ltd@gmail.com')
+  .split(',')
+  .map((e: string) => e.trim().toLowerCase())
+  .filter(Boolean);
+
 export default function Settings() {
   const { user, subscription } = useAuth();
+  const isPlatformAdmin = !!user?.email && PLATFORM_ADMIN_EMAILS.includes(user.email.toLowerCase());
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [sendingInvoices, setSendingInvoices] = useState(false);
   const [tokens, setTokens] = useState<{ id: string; token: string; platform: string; created_at: string }[]>([]);
@@ -308,8 +316,8 @@ export default function Settings() {
             )}
           </div>
 
-          {/* Send Invoice Emails (admin only) */}
-          {subscription.status === 'active' && (
+          {/* Send Invoice Emails — platform owner only */}
+          {isPlatformAdmin && subscription.status === 'active' && (
             <div className="rounded-lg border border-dashed border-border p-4 space-y-2">
               <div className="flex items-center gap-2">
                 <Mail className="h-4 w-4 text-muted-foreground" />
@@ -341,15 +349,16 @@ export default function Settings() {
             <div className="p-1.5 rounded-lg bg-primary/20">
               <MapPin className="h-4 w-4 text-primary" />
             </div>
-            <h3 className="font-heading font-semibold text-lg">Location Tracking</h3>
+            <h3 className="font-heading font-semibold text-lg">Track this device (web)</h3>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="space-y-1">
-              <Label htmlFor="location-tracking" className="font-medium">Enable Location Tracking</Label>
+              <Label htmlFor="location-tracking" className="font-medium">Share this browser's location</Label>
               <p className="text-sm text-muted-foreground">
-                Continuously track your location for fleet monitoring
+                Puts this computer or phone on the fleet map like a driver. Most fleets use the
+                Android driver app instead — leave this off unless you need it.
               </p>
             </div>
             <Switch
