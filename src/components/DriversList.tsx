@@ -3,11 +3,10 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Clock, MapPin, Navigation, User, Wifi, WifiOff, ExternalLink, Trash2, Unlink, AlertTriangle } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import clsx from 'clsx';
-import { useRef } from 'react';
 
 type Props = {
   onDriverSelect?: (driver: DriverLocation) => void;
@@ -42,9 +41,6 @@ const getLocationStatus = (driver: DriverLocation) => {
 
 export default function DriversList({ onDriverSelect, selectedDriverId }: Props) {
   const { drivers, loading, error } = useDriverLocations();
-  const navigate = useNavigate();
-  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const clickCountRef = useRef(0);
 
   // Check if driver is online (last seen within 5 minutes = active tracking)
   const isOnline = (lastSeen: string | null, status: string | null) => {
@@ -174,27 +170,10 @@ export default function DriversList({ onDriverSelect, selectedDriverId }: Props)
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <button 
-                        onClick={() => {
-                          clickCountRef.current += 1;
-                          
-                          if (clickTimerRef.current) {
-                            clearTimeout(clickTimerRef.current);
-                          }
-                          
-                          clickTimerRef.current = setTimeout(() => {
-                            if (clickCountRef.current === 1) {
-                              // Single click - focus on map
-                              onDriverSelect?.(driver);
-                            } else if (clickCountRef.current >= 2) {
-                              // Double click - navigate to details
-                              navigate(`/driver/${driver.driver_id}`);
-                            }
-                            clickCountRef.current = 0;
-                          }, 250);
-                        }}
-                        className="flex-1 text-left hover:underline"
-                        title="Click to focus on map, double-click for details"
+                      <button
+                        onClick={() => onDriverSelect?.(driver)}
+                        className="flex-1 text-left"
+                        title="Show on map"
                       >
                         <div className="flex items-center gap-2">
                           <div className={clsx('p-1 rounded-full', online ? 'bg-success/20' : 'bg-muted')}>
@@ -273,13 +252,13 @@ export default function DriversList({ onDriverSelect, selectedDriverId }: Props)
                         </div>
                       </button>
                       <div className="flex items-center gap-1">
-                        <Link to={`/driver/${driver.driver_id}`} className="p-1.5 rounded-lg hover:bg-primary/10" title="Details">
+                        <Link to={`/driver/${driver.driver_id}`} className="p-2 rounded-lg hover:bg-primary/10" title="Open driver details">
                           <ExternalLink className="h-4 w-4 text-primary" />
                         </Link>
-                        <button onClick={(e) => handleQuickDisconnect(e, driver)} className="p-1.5 rounded-lg hover:bg-warning/10" title="Disconnect">
+                        <button onClick={(e) => handleQuickDisconnect(e, driver)} className="p-2 rounded-lg hover:bg-warning/10" title="Disconnect driver">
                           <Unlink className="h-4 w-4 text-warning" />
                         </button>
-                        <button onClick={(e) => handleQuickDelete(e, driver)} className="p-1.5 rounded-lg hover:bg-destructive/10" title="Delete">
+                        <button onClick={(e) => handleQuickDelete(e, driver)} className="p-2 rounded-lg hover:bg-destructive/10" title="Delete driver">
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </button>
                       </div>

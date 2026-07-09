@@ -10,6 +10,7 @@ import LockedFeature from '@/components/LockedFeature';
 import { Clock, Plus, TrendingUp, Car, Users, Activity, Trash2, Link2, Download, Smartphone, Timer, Copy, Check, CreditCard, Pause, Play, AlertTriangle, Lock } from 'lucide-react';
 
 import { ShareAppButton } from '@/components/ShareAppButton';
+import { ShareCodeButton } from '@/components/ShareCodeButton';
 import clsx from 'clsx';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -281,49 +282,56 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {/* Stats Banner - Compact */}
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-3">
-        <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
-          <CardContent className="p-2">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-primary/20 shrink-0">
-                <Car className="h-3.5 w-3.5 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-lg font-bold">{items.length}</p>
-                <p className="text-[10px] text-muted-foreground truncate">Devices</p>
-              </div>
-            </div>
+      {/* First-run guide: shown until the first device exists */}
+      {!loading && items.length === 0 && (
+        <Card className="border-primary/30 bg-accent/50">
+          <CardContent className="p-4 md:p-5">
+            <h2 className="mb-3 font-heading text-lg font-bold">Get your first driver on the map</h2>
+            <ol className="grid gap-3 md:grid-cols-3">
+              {[
+                { n: '01', t: 'Add a device', d: 'Create a device for the vehicle — you get a connection code.' },
+                { n: '02', t: 'Share the code', d: 'Send it to your driver by WhatsApp, SMS or email with one tap.' },
+                { n: '03', t: 'Watch them live', d: 'The driver enters the code in the app and appears on this map.' },
+              ].map((s) => (
+                <li key={s.n} className="flex items-start gap-3">
+                  <span className="font-mono text-sm font-semibold text-primary">{s.n}</span>
+                  <div>
+                    <p className="font-semibold leading-tight">{s.t}</p>
+                    <p className="text-sm text-muted-foreground">{s.d}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <Link to="/devices/new" className="mt-4 inline-block">
+              <Button variant="hero">
+                <Plus className="mr-1.5 h-4 w-4" /> Add your first device
+              </Button>
+            </Link>
           </CardContent>
         </Card>
+      )}
 
-        <Card className="bg-gradient-to-br from-success/10 to-success/5 border border-success/20">
-          <CardContent className="p-2">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-success/20 shrink-0">
-                <Users className="h-3.5 w-3.5 text-success" />
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-2 md:gap-3">
+        {[
+          { icon: Car, tint: 'text-primary bg-primary/15', value: items.length, label: 'Devices' },
+          { icon: Users, tint: 'text-success bg-success/15', value: activeDrivers, label: 'Drivers' },
+          { icon: Activity, tint: 'text-warning bg-warning/15', value: activeDevices, label: 'Online' },
+        ].map(({ icon: Icon, tint, value, label }) => (
+          <Card key={label} className="border border-border">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2.5">
+                <div className={clsx('shrink-0 rounded-lg p-2', tint)}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="telemetry text-xl font-semibold leading-none">{value}</p>
+                  <p className="mt-0.5 truncate font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+                </div>
               </div>
-              <div className="min-w-0">
-                <p className="text-lg font-bold">{activeDrivers}</p>
-                <p className="text-[10px] text-muted-foreground truncate">Drivers</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border border-warning/20">
-          <CardContent className="p-2">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-warning/20 shrink-0">
-                <Activity className="h-3.5 w-3.5 text-warning" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-lg font-bold">{activeDevices}</p>
-                <p className="text-[10px] text-muted-foreground truncate">Online</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Main Content - Map on Top */}
@@ -356,107 +364,109 @@ export default function Dashboard() {
         </section>
 
         <aside className="order-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-2 md:gap-2">
-          {/* Devices Card - Compact */}
+          {/* Devices */}
           <Card className="border border-border">
-            <CardHeader className="p-1.5 md:p-2 pb-1">
+            <CardHeader className="p-3 pb-2">
               <div className="flex items-center justify-between">
-                <h3 className="font-heading font-semibold flex items-center gap-1.5 text-xs md:text-sm">
-                  <div className="p-1 rounded-md bg-primary/20">
-                    <Car className="h-3 w-3 text-primary" />
+                <h3 className="flex items-center gap-2 font-heading text-sm font-semibold">
+                  <div className="rounded-md bg-primary/15 p-1.5">
+                    <Car className="h-3.5 w-3.5 text-primary" />
                   </div>
                   Devices
                 </h3>
                 <Link to="/devices/new">
-                  <Button variant="outline" size="sm" className="h-6 text-[10px] px-2">
-                    <Plus className="h-3 w-3 mr-0.5" /> Add
+                  <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs">
+                    <Plus className="mr-1 h-3.5 w-3.5" /> Add
                   </Button>
                 </Link>
               </div>
             </CardHeader>
-            <CardContent className="p-1.5 md:p-2 pt-0">
+            <CardContent className="p-3 pt-0">
               {loading && (
-                <div className="flex items-center justify-center py-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                <div className="flex items-center justify-center py-3">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
                 </div>
               )}
-              {error && <div className="text-[10px] text-destructive">{error}</div>}
+              {error && <div className="text-xs text-destructive">{error}</div>}
               {!loading && items.length === 0 && (
-                <div className="text-center py-2">
-                  <Car className="h-4 w-4 text-muted-foreground mx-auto mb-1" />
-                  <p className="text-[10px] text-muted-foreground">No devices yet.</p>
-                  <Link to="/devices/new" className="text-[10px] text-primary hover:underline">Add device →</Link>
+                <div className="py-3 text-center">
+                  <Car className="mx-auto mb-1 h-5 w-5 text-muted-foreground" />
+                  <p className="text-xs text-muted-foreground">No devices yet.</p>
+                  <Link to="/devices/new" className="text-xs text-primary hover:underline">Add device →</Link>
                 </div>
               )}
-              <ul className="space-y-1 max-h-[180px] md:max-h-[220px] overflow-y-auto">
+              <ul className="max-h-[320px] space-y-2 overflow-y-auto">
                 {items.map((d) => {
                   const hasFix = !!d.latest;
                   return (
                     <li key={d.id}>
                       <div className={clsx(
-                        'rounded-md border p-1.5 transition-all',
-                        d.is_paused 
-                          ? 'border-muted bg-muted/30 opacity-60' 
-                          : selectedId === d.id 
-                            ? 'border-primary bg-primary/10 hover:border-primary/50' 
-                            : 'border-border bg-card/50 hover:border-primary/50 hover:bg-primary/5'
+                        'rounded-lg border p-2.5 transition-all',
+                        d.is_paused
+                          ? 'border-muted bg-muted/30 opacity-60'
+                          : selectedId === d.id
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border bg-card/50 hover:border-primary/50'
                       )}>
-                        {/* Row 1: Name + Code + Actions */}
-                        <div className="flex items-center justify-between gap-1">
-                          <button onClick={() => setSelectedId(d.id)} className="text-left flex-1 min-w-0 flex items-center gap-1.5">
+                        {/* Row 1: name + status + housekeeping */}
+                        <div className="flex items-center justify-between gap-2">
+                          <button onClick={() => setSelectedId(d.id)} className="flex min-w-0 flex-1 items-center gap-2 text-left">
                             <div className={clsx(
-                              'h-1.5 w-1.5 rounded-full shrink-0',
+                              'h-2 w-2 shrink-0 rounded-full',
                               d.is_paused ? 'bg-muted-foreground' :
                               d.status === 'active' ? 'bg-success animate-pulse' : d.status === 'idle' ? 'bg-warning' : 'bg-muted-foreground'
                             )} />
-                            <span className={clsx("font-medium text-[11px] truncate", d.is_paused && "line-through text-muted-foreground")}>{d.name ?? 'Unnamed'}</span>
+                            <span className={clsx('truncate text-sm font-semibold', d.is_paused && 'line-through text-muted-foreground')}>{d.name ?? 'Unnamed'}</span>
                             {d.is_paused && (
-                              <Badge variant="outline" className="text-[7px] px-1 py-0 border-muted-foreground/30 text-muted-foreground">
+                              <Badge variant="outline" className="border-muted-foreground/30 px-1.5 py-0 text-[10px] text-muted-foreground">
                                 PAUSED
                               </Badge>
                             )}
-                          </button>
-                          <div className="flex items-center gap-0.5 shrink-0">
-                            {d.connection_code && !d.is_paused && (
-                              <>
-                                <span className="text-xs font-mono font-semibold text-foreground">{d.connection_code}</span>
-                                <button
-                                  onClick={() => handleCopyCode(d.connection_code!, d.id)}
-                                  className="p-0.5 rounded hover:bg-primary/10"
-                                  title="Copy"
-                                >
-                                  {copiedId === d.id ? (
-                                    <Check className="h-2.5 w-2.5 text-success" />
-                                  ) : (
-                                    <Copy className="h-2.5 w-2.5 text-muted-foreground" />
-                                  )}
-                                </button>
-                              </>
+                            {d.is_temporary && (
+                              <Badge variant="outline" className="border-primary/30 px-1.5 py-0 text-[10px] text-primary">TEMP</Badge>
                             )}
-                            <button 
-                              onClick={() => handleTogglePause(d.id, !!d.is_paused)} 
-                              className={clsx("p-0.5 rounded", d.is_paused ? "hover:bg-success/10" : "hover:bg-warning/10")}
-                              title={d.is_paused ? "Resume" : "Pause"}
+                          </button>
+                          <div className="flex shrink-0 items-center gap-0.5">
+                            <button
+                              onClick={() => handleTogglePause(d.id, !!d.is_paused)}
+                              className={clsx('rounded-md p-1.5', d.is_paused ? 'hover:bg-success/10' : 'hover:bg-warning/10')}
+                              title={d.is_paused ? 'Resume tracking' : 'Pause tracking'}
                             >
                               {d.is_paused ? (
-                                <Play className="h-2.5 w-2.5 text-success" />
+                                <Play className="h-3.5 w-3.5 text-success" />
                               ) : (
-                                <Pause className="h-2.5 w-2.5 text-warning" />
+                                <Pause className="h-3.5 w-3.5 text-warning" />
                               )}
                             </button>
-                            <button onClick={() => handleDeleteDevice(d.id)} className="p-0.5 rounded hover:bg-destructive/10" title="Delete">
-                              <Trash2 className="h-2.5 w-2.5 text-destructive" />
+                            <button onClick={() => handleDeleteDevice(d.id)} className="rounded-md p-1.5 hover:bg-destructive/10" title="Delete device">
+                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
                             </button>
                           </div>
                         </div>
-                        {/* Row 2: Timestamp + TEMP badge */}
-                        <div className="flex items-center justify-between mt-0.5">
-                          <div className="text-[9px] text-muted-foreground flex items-center gap-0.5">
-                            <Clock className="h-2 w-2" />
-                            <span className="truncate">{hasFix ? new Date(d.latest!.timestamp).toLocaleString() : 'No location'}</span>
+
+                        {/* Row 2: the connection code — the thing dispatchers share */}
+                        {d.connection_code && !d.is_paused && (
+                          <div className="mt-2 flex items-center justify-between gap-2 rounded-md border border-border bg-muted/40 p-1.5 pl-2.5">
+                            <button
+                              onClick={() => handleCopyCode(d.connection_code!, d.id)}
+                              className="flex min-w-0 items-center gap-1.5 text-left"
+                              title="Copy code"
+                            >
+                              <span className="telemetry truncate text-base font-semibold tracking-[0.2em]">{d.connection_code}</span>
+                              {copiedId === d.id ? (
+                                <Check className="h-3.5 w-3.5 shrink-0 text-success" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                              )}
+                            </button>
+                            <ShareCodeButton code={d.connection_code} deviceName={d.name ?? undefined} size="sm" className="h-8 shrink-0" />
                           </div>
-                          {d.is_temporary && (
-                            <span className="px-1 py-0.5 text-[7px] rounded bg-purple-500/20 text-purple-400 font-bold">TEMP</span>
-                          )}
+                        )}
+
+                        {/* Row 3: last fix */}
+                        <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          <span className="truncate">{hasFix ? new Date(d.latest!.timestamp).toLocaleString() : 'No location yet'}</span>
                         </div>
                       </div>
                     </li>
@@ -468,94 +478,82 @@ export default function Dashboard() {
 
           <DriversList onDriverSelect={handleDriverSelect} selectedDriverId={selectedDriverId} />
 
-          {/* Driver App Download Card - Compact */}
-          <Card className="border border-primary/20 bg-gradient-to-br from-primary/10 to-primary/5">
-            <CardContent className="p-1.5 md:p-2">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <div className="p-1 rounded-md bg-primary/20">
-                  <Smartphone className="h-3 w-3 text-primary" />
+          {/* Everything else in one quiet card */}
+          <Card className="border border-border">
+            <CardContent className="space-y-4 p-3">
+              {/* Driver app */}
+              <div>
+                <h3 className="mb-2 flex items-center gap-2 font-heading text-sm font-semibold">
+                  <Smartphone className="h-4 w-4 text-primary" />
+                  Driver app
+                </h3>
+                <div className="flex gap-2">
+                  <a href={APK_DOWNLOAD_URL} download className="flex-1">
+                    <Button variant="default" size="sm" className="h-9 w-full text-xs">
+                      <Download className="mr-1 h-3.5 w-3.5" />
+                      Download
+                    </Button>
+                  </a>
+                  <ShareAppButton variant="outline" size="sm" className="h-9 flex-1 text-xs" />
                 </div>
-                <h3 className="font-heading font-semibold text-[11px]">Driver App</h3>
               </div>
-              <div className="flex gap-1.5">
-                <a href={APK_DOWNLOAD_URL} download className="flex-1">
-                  <Button variant="hero" size="sm" className="w-full h-6 text-[10px]">
-                    <Download className="h-3 w-3 mr-1" />
-                    Download
-                  </Button>
-                </a>
-                <ShareAppButton variant="outline" size="sm" className="h-6 text-[10px] px-2" />
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Billing Card - Enhanced */}
-          <Card className={`border ${subscription.status === 'active' ? 'border-success/30 bg-success/5' : 'border-border'}`}>
-            <CardContent className="p-2 md:p-3 space-y-2">
-              <div className="flex items-center gap-1.5">
-                <div className="p-1 rounded-md bg-primary/20">
-                  <CreditCard className="h-3 w-3 text-primary" />
-                </div>
-                <h3 className="font-heading font-semibold text-xs">Billing</h3>
-                {subscription.status === 'active' && subscription.plan && (
-                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-success/10 text-success border-success/30 ml-auto">
-                    ✓ {subscription.plan === 'pro' ? 'Pro' : 'Basic'} Active
-                  </Badge>
-                )}
-                {subscription.status === 'trial' && (
-                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-warning/10 text-warning border-warning/30 ml-auto">
-                    Trial
-                  </Badge>
-                )}
-              </div>
-              
-              {subscription.status === 'active' ? (
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-success">
-                    {subscription.plan === 'pro' ? '⭐ Pro' : '⚡ Basic'} Plan
-                  </p>
-                  {subscription.subscriptionEnd && (
-                    <p className="text-[10px] text-muted-foreground">
-                      Active until {new Date(subscription.subscriptionEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </p>
+              <div className="border-t border-border" />
+
+              {/* Billing */}
+              <div>
+                <div className="mb-1.5 flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-primary" />
+                  <h3 className="font-heading text-sm font-semibold">Billing</h3>
+                  {subscription.status === 'active' && subscription.plan && (
+                    <Badge variant="outline" className="ml-auto border-success/30 bg-success/10 px-1.5 py-0 text-[10px] text-success">
+                      {subscription.plan === 'pro' ? 'Pro' : 'Basic'} active
+                    </Badge>
+                  )}
+                  {subscription.status === 'trial' && (
+                    <Badge variant="outline" className="ml-auto border-warning/30 bg-warning/10 px-1.5 py-0 text-[10px] text-warning">
+                      Trial
+                    </Badge>
                   )}
                 </div>
-              ) : subscription.status === 'trial' ? (
-                <p className="text-[10px] text-muted-foreground">
-                  {subscription.trialDaysRemaining} day{subscription.trialDaysRemaining !== 1 ? 's' : ''} remaining in free trial
+                <p className="mb-2 text-xs text-muted-foreground">
+                  {subscription.status === 'active' && subscription.subscriptionEnd
+                    ? `Active until ${new Date(subscription.subscriptionEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                    : subscription.status === 'trial'
+                      ? `${subscription.trialDaysRemaining} day${subscription.trialDaysRemaining !== 1 ? 's' : ''} left in your free trial`
+                      : 'Trial expired — subscribe to continue'}
                 </p>
-              ) : (
-                <p className="text-[10px] text-destructive font-medium">
-                  Trial expired — subscribe to continue
-                </p>
-              )}
-              
-              <Button 
-                variant={subscription.status === 'active' ? "outline" : "hero"} 
-                size="sm" 
-                className="w-full h-7 text-xs"
-                onClick={() => setShowUpgradeModal(true)}
-              >
-                <CreditCard className="h-3 w-3 mr-1" />
-                {subscription.status === 'active' ? 'Manage Plan' : 'Upgrade Now'}
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions - Compact */}
-          <Card className="border border-border">
-            <CardContent className="p-1.5 md:p-2 space-y-1">
-              <h3 className="font-heading font-semibold text-[11px] mb-1">Quick Actions</h3>
-              <Link to="/temp-tracking" className="block">
-                <Button variant="outline" size="sm" className="w-full justify-start h-6 text-[10px]">
-                  <Link2 className="h-3 w-3 mr-1" />
-                  Temp Tracking
+                <Button
+                  variant={subscription.status === 'active' ? 'outline' : 'hero'}
+                  size="sm"
+                  className="h-9 w-full text-xs"
+                  onClick={() => setShowUpgradeModal(true)}
+                >
+                  <CreditCard className="mr-1 h-3.5 w-3.5" />
+                  {subscription.status === 'active' ? 'Manage plan' : 'Upgrade now'}
                 </Button>
-              </Link>
-              <Button variant="outline" size="sm" className="w-full justify-start h-6 text-[10px] text-destructive hover:bg-destructive/10" onClick={handleDeleteTempHistory}>
-                <Trash2 className="h-3 w-3 mr-1" />
-                Clear History
-              </Button>
+              </div>
+
+              <div className="border-t border-border" />
+
+              {/* Temp tracking */}
+              <div className="flex gap-2">
+                <Link to="/temp-tracking" className="flex-1">
+                  <Button variant="outline" size="sm" className="h-9 w-full justify-start text-xs">
+                    <Link2 className="mr-1 h-3.5 w-3.5" />
+                    Temp tracking
+                  </Button>
+                </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 text-xs text-destructive hover:bg-destructive/10"
+                  onClick={handleDeleteTempHistory}
+                  title="Clear temporary tracking history"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </aside>

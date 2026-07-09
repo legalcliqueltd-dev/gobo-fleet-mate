@@ -1,6 +1,6 @@
 {
 	"appId": "app.fleettrackmate.driver",
-	"appName": "FleetTrackMate-Driver",
+	"appName": "FleetTrackMate Driver",
 	"webDir": "dist",
 	"bundledWebRuntime": false,
 	"includePlugins": [
@@ -10,9 +10,16 @@
 		"@capacitor/haptics",
 		"@capacitor/keyboard",
 		"@capacitor/status-bar",
-		"@capawesome-team/capacitor-android-foreground-service"
+		"@transistorsoft/capacitor-background-geolocation",
+		"@transistorsoft/capacitor-background-fetch"
 	],
-	"android": {},
+	"ios": {
+		"contentInset": "automatic",
+		"backgroundColor": "#ffffff"
+	},
+	"android": {
+		"backgroundColor": "#ffffff"
+	},
 	"plugins": {
 		"Geolocation": {
 			"requestAlwaysPermission": true

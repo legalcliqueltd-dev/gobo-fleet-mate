@@ -6,5 +6,13 @@
 	{
 		"pkg": "@capacitor/geolocation",
 		"classpath": "com.capacitorjs.plugins.geolocation.GeolocationPlugin"
+	},
+	{
+		"pkg": "@transistorsoft/capacitor-background-geolocation",
+		"classpath": "com.transistorsoft.bggeo.capacitor.BackgroundGeolocationPlugin"
+	},
+	{
+		"pkg": "@transistorsoft/capacitor-background-fetch",
+		"classpath": "com.transistorsoft.bgfetch.capacitor.BackgroundFetchPlugin"
 	}
 ]
