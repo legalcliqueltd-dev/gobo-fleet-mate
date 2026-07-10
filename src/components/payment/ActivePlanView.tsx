@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, Star, Zap, Calendar, ArrowDown, Loader2, AlertTriangle, CreditCard, Building2 } from "lucide-react";
+import { Check, Star, Zap, Calendar, ArrowDown, Loader2, AlertTriangle, CreditCard, Building2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { plans } from "@/components/PaymentWall";
@@ -24,6 +24,38 @@ interface ActivePlanViewProps {
 const ActivePlanView = ({ subscription, onDismiss, onRefresh }: ActivePlanViewProps) => {
   const [downgradeLoading, setDowngradeLoading] = useState(false);
   const [showDowngradeConfirm, setShowDowngradeConfirm] = useState(false);
+  const [showCancelInfo, setShowCancelInfo] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [canceledUntil, setCanceledUntil] = useState<string | null>(null);
+
+  const handleCancel = async () => {
+    setCancelLoading(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase.functions.invoke('manage-subscription', {
+        body: { action: 'cancel' },
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+
+      const endsAt = data?.endsAt
+        ? new Date(data.endsAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+        : null;
+      setCanceledUntil(endsAt);
+      toast.success("Subscription canceled — no further charges.");
+      await onRefresh();
+    } catch (err) {
+      console.error("Cancel error:", err);
+      toast.error(err instanceof Error ? err.message : "Failed to cancel subscription");
+    } finally {
+      setCancelLoading(false);
+    }
+  };
 
   const currentPlan = subscription.plan || 'pro';
   const planDetails = plans[currentPlan];
@@ -125,15 +157,91 @@ const ActivePlanView = ({ subscription, onDismiss, onRefresh }: ActivePlanViewPr
           </div>
         </div>
 
-        {/* Downgrade option for Pro users */}
-        {isPro && !showDowngradeConfirm && (
-          <div className="pt-2 border-t border-border">
-            <button 
-              onClick={() => setShowDowngradeConfirm(true)}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2 w-full text-center"
+        {/* Plan management links */}
+        {!showDowngradeConfirm && !showCancelInfo && (
+          <div className="flex items-center justify-center gap-6 pt-2 border-t border-border">
+            {isPro && (
+              <button
+                onClick={() => setShowDowngradeConfirm(true)}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+              >
+                Downgrade to Basic
+              </button>
+            )}
+            <button
+              onClick={() => setShowCancelInfo(true)}
+              className="text-xs text-muted-foreground hover:text-destructive transition-colors underline underline-offset-2"
             >
-              Downgrade to Basic
+              Cancel subscription
             </button>
+          </div>
+        )}
+
+        {/* Cancel confirmed state */}
+        {canceledUntil !== null && (
+          <div className="border border-success/30 bg-success/5 rounded-xl p-4">
+            <div className="flex items-start gap-2">
+              <Check className="w-5 h-5 text-success mt-0.5 flex-shrink-0" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Subscription canceled</p>
+                <p className="text-xs text-muted-foreground">
+                  You keep full access until <strong>{canceledUntil || formattedRenewal || 'the end of your current billing period'}</strong>.
+                  No further charges will be made. The driver app stays free either way.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cancel flow — provider-aware and honest about what happens */}
+        {showCancelInfo && canceledUntil === null && (
+          <div className="border border-border bg-muted/30 rounded-xl p-4 space-y-3">
+            <div className="flex items-start gap-2">
+              <XCircle className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium">Cancel your subscription</p>
+                {subscription.paymentProvider === 'paystack' ? (
+                  <p className="text-xs text-muted-foreground">
+                    Your plan is a one-time payment with <strong>no auto-renewal</strong> — nothing
+                    charges again automatically. Your access simply ends on{' '}
+                    <strong>{formattedRenewal || 'the end of your current period'}</strong>. There is
+                    nothing else you need to do.
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Your renewal will be stopped immediately. You keep full access until{' '}
+                    <strong>{formattedRenewal || 'the end of your current billing period'}</strong>,
+                    and no further charges are made after that.
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => setShowCancelInfo(false)}
+              >
+                Keep my plan
+              </Button>
+              {subscription.paymentProvider !== 'paystack' && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="flex-1"
+                  onClick={handleCancel}
+                  disabled={cancelLoading}
+                >
+                  {cancelLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                  ) : (
+                    <XCircle className="w-4 h-4 mr-1" />
+                  )}
+                  Confirm cancellation
+                </Button>
+              )}
+            </div>
           </div>
         )}
 

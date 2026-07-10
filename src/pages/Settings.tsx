@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import PaymentModal from '@/components/PaymentModal';
+import PaymentWall from '@/components/PaymentWall';
 import { toast } from 'sonner';
 
 // Platform-owner actions (bulk emails etc.) are hidden from regular fleet
@@ -24,6 +25,7 @@ export default function Settings() {
   const { user, subscription } = useAuth();
   const isPlatformAdmin = !!user?.email && PLATFORM_ADMIN_EMAILS.includes(user.email.toLowerCase());
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showManageWall, setShowManageWall] = useState(false);
   const [sendingInvoices, setSendingInvoices] = useState(false);
   const [tokens, setTokens] = useState<{ id: string; token: string; platform: string; created_at: string }[]>([]);
   
@@ -302,13 +304,21 @@ export default function Settings() {
           )}
 
           {/* Action buttons */}
-          <div className="flex gap-3">
-            {subscription.status === 'active' && subscription.plan === 'pro' ? (
-              <p className="text-sm text-muted-foreground">You have the highest plan. No upgrades available.</p>
-            ) : subscription.status === 'active' && subscription.plan === 'basic' ? (
-              <Button variant="default" onClick={() => setShowPaymentModal(true)}>
-                Upgrade to Pro
-              </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            {subscription.status === 'active' ? (
+              <>
+                <Button variant="outline" onClick={() => setShowManageWall(true)}>
+                  Manage subscription
+                </Button>
+                {subscription.plan === 'basic' && (
+                  <Button variant="default" onClick={() => setShowPaymentModal(true)}>
+                    Upgrade to Pro
+                  </Button>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Downgrade or cancel from here.
+                </p>
+              </>
             ) : (
               <Button variant="default" onClick={() => setShowPaymentModal(true)}>
                 Subscribe Now
@@ -342,6 +352,7 @@ export default function Settings() {
       </Card>
 
       <PaymentModal open={showPaymentModal} onOpenChange={setShowPaymentModal} />
+      {showManageWall && <PaymentWall onDismiss={() => setShowManageWall(false)} />}
 
       <Card className="border-2 border-border">
         <CardHeader className="pb-3">
