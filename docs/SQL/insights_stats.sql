@@ -48,3 +48,12 @@ as $$
     coalesce(idle_minutes, 0)
   from agg;
 $$;
+
+-- ============================================================
+-- driver_stats v2 (2026-07-10, applied as migration driver_stats_v2_noise_robust)
+-- Same signature as v1, hardened against GPS noise:
+--   accuracy > 100 m ignored; speeds outside 0..200 ignored;
+--   <15 m slow segments = jitter (no distance); implied >180 km/h = teleport
+--   (no distance); gaps >15 min excluded from idle/active time.
+-- Source of truth: deployed function in Supabase (see migration).
+-- ============================================================

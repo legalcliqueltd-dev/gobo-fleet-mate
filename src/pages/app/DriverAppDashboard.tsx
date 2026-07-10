@@ -6,7 +6,7 @@ import { trackingService } from '@/services/trackingService';
 import { useTrackingService } from '@/hooks/useTrackingService';
 import { MapContainer, Polyline } from 'react-leaflet';
 import type { Map as LeafletMapType } from 'leaflet';
-import { AppTileLayer, DriverMarker, TaskMarker, FollowController, AccuracyCircle, DEFAULT_CENTER } from '@/components/map/leaflet/LeafletMap';
+import { AppTileLayer, DriverMarker, TaskMarker, FollowController, AccuracyCircle, MapAttribution, DEFAULT_CENTER } from '@/components/map/leaflet/LeafletMap';
 import { Crosshair, Wifi, Signal, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -292,8 +292,10 @@ export default function DriverAppDashboard() {
             center={currentLocation ? [currentLocation.lat, currentLocation.lng] : DEFAULT_CENTER}
             zoom={16}
             zoomControl={false}
+            attributionControl={false}
             style={{ width: '100%', height: '100%' }}
           >
+            <MapAttribution />
             <AppTileLayer isDark={isDark} mapType={mapType} />
 
             <FollowController

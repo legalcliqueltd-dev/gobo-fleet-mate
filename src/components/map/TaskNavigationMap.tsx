@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { MapContainer, Polyline } from 'react-leaflet';
 import type { Map as LeafletMapType } from 'leaflet';
-import { AppTileLayer, DriverMarker, TaskMarker } from '@/components/map/leaflet/LeafletMap';
+import { AppTileLayer, DriverMarker, TaskMarker, MapAttribution } from '@/components/map/leaflet/LeafletMap';
 import { Button } from '@/components/ui/button';
 import { X, Navigation, LocateFixed, MapPin } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -217,8 +217,10 @@ export default function TaskNavigationMap({
           center={[dropoffLat, dropoffLng]}
           zoom={15}
           zoomControl={false}
+          attributionControl={false}
           style={{ width: '100%', height: '100%' }}
         >
+          <MapAttribution />
           <AppTileLayer isDark={isDark} mapType="roadmap" />
 
           {routePath.length > 1 && (

@@ -109,6 +109,38 @@ class TrackingService extends EventTarget {
   }
 
   /**
+   * Real battery readings via the Battery Status API (Android WebView + web).
+   * Without this, batteryLevel stayed at its default 100 forever on Android —
+   * the Transistorsoft payload that used to feed it is iOS-only. Event-driven,
+   * so the level stays current for every location update and heartbeat.
+   */
+  private batteryMonitorStarted = false;
+  private async initBatteryMonitor(): Promise<void> {
+    if (this.batteryMonitorStarted) return;
+    this.batteryMonitorStarted = true;
+    try {
+      const nav = navigator as any;
+      if (typeof nav.getBattery !== 'function') {
+        console.log('[TrackingService] Battery Status API unavailable (iOS uses native payload)');
+        return;
+      }
+      const battery = await nav.getBattery();
+      const update = () => {
+        const level = Math.round((battery.level ?? 1) * 100);
+        if (level !== this.state.batteryLevel) {
+          this.setState({ batteryLevel: level });
+        }
+      };
+      update();
+      battery.addEventListener('levelchange', update);
+      battery.addEventListener('chargingchange', update);
+      console.log('[TrackingService] Battery monitor active:', Math.round((battery.level ?? 1) * 100) + '%');
+    } catch (e) {
+      console.warn('[TrackingService] Battery monitor failed:', e);
+    }
+  }
+
+  /**
    * Idempotent. Safe to call multiple times — only starts the underlying
    * native plugin once. Updates IDs if they changed.
    */
@@ -117,6 +149,8 @@ class TrackingService extends EventTarget {
       console.warn('[TrackingService] start() called without driverId/adminCode');
       return;
     }
+
+    this.initBatteryMonitor();
 
     // Persist intent so cold-starts can resume.
     localStorage.setItem(STORAGE_KEYS.IS_ON, 'true');

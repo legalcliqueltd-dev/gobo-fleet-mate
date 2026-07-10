@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import L from 'leaflet';
-import { TileLayer, Marker, Circle, useMap, useMapEvents } from 'react-leaflet';
+import { TileLayer, Marker, Circle, AttributionControl, useMap, useMapEvents } from 'react-leaflet';
 import { useEffect } from 'react';
 import 'leaflet/dist/leaflet.css';
 
@@ -13,6 +13,16 @@ import 'leaflet/dist/leaflet.css';
  */
 
 export const DEFAULT_CENTER: [number, number] = [6.5244, 3.3792]; // Lagos
+
+/**
+ * Required OSM/CARTO attribution, restyled as a tiny translucent whisper
+ * (see .leaflet-control-attribution in index.css) instead of the default
+ * white tag that crowded the bottom controls. prefix={false} drops the
+ * "Leaflet" flag link. Use with `attributionControl={false}` on MapContainer.
+ */
+export function MapAttribution() {
+  return <AttributionControl position="bottomright" prefix={false} />;
+}
 
 const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>';
 const ESRI_ATTRIBUTION = 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics';
