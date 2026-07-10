@@ -30,13 +30,14 @@ export function AppTileLayer({ isDark, mapType }: { isDark: boolean; mapType: 'r
   }
   return isDark ? (
     <TileLayer
-      key="carto-dark"
-      url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+      // Voyager carries far more roads/detail than CARTO Dark Matter; inverting
+      // it (CSS in index.css) yields a bold, readable dark map — "alive" at night.
+      key="carto-voyager-inverted"
+      url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
       attribution={OSM_ATTRIBUTION}
       subdomains="abcd"
       maxZoom={20}
-      // Dark Matter is too dim in a cab at night — lift it (CSS filter in index.css)
-      className="tiles-dark-boost"
+      className="tiles-dark-invert"
     />
   ) : (
     <TileLayer

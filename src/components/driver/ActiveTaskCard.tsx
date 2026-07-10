@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Navigation, MapPin, Clock, ChevronRight } from 'lucide-react';
+import { Navigation, MapPin, Clock, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Task = {
@@ -16,6 +16,9 @@ interface ActiveTaskCardProps {
   task: Task;
   driverLocation: { lat: number; lng: number } | null;
   onNavigate: () => void;
+  /** Collapsed = slim pill so the map stays visible; driver toggles freely. */
+  collapsed: boolean;
+  onToggleCollapse: () => void;
 }
 
 function calculateDistance(
@@ -32,7 +35,7 @@ function calculateDistance(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export default function ActiveTaskCard({ task, driverLocation, onNavigate }: ActiveTaskCardProps) {
+export default function ActiveTaskCard({ task, driverLocation, onNavigate, collapsed, onToggleCollapse }: ActiveTaskCardProps) {
   const navigate = useNavigate();
 
   const distance = (driverLocation && task.dropoff_lat && task.dropoff_lng)
@@ -45,6 +48,36 @@ export default function ActiveTaskCard({ task, driverLocation, onNavigate }: Act
   };
 
   const isArrived = distance !== null && distance < 0.05; // 50m
+
+  // Collapsed: one slim pill — tap anywhere to expand, map stays in view.
+  if (collapsed) {
+    return (
+      <div className="absolute bottom-0 left-0 right-0 z-30 p-3 pointer-events-auto">
+        <button
+          onClick={onToggleCollapse}
+          className={cn(
+            'flex min-h-[48px] w-full items-center gap-2.5 rounded-full border bg-card/95 px-4 py-2 shadow-xl backdrop-blur-lg',
+            isArrived ? 'border-success' : 'border-border'
+          )}
+          aria-label="Expand task details"
+        >
+          <span className={cn(
+            'h-2.5 w-2.5 shrink-0 rounded-full',
+            isArrived ? 'bg-success' : task.status === 'en_route' ? 'bg-warning animate-pulse' : 'bg-primary'
+          )} />
+          <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold">{task.title}</span>
+          {isArrived ? (
+            <span className="shrink-0 font-mono text-[10px] font-bold uppercase tracking-wider text-success">Arrived</span>
+          ) : (
+            distance !== null && (
+              <span className="telemetry shrink-0 text-xs text-muted-foreground">{formatDistance(distance)}</span>
+            )
+          )}
+          <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="absolute bottom-0 left-0 right-0 z-30 p-3 pointer-events-auto">
@@ -88,15 +121,26 @@ export default function ActiveTaskCard({ task, driverLocation, onNavigate }: Act
                 )}
               </div>
             </div>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-11 w-11 shrink-0"
-              onClick={() => navigate(`/app/tasks/${task.id}/complete`)}
-              aria-label="Open task details"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </Button>
+            <div className="flex shrink-0 items-center">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-11 w-11"
+                onClick={onToggleCollapse}
+                aria-label="Minimize task card"
+              >
+                <ChevronDown className="h-5 w-5" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-11 w-11"
+                onClick={() => navigate(`/app/tasks/${task.id}/complete`)}
+                aria-label="Open task details"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
 
           <div className="flex gap-2">

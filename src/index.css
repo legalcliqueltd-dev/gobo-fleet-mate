@@ -276,10 +276,11 @@
     animation: driver-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
-  /* Leaflet dark tiles (CARTO Dark Matter) are too dim in a cab at night —
-     lift brightness/contrast so roads and labels stay readable. */
-  .tiles-dark-boost {
-    filter: brightness(2.05) contrast(0.95) saturate(1.3);
+  /* Leaflet dark map: CARTO Voyager tiles color-inverted into a dark theme.
+     Voyager renders far more roads/labels than Dark Matter, so the inverted
+     result is bold and detailed instead of dim and empty. */
+  .tiles-dark-invert {
+    filter: invert(1) hue-rotate(180deg) brightness(0.94) contrast(0.92) saturate(1.25);
   }
 
   /* ── Driver app instrument surfaces ── */

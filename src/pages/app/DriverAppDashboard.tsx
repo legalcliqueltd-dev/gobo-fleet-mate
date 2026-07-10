@@ -69,6 +69,10 @@ export default function DriverAppDashboard() {
     return stored === null ? true : stored === 'true';
   });
 
+  // Task card starts expanded so a new assignment is unmissable, but the
+  // driver can shrink it to a pill so it never blocks the map.
+  const [taskCardCollapsed, setTaskCardCollapsed] = useState(false);
+
   useEffect(() => {
     localStorage.setItem('driverOnDuty', String(onDuty));
   }, [onDuty]);
@@ -243,6 +247,12 @@ export default function DriverAppDashboard() {
   // Auto-zoom to show driver + active task dropoff
   const activeTask = tasks.find(t => t.status === 'en_route') || tasks[0] || null;
 
+  // A newly assigned task always re-expands the card so it can't be missed.
+  const activeTaskId = activeTask?.id ?? null;
+  useEffect(() => {
+    setTaskCardCollapsed(false);
+  }, [activeTaskId]);
+
   const getSignalQuality = () => {
     if (accuracy === null) return { label: 'Unknown', color: 'text-muted-foreground', icon: '○' };
     if (accuracy <= 10) return { label: 'Excellent', color: 'text-success', icon: '●' };
@@ -364,7 +374,7 @@ export default function DriverAppDashboard() {
           <div
             className={cn(
               'absolute right-3 z-[1000] flex flex-col items-end gap-2 pointer-events-auto transition-[bottom] duration-200',
-              activeTask ? 'bottom-56' : 'bottom-36'
+              activeTask ? (taskCardCollapsed ? 'bottom-24' : 'bottom-56') : 'bottom-36'
             )}
           >
             {followMode ? (
@@ -414,6 +424,8 @@ export default function DriverAppDashboard() {
               task={activeTask}
               driverLocation={currentLocation}
               onNavigate={() => setNavigatingTask(activeTask)}
+              collapsed={taskCardCollapsed}
+              onToggleCollapse={() => setTaskCardCollapsed(prev => !prev)}
             />
           ) : (
             <DriverStatusCard
