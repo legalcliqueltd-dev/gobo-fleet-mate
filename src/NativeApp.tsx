@@ -63,7 +63,19 @@ import DeleteAccount from '@/pages/DeleteAccount';
 export default function NativeApp() {
   useEffect(() => {
     const handleRejection = (event: PromiseRejectionEvent) => {
-      console.error('Unhandled rejection:', event.reason);
+      // Capacitor plugin errors reach here as objects whose `message` is
+      // non-enumerable, so the console bridge serialises them to bare
+      // {"code":"UNIMPLEMENTED"} — which hides *which* plugin failed. Pull the
+      // useful fields out by hand so the log names the culprit.
+      const reason = event.reason as
+        | { message?: string; code?: string; stack?: string }
+        | undefined;
+      console.error(
+        'Unhandled rejection:',
+        reason?.message ?? String(reason),
+        reason?.code ? `[code: ${reason.code}]` : '',
+        reason?.stack ?? ''
+      );
       event.preventDefault();
     };
     window.addEventListener('unhandledrejection', handleRejection);

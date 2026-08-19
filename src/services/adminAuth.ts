@@ -56,7 +56,26 @@ type SocialLoginPlugin = {
   logout: (options: { provider: string }) => Promise<void>;
 };
 
-let pluginPromise: Promise<SocialLoginPlugin | null> | null = null;
+/**
+ * The plugin is handed around inside a box rather than on its own.
+ *
+ * Capacitor's plugin handle is a Proxy that answers *any* property access with
+ * a callable, `then` included. That makes it look like a thenable, so resolving
+ * a promise with it directly sends the JS runtime down the promise-assimilation
+ * path: it calls `SocialLogin.then(resolve, reject)`, the bridge forwards that
+ * to the native layer as a method named `then`, and the whole sign-in dies with
+ *
+ *     "SocialLogin.then()" is not implemented on ios [code: UNIMPLEMENTED]
+ *
+ * Wrapping it in a plain object means promise resolution never inspects the
+ * proxy. Note this applies to `return plugin` from an async function too — that
+ * value goes through Promise.resolve() and would assimilate exactly the same
+ * way, which is why `loadPlugin` is deliberately not async and hands back the
+ * box for callers to destructure.
+ */
+type PluginBox = { plugin: SocialLoginPlugin | null };
+
+let pluginPromise: Promise<PluginBox> | null = null;
 let initialized = false;
 
 /**
@@ -64,13 +83,13 @@ let initialized = false;
  * website bundle never pays for it, and tolerant of the plugin being absent
  * (e.g. a web preview build) rather than crashing the sign-in screen.
  */
-async function loadPlugin(): Promise<SocialLoginPlugin | null> {
+function loadPlugin(): Promise<PluginBox> {
   if (!pluginPromise) {
     pluginPromise = import('@capgo/capacitor-social-login')
-      .then((mod) => (mod?.SocialLogin as unknown as SocialLoginPlugin) ?? null)
+      .then((mod) => ({ plugin: (mod?.SocialLogin as unknown as SocialLoginPlugin) ?? null }))
       .catch((err) => {
         console.warn('[adminAuth] social-login plugin unavailable:', err);
-        return null;
+        return { plugin: null };
       });
   }
   return pluginPromise;
@@ -107,7 +126,7 @@ async function ensureInitialized(plugin: SocialLoginPlugin): Promise<void> {
 async function signInNatively(provider: SocialProvider): Promise<boolean> {
   if (!isNativeProviderConfigured(provider)) return false;
 
-  const plugin = await loadPlugin();
+  const { plugin } = await loadPlugin();
   if (!plugin) return false;
 
   await ensureInitialized(plugin);
@@ -196,7 +215,7 @@ export async function sendPasswordReset(email: string): Promise<void> {
 }
 
 export async function signOutAdmin(): Promise<void> {
-  const plugin = initialized ? await loadPlugin() : null;
+  const plugin = initialized ? (await loadPlugin()).plugin : null;
   if (plugin) {
     // Best effort — clearing the provider cache means the next sign-in shows
     // the account picker instead of silently reusing the last account.
