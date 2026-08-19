@@ -22,7 +22,10 @@ const config: CapacitorConfig = {
   includePlugins: [
     '@capacitor/camera',
     '@capacitor/geolocation',
+    // Delivers the fleettrackmate:// OAuth callback back into the app
     '@capacitor/app',
+    // Native Google / Apple sign-in sheets for the manager portal
+    '@capgo/capacitor-social-login',
     '@capacitor/haptics',
     '@capacitor/keyboard',
     '@capacitor/status-bar',
@@ -65,6 +68,18 @@ const config: CapacitorConfig = {
     Geolocation: {
       // Request background location permission on iOS
       requestAlwaysPermission: true,
+    },
+
+    // Manager sign-in. Facebook and Twitter are switched off so their SDKs are
+    // never bundled — that keeps the APK smaller and avoids declaring
+    // third-party data collection we do not actually do.
+    SocialLogin: {
+      providers: {
+        google: true,
+        apple: true,
+        facebook: false,
+        twitter: false,
+      },
     },
   },
 };

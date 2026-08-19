@@ -7,6 +7,7 @@
 		"@capacitor/camera",
 		"@capacitor/geolocation",
 		"@capacitor/app",
+		"@capgo/capacitor-social-login",
 		"@capacitor/haptics",
 		"@capacitor/keyboard",
 		"@capacitor/status-bar",
@@ -24,6 +25,14 @@
 	"plugins": {
 		"Geolocation": {
 			"requestAlwaysPermission": true
+		},
+		"SocialLogin": {
+			"providers": {
+				"google": true,
+				"apple": true,
+				"facebook": false,
+				"twitter": false
+			}
 		}
 	}
 }

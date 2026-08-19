@@ -424,7 +424,12 @@ class TrackingService extends EventTarget {
       }
     }
 
-    await startAndroidForegroundService();
+    const fgStarted = await startAndroidForegroundService();
+    if (!fgStarted) {
+      // Without the foreground service Android will freeze us shortly after
+      // the app is backgrounded — tracking would silently become foreground-only.
+      console.error('[TrackingService] FOREGROUND SERVICE FAILED TO START — background tracking will not survive minimizing the app. Check notification permission / service declaration.');
+    }
 
     // Initial fix
     try {
@@ -438,9 +443,34 @@ class TrackingService extends EventTarget {
       console.warn('[TrackingService] Initial fix failed:', e);
     }
 
-    // Polling — more resilient than watchPosition on Android WebView
+    // PRIMARY: native watchPosition. The OS pushes fixes into the WebView via
+    // the plugin bridge, so updates keep flowing while the app is backgrounded.
+    // (The previous setInterval polling died in background: Chromium throttles
+    // and then freezes JS timers a few minutes after minimizing — that was the
+    // "only tracks while the app is open" bug.)
+    try {
+      this.nativeWatchId = await Geolocation.watchPosition(
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
+        (pos, err) => {
+          if (err) {
+            console.warn('[TrackingService] watchPosition error:', err);
+            return;
+          }
+          if (pos) this.handlePosition(pos.coords);
+        }
+      );
+      console.log('[TrackingService] Native watchPosition active:', this.nativeWatchId);
+    } catch (e) {
+      console.warn('[TrackingService] watchPosition failed, falling back to polling only:', e);
+    }
+
+    // BACKUP: slow poll to nudge a fix if the watcher goes quiet while the app
+    // is foregrounded (timers only run reliably in foreground — that's fine,
+    // the watcher covers background).
     this.androidPollTimer = setInterval(async () => {
       try {
+        const last = this.state.lastLocation?.timestamp?.getTime() ?? 0;
+        if (Date.now() - last < 45_000) return; // watcher is healthy
         const pos = await Geolocation.getCurrentPosition({
           enableHighAccuracy: true,
           timeout: 15000,
@@ -448,9 +478,9 @@ class TrackingService extends EventTarget {
         });
         if (pos) this.handlePosition(pos.coords);
       } catch (e) {
-        console.warn('[TrackingService] Android poll failed:', e);
+        console.warn('[TrackingService] Android backup poll failed:', e);
       }
-    }, 30_000);
+    }, 60_000);
   }
 
   // ─── Web / PWA ────────────────────────────────────────────────

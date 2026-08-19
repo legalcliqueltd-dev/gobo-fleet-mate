@@ -1,7 +1,14 @@
 ext {
     minSdkVersion = 23
-    compileSdkVersion = 35
-    targetSdkVersion = 35
+    // API 36 (Android 16). Required on two fronts: androidx.browser 1.9.0 (via
+    // the social-login plugin) needs compileSdk 36, and Google Play requires
+    // targetSdk 36 for app updates from 31 August 2026.
+    //
+    // The app has run edge-to-edge since it targeted 35, and index.html already
+    // sets viewport-fit=cover with the layouts padding off env(safe-area-inset-*),
+    // so the edge-to-edge enforcement in 36 is already accounted for.
+    compileSdkVersion = 36
+    targetSdkVersion = 36
     androidxActivityVersion = '1.9.2'
     androidxAppCompatVersion = '1.7.0'
     androidxCoordinatorLayoutVersion = '1.2.0'

@@ -59,20 +59,24 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
         }
 
         if (status.location === 'prompt' || status.coarseLocation === 'prompt') {
-          // Not yet asked — trigger request automatically
-          await requestNative();
+          // Never asked yet: show the prominent disclosure screen FIRST.
+          // Google Play policy requires the in-app disclosure BEFORE the
+          // system permission dialog — never auto-fire the prompt.
+          appendDebug('Permission not yet requested — showing disclosure');
+          setState('denied');
           return;
         }
 
-        // "denied" — on Android first launch this means "never asked"
+        // "denied" — on Android first launch this can also mean "never asked".
+        // Same rule: show the disclosure screen; the user taps Enable to trigger
+        // the system dialog.
         if (isAndroidNative && !hasAutoRequested.current) {
-          hasAutoRequested.current = true;
-          appendDebug('Android denied (possibly never asked) — auto-requesting');
-          await requestNative();
+          appendDebug('Android reports denied (possibly never asked) — showing disclosure');
+          setState('denied');
           return;
         }
 
-        // Already tried or non-Android — show appropriate UI
+        // Already tried — show appropriate UI
         setState(isAndroidNative ? 'blocked' : 'denied');
       } else {
         // Browser path
@@ -84,8 +88,10 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
     }
   }, [useNativePlugin, isAndroidNative, onPermissionGranted]);
 
-  // ── Native permission request ──
+  // ── Native permission request (only ever triggered by the user's tap on the
+  //     disclosure screen — Play policy: disclosure BEFORE the system prompt) ──
   const requestNative = async () => {
+    hasAutoRequested.current = true;
     setState('requesting');
     let granted = false;
 
@@ -250,18 +256,25 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
     );
   }
 
-  // ── Denied / Error — can retry ──
+  // ── Prominent disclosure (Google Play requirement) + retry ──
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 p-6 text-center">
-      <MapPin className="h-16 w-16 text-primary" />
-      <h2 className="text-xl font-bold text-foreground">Enable Location</h2>
-      <p className="text-muted-foreground">FleetTrackMate needs location access to track your position.</p>
-      <div className="flex flex-col gap-2 w-full max-w-xs">
-        <Button onClick={handleRetry}>
-          <MapPin className="h-4 w-4 mr-2" />Enable Location
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-5 p-6 text-center">
+      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-accent">
+        <MapPin className="h-10 w-10 text-primary" />
+      </div>
+      <h2 className="font-heading text-2xl font-bold text-foreground">Location sharing</h2>
+      <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
+        FleetTrackMate Driver collects location data to share your live position with your
+        fleet manager while you are on duty, <strong className="text-foreground">even when the
+        app is closed or not in use</strong>. Sharing starts only when you go On Duty, shows a
+        permanent notification while active, and stops when you go Off Duty.
+      </p>
+      <div className="flex w-full max-w-xs flex-col gap-2">
+        <Button size="lg" onClick={handleRetry}>
+          <MapPin className="mr-2 h-4 w-4" />Allow location access
         </Button>
         <Button variant="ghost" size="sm" onClick={() => navigate('/app/diagnostics')}>
-          <Bug className="h-4 w-4 mr-2" />Run Diagnostics
+          <Bug className="mr-2 h-4 w-4" />Run Diagnostics
         </Button>
       </div>
       {debug && <pre className="text-xs text-muted-foreground max-w-sm overflow-auto mt-4 p-2 bg-muted rounded">{debug}</pre>}

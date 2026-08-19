@@ -4,9 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { trackingService } from '@/services/trackingService';
 import { useTrackingService } from '@/hooks/useTrackingService';
-import { MapContainer, Polyline } from 'react-leaflet';
-import type { Map as LeafletMapType } from 'leaflet';
-import { AppTileLayer, DriverMarker, TaskMarker, FollowController, AccuracyCircle, MapAttribution, DEFAULT_CENTER } from '@/components/map/leaflet/LeafletMap';
+import DriverGoogleMap, { type DriverGoogleMapHandle } from '@/components/map/google/DriverGoogleMap';
 import { Crosshair, Wifi, Signal, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -17,6 +15,8 @@ import DebugStatusPanel from '@/components/driver/DebugStatusPanel';
 import LocationBlocker from '@/components/driver/LocationBlocker';
 import DriverOnboarding, { isOnboardingCompleted } from '@/components/driver/DriverOnboarding';
 import ActiveTaskCard from '@/components/driver/ActiveTaskCard';
+import StationsCard from '@/components/driver/StationsCard';
+import { useStationWatcher } from '@/hooks/useStationWatcher';
 import TaskNavigationMap from '@/components/map/TaskNavigationMap';
 
 import { cn } from '@/lib/utils';
@@ -45,7 +45,7 @@ export default function DriverAppDashboard() {
   const { session } = useDriverSession();
   const { isDark } = useTheme();
   const navigate = useNavigate();
-  const mapRef = useRef<LeafletMapType | null>(null);
+  const mapRef = useRef<DriverGoogleMapHandle | null>(null);
   const hasInitialCentered = useRef(false);
 
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -141,7 +141,7 @@ export default function DriverAppDashboard() {
     }
 
     if (!hasInitialCentered.current && mapRef.current) {
-      mapRef.current.setView({ lat: loc.latitude, lng: loc.longitude }, 16);
+      mapRef.current.recenter({ lat: loc.latitude, lng: loc.longitude });
       hasInitialCentered.current = true;
     }
   }, [trackingState.lastLocation, trackingState.lastSyncTime, onDuty]);
@@ -232,8 +232,7 @@ export default function DriverAppDashboard() {
 
   const centerOnLocation = useCallback(() => {
     if (mapRef.current && currentLocation) {
-      mapRef.current.panTo(currentLocation);
-      mapRef.current.setZoom(16);
+      mapRef.current.recenter(currentLocation);
       setFollowMode(true);
     }
   }, [currentLocation]);
@@ -244,7 +243,34 @@ export default function DriverAppDashboard() {
 
   const trailPath = trail.map(p => ({ lat: p.lat, lng: p.lng }));
 
+  const taskPins = tasks
+    .filter((t): t is Task & { dropoff_lat: number; dropoff_lng: number } =>
+      t.dropoff_lat != null && t.dropoff_lng != null
+    )
+    .map((t) => ({ id: t.id, lat: t.dropoff_lat, lng: t.dropoff_lng }));
+
   // Auto-zoom to show driver + active task dropoff
+  // Station attendance: watches position against the manager's marked points
+  // and records an arrival once the dwell requirement is met.
+  const {
+    stations,
+    visitFor,
+    refresh: refreshStations,
+  } = useStationWatcher(currentLocation, speed, accuracy, session);
+
+  const stationPins = stations.map((s) => {
+    const visit = visitFor(s.id);
+    return {
+      id: s.id,
+      lat: s.latitude,
+      lng: s.longitude,
+      name: s.name,
+      color: s.color,
+      radius: s.radius_m,
+      done: visit?.status === 'completed' || (Boolean(visit) && !s.requires_photo),
+    };
+  });
+
   const activeTask = tasks.find(t => t.status === 'en_route') || tasks[0] || null;
 
   // A newly assigned task always re-expands the card so it can't be missed.
@@ -287,50 +313,24 @@ export default function DriverAppDashboard() {
 
       <div className="relative h-full w-full flex flex-col min-h-0">
         <div className="flex-1 relative min-h-0">
-          <MapContainer
+          <DriverGoogleMap
             ref={mapRef}
-            center={currentLocation ? [currentLocation.lat, currentLocation.lng] : DEFAULT_CENTER}
-            zoom={16}
-            zoomControl={false}
-            attributionControl={false}
-            style={{ width: '100%', height: '100%' }}
-          >
-            <MapAttribution />
-            <AppTileLayer isDark={isDark} mapType={mapType} />
-
-            <FollowController
-              center={currentLocation}
-              follow={followMode}
-              onUserDrag={() => setFollowMode(false)}
-            />
-
-            {/* Trail polyline — vivid so the journey reads at a glance */}
-            {trailPath.length > 1 && (
-              <Polyline
-                positions={trailPath.map(p => [p.lat, p.lng] as [number, number])}
-                pathOptions={{ color: getRouteStrokeColor(isDark), opacity: 0.9, weight: 6 }}
-              />
-            )}
-
-            {/* GPS accuracy ring + driver marker */}
-            {currentLocation && (
-              <>
-                <AccuracyCircle position={currentLocation} accuracy={accuracy} isTracking={isTracking} />
-                <DriverMarker position={currentLocation} isTracking={isTracking} heading={heading} />
-              </>
-            )}
-
-            {/* Task dropoff markers */}
-            {tasks.map((task) =>
-              task.dropoff_lat && task.dropoff_lng ? (
-                <TaskMarker
-                  key={task.id}
-                  position={{ lat: task.dropoff_lat, lng: task.dropoff_lng }}
-                  onClick={() => setNavigatingTask(task)}
-                />
-              ) : null
-            )}
-          </MapContainer>
+            position={currentLocation}
+            heading={heading}
+            accuracy={accuracy}
+            isTracking={isTracking}
+            trail={trailPath}
+            tasks={taskPins}
+            stations={stationPins}
+            mapType={mapType}
+            isDark={isDark}
+            follow={followMode}
+            onUserDrag={() => setFollowMode(false)}
+            onTaskClick={(taskId) => {
+              const task = tasks.find((t) => t.id === taskId);
+              if (task) setNavigatingTask(task);
+            }}
+          />
 
           {/* Top bar: tracking status + GPS quality */}
           <div className="absolute top-3 left-3 right-3 z-[1000] pointer-events-auto flex items-center justify-between gap-2">
@@ -414,6 +414,12 @@ export default function DriverAppDashboard() {
 
         {/* Bottom card area */}
         <div className="absolute bottom-0 left-0 right-0 z-[1000] p-3 pointer-events-auto">
+          <StationsCard
+            stations={stations}
+            visitFor={visitFor}
+            position={currentLocation}
+            onRefresh={refreshStations}
+          />
           {import.meta.env.DEV && (
             <DebugStatusPanel
               isTracking={isTracking}

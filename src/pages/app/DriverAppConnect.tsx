@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import logo from '@/assets/logo.webp';
 import DriverOnboarding, { isOnboardingCompleted } from '@/components/driver/DriverOnboarding';
+import SwitchModeLink from '@/components/SwitchModeLink';
 
 export default function DriverAppConnect() {
   const [searchParams] = useSearchParams();
@@ -252,7 +253,11 @@ export default function DriverAppConnect() {
           </CardContent>
         </Card>
 
-        <p className="mt-6 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70">
+        <div className="mt-5 flex justify-center">
+          <SwitchModeLink to="admin" />
+        </div>
+
+        <p className="mt-4 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70">
           FleetTrackMate · Live fleet tracking
         </p>
       </div>

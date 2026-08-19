@@ -1,5 +1,5 @@
 import { PropsWithChildren, useState } from 'react';
-import { Menu, X, Home, Settings as SettingsIcon, ClipboardList, AlertTriangle, Plus } from 'lucide-react';
+import { Menu, X, Home, Settings as SettingsIcon, ClipboardList, AlertTriangle, MapPin, Plus } from 'lucide-react';
 import logo from '@/assets/logo.webp';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
@@ -28,6 +28,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
   const navItems = [
     { path: '/dashboard', icon: Home, label: 'Home' },
     { path: '/admin/tasks', icon: ClipboardList, label: 'Tasks' },
+    { path: '/stations', icon: MapPin, label: 'Stations' },
     { path: '/ops/incidents', icon: AlertTriangle, label: 'SOS' },
     { path: '/settings', icon: SettingsIcon, label: 'Settings' },
   ];
