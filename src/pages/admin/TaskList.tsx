@@ -59,6 +59,8 @@ export default function TaskList() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   // Subscribe to task completion alerts
   useAdminTaskNotifications();
@@ -239,7 +241,30 @@ export default function TaskList() {
 
   const pendingTasks = tasks.filter(t => t.status === 'assigned');
   const inProgressTasks = tasks.filter(t => t.status === 'en_route');
-  const completedTasks = tasks.filter(t => t.status === 'completed' || t.status === 'delivered');
+  // "Finished" = anything no longer live, including failed (previously
+  // invisible on the board unless you used the filter dropdown).
+  const completedTasks = tasks.filter(t => t.status === 'completed' || t.status === 'delivered' || t.status === 'failed');
+
+  // Bulk clear: finished tasks + their reports. Pending/in-progress are never touched.
+  const handleClearCompleted = async () => {
+    const ids = completedTasks.map(t => t.id);
+    if (ids.length === 0) return;
+    setClearing(true);
+    try {
+      await supabase.from('task_reports').delete().in('task_id', ids);
+      const { error } = await supabase.from('tasks').delete().in('id', ids);
+      if (error) throw error;
+      toast.success(`Cleared ${ids.length} finished task${ids.length !== 1 ? 's' : ''}`);
+      if (selectedTask && ids.includes(selectedTask.id)) setSelectedTask(null);
+      loadTasks();
+    } catch (err) {
+      console.error('Error clearing tasks:', err);
+      toast.error('Failed to clear finished tasks');
+    } finally {
+      setClearing(false);
+      setClearDialogOpen(false);
+    }
+  };
 
   const TaskCard = ({ task, showReport = false }: { task: Task; showReport?: boolean }) => {
     const report = reports[task.id];
@@ -254,7 +279,11 @@ export default function TaskList() {
             <p className="font-medium flex-1 mr-2">{task.title}</p>
             <div className="flex items-center gap-1.5 shrink-0">
               {showReport ? (
-                <Badge variant="outline" className="text-green-600">✓ Done</Badge>
+                task.status === 'failed' ? (
+                  <Badge variant="destructive">Failed</Badge>
+                ) : (
+                  <Badge variant="outline" className="text-success">✓ Done</Badge>
+                )
               ) : (
                 <Badge variant={getStatusColor(task.status)}>{task.status.replace('_', ' ')}</Badge>
               )}
@@ -286,7 +315,9 @@ export default function TaskList() {
                 );
               })}
               {report.photos.length > 3 && (
-                <div className="w-10 h-10 bg-muted rounded flex items-center justify-center text-xs">+{report.photos.length - 3}</div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-md border border-border bg-muted text-xs font-medium">
+                  +{report.photos.length - 3}
+                </div>
               )}
             </div>
           )}
@@ -323,6 +354,15 @@ export default function TaskList() {
           <Button variant="outline" onClick={exportToCSV}>
             <Download className="h-4 w-4 mr-2" /> Export
           </Button>
+          {completedTasks.length > 0 && (
+            <Button
+              variant="outline"
+              className="text-destructive hover:bg-destructive/10"
+              onClick={() => setClearDialogOpen(true)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" /> Clear finished ({completedTasks.length})
+            </Button>
+          )}
           <Button onClick={() => navigate('/admin/tasks/new')}>
             <Plus className="h-4 w-4 mr-2" /> New Task
           </Button>
@@ -344,48 +384,95 @@ export default function TaskList() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Pending Tasks */}
-          <div>
-            <h2 className="font-semibold mb-3 flex items-center gap-2">
-              <Clock className="h-4 w-4 text-yellow-500" />
-              Pending ({pendingTasks.length})
+          <div className="rounded-xl border border-warning/25 bg-warning/[0.04] p-3">
+            <h2 className="mb-3 flex items-center justify-between border-b border-warning/20 pb-2">
+              <span className="flex items-center gap-2 font-heading font-semibold">
+                <Clock className="h-4 w-4 text-warning" />
+                Waiting
+              </span>
+              <span className="rounded-full bg-warning/15 px-2.5 py-0.5 font-mono text-xs font-semibold text-warning">
+                {pendingTasks.length}
+              </span>
             </h2>
             <div className="space-y-3">
               {pendingTasks.map(task => <TaskCard key={task.id} task={task} />)}
               {pendingTasks.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">No pending tasks</p>
+                <p className="rounded-lg border border-dashed border-border py-4 text-center text-sm text-muted-foreground">
+                  Nothing waiting — create a task to dispatch a driver.
+                </p>
               )}
             </div>
           </div>
 
           {/* In Progress */}
-          <div>
-            <h2 className="font-semibold mb-3 flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-blue-500" />
-              In Progress ({inProgressTasks.length})
+          <div className="rounded-xl border border-primary/25 bg-primary/[0.04] p-3">
+            <h2 className="mb-3 flex items-center justify-between border-b border-primary/20 pb-2">
+              <span className="flex items-center gap-2 font-heading font-semibold">
+                <MapPin className="h-4 w-4 text-primary" />
+                On the road
+              </span>
+              <span className="rounded-full bg-primary/15 px-2.5 py-0.5 font-mono text-xs font-semibold text-primary">
+                {inProgressTasks.length}
+              </span>
             </h2>
             <div className="space-y-3">
               {inProgressTasks.map(task => <TaskCard key={task.id} task={task} />)}
               {inProgressTasks.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">No tasks in progress</p>
+                <p className="rounded-lg border border-dashed border-border py-4 text-center text-sm text-muted-foreground">
+                  Tasks move here when a driver taps Navigate and heads out.
+                </p>
               )}
             </div>
           </div>
 
-          {/* Completed */}
-          <div>
-            <h2 className="font-semibold mb-3 flex items-center gap-2">
-              <FileText className="h-4 w-4 text-green-500" />
-              Completed ({completedTasks.length})
+          {/* Finished — visually calm so live work pops */}
+          <div className="rounded-xl border border-border bg-muted/20 p-3">
+            <h2 className="mb-3 flex items-center justify-between border-b border-border pb-2">
+              <span className="flex items-center gap-2 font-heading font-semibold text-muted-foreground">
+                <FileText className="h-4 w-4 text-success" />
+                Finished
+              </span>
+              <span className="rounded-full bg-muted px-2.5 py-0.5 font-mono text-xs font-semibold text-muted-foreground">
+                {completedTasks.length}
+              </span>
             </h2>
-            <div className="space-y-3 max-h-[600px] overflow-y-auto">
+            <div className="max-h-[600px] space-y-3 overflow-y-auto opacity-80">
               {completedTasks.map(task => <TaskCard key={task.id} task={task} showReport />)}
               {completedTasks.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">No completed tasks</p>
+                <p className="rounded-lg border border-dashed border-border py-4 text-center text-sm text-muted-foreground">
+                  Completed and failed tasks land here.
+                </p>
               )}
             </div>
           </div>
         </div>
       )}
+
+      {/* Bulk clear confirmation */}
+      <AlertDialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Clear {completedTasks.length} finished task{completedTasks.length !== 1 ? 's' : ''}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              All completed and failed tasks — including their delivery reports and proof photos —
+              will be permanently deleted. Waiting and on-the-road tasks are not affected.
+              This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleClearCompleted}
+              disabled={clearing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {clearing ? 'Clearing…' : 'Clear finished tasks'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Task Detail Modal */}
       {selectedTask && (

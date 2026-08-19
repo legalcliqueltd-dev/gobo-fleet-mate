@@ -4,17 +4,19 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { trackingService } from '@/services/trackingService';
 import { useTrackingService } from '@/hooks/useTrackingService';
-import { GoogleMap, useJsApiLoader, Polyline } from '@react-google-maps/api';
-import AdvancedMarker from '@/components/map/AdvancedMarker';
-import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
-import { Crosshair, Map, Wifi, Signal, Layers } from 'lucide-react';
+import DriverGoogleMap, { type DriverGoogleMapHandle } from '@/components/map/google/DriverGoogleMap';
+import { Crosshair, Wifi, Signal, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useTheme } from '@/contexts/ThemeContext';
+import { getRouteStrokeColor } from '@/lib/mapStyles';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
-import DriverLocationMarker from '@/components/map/DriverLocationMarker';
 import DriverStatusCard from '@/components/driver/DriverStatusCard';
 import DebugStatusPanel from '@/components/driver/DebugStatusPanel';
 import LocationBlocker from '@/components/driver/LocationBlocker';
+import DriverOnboarding, { isOnboardingCompleted } from '@/components/driver/DriverOnboarding';
 import ActiveTaskCard from '@/components/driver/ActiveTaskCard';
+import StationsCard from '@/components/driver/StationsCard';
+import { useStationWatcher } from '@/hooks/useStationWatcher';
 import TaskNavigationMap from '@/components/map/TaskNavigationMap';
 
 import { cn } from '@/lib/utils';
@@ -39,23 +41,11 @@ type TrailPoint = {
 const TRAIL_STORAGE_KEY = 'driver_location_trail';
 const MAX_TRAIL_AGE_MS = 24 * 60 * 60 * 1000;
 
-// Clean, minimal map style for better navigation UX
-const CLEAN_MAP_STYLE: google.maps.MapTypeStyle[] = [
-  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'poi.park', stylers: [{ visibility: 'simplified' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#c9e9f6' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#f0e68c' }] },
-  { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: '#ffffff' }] },
-  { featureType: 'road.local', elementType: 'geometry', stylers: [{ color: '#f5f5f5' }] },
-  { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: '#e8f5e9' }] },
-];
-
 export default function DriverAppDashboard() {
   const { session } = useDriverSession();
+  const { isDark } = useTheme();
   const navigate = useNavigate();
-  const mapRef = useRef<google.maps.Map | null>(null);
+  const mapRef = useRef<DriverGoogleMapHandle | null>(null);
   const hasInitialCentered = useRef(false);
 
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -69,6 +59,7 @@ export default function DriverAppDashboard() {
   const [trail, setTrail] = useState<TrailPoint[]>([]);
   const [navigatingTask, setNavigatingTask] = useState<Task | null>(null);
   const [followMode, setFollowMode] = useState(true);
+  const [showTutorial, setShowTutorial] = useState(() => !isOnboardingCompleted());
 
   const isNativeIOS = detectNativePlatform() && isIOS();
   const isNativeAndroid = detectNativePlatform() && isAndroid();
@@ -77,6 +68,10 @@ export default function DriverAppDashboard() {
     const stored = localStorage.getItem('driverOnDuty');
     return stored === null ? true : stored === 'true';
   });
+
+  // Task card starts expanded so a new assignment is unmissable, but the
+  // driver can shrink it to a pill so it never blocks the map.
+  const [taskCardCollapsed, setTaskCardCollapsed] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('driverOnDuty', String(onDuty));
@@ -146,34 +141,10 @@ export default function DriverAppDashboard() {
     }
 
     if (!hasInitialCentered.current && mapRef.current) {
-      mapRef.current.panTo({ lat: loc.latitude, lng: loc.longitude });
-      mapRef.current.setZoom(16);
+      mapRef.current.recenter({ lat: loc.latitude, lng: loc.longitude });
       hasInitialCentered.current = true;
     }
   }, [trackingState.lastLocation, trackingState.lastSyncTime, onDuty]);
-
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: GOOGLE_MAPS_LIBRARIES,
-  });
-
-  // Auto-rotate and follow driver on map
-  useEffect(() => {
-    if (!mapRef.current || !currentLocation || !followMode) return;
-
-    mapRef.current.panTo(currentLocation);
-
-    // Tilt & heading for navigation feel when moving
-    if (heading !== null && heading !== undefined && !isNaN(heading) && speed !== null && speed > 5) {
-      try {
-        mapRef.current.setTilt(45);
-        mapRef.current.setHeading(heading);
-      } catch {
-        // setTilt/setHeading requires mapId (WebGL) – silently ignore if not available
-      }
-    }
-  }, [currentLocation, heading, speed, followMode]);
 
   // NOTE: All location watching is handled by trackingService (singleton).
   // The earlier React-scoped watch effects were removed because they
@@ -261,8 +232,7 @@ export default function DriverAppDashboard() {
 
   const centerOnLocation = useCallback(() => {
     if (mapRef.current && currentLocation) {
-      mapRef.current.panTo(currentLocation);
-      mapRef.current.setZoom(16);
+      mapRef.current.recenter(currentLocation);
       setFollowMode(true);
     }
   }, [currentLocation]);
@@ -273,8 +243,41 @@ export default function DriverAppDashboard() {
 
   const trailPath = trail.map(p => ({ lat: p.lat, lng: p.lng }));
 
+  const taskPins = tasks
+    .filter((t): t is Task & { dropoff_lat: number; dropoff_lng: number } =>
+      t.dropoff_lat != null && t.dropoff_lng != null
+    )
+    .map((t) => ({ id: t.id, lat: t.dropoff_lat, lng: t.dropoff_lng }));
+
   // Auto-zoom to show driver + active task dropoff
+  // Station attendance: watches position against the manager's marked points
+  // and records an arrival once the dwell requirement is met.
+  const {
+    stations,
+    visitFor,
+    refresh: refreshStations,
+  } = useStationWatcher(currentLocation, speed, accuracy, session);
+
+  const stationPins = stations.map((s) => {
+    const visit = visitFor(s.id);
+    return {
+      id: s.id,
+      lat: s.latitude,
+      lng: s.longitude,
+      name: s.name,
+      color: s.color,
+      radius: s.radius_m,
+      done: visit?.status === 'completed' || (Boolean(visit) && !s.requires_photo),
+    };
+  });
+
   const activeTask = tasks.find(t => t.status === 'en_route') || tasks[0] || null;
+
+  // A newly assigned task always re-expands the card so it can't be missed.
+  const activeTaskId = activeTask?.id ?? null;
+  useEffect(() => {
+    setTaskCardCollapsed(false);
+  }, [activeTaskId]);
 
   const getSignalQuality = () => {
     if (accuracy === null) return { label: 'Unknown', color: 'text-muted-foreground', icon: '○' };
@@ -286,18 +289,14 @@ export default function DriverAppDashboard() {
 
   const signalQuality = getSignalQuality();
 
-  if (!locationPermissionGranted) {
-    return <LocationBlocker onPermissionGranted={() => setLocationPermissionGranted(true)} />;
+  // First-run tutorial comes before the permission ask so drivers know
+  // why location is needed before Android prompts them.
+  if (showTutorial) {
+    return <DriverOnboarding onComplete={() => setShowTutorial(false)} />;
   }
 
-  if (!isLoaded) {
-    return (
-      <DriverAppLayout>
-        <div className="flex items-center justify-center h-full">
-          <p className="text-muted-foreground">Loading map...</p>
-        </div>
-      </DriverAppLayout>
-    );
+  if (!locationPermissionGranted) {
+    return <LocationBlocker onPermissionGranted={() => setLocationPermissionGranted(true)} />;
   }
 
   return (
@@ -314,93 +313,58 @@ export default function DriverAppDashboard() {
 
       <div className="relative h-full w-full flex flex-col min-h-0">
         <div className="flex-1 relative min-h-0">
-          <GoogleMap
-            mapContainerStyle={{ width: '100%', height: '100%' }}
-            center={currentLocation || { lat: 0, lng: 0 }}
-            zoom={16}
-            onLoad={(map) => {
-              mapRef.current = map;
-              if (currentLocation) {
-                map.panTo(currentLocation);
-                hasInitialCentered.current = true;
-              }
+          <DriverGoogleMap
+            ref={mapRef}
+            position={currentLocation}
+            heading={heading}
+            accuracy={accuracy}
+            isTracking={isTracking}
+            trail={trailPath}
+            tasks={taskPins}
+            stations={stationPins}
+            mapType={mapType}
+            isDark={isDark}
+            follow={followMode}
+            onUserDrag={() => setFollowMode(false)}
+            onTaskClick={(taskId) => {
+              const task = tasks.find((t) => t.id === taskId);
+              if (task) setNavigatingTask(task);
             }}
-            onDragStart={() => setFollowMode(false)}
-            mapTypeId={mapType}
-            options={{
-              disableDefaultUI: true,
-              zoomControl: false,
-              mapTypeControl: false,
-              streetViewControl: false,
-              fullscreenControl: false,
-              styles: mapType === 'roadmap' ? CLEAN_MAP_STYLE : undefined,
-            }}
-          >
-            {/* Trail polyline */}
-            {trailPath.length > 1 && (
-              <Polyline
-                path={trailPath}
-                options={{ strokeColor: '#3b82f6', strokeOpacity: 0.8, strokeWeight: 5, geodesic: true }}
-              />
-            )}
-
-            {/* Driver marker */}
-            {currentLocation && (
-              <DriverLocationMarker position={currentLocation} isTracking={isTracking} heading={heading} />
-            )}
-
-            {/* Task dropoff markers */}
-            {tasks.map((task) =>
-              task.dropoff_lat && task.dropoff_lng ? (
-                <AdvancedMarker
-                  key={task.id}
-                  position={{ lat: task.dropoff_lat, lng: task.dropoff_lng }}
-                  iconSize={36}
-                  onClick={() => setNavigatingTask(task)}
-                >
-                  <div className="relative">
-                    <div className="w-9 h-9 rounded-full bg-destructive border-[3px] border-white shadow-xl flex items-center justify-center">
-                      <span className="text-destructive-foreground text-xs font-bold">📍</span>
-                    </div>
-                  </div>
-                </AdvancedMarker>
-              ) : null
-            )}
-          </GoogleMap>
+          />
 
           {/* Top bar: tracking status + GPS quality */}
-          <div className="absolute top-4 left-4 right-4 pointer-events-auto flex items-center justify-between">
+          <div className="absolute top-3 left-3 right-3 z-[1000] pointer-events-auto flex items-center justify-between gap-2">
             <div className={cn(
-              'flex items-center gap-2 px-3 py-2 rounded-full shadow-lg backdrop-blur-md',
-              isTracking ? 'bg-success/90 text-success-foreground' : 'bg-muted/90 text-muted-foreground'
+              'flex h-10 items-center gap-2 rounded-full border px-3.5 shadow-lg backdrop-blur-md',
+              isTracking
+                ? 'border-success/40 bg-success/90 text-success-foreground'
+                : 'border-border bg-background/90 text-muted-foreground'
             )}>
               {isTracking ? <Wifi className="h-4 w-4 animate-pulse" /> : <Signal className="h-4 w-4" />}
-              <span className="text-sm font-semibold">
+              <span className="font-mono text-xs font-semibold uppercase tracking-[0.12em]">
                 {isTracking ? 'Live' : 'Off'}
               </span>
               {speed !== null && speed > 0 && (
-                <span className="text-sm font-medium ml-1">{Math.round(speed)} km/h</span>
+                <span className="telemetry ml-0.5 text-sm font-semibold">{Math.round(speed)} km/h</span>
               )}
             </div>
 
             <div className="flex items-center gap-2">
               {pendingOfflineCount > 0 && (
-                <div className="bg-warning/90 text-warning-foreground backdrop-blur-md px-3 py-2 rounded-full shadow-lg">
-                  <span className="text-xs font-semibold">
+                <div className="flex h-10 items-center rounded-full bg-warning/95 px-3.5 shadow-lg backdrop-blur-md">
+                  <span className="telemetry text-xs font-semibold text-warning-foreground">
                     {pendingOfflineCount} queued
                   </span>
                 </div>
               )}
-              <div className="bg-background/90 backdrop-blur-md px-3 py-2 rounded-full shadow-lg">
-                <div className="flex items-center gap-1.5">
-                  <Signal className={cn('h-3.5 w-3.5', signalQuality.color)} />
-                  <span className={cn('text-xs font-semibold', signalQuality.color)}>
-                    {signalQuality.label}
-                  </span>
-                  {accuracy !== null && (
-                    <span className="text-xs text-muted-foreground">±{Math.round(accuracy)}m</span>
-                  )}
-                </div>
+              <div className="flex h-10 items-center gap-1.5 rounded-full border border-border bg-background/90 px-3.5 shadow-lg backdrop-blur-md">
+                <Signal className={cn('h-3.5 w-3.5', signalQuality.color)} />
+                <span className={cn('text-xs font-semibold', signalQuality.color)}>
+                  {signalQuality.label}
+                </span>
+                {accuracy !== null && (
+                  <span className="telemetry text-xs text-muted-foreground">±{Math.round(accuracy)}m</span>
+                )}
               </div>
             </div>
           </div>
@@ -411,27 +375,36 @@ export default function DriverAppDashboard() {
               tall, plain DriverStatusCard is ~80px. */}
           <div
             className={cn(
-              'absolute right-4 flex flex-col gap-2 pointer-events-auto transition-[bottom] duration-200',
-              activeTask ? 'bottom-52' : 'bottom-32'
+              'absolute right-3 z-[1000] flex flex-col items-end gap-2 pointer-events-auto transition-[bottom] duration-200',
+              activeTask ? (taskCardCollapsed ? 'bottom-24' : 'bottom-56') : 'bottom-36'
             )}
           >
-            <Button
-              size="icon"
-              variant="secondary"
-              onClick={centerOnLocation}
-              className={cn(
-                'shadow-lg h-11 w-11 rounded-full',
-                followMode && 'ring-2 ring-primary'
-              )}
-              aria-label={followMode ? 'Following location' : 'Recenter map on you'}
-            >
-              <Crosshair className="h-5 w-5" />
-            </Button>
+            {followMode ? (
+              <Button
+                size="icon"
+                variant="secondary"
+                onClick={centerOnLocation}
+                className="h-12 w-12 rounded-full border border-border shadow-lg ring-2 ring-primary"
+                aria-label="Following your location"
+              >
+                <Crosshair className="h-5 w-5 text-primary" />
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                onClick={centerOnLocation}
+                className="h-12 rounded-full border border-border px-4 shadow-lg"
+                aria-label="Re-center map on you"
+              >
+                <Crosshair className="h-5 w-5 text-primary" />
+                Re-center
+              </Button>
+            )}
             <Button
               size="icon"
               variant="secondary"
               onClick={toggleMapType}
-              className="shadow-lg h-11 w-11 rounded-full"
+              className="h-12 w-12 rounded-full border border-border shadow-lg"
               aria-label={mapType === 'roadmap' ? 'Switch to satellite view' : 'Switch to road view'}
             >
               <Layers className="h-5 w-5" />
@@ -440,7 +413,13 @@ export default function DriverAppDashboard() {
         </div>
 
         {/* Bottom card area */}
-        <div className="absolute bottom-0 left-0 right-0 p-3 pointer-events-auto">
+        <div className="absolute bottom-0 left-0 right-0 z-[1000] p-3 pointer-events-auto">
+          <StationsCard
+            stations={stations}
+            visitFor={visitFor}
+            position={currentLocation}
+            onRefresh={refreshStations}
+          />
           {import.meta.env.DEV && (
             <DebugStatusPanel
               isTracking={isTracking}
@@ -453,6 +432,8 @@ export default function DriverAppDashboard() {
               task={activeTask}
               driverLocation={currentLocation}
               onNavigate={() => setNavigatingTask(activeTask)}
+              collapsed={taskCardCollapsed}
+              onToggleCollapse={() => setTaskCardCollapsed(prev => !prev)}
             />
           ) : (
             <DriverStatusCard

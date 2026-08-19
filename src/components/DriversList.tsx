@@ -1,13 +1,13 @@
 import { useDriverLocations, DriverLocation } from '@/hooks/useDriverLocations';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Clock, MapPin, Navigation, User, Wifi, WifiOff, ExternalLink, Trash2, Unlink, AlertTriangle } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Clock, Navigation, User, Wifi, WifiOff, ExternalLink, Trash2, Unlink, AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useState } from 'react';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import clsx from 'clsx';
-import { useRef } from 'react';
 
 type Props = {
   onDriverSelect?: (driver: DriverLocation) => void;
@@ -42,9 +42,9 @@ const getLocationStatus = (driver: DriverLocation) => {
 
 export default function DriversList({ onDriverSelect, selectedDriverId }: Props) {
   const { drivers, loading, error } = useDriverLocations();
-  const navigate = useNavigate();
-  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const clickCountRef = useRef(0);
+  const [confirmAction, setConfirmAction] = useState<
+    { kind: 'disconnect' | 'delete'; driver: DriverLocation } | null
+  >(null);
 
   // Check if driver is online (last seen within 5 minutes = active tracking)
   const isOnline = (lastSeen: string | null, status: string | null) => {
@@ -61,11 +61,7 @@ export default function DriversList({ onDriverSelect, selectedDriverId }: Props)
     return diff < 15 * 60 * 1000;
   };
 
-  const handleQuickDisconnect = async (e: React.MouseEvent, driver: DriverLocation) => {
-    e.stopPropagation();
-    const confirmed = window.confirm(`Disconnect ${driver.driver_name || 'this driver'}?`);
-    if (!confirmed) return;
-
+  const performDisconnect = async (driver: DriverLocation) => {
     try {
       const { error } = await supabase
         .from('drivers')
@@ -79,11 +75,7 @@ export default function DriversList({ onDriverSelect, selectedDriverId }: Props)
     }
   };
 
-  const handleQuickDelete = async (e: React.MouseEvent, driver: DriverLocation) => {
-    e.stopPropagation();
-    const confirmed = window.confirm(`Delete ${driver.driver_name || 'this driver'} and all their data?`);
-    if (!confirmed) return;
-
+  const performDelete = async (driver: DriverLocation) => {
     try {
       await supabase.from('driver_locations').delete().eq('driver_id', driver.driver_id);
       const { error } = await supabase.from('drivers').delete().eq('driver_id', driver.driver_id);
@@ -143,7 +135,7 @@ export default function DriversList({ onDriverSelect, selectedDriverId }: Props)
           </h3>
           {drivers.length > 0 && (
             <span className="text-xs bg-primary text-primary-foreground px-2.5 py-1 rounded-full font-semibold">
-              {drivers.length} active
+              {drivers.length} connected
             </span>
           )}
         </div>
@@ -174,27 +166,10 @@ export default function DriversList({ onDriverSelect, selectedDriverId }: Props)
                     )}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <button 
-                        onClick={() => {
-                          clickCountRef.current += 1;
-                          
-                          if (clickTimerRef.current) {
-                            clearTimeout(clickTimerRef.current);
-                          }
-                          
-                          clickTimerRef.current = setTimeout(() => {
-                            if (clickCountRef.current === 1) {
-                              // Single click - focus on map
-                              onDriverSelect?.(driver);
-                            } else if (clickCountRef.current >= 2) {
-                              // Double click - navigate to details
-                              navigate(`/driver/${driver.driver_id}`);
-                            }
-                            clickCountRef.current = 0;
-                          }, 250);
-                        }}
-                        className="flex-1 text-left hover:underline"
-                        title="Click to focus on map, double-click for details"
+                      <button
+                        onClick={() => onDriverSelect?.(driver)}
+                        className="flex-1 text-left"
+                        title="Show on map"
                       >
                         <div className="flex items-center gap-2">
                           <div className={clsx('p-1 rounded-full', online ? 'bg-success/20' : 'bg-muted')}>
@@ -209,77 +184,63 @@ export default function DriversList({ onDriverSelect, selectedDriverId }: Props)
                           </span>
                           <span className={clsx(
                             'text-[10px] px-2 py-0.5 rounded-full font-bold uppercase',
-                            online 
-                              ? 'bg-success text-success-foreground' 
-                              : recentlyActive 
+                            online
+                              ? 'bg-success text-success-foreground'
+                              : recentlyActive
                                 ? 'bg-warning text-warning-foreground'
                                 : 'bg-muted text-muted-foreground'
                           )}>
                             {online ? 'Online' : recentlyActive ? 'Away' : 'Offline'}
                           </span>
-                          
-                          {/* Location data status badge */}
+                        </div>
+                        {/* One plain-language freshness line instead of badge soup */}
+                        <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
                           {(() => {
                             const locStatus = getLocationStatus(driver);
-                            if (locStatus.status === 'no-location' || locStatus.status === 'very-stale' || locStatus.status === 'stale') {
+                            if (locStatus.status === 'no-location') {
                               return (
-                                <TooltipProvider>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span className={clsx(
-                                        'text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1',
-                                        locStatus.color
-                                      )}>
-                                        <AlertTriangle className="h-2.5 w-2.5" />
-                                        {locStatus.label}
-                                      </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p className="text-xs">
-                                        {locStatus.status === 'no-location' 
-                                          ? 'Driver needs to open app to sync location' 
-                                          : 'Location data is outdated - driver may not appear on map'}
-                                      </p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
+                                <span className="flex items-center gap-1 text-warning">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  No GPS yet — ask the driver to open the app
+                                </span>
                               );
                             }
-                            return null;
+                            const lastSeen = driver.last_seen_at
+                              ? new Date(driver.last_seen_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                              : null;
+                            const isStaleLoc = locStatus.status === 'stale' || locStatus.status === 'very-stale';
+                            return (
+                              <span className={clsx('flex items-center gap-1', isStaleLoc && 'text-warning')}>
+                                <Clock className="h-3 w-3" />
+                                {lastSeen ? `Last seen ${lastSeen}` : 'Never seen'}
+                                {isStaleLoc && ` · location ${locStatus.label}`}
+                              </span>
+                            );
                           })()}
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                          {driver.latitude && driver.latitude !== 0 ? (
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3 w-3" />
-                              {driver.latitude.toFixed(4)}, {driver.longitude.toFixed(4)}
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1 text-muted-foreground/60 italic">
-                              <MapPin className="h-3 w-3" />
-                              No coordinates
-                            </span>
-                          )}
                           {driver.speed !== null && driver.speed > 0 && (
                             <span className="flex items-center gap-1 text-success">
                               <Navigation className="h-3 w-3" />
                               {Math.round(driver.speed)} km/h
                             </span>
                           )}
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {driver.last_seen_at ? new Date(driver.last_seen_at).toLocaleTimeString() : '—'}
-                          </span>
                         </div>
                       </button>
                       <div className="flex items-center gap-1">
-                        <Link to={`/driver/${driver.driver_id}`} className="p-1.5 rounded-lg hover:bg-primary/10" title="Details">
+                        <Link to={`/driver/${driver.driver_id}`} className="p-2 rounded-lg hover:bg-primary/10" title="Open driver details">
                           <ExternalLink className="h-4 w-4 text-primary" />
                         </Link>
-                        <button onClick={(e) => handleQuickDisconnect(e, driver)} className="p-1.5 rounded-lg hover:bg-warning/10" title="Disconnect">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setConfirmAction({ kind: 'disconnect', driver }); }}
+                          className="p-2 rounded-lg hover:bg-warning/10"
+                          title="Disconnect driver"
+                        >
                           <Unlink className="h-4 w-4 text-warning" />
                         </button>
-                        <button onClick={(e) => handleQuickDelete(e, driver)} className="p-1.5 rounded-lg hover:bg-destructive/10" title="Delete">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setConfirmAction({ kind: 'delete', driver }); }}
+                          className="p-2 rounded-lg hover:bg-destructive/10"
+                          title="Delete driver"
+                        >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </button>
                       </div>
@@ -291,6 +252,31 @@ export default function DriversList({ onDriverSelect, selectedDriverId }: Props)
           </ul>
         )}
       </CardContent>
+
+      {/* Styled confirmations (replaces window.confirm) */}
+      <ConfirmDialog
+        open={confirmAction?.kind === 'disconnect'}
+        onOpenChange={(open) => !open && setConfirmAction(null)}
+        title={`Disconnect ${confirmAction?.driver.driver_name || 'this driver'}?`}
+        description="The driver will stop sharing their location and will need their connection code to reconnect."
+        confirmLabel="Disconnect"
+        onConfirm={() => {
+          if (confirmAction) performDisconnect(confirmAction.driver);
+          setConfirmAction(null);
+        }}
+      />
+      <ConfirmDialog
+        open={confirmAction?.kind === 'delete'}
+        onOpenChange={(open) => !open && setConfirmAction(null)}
+        title={`Delete ${confirmAction?.driver.driver_name || 'this driver'}?`}
+        description="The driver and all their location history will be permanently deleted. This cannot be undone."
+        confirmLabel="Delete driver"
+        destructive
+        onConfirm={() => {
+          if (confirmAction) performDelete(confirmAction.driver);
+          setConfirmAction(null);
+        }}
+      />
     </Card>
   );
 }

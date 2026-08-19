@@ -17,6 +17,7 @@ import DeviceDetails from '@/pages/devices/DeviceDetails';
 import DriverDetails from '@/pages/DriverDetails';
 import FleetAnalytics from '@/pages/FleetAnalytics';
 import Geofences from '@/pages/Geofences';
+import Stations from '@/pages/Stations';
 import Trips from '@/pages/Trips';
 import Settings from '@/pages/Settings';
 import Status from '@/pages/Status';
@@ -33,11 +34,11 @@ import DriversManagement from '@/pages/admin/DriversManagement';
 import CreateTask from '@/pages/admin/CreateTask';
 import TaskList from '@/pages/admin/TaskList';
 import TempShare from '@/pages/TempShare';
-import TempTracking from '@/pages/TempTracking';
 import Privacy from '@/pages/Privacy';
 import Terms from '@/pages/Terms';
 import DeleteAccount from '@/pages/DeleteAccount';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { AppRoleProvider } from '@/contexts/AppRoleContext';
 import { detectNativePlatform } from '@/utils/platformDetection';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import LandingTopButton from '@/components/LandingTopButton';
@@ -67,6 +68,9 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        {/* Driver settings is shared with the native bundle, where it offers a
+            driver/manager mode switch, so the role context must exist here too. */}
+        <AppRoleProvider>
         <Routes>
           {/* Driver App Routes (Mobile-only, code-based auth - no email required) */}
           <Route path="/app/*" element={
@@ -154,6 +158,14 @@ export default function App() {
                   }
                 />
                 <Route
+                  path="/stations"
+                  element={
+                    <ProtectedRoute>
+                      <Stations />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/geofences"
                   element={
                     <ProtectedRoute>
@@ -198,14 +210,6 @@ export default function App() {
                   element={
                     <ProtectedRoute>
                       <Settings />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/temp-tracking"
-                  element={
-                    <ProtectedRoute>
-                      <TempTracking />
                     </ProtectedRoute>
                   }
                 />
@@ -346,6 +350,7 @@ export default function App() {
             </AppLayout>
           } />
         </Routes>
+        </AppRoleProvider>
       </AuthProvider>
     </ThemeProvider>
   );

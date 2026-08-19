@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Navigation, MapPin, Clock, ChevronRight } from 'lucide-react';
+import { Navigation, MapPin, Clock, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Task = {
@@ -16,6 +16,9 @@ interface ActiveTaskCardProps {
   task: Task;
   driverLocation: { lat: number; lng: number } | null;
   onNavigate: () => void;
+  /** Collapsed = slim pill so the map stays visible; driver toggles freely. */
+  collapsed: boolean;
+  onToggleCollapse: () => void;
 }
 
 function calculateDistance(
@@ -32,7 +35,7 @@ function calculateDistance(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export default function ActiveTaskCard({ task, driverLocation, onNavigate }: ActiveTaskCardProps) {
+export default function ActiveTaskCard({ task, driverLocation, onNavigate, collapsed, onToggleCollapse }: ActiveTaskCardProps) {
   const navigate = useNavigate();
 
   const distance = (driverLocation && task.dropoff_lat && task.dropoff_lng)
@@ -46,58 +49,104 @@ export default function ActiveTaskCard({ task, driverLocation, onNavigate }: Act
 
   const isArrived = distance !== null && distance < 0.05; // 50m
 
+  // Collapsed: one slim pill — tap anywhere to expand, map stays in view.
+  if (collapsed) {
+    return (
+      <div className="absolute bottom-0 left-0 right-0 z-30 p-3 pointer-events-auto">
+        <button
+          onClick={onToggleCollapse}
+          className={cn(
+            'flex min-h-[48px] w-full items-center gap-2.5 rounded-full border bg-card/95 px-4 py-2 shadow-xl backdrop-blur-lg',
+            isArrived ? 'border-success' : 'border-border'
+          )}
+          aria-label="Expand task details"
+        >
+          <span className={cn(
+            'h-2.5 w-2.5 shrink-0 rounded-full',
+            isArrived ? 'bg-success' : task.status === 'en_route' ? 'bg-warning animate-pulse' : 'bg-primary'
+          )} />
+          <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold">{task.title}</span>
+          {isArrived ? (
+            <span className="shrink-0 font-mono text-[10px] font-bold uppercase tracking-wider text-success">Arrived</span>
+          ) : (
+            distance !== null && (
+              <span className="telemetry shrink-0 text-xs text-muted-foreground">{formatDistance(distance)}</span>
+            )
+          )}
+          <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="absolute bottom-0 left-0 right-0 z-30 p-3 pointer-events-auto">
       <div className={cn(
-        "bg-background rounded-2xl shadow-2xl border border-border overflow-hidden",
+        "bg-card/95 backdrop-blur-lg rounded-2xl shadow-2xl border border-border overflow-hidden",
         isArrived && "border-success"
       )}>
         {/* Arrival banner */}
         {isArrived && (
-          <div className="bg-success text-success-foreground px-4 py-2 text-center text-sm font-semibold">
-            📍 You've arrived at the drop-off!
+          <div className="flex items-center justify-center gap-1.5 bg-success px-4 py-2 text-center text-sm font-semibold text-success-foreground">
+            <MapPin className="h-4 w-4" />
+            You've arrived at the drop-off
           </div>
         )}
 
         <div className="p-4">
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <div className={cn(
-                  "w-2.5 h-2.5 rounded-full",
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 flex items-center gap-2">
+                <span className={cn(
+                  "h-2.5 w-2.5 rounded-full",
                   task.status === 'en_route' ? 'bg-warning animate-pulse' : 'bg-primary'
                 )} />
-                <h3 className="font-bold text-base truncate">{task.title}</h3>
+                <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                  {task.status === 'en_route' ? 'En route' : 'Assigned'}
+                </span>
               </div>
-              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              <h3 className="truncate font-heading text-base font-bold">{task.title}</h3>
+              <div className="mt-0.5 flex items-center gap-3 text-sm text-muted-foreground">
                 {distance !== null && (
-                  <span className="flex items-center gap-1">
+                  <span className="telemetry flex items-center gap-1">
                     <MapPin className="h-3.5 w-3.5" />
                     {formatDistance(distance)}
                   </span>
                 )}
                 {task.due_at && (
-                  <span className="flex items-center gap-1">
+                  <span className="telemetry flex items-center gap-1">
                     <Clock className="h-3.5 w-3.5" />
                     {new Date(task.due_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 )}
               </div>
             </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="shrink-0"
-              onClick={() => navigate(`/app/tasks/${task.id}/complete`)}
-            >
-              <ChevronRight className="h-5 w-5" />
-            </Button>
+            <div className="flex shrink-0 items-center">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-11 w-11"
+                onClick={onToggleCollapse}
+                aria-label="Minimize task card"
+              >
+                <ChevronDown className="h-5 w-5" />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-11 w-11"
+                onClick={() => navigate(`/app/tasks/${task.id}/complete`)}
+                aria-label="Open task details"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
 
           <div className="flex gap-2">
             {task.dropoff_lat && task.dropoff_lng && (
               <Button
-                className="flex-1 gap-2"
+                className="h-12 flex-1 gap-2"
                 onClick={onNavigate}
               >
                 <Navigation className="h-4 w-4" />
@@ -106,10 +155,10 @@ export default function ActiveTaskCard({ task, driverLocation, onNavigate }: Act
             )}
             <Button
               variant={isArrived ? "default" : "secondary"}
-              className={cn("flex-1", isArrived && "bg-success hover:bg-success/90 text-success-foreground")}
+              className={cn("h-12 flex-1", isArrived && "bg-success hover:bg-success/90 text-success-foreground")}
               onClick={() => navigate(`/app/tasks/${task.id}/complete`)}
             >
-              {isArrived ? 'Complete Task' : 'Details'}
+              {isArrived ? 'Complete task' : 'Details'}
             </Button>
           </div>
         </div>

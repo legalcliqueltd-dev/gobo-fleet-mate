@@ -63,7 +63,8 @@ serve(async (req) => {
       throw new Error("No active subscription found");
     }
 
-    if (profile.subscription_plan !== 'pro') {
+    // Downgrade only makes sense from Pro; cancel must work from ANY paid plan.
+    if (action === 'downgrade' && profile.subscription_plan !== 'pro') {
       throw new Error("You're already on the Basic plan");
     }
 
@@ -92,6 +93,26 @@ serve(async (req) => {
 
       const subscription = subscriptions.data[0];
       logStep("Found Stripe subscription", { subscriptionId: subscription.id });
+
+      if (action === 'cancel') {
+        // Truthful cancel: Stripe stops the renewal, access runs to period end.
+        const updated = await stripe.subscriptions.update(subscription.id, {
+          cancel_at_period_end: true,
+        });
+        const endsAt = updated.current_period_end
+          ? new Date(updated.current_period_end * 1000).toISOString()
+          : null;
+        logStep("Stripe cancel_at_period_end set", { subscriptionId: subscription.id, endsAt });
+
+        return new Response(JSON.stringify({
+          success: true,
+          endsAt,
+          message: "Subscription canceled. You keep full access until the end of your current billing period — no further charges.",
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
 
       if (action === 'downgrade') {
         // Find the Basic price in Stripe
@@ -154,21 +175,35 @@ serve(async (req) => {
       });
 
     } else if (provider === 'paystack') {
+      if (action === 'cancel') {
+        // Paystack payments here are one-time 30-day charges — there is no
+        // recurring subscription to disable. Access simply lapses at the
+        // stored end date and nothing charges again.
+        logStep("Paystack cancel acknowledged (one-time charge, lapses naturally)");
+        return new Response(JSON.stringify({
+          success: true,
+          message: "Your plan is a one-time payment with no auto-renewal. It ends automatically at the end of the current period — no further charges.",
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
       // For Paystack, we store the downgrade intent in the profile
       // Since Paystack doesn't have native subscription management like Stripe,
       // we mark the profile so the next renewal processes as Basic
       await supabaseClient
         .from('profiles')
-        .update({ 
+        .update({
           subscription_plan: 'basic_pending',
         })
         .eq('id', user.id);
 
       logStep("Paystack downgrade intent stored");
 
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: "Downgrade scheduled. You'll switch to Basic when your current period ends." 
+      return new Response(JSON.stringify({
+        success: true,
+        message: "Downgrade scheduled. You'll switch to Basic when your current period ends."
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,

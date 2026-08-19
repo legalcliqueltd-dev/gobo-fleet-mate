@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDriverSession } from '@/contexts/DriverSessionContext';
+import { useAppRole } from '@/contexts/AppRoleContext';
+import { detectNativePlatform } from '@/utils/platformDetection';
 import { supabase } from '@/integrations/supabase/client';
 import { trackingService } from '@/services/trackingService';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { User, Battery, MapPin, Unlink, Power, AlertTriangle, Palette, Trash2, Shield, FileText } from 'lucide-react';
+import { User, Battery, MapPin, Unlink, Power, AlertTriangle, Palette, Trash2, Shield, FileText, GraduationCap, Repeat } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
+import DriverOnboarding from '@/components/driver/DriverOnboarding';
 import ThemeToggle from '@/components/ThemeToggle';
 import {
   AlertDialog,
@@ -26,9 +29,12 @@ import {
 
 export default function DriverAppSettings() {
   const { session, disconnect } = useDriverSession();
+  const { clearRole } = useAppRole();
   const navigate = useNavigate();
+  const isNativeApp = detectNativePlatform();
   const [disconnecting, setDisconnecting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   
   // Duty status - defaults to true
   const [onDuty, setOnDuty] = useState(() => {
@@ -148,10 +154,63 @@ export default function DriverAppSettings() {
     }
   };
 
+  if (showTutorial) {
+    return <DriverOnboarding onComplete={() => setShowTutorial(false)} />;
+  }
+
   return (
     <DriverAppLayout>
       <div className="p-4 space-y-6">
-        <h1 className="text-2xl font-bold">Settings</h1>
+        <div>
+          <p className="eyebrow mb-1">Your app</p>
+          <h1 className="font-heading text-2xl font-bold">Settings</h1>
+        </div>
+
+        {/* Tutorial replay */}
+        <Card>
+          <CardContent className="flex items-center justify-between gap-3 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
+                <GraduationCap className="h-5 w-5 text-accent-foreground" />
+              </div>
+              <div>
+                <p className="font-semibold leading-tight">App tutorial</p>
+                <p className="text-xs text-muted-foreground">A quick tour of every button</p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setShowTutorial(true)}>
+              View
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Mode switch — native only; on the website the manager dashboard
+            is simply another page, so a mode picker would make no sense. */}
+        {isNativeApp && (
+        <Card>
+          <CardContent className="flex items-center justify-between gap-3 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
+                <Repeat className="h-5 w-5 text-accent-foreground" />
+              </div>
+              <div>
+                <p className="font-semibold leading-tight">Switch mode</p>
+                <p className="text-xs text-muted-foreground">Use this device as a manager</p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                clearRole();
+                navigate('/app/role', { replace: true });
+              }}
+            >
+              Switch
+            </Button>
+          </CardContent>
+        </Card>
+        )}
 
         {/* Profile Section */}
         <Card>
@@ -385,9 +444,9 @@ export default function DriverAppSettings() {
         </div>
 
         {/* App Info */}
-        <div className="text-center text-xs text-muted-foreground pt-4">
+        <div className="pt-4 text-center font-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
           <p>FleetTrackMate Driver</p>
-          <p>Version 1.0.0</p>
+          <p className="mt-0.5">v1.0.0</p>
         </div>
       </div>
     </DriverAppLayout>

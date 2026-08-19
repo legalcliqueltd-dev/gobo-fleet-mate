@@ -59,12 +59,12 @@ export default function DriverAppTasks() {
     };
   }, [loadTasks]);
 
-  const getStatusColor = (status: string) => {
+  const getStatusMeta = (status: string) => {
     switch (status) {
-      case 'assigned': return 'bg-blue-500';
-      case 'en_route': return 'bg-yellow-500';
-      case 'completed': return 'bg-green-500';
-      default: return 'bg-gray-500';
+      case 'assigned': return { dot: 'bg-primary', label: 'Assigned' };
+      case 'en_route': return { dot: 'bg-warning', label: 'En route' };
+      case 'completed': return { dot: 'bg-success', label: 'Done' };
+      default: return { dot: 'bg-muted-foreground', label: status };
     }
   };
 
@@ -95,19 +95,25 @@ export default function DriverAppTasks() {
       )}
 
       <div className="p-4 space-y-6">
-        <h1 className="text-2xl font-bold">My Tasks</h1>
+        <div>
+          <p className="eyebrow mb-1">Today's work</p>
+          <h1 className="font-heading text-2xl font-bold">My tasks</h1>
+        </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="flex flex-col items-center justify-center gap-3 py-12">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <p className="font-mono text-xs uppercase tracking-[0.15em] text-muted-foreground">Loading tasks…</p>
           </div>
         ) : tasks.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center">
-              <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="font-semibold mb-2">No tasks yet</h3>
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-accent">
+                <Package className="h-7 w-7 text-accent-foreground" />
+              </div>
+              <h3 className="mb-1 font-heading font-semibold">No tasks yet</h3>
               <p className="text-sm text-muted-foreground">
-                Tasks assigned to you will appear here
+                Tasks your dispatcher assigns to you will appear here.
               </p>
             </CardContent>
           </Card>
@@ -115,81 +121,83 @@ export default function DriverAppTasks() {
           <>
             {activeTasks.length > 0 && (
               <div className="space-y-3">
-                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                  Active ({activeTasks.length})
+                <h2 className="font-mono text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground">
+                  Active · {activeTasks.length}
                 </h2>
-                {activeTasks.map((task) => (
-                  <Card key={task.id} className="overflow-hidden">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <div className={`w-2 h-2 rounded-full ${getStatusColor(task.status)}`} />
-                            <h3 className="font-semibold truncate">{task.title}</h3>
-                          </div>
-                          
-                          {task.description && (
-                            <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                              {task.description}
-                            </p>
-                          )}
-                          
-                          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                            {task.dropoff_lat && task.dropoff_lng && (
-                              <span className="flex items-center gap-1">
-                                <MapPin className="h-3 w-3" />
-                                Drop-off set
-                              </span>
-                            )}
-                            {task.due_at && (
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {formatDueDate(task.due_at)}
-                              </span>
-                            )}
-                          </div>
+                {activeTasks.map((task) => {
+                  const status = getStatusMeta(task.status);
+                  return (
+                    <Card key={task.id} className="overflow-hidden">
+                      <CardContent className="p-4">
+                        <div className="mb-1.5 flex items-center gap-2">
+                          <span className={`h-2 w-2 rounded-full ${status.dot} ${task.status === 'en_route' ? 'animate-pulse' : ''}`} />
+                          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.15em] text-muted-foreground">
+                            {status.label}
+                          </span>
                         </div>
-                        
-                        <div className="flex gap-2 shrink-0">
+                        <h3 className="mb-1 font-heading text-lg font-semibold leading-tight">{task.title}</h3>
+
+                        {task.description && (
+                          <p className="mb-2 text-sm leading-relaxed text-muted-foreground line-clamp-2">
+                            {task.description}
+                          </p>
+                        )}
+
+                        <div className="mb-4 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                          {task.dropoff_lat && task.dropoff_lng && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              Drop-off set
+                            </span>
+                          )}
+                          {task.due_at && (
+                            <span className="telemetry flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {formatDueDate(task.due_at)}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex gap-2">
                           {task.dropoff_lat && task.dropoff_lng && (
                             <Button
-                              size="icon"
                               variant="outline"
-                              className="h-11 w-11"
-                              aria-label={`Navigate to ${task.title}`}
+                              className="h-11 flex-1"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setNavigatingTask(task);
                               }}
                             >
-                              <Navigation className="h-4 w-4" />
+                              <Navigation className="mr-2 h-4 w-4" />
+                              Navigate
                             </Button>
                           )}
                           <Button
-                            className="h-11 px-4"
+                            className="h-11 flex-1"
                             onClick={() => navigate(`/app/tasks/${task.id}/complete`)}
                           >
+                            <CheckCircle2 className="mr-2 h-4 w-4" />
                             Complete
                           </Button>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
 
             {completedTasks.length > 0 && (
               <div className="space-y-3">
-                <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                  Completed ({completedTasks.length})
+                <h2 className="font-mono text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground">
+                  Completed · {completedTasks.length}
                 </h2>
                 {completedTasks.slice(0, 5).map((task) => (
                   <Card key={task.id} className="opacity-60">
                     <CardContent className="p-4">
                       <div className="flex items-center gap-3">
-                        <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
-                        <span className="font-medium truncate">{task.title}</span>
+                        <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-success" />
+                        <span className="truncate font-medium">{task.title}</span>
                       </div>
                     </CardContent>
                   </Card>

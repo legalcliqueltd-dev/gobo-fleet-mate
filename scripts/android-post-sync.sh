@@ -54,6 +54,23 @@ rm -rf "$dir"
   fi
 done
 
+# 2b. CRITICAL: strip Transistorsoft from capacitor.plugins.json too.
+# The Gradle exclusion above means the classes are never compiled into the
+# APK — but `cap sync` regenerates this JSON from node_modules, and Capacitor
+# aborts loading ALL plugins (PluginLoadException) when one classpath is
+# missing. That surfaced in the app as: 'Geolocation plugin is not implemented'.
+PLUGINS_JSON="$ANDROID_DIR/app/src/main/assets/capacitor.plugins.json"
+if [ -f "$PLUGINS_JSON" ] && grep -qi "transistorsoft" "$PLUGINS_JSON"; then
+  node -e "
+    const fs = require('fs');
+    const p = '$PLUGINS_JSON';
+    const plugins = JSON.parse(fs.readFileSync(p, 'utf8'));
+    const kept = plugins.filter(x => !/transistorsoft/i.test(x.pkg) && !/transistorsoft/i.test(x.classpath));
+    fs.writeFileSync(p, JSON.stringify(kept, null, '\t') + '\n');
+    console.log('[OK] Removed Transistorsoft from capacitor.plugins.json (' + (plugins.length - kept.length) + ' entries)');
+  "
+fi
+
 echo ""
 echo "[OK] Android build cleaned - Transistorsoft plugin removed (iOS-only)"
 echo ""

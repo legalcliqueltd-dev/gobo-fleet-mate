@@ -6,6 +6,7 @@ import DeviceMarker from '@/components/map/DeviceMarker';
 import { Play, Pause, Pencil, Trash2, ChevronLeft, Gauge, Timer, Route as RouteIcon, AlertTriangle, Copy, Check } from 'lucide-react';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { useDeviceInsights } from '@/hooks/useDeviceInsights';
+import { ShareCodeButton } from '@/components/ShareCodeButton';
 
 type DeviceRow = {
   id: string;
@@ -172,14 +173,14 @@ export default function DeviceDetails() {
         
         {device.connection_code && (
           <div className="mt-4 pt-4 border-t-2 border-slate-200 dark:border-slate-700">
-            <div className="text-sm text-slate-500 mb-2">Driver Connection Code</div>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 bg-slate-100 dark:bg-slate-800 px-4 py-3 rounded-lg font-mono text-lg font-bold tracking-wider">
+            <div className="mb-2 font-mono text-xs uppercase tracking-[0.15em] text-muted-foreground">Driver connection code</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <code className="telemetry flex-1 min-w-[10rem] rounded-lg border border-border bg-muted/40 px-4 py-3 text-lg font-bold tracking-[0.25em]">
                 {device.connection_code}
               </code>
               <button
                 onClick={copyConnectionCode}
-                className="nb-button px-4 py-3 inline-flex items-center gap-2 whitespace-nowrap"
+                className="nb-button inline-flex items-center gap-2 whitespace-nowrap px-4 py-3"
               >
                 {codeCopied ? (
                   <>
@@ -189,13 +190,14 @@ export default function DeviceDetails() {
                 ) : (
                   <>
                     <Copy className="h-4 w-4" />
-                    Copy Code
+                    Copy
                   </>
                 )}
               </button>
+              <ShareCodeButton code={device.connection_code} deviceName={device.name ?? undefined} size="default" className="h-[46px]" />
             </div>
-            <div className="text-xs text-muted-foreground mt-2">
-              Share this code with your driver to connect their app
+            <div className="mt-2 text-xs text-muted-foreground">
+              Send this code to your driver — they enter it in the app to connect.
             </div>
           </div>
         )}

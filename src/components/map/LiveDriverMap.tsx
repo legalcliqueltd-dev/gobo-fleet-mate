@@ -10,6 +10,9 @@ import {
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { useRealtimeDriverLocations, LiveDriverLocation } from '@/hooks/useRealtimeDriverLocations';
 import { formatTimeAgo, interpolatePosition, easeOutCubic } from '@/utils/mapInterpolation';
+import { useTheme } from '@/contexts/ThemeContext';
+import { getMapStyle } from '@/lib/mapStyles';
+import { getDriverAccent } from '@/lib/driverAccent';
 import clsx from 'clsx';
 
 type Props = {
@@ -313,15 +316,23 @@ function DriverCard({ driver, onClose }: { driver: LiveDriverLocation; onClose: 
         </div>
       </div>
       
-      {/* Action buttons */}
+      {/* Action: open turn-by-turn directions to the driver's position.
+          ("Call Driver" removed — no phone number exists in the data model.) */}
       <div className="flex border-t border-slate-700/50">
-        <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-medium text-emerald-400 hover:bg-emerald-500/10 transition-colors border-r border-slate-700/50">
-          <Phone className="h-4 w-4" />
-          Call Driver
-        </button>
-        <button className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-medium text-blue-400 hover:bg-blue-500/10 transition-colors">
+        <button
+          onClick={() => {
+            if (lastLat && lastLng && lastLat !== 0) {
+              window.open(
+                `https://www.google.com/maps/dir/?api=1&destination=${lastLat},${lastLng}&travelmode=driving`,
+                '_blank'
+              );
+            }
+          }}
+          disabled={!lastLat || lastLat === 0}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-medium text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+        >
           <Navigation className="h-4 w-4" />
-          Navigate
+          Navigate to driver
         </button>
       </div>
       
@@ -376,22 +387,24 @@ function MapControlButton({
   return (
     <button
       onClick={onClick}
+      title={label}
+      aria-label={label}
       className={clsx(
-        'flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200',
+        'flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-200',
         'backdrop-blur-md border shadow-lg',
-        active 
-          ? 'bg-primary text-primary-foreground border-primary' 
+        active
+          ? 'bg-primary text-primary-foreground border-primary'
           : 'bg-card/90 text-foreground border-border hover:bg-card hover:border-primary/50',
         className
       )}
     >
       <Icon className="h-4 w-4" />
-      <span className="hidden sm:inline">{label}</span>
     </button>
   );
 }
 
 export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDevices = true, devices = [] }: Props) {
+  const { isDark } = useTheme();
   const mapRef = useRef<google.maps.Map | null>(null);
   const [mapType, setMapType] = useState<keyof typeof MAP_STYLES>('roadmap');
   const [showTraffic, setShowTraffic] = useState(false);
@@ -491,12 +504,11 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
     return devices.filter(d => d.latitude !== 0 && d.longitude !== 0);
   }, [devices]);
 
-  const initial = useMemo(() => {
-    const allItems = [...validDrivers, ...validDevices];
-    if (allItems.length === 0) return { longitude: 8.6753, latitude: 9.0820, zoom: 5 };
-    const [lon, lat] = [allItems[0].longitude, allItems[0].latitude];
-    return { longitude: lon, latitude: lat, zoom: 13 };
-  }, [validDrivers, validDevices]);
+  // The map center is set ONCE (auto-fit below) and then never moved
+  // automatically. Passing live driver positions as the `center` prop made
+  // the map snap back to vehicle #1 on every location ping while the admin
+  // was trying to look elsewhere.
+  const INITIAL_VIEW = useRef({ center: { lat: 9.0820, lng: 8.6753 }, zoom: 5 }).current;
 
   // Fly to selected driver - only when selection changes, not on every driver update
   const prevSelectedRef = useRef<string | null>(null);
@@ -511,23 +523,23 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
     prevSelectedRef.current = selectedDriverId || null;
   }, [selectedDriverId]);
 
-  // Auto-fit map to all valid items as soon as they arrive (only once),
-  // so the map doesn't sit on the world view while waiting for data.
+  // Open the map on the MOST RECENTLY UPDATED driver (once, when data first
+  // arrives). Fitting all markers framed stale/far ones and landed the view in
+  // "a random place"; the fleet-wide view stays one click away via "Fit all".
   const hasAutoFittedRef = useRef(false);
   useEffect(() => {
     if (hasAutoFittedRef.current) return;
     if (!mapRef.current) return;
-    const allItems = [...validDrivers, ...validDevices];
-    if (allItems.length === 0) return;
 
-    if (allItems.length === 1) {
-      mapRef.current.panTo({ lat: allItems[0].latitude, lng: allItems[0].longitude });
-      mapRef.current.setZoom(15);
-    } else {
-      const bounds = new google.maps.LatLngBounds();
-      allItems.forEach(i => bounds.extend({ lat: i.latitude, lng: i.longitude }));
-      mapRef.current.fitBounds(bounds, 80);
-    }
+    const freshness = (v: any) =>
+      new Date(v?.updated_at ?? v?.last_seen_at ?? v?.timestamp ?? 0).getTime();
+    const latestDriver = [...validDrivers].sort((a, b) => freshness(b) - freshness(a))[0];
+    const latestDevice = [...validDevices].sort((a, b) => freshness(b) - freshness(a))[0];
+    const target = latestDriver ?? latestDevice;
+    if (!target) return;
+
+    mapRef.current.panTo({ lat: target.latitude, lng: target.longitude });
+    mapRef.current.setZoom(15);
     hasAutoFittedRef.current = true;
   }, [validDrivers, validDevices]);
 
@@ -601,15 +613,14 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
     >
       <GoogleMap
         mapContainerStyle={{ width: '100%', height: '100%' }}
-        center={{ lat: initial.latitude, lng: initial.longitude }}
-        zoom={initial.zoom}
+        center={INITIAL_VIEW.center}
+        zoom={INITIAL_VIEW.zoom}
         mapTypeId={MAP_STYLES[mapType]}
         onClick={() => setOpenInfoWindowId(null)}
-        onLoad={(map) => { 
+        onLoad={(map) => {
           mapRef.current = map;
-          if (validDrivers.length + validDevices.length > 1) {
-            setTimeout(() => fitToAll(), 100);
-          }
+          // Initial framing is handled by the "latest driver" effect above;
+          // fitting all here framed stale markers and looked like a random place.
         }}
         options={{
           zoomControl: false,
@@ -618,7 +629,7 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
           fullscreenControl: false,
           rotateControl: true,
           scaleControl: true,
-          styles: mapType === 'roadmap' ? DARK_MAP_STYLES : []
+          styles: mapType === 'roadmap' ? getMapStyle(isDark) : []
         }}
       >
         {/* Traffic Layer */}
@@ -636,22 +647,24 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
           <div className="bg-card/95 backdrop-blur-md border-2 border-border rounded-xl shadow-2xl px-4 py-3">
             <div className="flex flex-col gap-2">
               <ConnectionIndicator status={connectionStatus} lastUpdate={lastUpdate} />
-              <div className="flex items-center gap-3 pt-2 border-t border-border">
-                <div className="flex items-center gap-1.5" title="Active Drivers on Map">
-                  <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/50"></div>
-                  <span className="text-sm font-bold text-foreground">
-                    {validDrivers.filter(d => d.status === 'active').length}
-                  </span>
-                  <span className="text-xs text-muted-foreground">active</span>
-                </div>
-                <div className="w-px h-4 bg-border"></div>
-                <span className="text-xs text-muted-foreground font-medium">
-                  {validDrivers.length} total
+              {/* Marker legend (replaces the counters duplicated in the stats cards) */}
+              <div className="flex items-center gap-3 border-t border-border pt-2 text-xs">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-success" />
+                  <span className="text-muted-foreground font-medium">Active</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-warning" />
+                  <span className="text-muted-foreground font-medium">Idle</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-muted-foreground" />
+                  <span className="text-muted-foreground font-medium">Offline</span>
                 </span>
               </div>
               {/* Warning for drivers without location */}
               {driversWithoutLocation.length > 0 && (
-                <div className="flex items-center gap-2 pt-2 border-t border-amber-500/30 text-amber-400">
+                <div className="flex items-center gap-2 pt-2 border-t border-warning/30 text-warning">
                   <AlertTriangle className="h-3.5 w-3.5" />
                   <span className="text-xs font-medium">
                     {driversWithoutLocation.length} driver{driversWithoutLocation.length > 1 ? 's' : ''} online but no GPS
@@ -701,33 +714,13 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
           </button>
         </div>
 
-        {/* Bottom Left - Legend */}
-        <div className="absolute bottom-4 left-4 z-10">
-          <div className="bg-card/95 backdrop-blur-md border-2 border-border rounded-xl shadow-2xl px-4 py-3">
-            <div className="flex items-center gap-4 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/30"></div>
-                <span className="text-muted-foreground font-medium">Active</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-amber-500 shadow-lg shadow-amber-500/30"></div>
-                <span className="text-muted-foreground font-medium">Idle</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-3 w-3 rounded-full bg-gray-500"></div>
-                <span className="text-muted-foreground font-medium">Offline</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Driver Markers */}
+        {/* Driver Markers — small precise car icons: identifiable without hiding roads */}
         {validDrivers.map(driver => {
           const isSelected = selectedDriverId === driver.driver_id;
           const position = getDriverPosition(driver);
-          const markerSize = isSelected ? 64 : 52;
+          const markerSize = isSelected ? 34 : 28;
           const initial = (driver.driver_name || 'D').charAt(0).toUpperCase();
-          
+
           return (
             <AdvancedMarker
               key={driver.driver_id}
@@ -740,6 +733,36 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
               }}
               zIndex={isSelected ? 1000 : driver.status === 'active' ? 500 : 100}
             />
+          );
+        })}
+
+        {/* Name labels — always visible so "who is that?" is never a question.
+            The accent dot matches the driver's color chip in the Drivers panel. */}
+        {validDrivers.map(driver => {
+          const isSelected = selectedDriverId === driver.driver_id;
+          const markerSize = isSelected ? 34 : 28;
+          return (
+            <OverlayView
+              key={`label-${driver.driver_id}`}
+              position={getDriverPosition(driver)}
+              mapPaneName={OverlayView.OVERLAY_LAYER}
+              // Fused to the car's bottom edge — one visual unit, never a second marker
+              getPixelPositionOffset={(width) => ({ x: -(width / 2), y: markerSize / 2 - 3 })}
+            >
+              <div
+                className={clsx(
+                  'pointer-events-none whitespace-nowrap rounded-md border px-1.5 py-px shadow-sm',
+                  isSelected
+                    ? 'border-primary bg-card/95 text-foreground'
+                    : 'border-border bg-card/90 text-foreground'
+                )}
+                style={{ borderLeftWidth: 3, borderLeftColor: getDriverAccent(driver.driver_id) }}
+              >
+                <span className="text-[10px] font-semibold leading-tight">
+                  {driver.driver_name || 'Driver'}
+                </span>
+              </div>
+            </OverlayView>
           );
         })}
 

@@ -21,6 +21,8 @@ import {
 import { Package, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
+import { useTheme } from '@/contexts/ThemeContext';
+import { getMapStyle } from '@/lib/mapStyles';
 
 // Google Maps libraries are imported from shared config to ensure all
 // useJsApiLoader instances share identical options.
@@ -64,6 +66,8 @@ export default function CreateTask() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [markers, setMarkers] = useState<LocationMarker[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const { isDark } = useTheme();
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -247,10 +251,8 @@ export default function CreateTask() {
 
   return (
     <LockedFeature featureName="Task Creation">
-    <div className="h-screen flex">
-      {/* Left Panel - Form */}
-      <div className="w-1/3 overflow-y-auto border-r bg-background p-6">
-        <div className="max-w-xl">
+    <div className="mx-auto max-w-xl">
+        <div>
           <h1 className="text-2xl font-bold mb-6 flex items-center gap-2">
             <Package className="h-6 w-6" />
             Create New Task
@@ -365,6 +367,55 @@ export default function CreateTask() {
                     onChange={(e) => setDropoffRadius(e.target.value)}
                   />
                 </div>
+
+                {/* Map is on-demand: search sets the location; the map just confirms it. */}
+                <div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setShowMap((v) => !v)}
+                  >
+                    {showMap ? 'Hide map' : markers.length > 0 ? 'Check locations on map' : 'Show map'}
+                  </Button>
+                  {showMap && (
+                    <div className="mt-3 h-72 overflow-hidden rounded-lg border border-border">
+                      <GoogleMap
+                        mapContainerStyle={{ width: '100%', height: '100%' }}
+                        center={markers.length > 0 ? { lat: markers[0].lat, lng: markers[0].lng } : { lat: 6.5244, lng: 3.3792 }}
+                        zoom={markers.length > 0 ? 13 : 11}
+                        onLoad={(map) => {
+                          mapRef.current = map;
+                          if (markers.length > 1) {
+                            const bounds = new google.maps.LatLngBounds();
+                            markers.forEach((m) => bounds.extend({ lat: m.lat, lng: m.lng }));
+                            map.fitBounds(bounds, 48);
+                          }
+                        }}
+                        options={{
+                          disableDefaultUI: true,
+                          zoomControl: true,
+                          streetViewControl: false,
+                          styles: getMapStyle(isDark),
+                        }}
+                      >
+                        {markers.map((marker, idx) => (
+                          <AdvancedMarker
+                            key={idx}
+                            position={{ lat: marker.lat, lng: marker.lng }}
+                            iconUrl={
+                              marker.type === 'pickup'
+                                ? 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="%234ade80" stroke="%23ffffff" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>'
+                                : 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="%233b82f6" stroke="%23ffffff" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>'
+                            }
+                            iconSize={32}
+                          />
+                        ))}
+                      </GoogleMap>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -387,37 +438,6 @@ export default function CreateTask() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Right Panel - Map */}
-      <div className="flex-1 relative">
-        <GoogleMap
-          mapContainerStyle={{ width: '100%', height: '100%' }}
-          center={{ lat: 0, lng: 0 }}
-          zoom={2}
-          onLoad={(map) => {
-            mapRef.current = map;
-          }}
-          options={{
-            disableDefaultUI: false,
-            zoomControl: true,
-            streetViewControl: false,
-          }}
-        >
-          {markers.map((marker, idx) => (
-            <AdvancedMarker
-              key={idx}
-              position={{ lat: marker.lat, lng: marker.lng }}
-              iconUrl={
-                marker.type === 'pickup'
-                  ? 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="%234ade80" stroke="%23ffffff" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>'
-                  : 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="%233b82f6" stroke="%23ffffff" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>'
-              }
-              iconSize={32}
-            />
-          ))}
-        </GoogleMap>
-      </div>
     </div>
     </LockedFeature>
   );

@@ -1,193 +1,126 @@
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Truck, Mail, Phone, MapPin, Twitter, Linkedin, Facebook } from "lucide-react";
+import { Truck, Mail, Phone, MapPin } from "lucide-react";
 import HealthCheck from "@/components/HealthCheck";
 import { useLocation, Link } from "react-router-dom";
+
+const footerSections = [
+  {
+    title: "Product",
+    links: [
+      { name: "Features", href: "#features" },
+      { name: "Pricing", href: "#pricing" },
+      { name: "Driver app", href: "#download" },
+      { name: "System status", href: "/status", isRoute: true },
+    ],
+  },
+  {
+    title: "Support",
+    links: [
+      { name: "Contact support", href: "mailto:support@fleettrackmate.com" },
+      { name: "Delete account", href: "/delete-account", isRoute: true },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { name: "Privacy policy", href: "/privacy", isRoute: true },
+      { name: "Terms of service", href: "/terms", isRoute: true },
+    ],
+  },
+];
+
 const Footer = () => {
   const location = useLocation();
-  const isLandingPage = location.pathname === '/';
-  const footerSections = [{
-    title: "Product",
-    links: [{
-      name: "Features",
-      href: "#features"
-    }, {
-      name: "Dashboard",
-      href: "#dashboard"
-    }, {
-      name: "Mobile App",
-      href: "#mobile"
-    }, {
-      name: "Integrations",
-      href: "#integrations"
-    }, {
-      name: "API",
-      href: "#api"
-    }]
-  }, {
-    title: "Company",
-    links: [{
-      name: "About Us",
-      href: "#about"
-    }, {
-      name: "Careers",
-      href: "#careers"
-    }, {
-      name: "Press",
-      href: "#press"
-    }, {
-      name: "Blog",
-      href: "#blog"
-    }, {
-      name: "Partners",
-      href: "#partners"
-    }]
-  }, {
-    title: "Support",
-    links: [{
-      name: "Help Center",
-      href: "#help"
-    }, {
-      name: "Documentation",
-      href: "#docs"
-    }, {
-      name: "Contact Support",
-      href: "#support"
-    }, {
-      name: "System Status",
-      href: "#status"
-    }, {
-      name: "Training",
-      href: "#training"
-    }]
-  }, {
-    title: "Legal",
-    links: [{
-      name: "Privacy Policy",
-      href: "/privacy",
-      isRoute: true
-    }, {
-      name: "Terms of Service",
-      href: "/terms",
-      isRoute: true
-    }, {
-      name: "Cookie Policy",
-      href: "#cookies"
-    }, {
-      name: "GDPR",
-      href: "#gdpr"
-    }, {
-      name: "Security",
-      href: "#security"
-    }]
-  }];
-  return <footer className="bg-muted/30 border-t border-border/50">
-      {/* Main Footer */}
-      <div className="container mx-auto px-4 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8">
-          {/* Company Info */}
+  const isLandingPage = location.pathname === "/";
+
+  return (
+    <footer className="border-t border-border bg-muted/40">
+      <div className="container mx-auto px-4 py-14">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-2 lg:grid-cols-5">
+          {/* Brand */}
           <div className="lg:col-span-2">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-r from-primary to-primary-glow rounded-lg flex items-center justify-center">
-                <Truck className="w-6 h-6 text-white" />
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+                <Truck className="h-6 w-6 text-primary-foreground" />
               </div>
               <div>
-                <h3 className="text-xl font-bold gradient-text">FTM</h3>
-                <p className="text-sm text-muted-foreground -mt-1">Fleet Track Mate</p>
+                <h3 className="font-heading text-xl font-bold leading-tight">FleetTrackMate</h3>
+                <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
+                  Fleet tracking console
+                </p>
               </div>
             </div>
-            
-            <p className="text-muted-foreground mb-6 leading-relaxed">
-              Advanced cloud-based fleet tracking and management solution. 
-              Monitor, optimize, and secure your fleet with cutting-edge technology.
+
+            <p className="mb-6 max-w-sm leading-relaxed text-muted-foreground">
+              Live GPS tracking, dispatch and driver safety for fleets of any size — on the web and
+              in the cab.
             </p>
 
-            {/* Contact Info */}
-            <div className="space-y-3">
-              <div className="flex items-center space-x-3 text-sm">
-                <Phone className="w-4 h-4 text-primary" />
-                <span>+44 734 1011 220</span>
-              </div>
-              <div className="flex items-center space-x-3 text-sm">
-                <Mail className="w-4 h-4 text-primary" />
-                <span>support@fleettrackmate.com</span>
-              </div>
-              <div className="flex items-center space-x-3 text-sm">
-                <MapPin className="w-4 h-4 text-primary" />
-                <span>UK</span>
-              </div>
-            </div>
-
-            {/* Social Links */}
-            <div className="flex space-x-3 mt-6">
-              <Button variant="ghost" size="icon" className="hover:bg-primary/20 hover:text-primary">
-                <Twitter className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="hover:bg-primary/20 hover:text-primary">
-                <Linkedin className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="hover:bg-primary/20 hover:text-primary">
-                <Facebook className="w-4 h-4" />
-              </Button>
-            </div>
+            <ul className="space-y-2.5 text-sm text-muted-foreground">
+              <li className="flex items-center gap-3">
+                <Phone className="h-4 w-4 text-primary" />
+                <a href="tel:+447341011220" className="hover:text-foreground">
+                  +44 734 1011 220
+                </a>
+              </li>
+              <li className="flex items-center gap-3">
+                <Mail className="h-4 w-4 text-primary" />
+                <a href="mailto:support@fleettrackmate.com" className="hover:text-foreground">
+                  support@fleettrackmate.com
+                </a>
+              </li>
+              <li className="flex items-center gap-3">
+                <MapPin className="h-4 w-4 text-primary" />
+                <span>United Kingdom</span>
+              </li>
+            </ul>
           </div>
 
-          {/* Footer Links */}
-          {footerSections.map((section, index) => <div key={index}>
-              <h4 className="font-semibold mb-4">{section.title}</h4>
+          {/* Link columns */}
+          {footerSections.map((section) => (
+            <div key={section.title}>
+              <h4 className="mb-4 font-mono text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+                {section.title}
+              </h4>
               <ul className="space-y-3">
-                {section.links.map((link, linkIndex) => <li key={linkIndex}>
-                    {(link as any).isRoute ? <Link to={link.href} className="text-muted-foreground hover:text-foreground transition-colors text-sm">
+                {section.links.map((link) => (
+                  <li key={link.name}>
+                    {link.isRoute ? (
+                      <Link
+                        to={link.href}
+                        className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                      >
                         {link.name}
-                      </Link> : <a href={link.href} className="text-muted-foreground hover:text-foreground transition-colors text-sm">
+                      </Link>
+                    ) : (
+                      <a
+                        href={link.href}
+                        className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                      >
                         {link.name}
-                      </a>}
-                  </li>)}
+                      </a>
+                    )}
+                  </li>
+                ))}
               </ul>
-            </div>)}
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Newsletter */}
-      <div className="border-t border-border/50 bg-muted/50">
-        <div className="container mx-auto px-4 py-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div>
-              <h4 className="font-semibold mb-2">Stay Updated</h4>
-              <p className="text-muted-foreground text-sm">
-                Get the latest fleet management tips and product updates.
-              </p>
-            </div>
-            <div className="flex gap-3 w-full md:w-auto">
-              <input type="email" placeholder="Enter your email" className="flex-1 md:w-64 px-4 py-2 rounded-md bg-background border border-border text-sm focus:ring-2 focus:ring-primary focus:border-transparent" />
-              <Button variant="hero">Subscribe</Button>
-            </div>
-          </div>
+      {/* Bottom bar */}
+      <div className="border-t border-border">
+        <div className="container mx-auto flex flex-col items-center justify-between gap-3 px-4 py-6 text-sm text-muted-foreground md:flex-row">
+          <p>© {new Date().getFullYear()} FleetTrackMate. All rights reserved.</p>
+          <p className="font-mono text-xs uppercase tracking-[0.15em]">
+            Made for fleet managers
+          </p>
         </div>
       </div>
 
-      {/* Bottom Bar */}
-      <div className="border-t border-border/50">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-4">
-              <p>© 2024 Fleet Track Mate - FTM. All rights reserved.</p>
-              <Badge variant="secondary" className="text-xs">
-                SOC 2 Compliant
-              </Badge>
-            </div>
-            <div className="flex items-center gap-4">
-              <span>Made with ❤️ for fleet managers</span>
-              <Badge variant="outline" className="text-xs">
-                99.9% Uptime
-              </Badge>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Health Check - Only on landing page */}
+      {/* Health check — landing page only */}
       {isLandingPage && <HealthCheck />}
-    </footer>;
+    </footer>
+  );
 };
+
 export default Footer;

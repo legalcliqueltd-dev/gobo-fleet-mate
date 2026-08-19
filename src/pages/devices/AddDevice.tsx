@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Copy, Check, QrCode, Link2, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import PaymentWall from '@/components/PaymentWall';
+import { ShareCodeButton } from '@/components/ShareCodeButton';
 
 const schema = z.object({
   name: z.string().min(2, 'Name is required'),
@@ -120,27 +121,25 @@ export default function AddDevice() {
               </p>
             </div>
 
-            <div className="bg-background/50 rounded-lg p-6 text-center">
-              <p className="text-sm text-muted-foreground mb-2">Connection Code</p>
-              <p className="text-4xl font-bold tracking-wider font-mono mb-4">{connectionCode}</p>
-              
-              <div className="flex gap-2 justify-center">
+            <div className="bg-muted/40 border border-border rounded-lg p-6 text-center">
+              <p className="font-mono text-xs uppercase tracking-[0.15em] text-muted-foreground mb-2">Connection code</p>
+              <p className="telemetry text-4xl font-bold tracking-[0.25em] mb-4">{connectionCode}</p>
+
+              <div className="flex flex-wrap gap-2 justify-center">
+                <ShareCodeButton code={connectionCode} deviceName={deviceName} size="default" />
                 <Button
                   onClick={copyCode}
                   variant="outline"
-                  size="sm"
                 >
                   {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-                  {copied ? 'Copied!' : 'Copy Code'}
+                  {copied ? 'Copied!' : 'Copy code'}
                 </Button>
-                
                 <Button
                   onClick={copyLink}
                   variant="outline"
-                  size="sm"
                 >
                   <Link2 className="h-4 w-4 mr-2" />
-                  Copy Link
+                  Copy link
                 </Button>
               </div>
             </div>

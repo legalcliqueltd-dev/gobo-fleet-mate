@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { GoogleMap, useJsApiLoader, DirectionsRenderer } from '@react-google-maps/api';
+import { useState, useEffect, useRef } from 'react';
+import { MapContainer, Polyline } from 'react-leaflet';
+import type { Map as LeafletMapType } from 'leaflet';
 import { Capacitor } from '@capacitor/core';
-import AdvancedMarker from '@/components/map/AdvancedMarker';
-import DriverLocationMarker from '@/components/map/DriverLocationMarker';
-import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
+import { AppTileLayer, DriverMarker, TaskMarker, MapAttribution } from '@/components/map/leaflet/LeafletMap';
 import { Button } from '@/components/ui/button';
-import { X, Navigation, LocateFixed } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { X, Navigation, LocateFixed, MapPin } from 'lucide-react';
+import { useTheme } from '@/contexts/ThemeContext';
+import { getRouteStrokeColor } from '@/lib/mapStyles';
 
 // Apple App Review Guideline 4 requires apps with location/mapping features to
 // offer the option to launch the native Apple Maps app. We show the Apple Maps
@@ -33,12 +33,34 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Clean map style for navigation
-const NAV_MAP_STYLE: google.maps.MapTypeStyle[] = [
-  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-];
+function formatDistanceM(meters: number): string {
+  if (meters < 1000) return `${Math.round(meters)} m`;
+  return `${(meters / 1000).toFixed(1)} km`;
+}
+
+function formatDurationS(seconds: number): string {
+  const mins = Math.round(seconds / 60);
+  if (mins < 60) return `${mins} min`;
+  return `${Math.floor(mins / 60)} h ${mins % 60} min`;
+}
+
+/** Turn an OSRM maneuver into a short human instruction. */
+function describeStep(step: {
+  maneuver: { type: string; modifier?: string };
+  name: string;
+}): string {
+  const road = step.name ? ` onto ${step.name}` : '';
+  const modifier = step.maneuver.modifier ? ` ${step.maneuver.modifier}` : '';
+  switch (step.maneuver.type) {
+    case 'depart': return `Head out${step.name ? ` on ${step.name}` : ''}`;
+    case 'arrive': return 'Arrive at the drop-off';
+    case 'turn': return `Turn${modifier}${road}`;
+    case 'roundabout': return `Take the roundabout${road}`;
+    case 'merge': return `Merge${modifier}${road}`;
+    case 'fork': return `Keep${modifier}${road}`;
+    default: return `Continue${road}`;
+  }
+}
 
 export default function TaskNavigationMap({
   dropoffLat,
@@ -46,21 +68,18 @@ export default function TaskNavigationMap({
   taskTitle,
   onClose,
 }: TaskNavigationMapProps) {
-  const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
-    libraries: GOOGLE_MAPS_LIBRARIES,
-  });
+  const { isDark } = useTheme();
+  const mapRef = useRef<LeafletMapType | null>(null);
+  const hasFitBounds = useRef(false);
+  const lastRouteCalc = useRef(0);
 
   const [currentPosition, setCurrentPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [heading, setHeading] = useState<number | null>(null);
-  const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+  const [routePath, setRoutePath] = useState<[number, number][]>([]);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
   const [nextStep, setNextStep] = useState<{ instruction: string; distance: string } | null>(null);
-  const [map, setMap] = useState<google.maps.Map | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isArrived, setIsArrived] = useState(false);
-  const lastRouteCalc = useRef(0);
 
   // Watch current position
   useEffect(() => {
@@ -90,61 +109,66 @@ export default function TaskNavigationMap({
     return () => navigator.geolocation.clearWatch(watchId);
   }, [dropoffLat, dropoffLng]);
 
-  // Auto-recenter on driver
+  // Route via OSRM (open-source router) — recalculated at most every 30s
   useEffect(() => {
-    if (map && currentPosition) {
-      map.panTo(currentPosition);
-    }
-  }, [currentPosition, map]);
-
-  // Calculate/recalculate route (throttled to every 30s)
-  useEffect(() => {
-    if (!currentPosition || !isLoaded) return;
+    if (!currentPosition) return;
     const now = Date.now();
-    if (now - lastRouteCalc.current < 30000 && directions) return;
+    if (now - lastRouteCalc.current < 30000 && routePath.length > 0) return;
     lastRouteCalc.current = now;
 
-    const directionsService = new google.maps.DirectionsService();
-    directionsService.route(
-      {
-        origin: currentPosition,
-        destination: { lat: dropoffLat, lng: dropoffLng },
-        travelMode: google.maps.TravelMode.DRIVING,
-      },
-      (result, status) => {
-        if (status === 'OK' && result) {
-          setDirections(result);
-          const leg = result.routes[0]?.legs[0];
-          if (leg) {
-            setRouteInfo({
-              distance: leg.distance?.text || '',
-              duration: leg.duration?.text || '',
-            });
-            // Next step
-            const step = leg.steps[0];
-            if (step) {
-              setNextStep({
-                instruction: step.instructions.replace(/<[^>]*>/g, ''),
-                distance: step.distance?.text || '',
-              });
-            }
-          }
-        } else {
-          console.error('Directions error:', status);
-          setError('Could not calculate route');
-        }
-      }
-    );
-  }, [currentPosition, dropoffLat, dropoffLng, isLoaded, directions]);
+    const url =
+      `https://router.project-osrm.org/route/v1/driving/` +
+      `${currentPosition.lng},${currentPosition.lat};${dropoffLng},${dropoffLat}` +
+      `?overview=full&geometries=geojson&steps=true`;
 
-  const onLoad = useCallback((mapInstance: google.maps.Map) => {
-    setMap(mapInstance);
-  }, []);
+    fetch(url)
+      .then((r) => r.json())
+      .then((data) => {
+        const route = data?.routes?.[0];
+        if (!route) throw new Error('no route');
+        setRoutePath(
+          (route.geometry.coordinates as [number, number][]).map(([lng, lat]) => [lat, lng])
+        );
+        setRouteInfo({
+          distance: formatDistanceM(route.distance),
+          duration: formatDurationS(route.duration),
+        });
+        const step = route.legs?.[0]?.steps?.[0];
+        if (step) {
+          setNextStep({
+            instruction: describeStep(step),
+            distance: formatDistanceM(step.distance),
+          });
+        }
+      })
+      .catch(() => {
+        // Routing service unreachable — fall back to a straight guide line.
+        setRoutePath([
+          [currentPosition.lat, currentPosition.lng],
+          [dropoffLat, dropoffLng],
+        ]);
+        const straight = calculateDistance(currentPosition.lat, currentPosition.lng, dropoffLat, dropoffLng);
+        setRouteInfo({ distance: `${straight.toFixed(1)} km (direct)`, duration: '—' });
+        setNextStep(null);
+      });
+  }, [currentPosition, dropoffLat, dropoffLng, routePath.length]);
+
+  // Fit the whole route into view once we know both ends
+  useEffect(() => {
+    if (hasFitBounds.current || !mapRef.current || !currentPosition) return;
+    mapRef.current.fitBounds(
+      [
+        [currentPosition.lat, currentPosition.lng],
+        [dropoffLat, dropoffLng],
+      ],
+      { padding: [48, 48] }
+    );
+    hasFitBounds.current = true;
+  }, [currentPosition, dropoffLat, dropoffLng]);
 
   const centerOnMe = () => {
-    if (map && currentPosition) {
-      map.panTo(currentPosition);
-      map.setZoom(16);
+    if (mapRef.current && currentPosition) {
+      mapRef.current.setView([currentPosition.lat, currentPosition.lng], 16);
     }
   };
 
@@ -166,15 +190,6 @@ export default function TaskNavigationMap({
     window.open(url, '_blank');
   };
 
-  if (!isLoaded) {
-    return (
-      <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
-  }
-
-  const center = currentPosition || { lat: dropoffLat, lng: dropoffLng };
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
@@ -184,94 +199,74 @@ export default function TaskNavigationMap({
           <Navigation className="h-5 w-5 shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold truncate">{nextStep.instruction}</p>
-            <p className="text-xs opacity-80">{nextStep.distance}</p>
+            <p className="telemetry text-xs opacity-80">{nextStep.distance}</p>
           </div>
         </div>
       )}
 
       {/* Arrival banner */}
       {isArrived && (
-        <div className="bg-success text-success-foreground px-4 py-3 text-center font-semibold">
-          📍 You've arrived at the drop-off!
+        <div className="flex items-center justify-center gap-2 bg-success px-4 py-3 font-semibold text-success-foreground">
+          <MapPin className="h-4 w-4" />
+          You've arrived at the drop-off
         </div>
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b bg-background">
+      <div className="flex items-center justify-between border-b bg-background px-4 py-3">
         <div className="flex-1 min-w-0">
-          <h2 className="font-bold truncate">{taskTitle}</h2>
+          <h2 className="truncate font-heading font-bold">{taskTitle}</h2>
           {routeInfo && (
-            <p className="text-sm text-muted-foreground">
-              {routeInfo.duration} • {routeInfo.distance}
+            <p className="telemetry text-sm text-muted-foreground">
+              {routeInfo.duration} · {routeInfo.distance}
             </p>
           )}
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose}>
+        <Button variant="ghost" size="icon" onClick={onClose} className="h-11 w-11" aria-label="Close navigation">
           <X className="h-5 w-5" />
         </Button>
       </div>
 
       {/* Map */}
       <div className="flex-1 relative">
-        <GoogleMap
-          mapContainerStyle={{ width: '100%', height: '100%' }}
-          center={center}
-          zoom={16}
-          onLoad={onLoad}
-          options={{
-            disableDefaultUI: true,
-            zoomControl: true,
-            mapTypeControl: false,
-            streetViewControl: false,
-            fullscreenControl: false,
-            styles: NAV_MAP_STYLE,
-          }}
+        <MapContainer
+          ref={mapRef}
+          center={[dropoffLat, dropoffLng]}
+          zoom={15}
+          zoomControl={false}
+          attributionControl={false}
+          style={{ width: '100%', height: '100%' }}
         >
-          {directions && (
-            <DirectionsRenderer
-              directions={directions}
-              options={{
-                suppressMarkers: true,
-                polylineOptions: {
-                  strokeColor: '#3b82f6',
-                  strokeWeight: 6,
-                  strokeOpacity: 0.9,
-                },
-              }}
+          <MapAttribution />
+          <AppTileLayer isDark={isDark} mapType="roadmap" />
+
+          {routePath.length > 1 && (
+            <Polyline
+              positions={routePath}
+              pathOptions={{ color: getRouteStrokeColor(isDark), weight: 6, opacity: 0.9 }}
             />
           )}
 
           {currentPosition && (
-            <DriverLocationMarker
-              position={currentPosition}
-              isTracking={true}
-              heading={heading}
-            />
+            <DriverMarker position={currentPosition} isTracking={true} heading={heading} />
           )}
 
-          {/* Destination marker */}
-          <AdvancedMarker
-            position={{ lat: dropoffLat, lng: dropoffLng }}
-            iconSize={36}
-          >
-            <div className="w-9 h-9 rounded-full bg-destructive border-[3px] border-white shadow-xl flex items-center justify-center">
-              <span className="text-xs font-bold">📍</span>
-            </div>
-          </AdvancedMarker>
-        </GoogleMap>
+          <TaskMarker position={{ lat: dropoffLat, lng: dropoffLng }} />
+        </MapContainer>
 
         {error && (
-          <div className="absolute top-4 left-4 right-4 bg-destructive/90 text-destructive-foreground p-3 rounded-lg text-sm">
+          <div className="absolute top-4 left-4 right-4 z-[1000] bg-destructive/90 text-destructive-foreground p-3 rounded-lg text-sm">
             {error}
           </div>
         )}
 
-        <div className="absolute bottom-4 right-4 flex flex-col gap-2">
+        <div className="absolute bottom-4 right-4 z-[1000] flex flex-col gap-2">
           <Button
             variant="secondary"
             size="icon"
-            className="h-12 w-12 rounded-full shadow-lg"
+            className="h-12 w-12 rounded-full border border-border shadow-lg"
             onClick={centerOnMe}
+            aria-label="Center on my location"
           >
             <LocateFixed className="h-5 w-5" />
           </Button>

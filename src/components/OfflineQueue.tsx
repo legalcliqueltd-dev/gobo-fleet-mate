@@ -3,7 +3,8 @@ import { Capacitor } from '@capacitor/core';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wifi, WifiOff, RefreshCw, Trash2, MapPin } from 'lucide-react';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import { Wifi, WifiOff, RefreshCw, Trash2, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -55,6 +56,8 @@ export default function OfflineQueue() {
   const [syncing, setSyncing] = useState(false);
   const [offlineLocationCount, setOfflineLocationCount] = useState(0);
   const [nativeQueueCount, setNativeQueueCount] = useState(0);
+  const [collapsed, setCollapsed] = useState(false);
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
   const syncQueueRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -227,13 +230,11 @@ export default function OfflineQueue() {
 
   useEffect(() => { syncQueueRef.current = syncQueue; }, [syncQueue]);
 
-  const clearQueue = async () => {
-    if (confirm('Clear all queued actions? This cannot be undone.')) {
-      saveQueue([]);
-      await clearAllPendingLocations();
-      setOfflineLocationCount(0);
-      toast.success('Queue cleared');
-    }
+  const performClearQueue = async () => {
+    saveQueue([]);
+    await clearAllPendingLocations();
+    setOfflineLocationCount(0);
+    toast.success('Queue cleared');
   };
 
   const removeAction = (id: string) => {
@@ -264,15 +265,39 @@ export default function OfflineQueue() {
     return null;
   }
 
+  // Collapsed: slim pill — status + count stay visible, map/screen stays clear.
+  if (collapsed) {
+    return (
+      <div className="px-4 py-2">
+        <button
+          onClick={() => setCollapsed(false)}
+          className="flex min-h-[44px] w-full items-center gap-2.5 rounded-full border border-border bg-card/95 px-4 py-2 shadow-md backdrop-blur"
+          aria-label="Expand sync queue"
+        >
+          {isOnline ? (
+            <Wifi className="h-4 w-4 shrink-0 text-success" />
+          ) : (
+            <WifiOff className="h-4 w-4 shrink-0 text-destructive" />
+          )}
+          <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold">Sync queue</span>
+          <span className="telemetry shrink-0 text-xs text-muted-foreground">
+            {totalPending} pending{!isOnline && ' · offline'}
+          </span>
+          <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <Card className="m-4 bg-background/50 backdrop-blur border border-border">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             {isOnline ? (
-              <Wifi className="h-5 w-5 text-green-500" />
+              <Wifi className="h-5 w-5 text-success" />
             ) : (
-              <WifiOff className="h-5 w-5 text-red-500" />
+              <WifiOff className="h-5 w-5 text-destructive" />
             )}
             <div>
               <h3 className="font-semibold">Sync Queue</h3>
@@ -288,7 +313,7 @@ export default function OfflineQueue() {
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1.5">
             {isOnline && totalPending > 0 && (
               <Button
                 size="sm"
@@ -304,11 +329,20 @@ export default function OfflineQueue() {
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={clearQueue}
+                onClick={() => setClearConfirmOpen(true)}
+                aria-label="Clear queue"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
             )}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setCollapsed(true)}
+              aria-label="Minimize sync queue"
+            >
+              <ChevronDown className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </CardHeader>
@@ -384,6 +418,20 @@ export default function OfflineQueue() {
           </div>
         </CardContent>
       )}
+
+      {/* Styled confirmation (replaces window.confirm) */}
+      <ConfirmDialog
+        open={clearConfirmOpen}
+        onOpenChange={setClearConfirmOpen}
+        title="Clear all queued actions?"
+        description="Queued locations and actions that haven't synced yet will be permanently discarded. This cannot be undone."
+        confirmLabel="Clear queue"
+        destructive
+        onConfirm={() => {
+          performClearQueue();
+          setClearConfirmOpen(false);
+        }}
+      />
     </Card>
   );
 }

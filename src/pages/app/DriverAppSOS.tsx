@@ -1,15 +1,42 @@
 import { useState, useRef } from 'react';
 import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertTriangle, Phone, MessageSquare, Camera, X, Image } from 'lucide-react';
+import {
+  AlertTriangle,
+  Phone,
+  MessageSquare,
+  Camera,
+  X,
+  Image,
+  CarFront,
+  HeartPulse,
+  ShieldAlert,
+  Wrench,
+  CircleHelp,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
 import { isNativePlatform, capturePhotoAsFile } from '@/utils/nativeCamera';
 import { useEmergencyContact } from '@/hooks/useEmergencyContact';
 
 type Hazard = 'accident' | 'medical' | 'robbery' | 'breakdown' | 'other';
+
+const HAZARDS: { value: Hazard; label: string; icon: typeof CarFront }[] = [
+  { value: 'accident', label: 'Accident', icon: CarFront },
+  { value: 'medical', label: 'Medical', icon: HeartPulse },
+  { value: 'robbery', label: 'Robbery', icon: ShieldAlert },
+  { value: 'breakdown', label: 'Breakdown', icon: Wrench },
+  { value: 'other', label: 'Other', icon: CircleHelp },
+];
+
+/* Hold-to-trigger ring dimensions */
+const RING_SIZE = 208;
+const RING_STROKE = 6;
+const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 export default function DriverAppSOS() {
   const { session } = useDriverSession();
@@ -204,22 +231,28 @@ export default function DriverAppSOS() {
   if (sosActive) {
     return (
       <DriverAppLayout>
-        <div className="p-4 h-full flex flex-col items-center justify-center text-center space-y-6">
-          <div className="w-24 h-24 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
-            <AlertTriangle className="h-12 w-12 text-white" />
+        <div className="flex h-full flex-col items-center justify-center space-y-6 p-4 text-center">
+          <div className="relative flex h-28 w-28 items-center justify-center">
+            <span className="absolute inset-0 animate-ping rounded-full bg-destructive/30" />
+            <span className="relative flex h-28 w-28 items-center justify-center rounded-full bg-destructive shadow-lg shadow-destructive/40">
+              <AlertTriangle className="h-12 w-12 text-destructive-foreground" />
+            </span>
           </div>
 
           <div>
-            <h1 className="text-2xl font-bold mb-2">SOS Active</h1>
+            <p className="mb-2 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-destructive">
+              Alert sent
+            </p>
+            <h1 className="mb-2 font-heading text-3xl font-bold">SOS active</h1>
             <p className="text-muted-foreground">
               Your emergency alert has been sent. Stay calm and wait for help.
             </p>
           </div>
 
           {currentLocation && (
-            <div className="bg-muted/50 rounded-lg p-4 text-sm">
-              <p className="font-medium mb-1">Your location has been shared:</p>
-              <p className="text-muted-foreground font-mono text-xs">
+            <div className="rounded-lg border border-border bg-card p-4 text-sm">
+              <p className="mb-1 font-medium">Location shared with your fleet:</p>
+              <p className="telemetry text-xs text-muted-foreground">
                 {currentLocation.lat.toFixed(6)}, {currentLocation.lng.toFixed(6)}
               </p>
             </div>
@@ -227,14 +260,14 @@ export default function DriverAppSOS() {
 
           <div className="w-full max-w-xs space-y-3">
             {emergencyContact ? (
-              <Button variant="outline" className="w-full gap-2" asChild>
+              <Button variant="outline" size="lg" className="w-full gap-2" asChild>
                 <a href={`tel:${emergencyContact.phone}`}>
                   <Phone className="h-4 w-4" />
                   Call {emergencyContact.name || 'Emergency Contact'} ({emergencyContact.phone})
                 </a>
               </Button>
             ) : (
-              <Button variant="outline" className="w-full gap-2" disabled>
+              <Button variant="outline" size="lg" className="w-full gap-2" disabled>
                 <Phone className="h-4 w-4" />
                 Emergency contact not set — ask your dispatcher
               </Button>
@@ -245,7 +278,7 @@ export default function DriverAppSOS() {
               className="w-full text-muted-foreground"
               onClick={cancelSOS}
             >
-              Cancel SOS (False Alarm)
+              Cancel SOS (false alarm)
             </Button>
           </div>
         </div>
@@ -255,11 +288,16 @@ export default function DriverAppSOS() {
 
   return (
     <DriverAppLayout>
-      <div className="p-4 h-full flex flex-col">
-        <h1 className="text-2xl font-bold mb-4 text-center">Emergency SOS</h1>
+      <div className="flex h-full flex-col p-4">
+        <div className="mb-2 text-center">
+          <p className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-destructive">
+            Emergency
+          </p>
+          <h1 className="font-heading text-2xl font-bold">SOS</h1>
+        </div>
 
-        {/* SOS Button */}
-        <div className="flex-1 flex flex-col items-center justify-center">
+        {/* SOS hold button with progress ring */}
+        <div className="flex flex-1 flex-col items-center justify-center py-4">
           <button
             onMouseDown={handleSOSPress}
             onMouseUp={handleSOSRelease}
@@ -267,57 +305,107 @@ export default function DriverAppSOS() {
             onTouchStart={handleSOSPress}
             onTouchEnd={handleSOSRelease}
             disabled={sending}
-            className={
-              `relative w-40 h-40 rounded-full bg-gradient-to-br from-red-500 to-red-600 ` +
-              `shadow-2xl transition-all duration-200 flex items-center justify-center ` +
-              `${sosHolding ? 'scale-110 animate-pulse' : 'active:scale-95'} ` +
-              `${sending ? 'opacity-50' : ''}`
-            }
-          >
-            <AlertTriangle className="h-16 w-16 text-white" />
-            {sosHolding && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-5xl font-bold text-white">{countdown}</span>
-              </div>
+            aria-label="Hold for 3 seconds to send an SOS alert"
+            className={cn(
+              'relative flex items-center justify-center rounded-full transition-transform duration-200 select-none touch-none',
+              sosHolding ? 'scale-105' : 'active:scale-95',
+              sending && 'opacity-50'
             )}
+            style={{ width: RING_SIZE, height: RING_SIZE }}
+          >
+            {/* Progress ring: fills over the 3-second hold */}
+            <svg
+              width={RING_SIZE}
+              height={RING_SIZE}
+              viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}
+              className="absolute inset-0 -rotate-90"
+              aria-hidden="true"
+            >
+              <circle
+                cx={RING_SIZE / 2}
+                cy={RING_SIZE / 2}
+                r={RING_RADIUS}
+                fill="none"
+                strokeWidth={RING_STROKE}
+                className="stroke-destructive/20"
+              />
+              <circle
+                cx={RING_SIZE / 2}
+                cy={RING_SIZE / 2}
+                r={RING_RADIUS}
+                fill="none"
+                strokeWidth={RING_STROKE}
+                strokeLinecap="round"
+                className="stroke-destructive"
+                style={{
+                  strokeDasharray: RING_CIRCUMFERENCE,
+                  strokeDashoffset: sosHolding ? 0 : RING_CIRCUMFERENCE,
+                  transition: sosHolding
+                    ? 'stroke-dashoffset 3s linear'
+                    : 'stroke-dashoffset 0.2s ease-out',
+                }}
+              />
+            </svg>
+
+            {/* Button face */}
+            <span
+              className={cn(
+                'flex flex-col items-center justify-center rounded-full bg-gradient-to-br from-destructive to-red-700 text-destructive-foreground shadow-2xl shadow-destructive/40',
+                sosHolding && 'animate-pulse'
+              )}
+              style={{ width: RING_SIZE - 28, height: RING_SIZE - 28 }}
+            >
+              {sosHolding ? (
+                <span className="telemetry text-6xl font-bold">{countdown}</span>
+              ) : (
+                <>
+                  <AlertTriangle className="h-14 w-14" />
+                  <span className="mt-1 font-mono text-xs font-semibold uppercase tracking-[0.2em]">
+                    Hold
+                  </span>
+                </>
+              )}
+            </span>
           </button>
 
-          <p className="text-center text-muted-foreground mt-4 font-medium">
-            {sending ? 'Sending SOS...' : 'Hold for 3 seconds to trigger SOS'}
+          <p className="mt-4 text-center font-medium text-muted-foreground">
+            {sending ? 'Sending SOS…' : 'Hold for 3 seconds to send the alert'}
           </p>
         </div>
 
-        {/* Hazard Type Selection */}
-        <div className="space-y-3 mt-4">
-          <label className="block text-sm font-medium">Hazard Type</label>
+        {/* Hazard type */}
+        <div className="mt-2 space-y-3">
+          <label className="eyebrow">What's happening?</label>
           <div className="grid grid-cols-3 gap-2">
-            {(['accident', 'medical', 'robbery', 'breakdown', 'other'] as Hazard[]).map((h) => (
+            {HAZARDS.map(({ value, label, icon: Icon }) => (
               <button
-                key={h}
-                onClick={() => setHazard(h)}
-                aria-pressed={hazard === h}
-                className={
-                  `min-h-[44px] px-3 py-3 rounded-lg border text-sm font-medium transition ` +
-                  (hazard === h
+                key={value}
+                onClick={() => setHazard(value)}
+                aria-pressed={hazard === value}
+                className={cn(
+                  'flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-semibold transition',
+                  hazard === value
                     ? 'border-destructive bg-destructive/10 text-destructive'
-                    : 'border-border hover:border-destructive/50')
-                }
+                    : 'border-border bg-card text-muted-foreground hover:border-destructive/50'
+                )}
               >
-                {h.charAt(0).toUpperCase() + h.slice(1)}
+                <Icon className="h-5 w-5" />
+                {label}
               </button>
             ))}
           </div>
         </div>
 
         {/* Photo Evidence */}
-        <div className="space-y-3 mt-4">
-          <label className="block text-sm font-medium">Photo Evidence (Optional)</label>
+        <div className="space-y-3 mt-5">
+          <label className="eyebrow">Photo evidence (optional)</label>
           {photoPreview ? (
             <div className="relative">
-              <img src={photoPreview} alt="Preview" className="w-full max-h-32 object-cover rounded-lg" />
+              <img src={photoPreview} alt="Preview" className="max-h-32 w-full rounded-lg object-cover" />
               <button
                 onClick={removePhoto}
-                className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition"
+                aria-label="Remove photo"
+                className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-md transition hover:bg-destructive/90"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -331,7 +419,7 @@ export default function DriverAppSOS() {
                 onClick={handleCameraCapture}
                 disabled={sending || uploadingPhoto}
               >
-                <Camera className="h-4 w-4 mr-2" />
+                <Camera className="mr-2 h-4 w-4" />
                 Camera
               </Button>
               <Button
@@ -341,7 +429,7 @@ export default function DriverAppSOS() {
                 onClick={handleGallerySelect}
                 disabled={sending || uploadingPhoto}
               >
-                <Image className="h-4 w-4 mr-2" />
+                <Image className="mr-2 h-4 w-4" />
                 Gallery
               </Button>
             </div>
@@ -366,31 +454,31 @@ export default function DriverAppSOS() {
         </div>
 
         {/* Optional Message */}
-        <div className="space-y-3 mt-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <MessageSquare className="h-4 w-4" />
-            <span>Add a message (optional)</span>
-          </div>
+        <div className="space-y-3 mt-5">
+          <label className="eyebrow">
+            <MessageSquare className="h-3.5 w-3.5" />
+            Message (optional)
+          </label>
           <Textarea
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Describe your emergency..."
+            placeholder="Describe your emergency…"
             rows={2}
             disabled={sending}
           />
         </div>
 
         {/* Quick Actions */}
-        <div className="mt-4 space-y-2">
+        <div className="mt-5 space-y-2 pb-2">
           {emergencyContact ? (
-            <Button variant="outline" className="w-full gap-2" asChild>
+            <Button variant="outline" size="lg" className="w-full gap-2" asChild>
               <a href={`tel:${emergencyContact.phone}`}>
                 <Phone className="h-4 w-4" />
                 Call {emergencyContact.name || 'Emergency Contact'} ({emergencyContact.phone})
               </a>
             </Button>
           ) : (
-            <Button variant="outline" className="w-full gap-2" disabled>
+            <Button variant="outline" size="lg" className="w-full gap-2" disabled>
               <Phone className="h-4 w-4" />
               Emergency contact not set — ask your dispatcher
             </Button>

@@ -25,3 +25,15 @@ dist-ssr
 
 # Claude Code local state (worktrees, agent caches, etc.)
 .claude/
+
+# NOTE: `.env` itself is deliberately tracked — it holds only VITE_-prefixed
+# values, which are compiled into the public bundle anyway. Never put a real
+# secret (OAuth client secret, service-role key) in it. Local-only overrides
+# below stay out of git.
+.env.local
+.env.*.local
+
+# Build artefacts — signed APK/AAB outputs and synced native web assets
+android/app/release/
+android/app/build/
+ios/App/App/public/

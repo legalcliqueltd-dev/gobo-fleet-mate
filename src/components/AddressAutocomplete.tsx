@@ -38,15 +38,38 @@ export default function AddressAutocomplete({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceTimer = useRef<number | null>(null);
 
-  // Initialize services
+  // Initialize services.
+  //
+  // The Maps script is loaded asynchronously by whichever screen hosts this
+  // field, so `window.google` is frequently still undefined on first mount.
+  // The original one-shot check silently left every service null in that case
+  // and the field went dead — no predictions, no coordinates. Poll briefly
+  // until the SDK lands, then wire the services up.
   useEffect(() => {
-    if (window.google?.maps?.places) {
+    let cancelled = false;
+
+    const init = () => {
+      if (cancelled || !window.google?.maps?.places) return false;
       autocompleteService.current = new google.maps.places.AutocompleteService();
-      // Create a hidden div for PlacesService
-      const div = document.createElement('div');
-      placesService.current = new google.maps.places.PlacesService(div);
+      // PlacesService needs an element to attach to, even when unused visually.
+      placesService.current = new google.maps.places.PlacesService(document.createElement('div'));
       geocoder.current = new google.maps.Geocoder();
-    }
+      return true;
+    };
+
+    if (init()) return;
+
+    const timer = window.setInterval(() => {
+      if (init()) window.clearInterval(timer);
+    }, 300);
+    // Give up after 15s rather than polling forever on a failed key.
+    const stop = window.setTimeout(() => window.clearInterval(timer), 15000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      window.clearTimeout(stop);
+    };
   }, []);
 
   // Sync external value changes
