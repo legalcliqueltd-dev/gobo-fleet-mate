@@ -120,6 +120,46 @@ for bg_id in "com.transistorsoft.fetch" "com.transistorsoft.customtask"; do
 done
 
 echo ""
+echo "=== Google Sign-In URL Scheme ==="
+# GoogleSignIn 9.x returns from the OAuth flow through a custom URL scheme built
+# by reversing the iOS client ID. Without it registered here the account sheet
+# opens and never comes back to the app.
+#
+# Driven by VITE_GOOGLE_IOS_CLIENT_ID so .env stays the single source of truth.
+# While that value is empty we leave Info.plist untouched and adminAuth falls
+# back to the system-browser flow, so the app always has a working sign-in.
+GOOGLE_IOS_CLIENT_ID="$(grep -E '^VITE_GOOGLE_IOS_CLIENT_ID=' .env 2>/dev/null | head -1 | cut -d '=' -f 2- | tr -d "\"' \r")"
+
+if [ -z "$GOOGLE_IOS_CLIENT_ID" ]; then
+  echo "⏭  VITE_GOOGLE_IOS_CLIENT_ID is empty — skipped."
+  echo "   Google sign-in on iOS will use the system-browser fallback."
+else
+  # 268918163192-abc.apps.googleusercontent.com
+  #   -> com.googleusercontent.apps.268918163192-abc
+  REVERSED_CLIENT_ID="com.googleusercontent.apps.${GOOGLE_IOS_CLIENT_ID%%.apps.googleusercontent.com}"
+
+  if $PLIST_BUDDY -c "Print :CFBundleURLTypes" "$PLIST_PATH" 2>/dev/null | grep -q "$REVERSED_CLIENT_ID"; then
+    echo "✓ $REVERSED_CLIENT_ID (already registered)"
+  else
+    # Ensure the container exists before appending to it.
+    $PLIST_BUDDY -c "Print :CFBundleURLTypes" "$PLIST_PATH" >/dev/null 2>&1 \
+      || $PLIST_BUDDY -c "Add :CFBundleURLTypes array" "$PLIST_PATH"
+
+    # Append a new entry, leaving the existing fleettrackmate:// entry alone.
+    idx=0
+    while $PLIST_BUDDY -c "Print :CFBundleURLTypes:$idx" "$PLIST_PATH" >/dev/null 2>&1; do
+      idx=$((idx + 1))
+    done
+
+    $PLIST_BUDDY -c "Add :CFBundleURLTypes:$idx dict" "$PLIST_PATH"
+    $PLIST_BUDDY -c "Add :CFBundleURLTypes:$idx:CFBundleURLName string app.fleettrackmate.driver.google" "$PLIST_PATH"
+    $PLIST_BUDDY -c "Add :CFBundleURLTypes:$idx:CFBundleURLSchemes array" "$PLIST_PATH"
+    $PLIST_BUDDY -c "Add :CFBundleURLTypes:$idx:CFBundleURLSchemes: string $REVERSED_CLIENT_ID" "$PLIST_PATH"
+    echo "➕ $REVERSED_CLIENT_ID (registered)"
+  fi
+fi
+
+echo ""
 echo "✅ Info.plist permission entries ensured successfully!"
 echo ""
 

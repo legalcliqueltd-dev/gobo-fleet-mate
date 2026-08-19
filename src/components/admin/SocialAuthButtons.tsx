@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { signInWithProvider, type SocialProvider } from '@/services/adminAuth';
+import { isIOS } from '@/utils/platformDetection';
 
 function GoogleGlyph() {
   return (
@@ -23,22 +24,30 @@ function AppleGlyph() {
 }
 
 /**
- * Sign in with Apple is deferred — the credentials have not been provisioned
- * yet. The code path in `adminAuth` is complete, so re-enabling it is a matter
- * of flipping this flag once the Apple Services ID exists.
+ * Sign in with Apple ships on iOS only.
  *
- * MUST be turned back on before any iOS App Store submission: offering Google
- * sign-in without Apple sign-in is an automatic rejection under App Store
- * guideline 4.8. Android has no such requirement, which is why shipping
- * Google-only is fine for the Play release.
+ * App Store guideline 4.8 makes it mandatory there: offering Google sign-in
+ * without an equivalent Apple option is an automatic rejection. Native Sign in
+ * with Apple is provided by the OS, so it needs no Services ID — only the
+ * `com.apple.developer.applesignin` entitlement, which is set in
+ * `ios/App/App/App.entitlements`.
+ *
+ * Android and web stay Google-only. The Play Store has no such requirement,
+ * and the browser-based Apple flow those platforms would need depends on an
+ * Apple Services ID (`VITE_APPLE_SERVICE_ID`) that has not been provisioned.
  */
-const ENABLE_APPLE_SIGN_IN = false;
+const ENABLE_APPLE_SIGN_IN = isIOS();
 
+/**
+ * Apple is listed first on iOS. The HIG asks for the Sign in with Apple button
+ * to sit above other sign-in options, and 4.8 requires it to be an equivalent
+ * option — hence identical sizing and styling to the Google button below.
+ */
 const PROVIDERS: { id: SocialProvider; label: string; Glyph: () => JSX.Element }[] = [
-  { id: 'google', label: 'Continue with Google', Glyph: GoogleGlyph },
   ...(ENABLE_APPLE_SIGN_IN
     ? [{ id: 'apple' as const, label: 'Continue with Apple', Glyph: AppleGlyph }]
     : []),
+  { id: 'google', label: 'Continue with Google', Glyph: GoogleGlyph },
 ];
 
 /** Social sign-in options for the manager portal. */
