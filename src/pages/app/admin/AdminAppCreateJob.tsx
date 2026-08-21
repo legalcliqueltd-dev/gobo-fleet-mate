@@ -130,7 +130,7 @@ export default function AdminAppCreateJob() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
+      <div className="flex-1 space-y-7 overflow-y-auto px-4 py-5">
         {/* Who */}
         <section>
           <Label className="mb-2 flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
@@ -143,7 +143,7 @@ export default function AdminAppCreateJob() {
               No drivers connected yet. Share a connection code first.
             </p>
           ) : (
-            <ul className="space-y-1.5">
+            <ul className="space-y-2.5">
               {drivers.map((driver) => {
                 const isSelected = driver.driver_id === driverId;
                 return (
@@ -295,7 +295,7 @@ export default function AdminAppCreateJob() {
       </div>
 
       <div
-        className="border-t border-border bg-background px-3 py-2.5"
+        className="border-t border-border bg-background px-4 py-3"
         style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom, 0px))' }}
       >
         <Button className="h-12 w-full font-semibold" disabled={submitting} onClick={submit}>

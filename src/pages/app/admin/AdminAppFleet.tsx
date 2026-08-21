@@ -8,7 +8,7 @@ import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConf
 import { getNavMapStyle } from '@/lib/mapStyles';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDriverLocations } from '@/hooks/useDriverLocations';
-import { useStationsForAdmin } from '@/hooks/useStationsForAdmin';
+import { useStationProgress, STATE_COLOR, STATE_LABEL } from '@/hooks/useStationProgress';
 import { getDriverAccent } from '@/lib/driverAccent';
 import {
   formatLastSeen,
@@ -41,9 +41,12 @@ const STATUS_MARKER_COLOR: Record<VehicleStatus, string> = {
  */
 export default function AdminAppFleet() {
   const { isDark } = useTheme();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const { drivers, loading, refetch } = useDriverLocations();
   const navigate = useNavigate();
-  const { stations } = useStationsForAdmin();
+  // Selecting a vehicle scopes the round to that driver, so the map answers
+  // "has THIS driver finished?" rather than a fleet-wide blur.
+  const { stations, summary: stationSummary } = useStationProgress(selectedId);
   const mapRef = useRef<google.maps.Map | null>(null);
 
   const { isLoaded } = useJsApiLoader({
@@ -54,7 +57,6 @@ export default function AdminAppFleet() {
   const hasAutoFitted = useRef(false);
 
   const [mapType, setMapType] = useState<'roadmap' | 'satellite'>('roadmap');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(true);
 
   const vehicles = useMemo(
@@ -153,11 +155,11 @@ export default function AdminAppFleet() {
                 center={{ lat: s.latitude, lng: s.longitude }}
                 radius={s.radius_m}
                 options={{
-                  strokeColor: s.color,
-                  strokeOpacity: 0.55,
+                  strokeColor: STATE_COLOR[s.state],
+                  strokeOpacity: s.state === 'done' ? 0.4 : 0.7,
                   strokeWeight: 1.5,
-                  fillColor: s.color,
-                  fillOpacity: 0.08,
+                  fillColor: STATE_COLOR[s.state],
+                  fillOpacity: s.state === 'done' ? 0.06 : 0.12,
                   clickable: false,
                   zIndex: 1,
                 }}
@@ -165,13 +167,15 @@ export default function AdminAppFleet() {
               <Marker
                 position={{ lat: s.latitude, lng: s.longitude }}
                 zIndex={2}
-                title={s.name}
+                title={`${s.name} — ${STATE_LABEL[s.state]}`}
                 onClick={() => navigate(`/app/admin/stations/${s.id}`)}
                 icon={{
                   path: google.maps.SymbolPath.CIRCLE,
-                  scale: 5.5,
-                  fillColor: s.color,
-                  fillOpacity: 0.95,
+                  scale: s.state === 'pending' ? 6.5 : 5.5,
+                  fillColor: STATE_COLOR[s.state],
+                  // Completed stops recede; outstanding ones stay solid, so the
+                  // eye lands on what is still owed.
+                  fillOpacity: s.state === 'done' ? 0.5 : 1,
                   strokeColor: '#ffffff',
                   strokeWeight: 1.5,
                   labelOrigin: new google.maps.Point(0, 3.6),
@@ -229,6 +233,38 @@ export default function AdminAppFleet() {
           </div>
         ))}
       </div>
+
+      {/* Today's round — the daily question, answered without counting pins. */}
+      {stationSummary.total > 0 && (
+        <div
+          className={cn(
+            'absolute left-3 z-[1000] flex items-center gap-2.5 rounded-xl border border-border bg-background/95 px-3 py-2 backdrop-blur transition-all',
+            sheetOpen ? 'bottom-[13.5rem]' : 'bottom-20'
+          )}
+          style={{ boxShadow: 'var(--shadow-card)' }}
+        >
+          <div className="min-w-0">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              {selectedId ? "Driver's round" : "Today's round"}
+            </p>
+            <p className="telemetry text-sm font-bold leading-tight">
+              {stationSummary.done}
+              <span className="font-normal text-muted-foreground">/{stationSummary.total}</span>
+              <span className="ml-1.5 text-xs font-medium text-muted-foreground">done</span>
+            </p>
+          </div>
+
+          {/* Progress ring reduced to a bar: readable at a glance, cheap to draw */}
+          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-success transition-all"
+              style={{
+                width: `${stationSummary.total ? (stationSummary.done / stationSummary.total) * 100 : 0}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Map controls */}
       <div

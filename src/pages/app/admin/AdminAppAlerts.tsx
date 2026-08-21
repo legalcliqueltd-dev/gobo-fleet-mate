@@ -221,7 +221,7 @@ export default function AdminAppAlerts() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-1 overflow-y-auto px-3 py-3">
+      <div className="flex-1 overflow-y-auto px-4 py-4">
         {recentSOS.length === 0 && (
           <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-success/10">
@@ -237,7 +237,7 @@ export default function AdminAppAlerts() {
         {active.length > 0 && (
           <section className="mb-5">
             <p className="eyebrow mb-2 px-0.5">Needs attention</p>
-            <ul className="space-y-2">{active.map((e) => renderCard(e, true))}</ul>
+            <ul className="space-y-2.5">{active.map((e) => renderCard(e, true))}</ul>
           </section>
         )}
 
@@ -254,7 +254,7 @@ export default function AdminAppAlerts() {
                 Clear all
               </button>
             </div>
-            <ul className="space-y-2">{closed.map((e) => renderCard(e, false))}</ul>
+            <ul className="space-y-2.5">{closed.map((e) => renderCard(e, false))}</ul>
           </section>
         )}
       </div>

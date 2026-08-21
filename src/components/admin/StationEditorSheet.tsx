@@ -150,7 +150,7 @@ export default function StationEditorSheet({
         </h2>
       </header>
 
-      <div className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
+      <div className="flex-1 space-y-7 overflow-y-auto px-4 py-5">
         <div className="space-y-1.5">
           <Label htmlFor="st-name">Name</Label>
           <Input
@@ -267,7 +267,7 @@ export default function StationEditorSheet({
         </div>
 
         {/* Arrival rule */}
-        <div className="space-y-3 rounded-xl border border-border bg-card p-3.5">
+        <div className="space-y-3 rounded-2xl border border-border bg-card p-4">
           <p className="eyebrow">Arrival rule</p>
 
           <div className="space-y-1.5">
@@ -316,7 +316,7 @@ export default function StationEditorSheet({
         <button
           type="button"
           onClick={() => setRequiresPhoto((v) => !v)}
-          className="flex w-full items-center gap-3 rounded-xl border border-border bg-card p-3.5 text-left"
+          className="flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-4 text-left"
         >
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-medium">Require a photo receipt</span>
@@ -417,7 +417,7 @@ export default function StationEditorSheet({
           <button
             type="button"
             onClick={() => setActive((v) => !v)}
-            className="flex w-full items-center justify-between rounded-xl border border-border bg-card p-3.5 text-left"
+            className="flex w-full items-center justify-between rounded-2xl border border-border bg-card p-4 text-left"
           >
             <span className="text-sm font-medium">{active ? 'Active' : 'Paused'}</span>
             <span

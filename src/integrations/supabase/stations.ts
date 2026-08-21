@@ -196,6 +196,42 @@ export async function attachReceipt(
   if (error) throw error;
 }
 
+
+/**
+ * Which drivers each station is narrowed to.
+ * A station with no rows applies to every driver on its admin_code.
+ */
+export async function fetchStationAssignments(
+  stationIds: string[]
+): Promise<Record<string, string[]>> {
+  if (stationIds.length === 0) return {};
+  const { data, error } = await db
+    .from('station_assignments')
+    .select('station_id, driver_id')
+    .in('station_id', stationIds);
+  if (error) throw error;
+
+  const byStation: Record<string, string[]> = {};
+  (data ?? []).forEach((row: { station_id: string; driver_id: string }) => {
+    (byStation[row.station_id] ??= []).push(row.driver_id);
+  });
+  return byStation;
+}
+
+/** Today's visits across a whole fleet, for the dashboard's completion view. */
+export async function fetchTodayVisitsForCodes(adminCodes: string[]): Promise<StationVisit[]> {
+  if (adminCodes.length === 0) return [];
+  const today = new Date();
+  const localDay = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const { data, error } = await db
+    .from('station_visits')
+    .select('*')
+    .in('admin_code', adminCodes)
+    .eq('visit_date', localDay);
+  if (error) throw error;
+  return (data ?? []) as StationVisit[];
+}
+
 /** Metres between two coordinates (haversine). */
 export function distanceMeters(
   a: { lat: number; lng: number },

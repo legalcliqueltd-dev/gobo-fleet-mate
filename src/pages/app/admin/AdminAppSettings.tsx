@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ChevronRight,
+  GraduationCap,
   FileText,
   LogOut,
   Repeat,
@@ -13,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import ThemeSegmented from '@/components/ThemeSegmented';
+import AdminTutorial from '@/components/admin/AdminTutorial';
 import { useAppRole } from '@/contexts/AppRoleContext';
 import { signOutAdmin } from '@/services/adminAuth';
 import { cn } from '@/lib/utils';
@@ -34,7 +36,7 @@ function Row({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 px-3.5 py-3.5 text-left transition-colors hover:bg-muted"
+      className="flex w-full items-center gap-3.5 px-4 py-4 text-left transition-colors hover:bg-muted"
     >
       <Icon className={cn('h-5 w-5 shrink-0', destructive ? 'text-destructive' : 'text-muted-foreground')} />
       <span className="min-w-0 flex-1">
@@ -63,6 +65,7 @@ export default function AdminAppSettings() {
 
   const [signOutOpen, setSignOutOpen] = useState(false);
   const [switchOpen, setSwitchOpen] = useState(false);
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   const email = user?.email ?? '—';
   const displayName =
@@ -93,10 +96,10 @@ export default function AdminAppSettings() {
   };
 
   return (
-    <div className="h-full overflow-y-auto px-3 py-3">
+    <div className="h-full overflow-y-auto px-4 py-5">
       {/* Identity */}
       <div
-        className="mb-3 flex items-center gap-3.5 rounded-xl border border-border bg-card p-4"
+        className="mb-5 flex items-center gap-4 rounded-2xl border border-border bg-card p-5"
         style={{ boxShadow: 'var(--shadow-card)' }}
       >
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary font-heading text-lg font-bold text-primary-foreground">
@@ -110,7 +113,7 @@ export default function AdminAppSettings() {
 
       {/* Plan — status only, no purchase actions */}
       <div
-        className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3.5"
+        className="mb-5 flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-5 py-4"
         style={{ boxShadow: 'var(--shadow-card)' }}
       >
         <div className="min-w-0">
@@ -124,11 +127,20 @@ export default function AdminAppSettings() {
 
       {/* Preferences */}
       <div
-        className="mb-3 overflow-hidden rounded-xl border border-border bg-card"
+        className="mb-5 overflow-hidden rounded-2xl border border-border bg-card"
         style={{ boxShadow: 'var(--shadow-card)' }}
       >
-        <div className="px-3.5 py-3.5">
-          <p className="mb-2 text-sm font-medium">Appearance</p>
+        <Row
+          icon={GraduationCap}
+          label="How to use FleetTrackMate"
+          hint="A short tour of every tab"
+          onClick={() => setTutorialOpen(true)}
+        />
+
+        <div className="border-t border-border" />
+
+        <div className="px-4 py-4">
+          <p className="mb-3 text-sm font-medium">Appearance</p>
           <ThemeSegmented />
         </div>
 
@@ -144,7 +156,7 @@ export default function AdminAppSettings() {
 
       {/* Legal */}
       <div
-        className="mb-3 overflow-hidden rounded-xl border border-border bg-card"
+        className="mb-5 overflow-hidden rounded-2xl border border-border bg-card"
         style={{ boxShadow: 'var(--shadow-card)' }}
       >
         <Row icon={Shield} label="Privacy policy" onClick={() => navigate('/privacy')} />
@@ -165,7 +177,9 @@ export default function AdminAppSettings() {
         Sign out
       </Button>
 
-      <p className="py-5 text-center text-xs text-muted-foreground">FleetTrackMate · Manager</p>
+      <p className="py-8 text-center text-xs text-muted-foreground">FleetTrackMate · Manager</p>
+
+      {tutorialOpen && <AdminTutorial onClose={() => setTutorialOpen(false)} />}
 
       <ConfirmDialog
         open={signOutOpen}

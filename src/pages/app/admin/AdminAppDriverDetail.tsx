@@ -82,7 +82,7 @@ function Stat({
   unit?: string;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-3" style={{ boxShadow: 'var(--shadow-card)' }}>
+    <div className="rounded-2xl border border-border bg-card p-4" style={{ boxShadow: 'var(--shadow-card)' }}>
       <div className="flex items-center gap-1.5 text-muted-foreground">
         <Icon className="h-3.5 w-3.5" />
         <p className="truncate text-[10px] font-medium uppercase tracking-wider">{label}</p>
@@ -227,7 +227,7 @@ export default function AdminAppDriverDetail() {
   return (
     <div className="h-full overflow-y-auto">
       {/* Identity header */}
-      <div className="border-b border-border bg-card px-3 py-3">
+      <div className="border-b border-border bg-card px-4 py-4">
         <button
           type="button"
           onClick={() => navigate('/app/admin/fleet')}
@@ -280,15 +280,15 @@ export default function AdminAppDriverDetail() {
         </div>
       </div>
 
-      <div className="space-y-4 px-3 py-4">
+      <div className="space-y-7 px-4 py-5">
         {/* Live readings */}
         {location && (
           <section>
-            <p className="eyebrow mb-2">Right now</p>
+            <p className="eyebrow mb-3">Right now</p>
             {/* Battery is deliberately absent: it is only held in the driver
                 app's local state and never written to driver_locations, so
                 there is nothing truthful to show here. */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               <Stat
                 icon={Gauge}
                 label="Speed"
@@ -334,7 +334,7 @@ export default function AdminAppDriverDetail() {
               Loading…
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               <Stat
                 icon={RouteIcon}
                 label="Distance"
@@ -391,7 +391,7 @@ export default function AdminAppDriverDetail() {
               Continuous — no reporting gaps in the last 24 hours.
             </p>
           ) : (
-            <ul className="space-y-1.5">
+            <ul className="space-y-2.5">
               {gaps.slice(-5).reverse().map((gap, i) => (
                 <li
                   key={i}
@@ -414,13 +414,13 @@ export default function AdminAppDriverDetail() {
 
         {/* Jobs */}
         <section>
-          <p className="eyebrow mb-2">Recent jobs</p>
+          <p className="eyebrow mb-3">Recent jobs</p>
           {tasks.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border px-3 py-5 text-center text-sm text-muted-foreground">
               No jobs assigned yet.
             </p>
           ) : (
-            <ul className="space-y-1.5">
+            <ul className="space-y-2.5">
               {tasks.map((task) => (
                 <li
                   key={task.id}
@@ -444,7 +444,7 @@ export default function AdminAppDriverDetail() {
 
         {/* Connection */}
         <section>
-          <p className="eyebrow mb-2">Connection</p>
+          <p className="eyebrow mb-3">Connection</p>
           <div
             className="overflow-hidden rounded-xl border border-border bg-card"
             style={{ boxShadow: 'var(--shadow-card)' }}

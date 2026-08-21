@@ -30,7 +30,7 @@ function StatTile({
 }) {
   return (
     <div
-      className="rounded-xl border border-border bg-card p-3.5"
+      className="rounded-2xl border border-border bg-card p-4"
       style={{ boxShadow: 'var(--shadow-card)' }}
     >
       <div className="flex items-center gap-2 text-muted-foreground">
@@ -61,9 +61,9 @@ export default function AdminAppInsights() {
   const active = formatMinutes(totals?.activeMinutes ?? 0);
 
   return (
-    <div className="h-full overflow-y-auto px-3 py-3">
+    <div className="h-full overflow-y-auto px-4 py-4">
       {/* Range picker */}
-      <div className="mb-3 flex gap-1.5">
+      <div className="mb-4 flex gap-2">
         {RANGES.map((range) => (
           <button
             key={range.days}
@@ -96,7 +96,7 @@ export default function AdminAppInsights() {
 
       {!loading && !error && totals && (
         <>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 gap-3">
             <StatTile icon={RouteIcon} label="Distance" value={totals.distanceKm.toFixed(1)} unit="km" />
             <StatTile
               icon={Gauge}
@@ -115,7 +115,7 @@ export default function AdminAppInsights() {
 
           {/* Live composition */}
           <div
-            className="mt-3 rounded-xl border border-border bg-card p-3.5"
+            className="mt-5 rounded-2xl border border-border bg-card p-4"
             style={{ boxShadow: 'var(--shadow-card)' }}
           >
             <div className="mb-3 flex items-center gap-2 text-muted-foreground">
@@ -139,8 +139,8 @@ export default function AdminAppInsights() {
           </div>
 
           {/* Per-driver breakdown */}
-          <div className="mt-4">
-            <div className="mb-2 flex items-center justify-between">
+          <div className="mt-7">
+            <div className="mb-3 flex items-center justify-between">
               <p className="eyebrow">By driver</p>
               <p className="text-[11px] text-muted-foreground">
                 <span className="telemetry font-semibold text-foreground">
@@ -159,7 +159,7 @@ export default function AdminAppInsights() {
                 </p>
               </div>
             ) : (
-              <ul className="space-y-1.5">
+              <ul className="space-y-2.5">
                 {drivers.map((driver) => {
                   const classes = STATUS_CLASSES[driver.status];
                   const driverActive = formatMinutes(driver.activeMinutes);
@@ -168,7 +168,7 @@ export default function AdminAppInsights() {
                       <button
                         type="button"
                         onClick={() => navigate(`/app/admin/drivers/${driver.driverId}`)}
-                        className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-3 py-3 text-left transition-colors hover:bg-muted"
+                        className="flex w-full items-center gap-3.5 rounded-2xl border border-border bg-card px-4 py-3.5 text-left transition-colors hover:bg-muted"
                         style={{ boxShadow: 'var(--shadow-card)' }}
                       >
                         <span
@@ -203,7 +203,7 @@ export default function AdminAppInsights() {
             )}
           </div>
 
-          <p className="px-1 py-4 text-center text-xs leading-relaxed text-muted-foreground">
+          <p className="px-1 py-7 text-center text-xs leading-relaxed text-muted-foreground">
             Figures come from GPS history over the last{' '}
             {days === 1 ? '24 hours' : `${days} days`}, filtered for GPS noise. Fleet totals are
             the sum of the drivers above.

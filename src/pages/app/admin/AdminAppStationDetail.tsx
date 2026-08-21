@@ -140,7 +140,7 @@ export default function AdminAppStationDetail() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="border-b border-border bg-card px-3 py-3">
+      <div className="border-b border-border bg-card px-4 py-4">
         <button
           type="button"
           onClick={() => navigate('/app/admin/stations')}
@@ -182,7 +182,7 @@ export default function AdminAppStationDetail() {
         </div>
       </div>
 
-      <div className="space-y-4 px-3 py-4">
+      <div className="space-y-7 px-4 py-5">
         {/* Attendance strip */}
         <section>
           <div className="mb-2 flex items-baseline justify-between">
@@ -226,18 +226,18 @@ export default function AdminAppStationDetail() {
 
         {/* Visit log */}
         <section>
-          <p className="eyebrow mb-2">Visit log</p>
+          <p className="eyebrow mb-3">Visit log</p>
 
           {visits.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
               No visits recorded yet.
             </p>
           ) : (
-            <ul className="space-y-1.5">
+            <ul className="space-y-2.5">
               {visits.map((v) => (
                 <li
                   key={v.id}
-                  className="flex items-center gap-3 rounded-xl border border-border bg-card p-3"
+                  className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4"
                   style={{ boxShadow: 'var(--shadow-card)' }}
                 >
                   {v.photo_url ? (

@@ -174,7 +174,7 @@ export default function AdminAppStations() {
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto px-3 py-3">
+      <div className="flex-1 overflow-y-auto px-4 py-4">
         {loading && (
           <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -195,7 +195,7 @@ export default function AdminAppStations() {
           </div>
         )}
 
-        <ul className="space-y-1.5">
+        <ul className="space-y-2.5">
           {stations.map((s) => {
             const meta = kindMeta(s.kind);
             return (
@@ -235,7 +235,7 @@ export default function AdminAppStations() {
       </div>
 
       <div
-        className="border-t border-border bg-background px-3 py-2.5"
+        className="border-t border-border bg-background px-4 py-3"
         style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom, 0px))' }}
       >
         <Button

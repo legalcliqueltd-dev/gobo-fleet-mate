@@ -97,7 +97,7 @@ export default function AdminAppAddDriver() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-1 overflow-y-auto px-3 py-4">
+      <div className="flex-1 overflow-y-auto px-4 py-5">
         <button
           type="button"
           onClick={() => navigate('/app/admin/fleet')}
@@ -184,7 +184,7 @@ export default function AdminAppAddDriver() {
       </div>
 
       <div
-        className="border-t border-border bg-background px-3 py-2.5"
+        className="border-t border-border bg-background px-4 py-3"
         style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom, 0px))' }}
       >
         {!code ? (

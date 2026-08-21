@@ -11,7 +11,7 @@ import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConf
 import { useRealtimeDriverLocations, LiveDriverLocation } from '@/hooks/useRealtimeDriverLocations';
 import { formatTimeAgo, interpolatePosition, easeOutCubic } from '@/utils/mapInterpolation';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useStationsForAdmin } from '@/hooks/useStationsForAdmin';
+import { useStationProgress, STATE_COLOR, STATE_LABEL } from '@/hooks/useStationProgress';
 import { getMapStyle } from '@/lib/mapStyles';
 import { getDriverAccent } from '@/lib/driverAccent';
 import clsx from 'clsx';
@@ -415,7 +415,8 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
   const containerRef = useRef<HTMLDivElement>(null);
   
   const { drivers, loading, error, lastUpdate, connectionStatus } = useRealtimeDriverLocations();
-  const { stations } = useStationsForAdmin();
+  // Scoped to the selected driver so the map answers whether THEY are done.
+  const { stations, summary: stationSummary } = useStationProgress(selectedDriverId ?? null);
   
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -646,11 +647,11 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
               center={{ lat: s.latitude, lng: s.longitude }}
               radius={s.radius_m}
               options={{
-                strokeColor: s.color,
-                strokeOpacity: 0.55,
+                strokeColor: STATE_COLOR[s.state],
+                strokeOpacity: s.state === 'done' ? 0.4 : 0.7,
                 strokeWeight: 1.5,
-                fillColor: s.color,
-                fillOpacity: 0.08,
+                fillColor: STATE_COLOR[s.state],
+                fillOpacity: s.state === 'done' ? 0.06 : 0.12,
                 clickable: false,
                 zIndex: 1,
               }}
@@ -658,12 +659,12 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
             <Marker
               position={{ lat: s.latitude, lng: s.longitude }}
               zIndex={2}
-              title={s.name}
+              title={`${s.name} — ${STATE_LABEL[s.state]}`}
               icon={{
                 path: google.maps.SymbolPath.CIRCLE,
-                scale: 5.5,
-                fillColor: s.color,
-                fillOpacity: 0.95,
+                scale: s.state === 'pending' ? 6.5 : 5.5,
+                fillColor: STATE_COLOR[s.state],
+                fillOpacity: s.state === 'done' ? 0.5 : 1,
                 strokeColor: '#ffffff',
                 strokeWeight: 1.5,
                 labelOrigin: new google.maps.Point(0, 3.6),
@@ -686,6 +687,30 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
           <MapControlButton onClick={() => setShowTraffic(!showTraffic)} active={showTraffic} icon={Car} label="Traffic" />
         </div>
         
+        {/* Today's round */}
+        {stationSummary.total > 0 && (
+          <div className="absolute bottom-4 left-4 z-10 flex items-center gap-3 rounded-xl border border-border bg-background/95 px-3 py-2 shadow-lg backdrop-blur">
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                {selectedDriverId ? "Driver's round" : "Today's round"}
+              </p>
+              <p className="telemetry text-sm font-bold leading-tight">
+                {stationSummary.done}
+                <span className="font-normal text-muted-foreground">/{stationSummary.total}</span>
+                <span className="ml-1.5 text-xs font-medium text-muted-foreground">done</span>
+              </p>
+            </div>
+            <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-success transition-all"
+                style={{
+                  width: `${stationSummary.total ? (stationSummary.done / stationSummary.total) * 100 : 0}%`,
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Top Right - Status */}
         <div className="absolute top-4 right-4 z-10">
           <div className="bg-card/95 backdrop-blur-md border-2 border-border rounded-xl shadow-2xl px-4 py-3">
