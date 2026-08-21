@@ -4,17 +4,15 @@ import {
   ChevronRight,
   FileText,
   LogOut,
-  Moon,
   Repeat,
   Shield,
-  Sun,
   Trash2,
   UserRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
+import ThemeSegmented from '@/components/ThemeSegmented';
 import { useAppRole } from '@/contexts/AppRoleContext';
 import { signOutAdmin } from '@/services/adminAuth';
 import { cn } from '@/lib/utils';
@@ -61,7 +59,6 @@ function Row({
 export default function AdminAppSettings() {
   const navigate = useNavigate();
   const { user, subscription } = useAuth();
-  const { isDark, setTheme } = useTheme();
   const { clearRole } = useAppRole();
 
   const [signOutOpen, setSignOutOpen] = useState(false);
@@ -130,36 +127,9 @@ export default function AdminAppSettings() {
         className="mb-3 overflow-hidden rounded-xl border border-border bg-card"
         style={{ boxShadow: 'var(--shadow-card)' }}
       >
-        <div className="flex items-center gap-3 px-3.5 py-3.5">
-          {isDark ? (
-            <Moon className="h-5 w-5 shrink-0 text-muted-foreground" />
-          ) : (
-            <Sun className="h-5 w-5 shrink-0 text-muted-foreground" />
-          )}
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-medium">Dark mode</span>
-            <span className="mt-0.5 block text-xs text-muted-foreground">
-              Easier on the eyes at night
-            </span>
-          </span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={isDark}
-            aria-label="Toggle dark mode"
-            onClick={() => setTheme(isDark ? 'light' : 'dark')}
-            className={cn(
-              'relative h-6 w-11 shrink-0 rounded-full transition-colors',
-              isDark ? 'bg-primary' : 'bg-input'
-            )}
-          >
-            <span
-              className={cn(
-                'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
-                isDark ? 'translate-x-[1.375rem]' : 'translate-x-0.5'
-              )}
-            />
-          </button>
+        <div className="px-3.5 py-3.5">
+          <p className="mb-2 text-sm font-medium">Appearance</p>
+          <ThemeSegmented />
         </div>
 
         <div className="border-t border-border" />

@@ -212,6 +212,14 @@ export default function AdminAppFleet() {
           <LocateFixed className="h-5 w-5" />
         </Button>
         <Button
+          size="icon"
+          className="h-11 w-11 rounded-full shadow-lg"
+          onClick={() => navigate('/app/admin/drivers/new')}
+          aria-label="Add a driver"
+        >
+          <Plus className="h-5 w-5" />
+        </Button>
+        <Button
           variant="secondary"
           size="icon"
           className="h-11 w-11 rounded-full border border-border shadow-lg"
@@ -260,8 +268,16 @@ export default function AdminAppFleet() {
                 <div className="px-1 py-5 text-center">
                   <p className="text-sm font-medium text-foreground">No vehicles yet</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Share a connection code from the website to add your first driver.
+                    Create a connection code and share it with your driver.
                   </p>
+                  <Button
+                    size="sm"
+                    className="mt-3 gap-1.5"
+                    onClick={() => navigate('/app/admin/drivers/new')}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add a driver
+                  </Button>
                 </div>
               )}
 

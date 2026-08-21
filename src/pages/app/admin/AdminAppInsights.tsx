@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { Activity, Gauge, Loader2, Route as RouteIcon, Timer, TrendingUp } from 'lucide-react';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { useFleetAnalytics } from '@/hooks/useFleetAnalytics';
+import { useNavigate } from 'react-router-dom';
+import { Activity, ChevronRight, Gauge, Loader2, Route as RouteIcon, Timer, TrendingUp, Users } from 'lucide-react';
+import { useFleetBreakdown } from '@/hooks/useFleetBreakdown';
+import { STATUS_CLASSES, STATUS_LABEL } from '@/lib/driverStatus';
+import { getDriverAccent } from '@/lib/driverAccent';
 import { cn } from '@/lib/utils';
 
 const RANGES = [
@@ -9,6 +11,11 @@ const RANGES = [
   { days: 7, label: '7 days' },
   { days: 30, label: '30 days' },
 ];
+
+function formatMinutes(minutes: number): { value: string; unit: string } {
+  if (minutes >= 60) return { value: (minutes / 60).toFixed(1), unit: 'h' };
+  return { value: Math.round(minutes).toString(), unit: 'min' };
+}
 
 function StatTile({
   icon: Icon,
@@ -39,20 +46,19 @@ function StatTile({
 }
 
 /**
- * Fleet performance at a glance.
+ * Fleet performance, attributable to individual drivers.
  *
- * Figures come from the same noise-hardened `driver_fleet_stats` RPC the web
- * dashboard uses, so a stationary vehicle reads as zero distance here too
- * rather than accumulating GPS jitter.
+ * Every headline number is the sum of the per-driver rows below it, so the two
+ * can never disagree — and any figure that looks wrong can be traced to the
+ * driver who produced it. Tapping a row opens that driver's full record.
  */
 export default function AdminAppInsights() {
   const [days, setDays] = useState(7);
-  const { stats, utilization, loading, error } = useFleetAnalytics(days);
+  const navigate = useNavigate();
+  const { drivers, totals, loading, error } = useFleetBreakdown(days);
 
-  const chartData = utilization.map((day) => ({
-    day: new Date(day.day).toLocaleDateString(undefined, { weekday: 'short' }),
-    percent: Math.round(day.utilization_percent),
-  }));
+  const idle = formatMinutes(totals?.idleMinutes ?? 0);
+  const active = formatMinutes(totals?.activeMinutes ?? 0);
 
   return (
     <div className="h-full overflow-y-auto px-3 py-3">
@@ -88,40 +94,26 @@ export default function AdminAppInsights() {
         </p>
       )}
 
-      {!loading && !error && stats && (
+      {!loading && !error && totals && (
         <>
           <div className="grid grid-cols-2 gap-2.5">
-            <StatTile
-              icon={RouteIcon}
-              label="Distance"
-              value={stats.total_distance_km.toFixed(1)}
-              unit="km"
-            />
+            <StatTile icon={RouteIcon} label="Distance" value={totals.distanceKm.toFixed(1)} unit="km" />
             <StatTile
               icon={Gauge}
               label="Avg speed"
-              value={Math.round(stats.avg_speed_kmh).toString()}
+              value={Math.round(totals.avgSpeedKmh).toString()}
               unit="km/h"
             />
             <StatTile
               icon={TrendingUp}
               label="Top speed"
-              value={Math.round(stats.max_speed_kmh).toString()}
+              value={Math.round(totals.maxSpeedKmh).toString()}
               unit="km/h"
             />
-            <StatTile
-              icon={Timer}
-              label="Idle time"
-              value={
-                stats.total_idle_minutes >= 60
-                  ? (stats.total_idle_minutes / 60).toFixed(1)
-                  : Math.round(stats.total_idle_minutes).toString()
-              }
-              unit={stats.total_idle_minutes >= 60 ? 'h' : 'min'}
-            />
+            <StatTile icon={Timer} label="Idle time" value={idle.value} unit={idle.unit} />
           </div>
 
-          {/* Live fleet composition */}
+          {/* Live composition */}
           <div
             className="mt-3 rounded-xl border border-border bg-card p-3.5"
             style={{ boxShadow: 'var(--shadow-card)' }}
@@ -132,9 +124,9 @@ export default function AdminAppInsights() {
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
               {[
-                { label: 'Moving', value: stats.active_count, tone: 'text-success' },
-                { label: 'Parked', value: stats.idle_count, tone: 'text-warning' },
-                { label: 'Offline', value: stats.offline_count, tone: 'text-muted-foreground' },
+                { label: 'Moving', value: totals.moving, tone: 'text-success' },
+                { label: 'Parked', value: totals.idle, tone: 'text-warning' },
+                { label: 'Offline', value: totals.offline, tone: 'text-muted-foreground' },
               ].map((item) => (
                 <div key={item.label}>
                   <p className={cn('telemetry text-xl font-bold leading-none', item.tone)}>
@@ -146,51 +138,75 @@ export default function AdminAppInsights() {
             </div>
           </div>
 
-          {chartData.length > 0 && (
-            <div
-              className="mt-3 rounded-xl border border-border bg-card p-3.5"
-              style={{ boxShadow: 'var(--shadow-card)' }}
-            >
-              <p className="mb-3 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Daily utilisation
+          {/* Per-driver breakdown */}
+          <div className="mt-4">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="eyebrow">By driver</p>
+              <p className="text-[11px] text-muted-foreground">
+                <span className="telemetry font-semibold text-foreground">
+                  {totals.reportingCount}
+                </span>{' '}
+                of {totals.driverCount} reported
               </p>
-              <div className="h-40">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: -24 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                    <XAxis
-                      dataKey="day"
-                      tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                      axisLine={false}
-                      tickLine={false}
-                      unit="%"
-                    />
-                    <Tooltip
-                      cursor={{ fill: 'hsl(var(--muted))' }}
-                      contentStyle={{
-                        background: 'hsl(var(--popover))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: 8,
-                        fontSize: 12,
-                        color: 'hsl(var(--popover-foreground))',
-                      }}
-                      formatter={(value: number) => [`${value}%`, 'Utilisation']}
-                    />
-                    <Bar dataKey="percent" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
             </div>
-          )}
+
+            {drivers.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-6 py-8 text-center">
+                <Users className="h-6 w-6 text-muted-foreground" />
+                <p className="text-sm font-medium">No drivers yet</p>
+                <p className="text-xs text-muted-foreground">
+                  Add a driver from the Fleet tab to start collecting data.
+                </p>
+              </div>
+            ) : (
+              <ul className="space-y-1.5">
+                {drivers.map((driver) => {
+                  const classes = STATUS_CLASSES[driver.status];
+                  const driverActive = formatMinutes(driver.activeMinutes);
+                  return (
+                    <li key={driver.driverId}>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/app/admin/drivers/${driver.driverId}`)}
+                        className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-3 py-3 text-left transition-colors hover:bg-muted"
+                        style={{ boxShadow: 'var(--shadow-card)' }}
+                      >
+                        <span
+                          className="h-9 w-1 shrink-0 rounded-full"
+                          style={{ backgroundColor: getDriverAccent(driver.driverId) }}
+                        />
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <p className="truncate text-sm font-semibold">{driver.name}</p>
+                            <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', classes.dot)} />
+                          </div>
+                          {driver.points === 0 ? (
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              No data in this period · {STATUS_LABEL[driver.status]}
+                            </p>
+                          ) : (
+                            <p className="telemetry mt-0.5 text-xs text-muted-foreground">
+                              {driver.distanceKm.toFixed(1)} km ·{' '}
+                              {Math.round(driver.avgSpeedKmh)} km/h avg · {driverActive.value}
+                              {driverActive.unit} driving
+                            </p>
+                          )}
+                        </div>
+
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
 
           <p className="px-1 py-4 text-center text-xs leading-relaxed text-muted-foreground">
-            Covering {stats.driver_count} driver{stats.driver_count === 1 ? '' : 's'} over the last{' '}
-            {days === 1 ? '24 hours' : `${days} days`}.
+            Figures come from GPS history over the last{' '}
+            {days === 1 ? '24 hours' : `${days} days`}, filtered for GPS noise. Fleet totals are
+            the sum of the drivers above.
           </p>
         </>
       )}

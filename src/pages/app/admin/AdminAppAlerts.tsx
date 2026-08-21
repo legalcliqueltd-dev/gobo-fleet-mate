@@ -1,11 +1,15 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Loader2, MapPin, ShieldCheck, Trash2 } from 'lucide-react';
+import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
+import { AlertTriangle, CheckCircle2, ExternalLink, Loader2, MapPin, ShieldCheck, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSOSNotifications, type SOSEventWithDriver } from '@/hooks/useSOSNotifications';
 import { Button } from '@/components/ui/button';
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
+import { getNavMapStyle } from '@/lib/mapStyles';
+import { useTheme } from '@/contexts/ThemeContext';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { cn } from '@/lib/utils';
 
@@ -22,8 +26,20 @@ const isClosed = (status: string) => status === 'resolved' || status === 'cancel
 export default function AdminAppAlerts() {
   const { user } = useAuth();
   const { recentSOS, refreshSOS } = useSOSNotifications();
+  const { isDark } = useTheme();
+
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
+  });
 
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Which incident is showing its map. The map lives inside the card rather
+  // than sending the manager out to another app: seeing where a driver is in
+  // trouble is the first thing needed, and leaving the app to find out loses
+  // the incident list and every other alert alongside it.
+  const [mappedId, setMappedId] = useState<string | null>(null);
   const [clearOpen, setClearOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
 
@@ -80,7 +96,9 @@ export default function AdminAppAlerts() {
     );
   };
 
-  const renderCard = (event: SOSEventWithDriver, isActive: boolean) => (
+  const renderCard = (event: SOSEventWithDriver, isActive: boolean) => {
+    const hasLocation = event.latitude != null && event.longitude != null;
+    return (
     <li
       key={event.id}
       className={cn(
@@ -126,15 +144,58 @@ export default function AdminAppAlerts() {
             />
           )}
 
+          {/* In-app map for this incident */}
+          {hasLocation && mappedId === event.id && (
+            <div className="mt-2.5 overflow-hidden rounded-lg border border-border">
+              {isLoaded ? (
+                <GoogleMap
+                  mapContainerStyle={{ width: '100%', height: 170 }}
+                  center={{ lat: event.latitude!, lng: event.longitude! }}
+                  zoom={16}
+                  options={{
+                    disableDefaultUI: true,
+                    gestureHandling: 'greedy',
+                    clickableIcons: false,
+                    styles: getNavMapStyle(isDark),
+                  }}
+                >
+                  <Marker
+                    position={{ lat: event.latitude!, lng: event.longitude! }}
+                    icon={{
+                      path: google.maps.SymbolPath.CIRCLE,
+                      scale: 10,
+                      fillColor: '#dc2626',
+                      fillOpacity: 1,
+                      strokeColor: '#ffffff',
+                      strokeWeight: 3,
+                    }}
+                  />
+                </GoogleMap>
+              ) : (
+                <div className="flex h-[170px] items-center justify-center bg-muted">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => openInMaps(event)}
+                className="flex w-full items-center justify-center gap-1.5 border-t border-border bg-card py-2.5 text-xs font-medium text-muted-foreground"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Open in Google Maps for directions
+              </button>
+            </div>
+          )}
+
           <div className="mt-3 flex gap-2">
-            {event.latitude != null && event.longitude != null && (
+            {hasLocation && (
               <Button
                 variant="outline"
                 className="h-10 flex-1 gap-1.5 text-xs"
-                onClick={() => openInMaps(event)}
+                onClick={() => setMappedId((current) => (current === event.id ? null : event.id))}
               >
                 <MapPin className="h-4 w-4" />
-                Directions
+                {mappedId === event.id ? 'Hide map' : 'Show on map'}
               </Button>
             )}
             {isActive && (
@@ -155,7 +216,8 @@ export default function AdminAppAlerts() {
         </div>
       </div>
     </li>
-  );
+    );
+  };
 
   return (
     <div className="flex h-full flex-col">

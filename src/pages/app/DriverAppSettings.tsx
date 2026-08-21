@@ -14,7 +14,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
 import DriverOnboarding from '@/components/driver/DriverOnboarding';
-import ThemeToggle from '@/components/ThemeToggle';
+import ThemeSegmented from '@/components/ThemeSegmented';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -353,7 +353,7 @@ export default function DriverAppSettings() {
                 <Label>Theme</Label>
                 <p className="text-xs text-muted-foreground">Choose light, dark, or system theme</p>
               </div>
-              <ThemeToggle />
+              <ThemeSegmented />
             </div>
           </CardContent>
         </Card>

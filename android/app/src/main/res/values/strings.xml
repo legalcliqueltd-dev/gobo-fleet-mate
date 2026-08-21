@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">FleetTrackMate-Driver</string>
-    <string name="title_activity_main">FleetTrackMate-Driver</string>
+    <string name="app_name">FleetTrackMate</string>
+    <string name="title_activity_main">FleetTrackMate</string>
     <string name="package_name">app.fleettrackmate.driver</string>
     <string name="custom_url_scheme">app.fleettrackmate.driver</string>
 </resources>

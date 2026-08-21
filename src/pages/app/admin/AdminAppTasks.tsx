@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAdminCodes } from '@/hooks/useAdminCodes';
 import { Button } from '@/components/ui/button';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { getDriverAccent } from '@/lib/driverAccent';
 import { cn } from '@/lib/utils';
 
 type Task = {
@@ -29,6 +30,16 @@ const BUCKETS: { id: Bucket; label: string }[] = [
   { id: 'active', label: 'On the road' },
   { id: 'finished', label: 'Finished' },
 ];
+
+
+/** Where a job sits on the Assigned -> On the road -> Delivered path. */
+const PROGRESS_STEPS = ['Assigned', 'On the road', 'Delivered'] as const;
+
+function progressIndex(status: string): number {
+  if (status === 'completed') return 2;
+  if (status === 'in_progress' || status === 'accepted' || status === 'started') return 1;
+  return 0;
+}
 
 /** The DB carries several fine-grained statuses; managers think in three. */
 function bucketOf(status: string): Bucket {
@@ -204,11 +215,67 @@ export default function AdminAppTasks() {
                   <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{task.description}</p>
                 )}
 
-                <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1">
-                    <User className="h-3.5 w-3.5" />
-                    {driver ?? 'Unassigned'}
-                  </span>
+                {/* Who has it — named, colour-keyed to the map marker, and
+                    tappable straight through to that driver. */}
+                <button
+                  type="button"
+                  disabled={!task.assigned_driver_id}
+                  onClick={() =>
+                    task.assigned_driver_id &&
+                    navigate(`/app/admin/drivers/${task.assigned_driver_id}`)
+                  }
+                  className={cn(
+                    'mt-2 inline-flex max-w-full items-center gap-2 rounded-full py-1 pl-1 pr-2.5 text-xs font-medium',
+                    task.assigned_driver_id
+                      ? 'bg-muted text-foreground'
+                      : 'bg-warning/10 text-warning'
+                  )}
+                >
+                  {task.assigned_driver_id ? (
+                    <>
+                      <span
+                        className="h-5 w-1 shrink-0 rounded-full"
+                        style={{ backgroundColor: getDriverAccent(task.assigned_driver_id) }}
+                      />
+                      <span className="truncate">{driver ?? 'Loading…'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <User className="ml-1 h-3.5 w-3.5" />
+                      Unassigned
+                    </>
+                  )}
+                </button>
+
+                {/* Progress */}
+                <div className="mt-2.5">
+                  <div className="flex gap-1">
+                    {PROGRESS_STEPS.map((step, index) => {
+                      const reached = index <= progressIndex(task.status);
+                      const failed = task.status === 'failed';
+                      return (
+                        <div
+                          key={step}
+                          className={cn(
+                            'h-1.5 flex-1 rounded-full',
+                            failed && index === progressIndex(task.status)
+                              ? 'bg-destructive'
+                              : reached
+                                ? 'bg-primary'
+                                : 'bg-muted'
+                          )}
+                        />
+                      );
+                    })}
+                  </div>
+                  <p className="mt-1 text-[11px] font-medium text-muted-foreground">
+                    {task.status === 'failed'
+                      ? 'Failed'
+                      : PROGRESS_STEPS[progressIndex(task.status)]}
+                  </p>
+                </div>
+
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   {task.due_at && (
                     <span className="inline-flex items-center gap-1">
                       <Clock className="h-3.5 w-3.5" />
