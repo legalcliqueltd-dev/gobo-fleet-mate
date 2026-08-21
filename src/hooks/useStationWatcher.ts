@@ -10,6 +10,7 @@ import {
   type StationVisit,
 } from '@/integrations/supabase/stations';
 import { checkVehicleMotion } from '@/lib/trackingGaps';
+import { notify } from '@/services/notifications';
 
 type Position = { lat: number; lng: number } | null;
 
@@ -128,6 +129,16 @@ export function useStationWatcher(
               ? 'Take the photo receipt to complete this stop.'
               : undefined,
           });
+
+          // A toast is invisible to someone watching the road; the
+          // notification sound is what actually reaches him.
+          if (station.requires_photo) {
+            void notify(
+              'jobs',
+              `Arrived at ${station.name}`,
+              'Take the photo receipt to complete this stop.'
+            );
+          }
           void refresh();
         })
         .catch((err) => {

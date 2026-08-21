@@ -21,6 +21,7 @@ import DriverAppTasks from '@/pages/app/DriverAppTasks';
 import DriverAppCompleteTask from '@/pages/app/DriverAppCompleteTask';
 import DriverAppSOS from '@/pages/app/DriverAppSOS';
 import DriverAppSettings from '@/pages/app/DriverAppSettings';
+import DriverAppExpenses from '@/pages/app/DriverAppExpenses';
 
 import AdminEntry from '@/pages/app/admin/AdminEntry';
 import AdminLogin from '@/pages/app/admin/AdminLogin';
@@ -31,6 +32,7 @@ import AdminAppDriverDetail from '@/pages/app/admin/AdminAppDriverDetail';
 import AdminAppDriverHistory from '@/pages/app/admin/AdminAppDriverHistory';
 import AdminAppCreateJob from '@/pages/app/admin/AdminAppCreateJob';
 import AdminAppAddDriver from '@/pages/app/admin/AdminAppAddDriver';
+import AdminAppExpenses from '@/pages/app/admin/AdminAppExpenses';
 import AdminAppStations from '@/pages/app/admin/AdminAppStations';
 import AdminAppStationDetail from '@/pages/app/admin/AdminAppStationDetail';
 import AdminAppTasks from '@/pages/app/admin/AdminAppTasks';
@@ -151,6 +153,14 @@ export default function NativeApp() {
                           </DriverProtectedRoute>
                         }
                       />
+                      <Route
+                        path="expenses"
+                        element={
+                          <DriverProtectedRoute>
+                            <DriverAppExpenses />
+                          </DriverProtectedRoute>
+                        }
+                      />
 
                       {/* ── Manager ── */}
                       <Route path="admin" element={<AdminEntry />} />
@@ -168,6 +178,7 @@ export default function NativeApp() {
                                 <Route path="drivers/:driverId/history" element={<AdminAppDriverHistory />} />
                                 <Route path="drivers/:driverId" element={<AdminAppDriverDetail />} />
                                 <Route path="jobs/new" element={<AdminAppCreateJob />} />
+                                <Route path="expenses" element={<AdminAppExpenses />} />
                                 <Route path="stations" element={<AdminAppStations />} />
                                 <Route path="stations/:stationId" element={<AdminAppStationDetail />} />
                                 <Route path="tasks" element={<AdminAppTasks />} />

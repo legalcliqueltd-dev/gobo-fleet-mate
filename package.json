@@ -27,6 +27,7 @@
     "@capacitor/core": "^7.4.5",
     "@capacitor/geolocation": "^7.1.5",
     "@capacitor/ios": "^7.4.5",
+    "@capacitor/local-notifications": "^7.0.7",
     "@capawesome-team/capacitor-android-foreground-service": "^7.0.1",
     "@capgo/capacitor-social-login": "^7.20.0",
     "@hookform/resolvers": "^5.2.2",

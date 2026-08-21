@@ -1,6 +1,6 @@
 import { PropsWithChildren } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, ClipboardList, AlertTriangle, Settings, ArrowLeft, Car } from 'lucide-react';
+import { Home, ClipboardList, AlertTriangle, Settings, ArrowLeft, Car, Wallet } from 'lucide-react';
 import logo from '@/assets/logo.webp';
 import { cn } from '@/lib/utils';
 import { useDriverSession } from '@/contexts/DriverSessionContext';
@@ -13,6 +13,9 @@ const leftNavItems = [
   { path: '/app/tasks', icon: ClipboardList, label: 'Tasks' },
 ];
 const rightNavItems = [
+  // The driver's own money log — the one screen here that serves him rather
+  // than the office, and the reason he opens the app unprompted.
+  { path: '/app/expenses', icon: Wallet, label: 'Money' },
   { path: '/app/settings', icon: Settings, label: 'Settings' },
 ];
 

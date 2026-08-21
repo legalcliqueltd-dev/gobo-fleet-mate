@@ -24,6 +24,8 @@ const config: CapacitorConfig = {
     '@capacitor/geolocation',
     // Delivers the fleettrackmate:// OAuth callback back into the app
     '@capacitor/app',
+    // On-device alerts with their own sound (jobs, stations, SOS)
+    '@capacitor/local-notifications',
     // Native Google / Apple sign-in sheets for the manager portal
     '@capgo/capacitor-social-login',
     '@capacitor/haptics',
