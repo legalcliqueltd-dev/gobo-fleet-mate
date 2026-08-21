@@ -133,7 +133,12 @@ async function signInNatively(provider: SocialProvider): Promise<boolean> {
 
   const { result } = await plugin.login({
     provider,
-    options: provider === 'google' ? { scopes: ['profile', 'email'] } : { scopes: ['name', 'email'] },
+    // No `scopes` for Google. The Android Credential Manager flow already
+    // returns profile + email, and passing scopes there makes the plugin throw
+    // "You CANNOT use scopes without modifying the main activity" before the
+    // account sheet ever opens. Apple keeps its scopes: they are requested
+    // through the OS on iOS and carry no such requirement.
+    options: provider === 'google' ? {} : { scopes: ['name', 'email'] },
   });
 
   const idToken = result?.idToken;
