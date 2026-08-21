@@ -1,5 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Circle, GoogleMap, Marker, Polyline, useJsApiLoader } from '@react-google-maps/api';
+import { stationMarkerIcon } from '@/lib/stationMarker';
+import type { StationKind } from '@/integrations/supabase/stations';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { getNavMapStyle, getRouteStrokeColor } from '@/lib/mapStyles';
 
@@ -24,6 +26,7 @@ type DriverGoogleMapProps = {
     lng: number;
     name: string;
     color: string;
+    kind: StationKind;
     radius: number;
     done: boolean;
   }[];
@@ -225,20 +228,18 @@ const DriverGoogleMap = forwardRef<DriverGoogleMapHandle, DriverGoogleMapProps>(
             position={{ lat: s.lat, lng: s.lng }}
             zIndex={4}
             clickable={false}
+            title={s.name}
             icon={{
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 6,
-              fillColor: s.color,
-              fillOpacity: s.done ? 0.4 : 1,
-              strokeColor: '#ffffff',
-              strokeWeight: 2,
-              labelOrigin: new google.maps.Point(0, 3.2),
+              url: stationMarkerIcon(s.kind, s.color, 'full', s.done).url,
+              scaledSize: new google.maps.Size(34, 34),
+              anchor: new google.maps.Point(17, 17),
+              labelOrigin: new google.maps.Point(17, 42),
             }}
             label={{
               text: s.name.length > 16 ? `${s.name.slice(0, 15)}…` : s.name,
               color: isDark ? '#dbe2ea' : '#1f2937',
               fontSize: '10px',
-              fontWeight: '600',
+              fontWeight: '700',
             }}
           />
         </div>

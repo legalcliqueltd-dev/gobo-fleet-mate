@@ -2,13 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Fragment } from 'react';
 import { Circle, GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronRight, ChevronUp, Layers, LocateFixed, Plus, RefreshCw, Users } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, Layers, LocateFixed, Plus, RefreshCw, Users, ZoomIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { getNavMapStyle } from '@/lib/mapStyles';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDriverLocations } from '@/hooks/useDriverLocations';
 import { useStationProgress, STATE_COLOR, STATE_LABEL } from '@/hooks/useStationProgress';
+import { stationMarkerIcon, tierForZoom, type MarkerTier } from '@/lib/stationMarker';
 import { getDriverAccent } from '@/lib/driverAccent';
 import {
   formatLastSeen,
@@ -42,6 +43,8 @@ const STATUS_MARKER_COLOR: Record<VehicleStatus, string> = {
 export default function AdminAppFleet() {
   const { isDark } = useTheme();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Marker detail follows the zoom so pins never tile over the road network.
+  const [tier, setTier] = useState<MarkerTier>('small');
   const { drivers, loading, refetch } = useDriverLocations();
   const navigate = useNavigate();
   // Selecting a vehicle scopes the round to that driver, so the map answers
@@ -138,6 +141,11 @@ export default function AdminAppFleet() {
           zoom={11}
           onLoad={(map) => {
             mapRef.current = map;
+            setTier(tierForZoom(map.getZoom() ?? 11));
+          }}
+          onZoomChanged={() => {
+            const zoom = mapRef.current?.getZoom();
+            if (zoom != null) setTier(tierForZoom(zoom));
           }}
           options={{
             disableDefaultUI: true,
@@ -170,22 +178,31 @@ export default function AdminAppFleet() {
                 title={`${s.name} — ${STATE_LABEL[s.state]}`}
                 onClick={() => navigate(`/app/admin/stations/${s.id}`)}
                 icon={{
-                  path: google.maps.SymbolPath.CIRCLE,
-                  scale: s.state === 'pending' ? 6.5 : 5.5,
-                  fillColor: STATE_COLOR[s.state],
-                  // Completed stops recede; outstanding ones stay solid, so the
-                  // eye lands on what is still owed.
-                  fillOpacity: s.state === 'done' ? 0.5 : 1,
-                  strokeColor: '#ffffff',
-                  strokeWeight: 1.5,
-                  labelOrigin: new google.maps.Point(0, 3.6),
+                  url: stationMarkerIcon(s.kind, STATE_COLOR[s.state], tier, s.state === 'done')
+                    .url,
+                  scaledSize: new google.maps.Size(
+                    stationMarkerIcon(s.kind, STATE_COLOR[s.state], tier).size,
+                    stationMarkerIcon(s.kind, STATE_COLOR[s.state], tier).size
+                  ),
+                  anchor: new google.maps.Point(
+                    stationMarkerIcon(s.kind, STATE_COLOR[s.state], tier).size / 2,
+                    stationMarkerIcon(s.kind, STATE_COLOR[s.state], tier).size / 2
+                  ),
+                  labelOrigin: new google.maps.Point(
+                    stationMarkerIcon(s.kind, STATE_COLOR[s.state], tier).size / 2,
+                    stationMarkerIcon(s.kind, STATE_COLOR[s.state], tier).size + 8
+                  ),
                 }}
-                label={{
-                  text: s.name.length > 16 ? `${s.name.slice(0, 15)}…` : s.name,
-                  color: isDark ? '#c8d2de' : '#374151',
-                  fontSize: '10px',
-                  fontWeight: '600',
-                }}
+                label={
+                  tier === 'full'
+                    ? {
+                        text: s.name.length > 16 ? `${s.name.slice(0, 15)}…` : s.name,
+                        color: isDark ? '#dbe2ea' : '#1f2937',
+                        fontSize: '10px',
+                        fontWeight: '700',
+                      }
+                    : undefined
+                }
               />
             </Fragment>
           ))}
@@ -290,6 +307,23 @@ export default function AdminAppFleet() {
           aria-label="Show all vehicles"
         >
           <LocateFixed className="h-5 w-5" />
+        </Button>
+        {/* Zoom right in on the selected vehicle — close enough to read which
+            side of a site they are on, which "fit all" can never show. */}
+        <Button
+          variant="secondary"
+          size="icon"
+          className="h-11 w-11 rounded-full border border-border shadow-lg"
+          disabled={!selectedId}
+          onClick={() => {
+            const vehicle = vehicles.find((v) => v.id === selectedId);
+            if (!vehicle || !mapRef.current) return;
+            mapRef.current.panTo({ lat: vehicle.lat, lng: vehicle.lng });
+            mapRef.current.setZoom(18);
+          }}
+          aria-label="Zoom to the selected vehicle"
+        >
+          <ZoomIn className="h-5 w-5" />
         </Button>
         <Button
           size="icon"

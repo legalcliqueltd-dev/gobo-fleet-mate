@@ -12,6 +12,7 @@ import { useRealtimeDriverLocations, LiveDriverLocation } from '@/hooks/useRealt
 import { formatTimeAgo, interpolatePosition, easeOutCubic } from '@/utils/mapInterpolation';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useStationProgress, STATE_COLOR, STATE_LABEL } from '@/hooks/useStationProgress';
+import { stationMarkerIcon, tierForZoom, type MarkerTier } from '@/lib/stationMarker';
 import { getMapStyle } from '@/lib/mapStyles';
 import { getDriverAccent } from '@/lib/driverAccent';
 import clsx from 'clsx';
@@ -408,6 +409,7 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
   const { isDark } = useTheme();
   const mapRef = useRef<google.maps.Map | null>(null);
   const [mapType, setMapType] = useState<keyof typeof MAP_STYLES>('roadmap');
+  const [stationTier, setStationTier] = useState<MarkerTier>('small');
   const [showTraffic, setShowTraffic] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [openInfoWindowId, setOpenInfoWindowId] = useState<string | null>(null);
@@ -622,8 +624,13 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
         onClick={() => setOpenInfoWindowId(null)}
         onLoad={(map) => {
           mapRef.current = map;
+          setStationTier(tierForZoom(map.getZoom() ?? 12));
           // Initial framing is handled by the "latest driver" effect above;
           // fitting all here framed stale markers and looked like a random place.
+        }}
+        onZoomChanged={() => {
+          const zoom = mapRef.current?.getZoom();
+          if (zoom != null) setStationTier(tierForZoom(zoom));
         }}
         options={{
           zoomControl: false,
@@ -661,20 +668,30 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
               zIndex={2}
               title={`${s.name} — ${STATE_LABEL[s.state]}`}
               icon={{
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: s.state === 'pending' ? 6.5 : 5.5,
-                fillColor: STATE_COLOR[s.state],
-                fillOpacity: s.state === 'done' ? 0.5 : 1,
-                strokeColor: '#ffffff',
-                strokeWeight: 1.5,
-                labelOrigin: new google.maps.Point(0, 3.6),
+                url: stationMarkerIcon(s.kind, STATE_COLOR[s.state], stationTier, s.state === 'done').url,
+                scaledSize: new google.maps.Size(
+                  stationMarkerIcon(s.kind, STATE_COLOR[s.state], stationTier).size,
+                  stationMarkerIcon(s.kind, STATE_COLOR[s.state], stationTier).size
+                ),
+                anchor: new google.maps.Point(
+                  stationMarkerIcon(s.kind, STATE_COLOR[s.state], stationTier).size / 2,
+                  stationMarkerIcon(s.kind, STATE_COLOR[s.state], stationTier).size / 2
+                ),
+                labelOrigin: new google.maps.Point(
+                  stationMarkerIcon(s.kind, STATE_COLOR[s.state], stationTier).size / 2,
+                  stationMarkerIcon(s.kind, STATE_COLOR[s.state], stationTier).size + 8
+                ),
               }}
-              label={{
-                text: s.name.length > 16 ? `${s.name.slice(0, 15)}…` : s.name,
-                color: isDark ? '#c8d2de' : '#374151',
-                fontSize: '10px',
-                fontWeight: '600',
-              }}
+              label={
+                stationTier === 'full'
+                  ? {
+                      text: s.name.length > 16 ? `${s.name.slice(0, 15)}…` : s.name,
+                      color: isDark ? '#dbe2ea' : '#1f2937',
+                      fontSize: '10px',
+                      fontWeight: '700',
+                    }
+                  : undefined
+              }
             />
           </Fragment>
         ))}

@@ -37,6 +37,8 @@ export function useStationWatcher(
   const [stations, setStations] = useState<Station[]>([]);
   const [visits, setVisits] = useState<StationVisit[]>([]);
   const [loading, setLoading] = useState(true);
+  /** Station the driver is physically inside right now, if any. */
+  const [insideStation, setInsideStation] = useState<Station | null>(null);
 
   /** station id -> when we first saw them inside the radius this stay */
   const insideSince = useRef<Record<string, number>>({});
@@ -92,8 +94,11 @@ export function useStationWatcher(
         // Left the area — reset the stay so the dwell timer starts fresh.
         delete insideSince.current[station.id];
         delete closest.current[station.id];
+        setInsideStation((current) => (current?.id === station.id ? null : current));
         return;
       }
+
+      setInsideStation((current) => (current?.id === station.id ? current : station));
 
       insideSince.current[station.id] ??= now;
       closest.current[station.id] = Math.min(
@@ -142,5 +147,5 @@ export function useStationWatcher(
     [visits]
   );
 
-  return { stations, visits, loading, refresh, visitFor };
+  return { stations, visits, loading, refresh, visitFor, insideStation };
 }

@@ -18,6 +18,7 @@ import {
   type Recurrence,
   type Station,
 } from '@/integrations/supabase/stations';
+import { STATION_COLORS } from '@/lib/stationMarker';
 import { cn } from '@/lib/utils';
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -59,6 +60,7 @@ export default function StationEditorSheet({
 
   const [name, setName] = useState(station.name ?? '');
   const [kind, setKind] = useState(station.kind ?? 'checkpoint');
+  const [color, setColor] = useState(station.color ?? STATION_COLORS[0]);
   const [notes, setNotes] = useState(station.notes ?? '');
   const [radius, setRadius] = useState(station.radius_m ?? 75);
   const [dwell, setDwell] = useState(station.min_dwell_seconds ?? 60);
@@ -102,6 +104,7 @@ export default function StationEditorSheet({
         recurrence_days: recurrence === 'weekly' ? days : null,
         active,
         admin_code: adminCode,
+        color,
       };
 
       if (isNew) {
@@ -110,7 +113,6 @@ export default function StationEditorSheet({
           admin_user_id: station.admin_user_id!,
           latitude: coords.lat,
           longitude: coords.lng,
-          color: station.color ?? '#2563eb',
         });
         toast.success('Station created');
       } else {
@@ -241,6 +243,28 @@ export default function StationEditorSheet({
 
           <p className="telemetry text-xs text-muted-foreground">
             {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)} — tap or drag the pin to refine.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Colour</Label>
+          <div className="flex flex-wrap gap-2">
+            {STATION_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setColor(c)}
+                aria-label={`Use colour ${c}`}
+                className={cn(
+                  'h-11 w-11 rounded-xl border-2 transition-transform',
+                  color === c ? 'scale-105 border-foreground' : 'border-transparent'
+                )}
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Groups stations at a glance — one colour per route or per site type.
           </p>
         </div>
 

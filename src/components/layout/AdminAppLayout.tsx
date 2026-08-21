@@ -1,9 +1,10 @@
-import { PropsWithChildren } from 'react';
+import { PropsWithChildren, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Map, ClipboardList, AlertTriangle, BarChart3, MapPin, Settings } from 'lucide-react';
 import logo from '@/assets/logo.webp';
 import { cn } from '@/lib/utils';
 import { useSOSNotifications } from '@/hooks/useSOSNotifications';
+import AdminTutorial from '@/components/admin/AdminTutorial';
 
 type Tab = {
   path: string;
@@ -32,9 +33,28 @@ const TABS: Tab[] = [
  * The Fleet tab owns the full viewport for its map, so this layout never adds
  * page padding; each screen decides its own.
  */
+/** Shown once, on the manager's first arrival in the portal. */
+const TUTORIAL_SEEN_KEY = 'ftm_admin_tutorial_seen';
+
 export default function AdminAppLayout({ children }: PropsWithChildren) {
   const location = useLocation();
   const { openSOSCount } = useSOSNotifications();
+
+  // First run gets the tour automatically; every run after that it lives in
+  // Settings only. The flag is written as soon as it opens, not when it is
+  // finished — someone who skips it has still made their choice, and being
+  // shown it again would read as nagging.
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(TUTORIAL_SEEN_KEY)) return;
+      localStorage.setItem(TUTORIAL_SEEN_KEY, '1');
+      setShowTutorial(true);
+    } catch {
+      /* private mode — simply never auto-shows */
+    }
+  }, []);
 
   // Sub-routes are not tabs of their own: they keep their parent tab lit and
   // supply their own header title.
@@ -110,6 +130,8 @@ export default function AdminAppLayout({ children }: PropsWithChildren) {
           })}
         </div>
       </nav>
+
+      {showTutorial && <AdminTutorial onClose={() => setShowTutorial(false)} />}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { trackingService } from '@/services/trackingService';
 import { useTrackingService } from '@/hooks/useTrackingService';
 import DriverGoogleMap, { type DriverGoogleMapHandle } from '@/components/map/google/DriverGoogleMap';
-import { Crosshair, Wifi, Signal, Layers } from 'lucide-react';
+import { Crosshair, Wifi, Signal, Layers, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getRouteStrokeColor } from '@/lib/mapStyles';
@@ -256,6 +256,7 @@ export default function DriverAppDashboard() {
     stations,
     visitFor,
     refresh: refreshStations,
+    insideStation,
   } = useStationWatcher(currentLocation, speed, accuracy, session);
 
   const stationPins = stations.map((s) => {
@@ -266,6 +267,7 @@ export default function DriverAppDashboard() {
       lng: s.longitude,
       name: s.name,
       color: s.color,
+      kind: s.kind,
       radius: s.radius_m,
       done: visit?.status === 'completed' || (Boolean(visit) && !s.requires_photo),
     };
@@ -411,6 +413,22 @@ export default function DriverAppDashboard() {
             </Button>
           </div>
         </div>
+
+        {/* "You are here" — confirms to the driver that the system registered
+            his arrival, which is also the thing his receipt depends on. */}
+        {insideStation && (
+          <div className="pointer-events-none absolute inset-x-0 top-16 z-[1000] flex justify-center px-3">
+            <div
+              className="pointer-events-auto flex max-w-full items-center gap-2 rounded-full border border-success/40 bg-success/95 px-3.5 py-2 text-success-foreground"
+              style={{ boxShadow: 'var(--shadow-card)' }}
+            >
+              <MapPin className="h-4 w-4 shrink-0" />
+              <span className="truncate text-xs font-semibold">
+                You are at {insideStation.name}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Bottom card area */}
         <div className="absolute bottom-0 left-0 right-0 z-[1000] p-3 pointer-events-auto">
