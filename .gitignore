@@ -37,3 +37,6 @@ dist-ssr
 android/app/release/
 android/app/build/
 ios/App/App/public/
+
+# Stray media accidentally committed at the repo root
+*.m4a
