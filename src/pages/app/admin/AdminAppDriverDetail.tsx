@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Copy,
   Gauge,
+  History,
   Loader2,
   MapPin,
   Navigation,
@@ -268,12 +269,14 @@ export default function AdminAppDriverDetail() {
             <Plus className="h-4 w-4" />
             Assign job
           </Button>
-          {location && (
-            <Button variant="outline" className="h-11 flex-1 gap-1.5 text-xs" onClick={openDirections}>
-              <Navigation className="h-4 w-4" />
-              Directions
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            className="h-11 flex-1 gap-1.5 text-xs"
+            onClick={() => navigate(`/app/admin/drivers/${driver.driver_id}/history`)}
+          >
+            <History className="h-4 w-4" />
+            History
+          </Button>
         </div>
       </div>
 

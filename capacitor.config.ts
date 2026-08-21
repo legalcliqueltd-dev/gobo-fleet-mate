@@ -16,7 +16,7 @@ import { CapacitorConfig } from '@capacitor/cli';
  */
 const config: CapacitorConfig = {
   appId: 'app.fleettrackmate.driver',
-  appName: 'FleetTrackMate Driver',
+  appName: 'FleetTrackMate',
   webDir: 'dist',
   bundledWebRuntime: false,
   includePlugins: [

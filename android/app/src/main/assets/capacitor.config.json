@@ -1,6 +1,6 @@
 {
 	"appId": "app.fleettrackmate.driver",
-	"appName": "FleetTrackMate Driver",
+	"appName": "FleetTrackMate",
 	"webDir": "dist",
 	"bundledWebRuntime": false,
 	"includePlugins": [

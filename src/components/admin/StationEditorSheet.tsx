@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Circle, GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
-import { Loader2, X } from 'lucide-react';
+import { Layers, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
@@ -67,6 +67,11 @@ export default function StationEditorSheet({
   const [days, setDays] = useState<number[]>(station.recurrence_days ?? []);
   const [adminCode, setAdminCode] = useState(station.admin_code ?? adminCodes[0] ?? '');
   const [address, setAddress] = useState('');
+  // Satellite by default: a station is a physical place — a gate, a skip, a
+  // yard corner — and imagery identifies it far faster than a road map, which
+  // shows only an empty street. Labels stay on ('hybrid') so the surrounding
+  // road names remain readable.
+  const [mapType, setMapType] = useState<'hybrid' | 'roadmap'>('hybrid');
   const [coords, setCoords] = useState({
     lat: station.latitude ?? 6.5244,
     lng: station.longitude ?? 3.3792,
@@ -184,16 +189,19 @@ export default function StationEditorSheet({
           )}
 
           {isLoaded && (
-            <div className="overflow-hidden rounded-xl border border-border">
+            <div className="relative overflow-hidden rounded-xl border border-border">
               <GoogleMap
-                mapContainerStyle={{ width: '100%', height: 200 }}
+                mapContainerStyle={{ width: '100%', height: 320 }}
                 center={coords}
-                zoom={17}
+                zoom={18}
                 options={{
                   disableDefaultUI: true,
                   gestureHandling: 'greedy',
                   clickableIcons: false,
-                  styles: getNavMapStyle(isDark),
+                  mapTypeId: mapType,
+                  // Google's own imagery styling is used as-is; the custom nav
+                  // palette only applies to the road map.
+                  styles: mapType === 'roadmap' ? getNavMapStyle(isDark) : undefined,
                 }}
                 onClick={(e) => {
                   if (e.latLng) setCoords({ lat: e.latLng.lat(), lng: e.latLng.lng() });
@@ -219,6 +227,15 @@ export default function StationEditorSheet({
                   }}
                 />
               </GoogleMap>
+
+              <button
+                type="button"
+                onClick={() => setMapType((t) => (t === 'hybrid' ? 'roadmap' : 'hybrid'))}
+                className="absolute right-2 top-2 flex min-h-[40px] items-center gap-1.5 rounded-lg border border-border bg-background/95 px-2.5 text-xs font-semibold shadow-lg backdrop-blur"
+              >
+                <Layers className="h-4 w-4" />
+                {mapType === 'hybrid' ? 'Map' : 'Satellite'}
+              </button>
             </div>
           )}
 

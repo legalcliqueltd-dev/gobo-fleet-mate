@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
+import { Fragment } from 'react';
+import { Circle, GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { useNavigate } from 'react-router-dom';
 import { ChevronDown, ChevronRight, ChevronUp, Layers, LocateFixed, Plus, RefreshCw, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,6 +8,7 @@ import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConf
 import { getNavMapStyle } from '@/lib/mapStyles';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDriverLocations } from '@/hooks/useDriverLocations';
+import { useStationsForAdmin } from '@/hooks/useStationsForAdmin';
 import { getDriverAccent } from '@/lib/driverAccent';
 import {
   formatLastSeen,
@@ -41,6 +43,7 @@ export default function AdminAppFleet() {
   const { isDark } = useTheme();
   const { drivers, loading, refetch } = useDriverLocations();
   const navigate = useNavigate();
+  const { stations } = useStationsForAdmin();
   const mapRef = useRef<google.maps.Map | null>(null);
 
   const { isLoaded } = useJsApiLoader({
@@ -142,6 +145,47 @@ export default function AdminAppFleet() {
             styles: mapType === 'satellite' ? undefined : getNavMapStyle(isDark),
           }}
         >
+          {/* Stations sit under the vehicles: they are the context a
+              position is read against, not the subject of the screen. */}
+          {stations.map((s) => (
+            <Fragment key={s.id}>
+              <Circle
+                center={{ lat: s.latitude, lng: s.longitude }}
+                radius={s.radius_m}
+                options={{
+                  strokeColor: s.color,
+                  strokeOpacity: 0.55,
+                  strokeWeight: 1.5,
+                  fillColor: s.color,
+                  fillOpacity: 0.08,
+                  clickable: false,
+                  zIndex: 1,
+                }}
+              />
+              <Marker
+                position={{ lat: s.latitude, lng: s.longitude }}
+                zIndex={2}
+                title={s.name}
+                onClick={() => navigate(`/app/admin/stations/${s.id}`)}
+                icon={{
+                  path: google.maps.SymbolPath.CIRCLE,
+                  scale: 5.5,
+                  fillColor: s.color,
+                  fillOpacity: 0.95,
+                  strokeColor: '#ffffff',
+                  strokeWeight: 1.5,
+                  labelOrigin: new google.maps.Point(0, 3.6),
+                }}
+                label={{
+                  text: s.name.length > 16 ? `${s.name.slice(0, 15)}…` : s.name,
+                  color: isDark ? '#c8d2de' : '#374151',
+                  fontSize: '10px',
+                  fontWeight: '600',
+                }}
+              />
+            </Fragment>
+          ))}
+
           {vehicles.map((v) => (
             <Marker
               key={v.id}

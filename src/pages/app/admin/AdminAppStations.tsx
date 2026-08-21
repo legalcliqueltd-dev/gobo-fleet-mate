@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoogleMap, Circle, Marker, useJsApiLoader } from '@react-google-maps/api';
-import { ChevronRight, Loader2, MapPin, Plus, Repeat } from 'lucide-react';
+import { ChevronRight, Layers, Loader2, MapPin, Plus, Repeat } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -53,6 +53,7 @@ export default function AdminAppStations() {
   const [stations, setStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<Station> | null>(null);
+  const [mapType, setMapType] = useState<'hybrid' | 'roadmap'>('hybrid');
 
   const load = useCallback(async () => {
     if (codes.length === 0) {
@@ -104,7 +105,7 @@ export default function AdminAppStations() {
   return (
     <div className="flex h-full flex-col">
       {/* Placement map */}
-      <div className="relative h-56 shrink-0 border-b border-border">
+      <div className="relative h-72 shrink-0 border-b border-border">
         {isLoaded ? (
           <GoogleMap
             mapContainerStyle={{ width: '100%', height: '100%' }}
@@ -114,7 +115,8 @@ export default function AdminAppStations() {
               disableDefaultUI: true,
               gestureHandling: 'greedy',
               clickableIcons: false,
-              styles: getNavMapStyle(isDark),
+              mapTypeId: mapType,
+              styles: mapType === 'roadmap' ? getNavMapStyle(isDark) : undefined,
             }}
             onClick={(e) => {
               if (e.latLng) startNewAt(e.latLng.lat(), e.latLng.lng());
@@ -154,6 +156,15 @@ export default function AdminAppStations() {
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         )}
+
+        <button
+          type="button"
+          onClick={() => setMapType((t) => (t === 'hybrid' ? 'roadmap' : 'hybrid'))}
+          className="absolute right-3 top-3 flex min-h-[40px] items-center gap-1.5 rounded-lg border border-border bg-background/95 px-2.5 text-xs font-semibold shadow-lg backdrop-blur"
+        >
+          <Layers className="h-4 w-4" />
+          {mapType === 'hybrid' ? 'Map' : 'Satellite'}
+        </button>
 
         <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
           <span className="rounded-full bg-background/90 px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur">

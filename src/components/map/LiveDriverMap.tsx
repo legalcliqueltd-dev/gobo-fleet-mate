@@ -1,5 +1,5 @@
-import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
-import { GoogleMap, useJsApiLoader, OverlayView, TrafficLayer } from '@react-google-maps/api';
+import { Fragment, useMemo, useRef, useState, useEffect, useCallback } from 'react';
+import { Circle, GoogleMap, Marker, useJsApiLoader, OverlayView, TrafficLayer } from '@react-google-maps/api';
 import AdvancedMarker from '@/components/map/AdvancedMarker';
 import { Button } from '@/components/ui/button';
 import { 
@@ -11,6 +11,7 @@ import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConf
 import { useRealtimeDriverLocations, LiveDriverLocation } from '@/hooks/useRealtimeDriverLocations';
 import { formatTimeAgo, interpolatePosition, easeOutCubic } from '@/utils/mapInterpolation';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useStationsForAdmin } from '@/hooks/useStationsForAdmin';
 import { getMapStyle } from '@/lib/mapStyles';
 import { getDriverAccent } from '@/lib/driverAccent';
 import clsx from 'clsx';
@@ -414,6 +415,7 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
   const containerRef = useRef<HTMLDivElement>(null);
   
   const { drivers, loading, error, lastUpdate, connectionStatus } = useRealtimeDriverLocations();
+  const { stations } = useStationsForAdmin();
   
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -634,6 +636,48 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
       >
         {/* Traffic Layer */}
         {showTraffic && <TrafficLayer />}
+
+        {/* Manager-marked stations — context for where vehicles should be.
+            Muted relative to the vehicles so they never compete with live
+            positions for attention. */}
+        {stations.map((s) => (
+          <Fragment key={s.id}>
+            <Circle
+              center={{ lat: s.latitude, lng: s.longitude }}
+              radius={s.radius_m}
+              options={{
+                strokeColor: s.color,
+                strokeOpacity: 0.55,
+                strokeWeight: 1.5,
+                fillColor: s.color,
+                fillOpacity: 0.08,
+                clickable: false,
+                zIndex: 1,
+              }}
+            />
+            <Marker
+              position={{ lat: s.latitude, lng: s.longitude }}
+              zIndex={2}
+              title={s.name}
+              icon={{
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 5.5,
+                fillColor: s.color,
+                fillOpacity: 0.95,
+                strokeColor: '#ffffff',
+                strokeWeight: 1.5,
+                labelOrigin: new google.maps.Point(0, 3.6),
+              }}
+              label={{
+                text: s.name.length > 16 ? `${s.name.slice(0, 15)}…` : s.name,
+                color: isDark ? '#c8d2de' : '#374151',
+                fontSize: '10px',
+                fontWeight: '600',
+              }}
+            />
+          </Fragment>
+        ))}
+
 
         {/* Top Left Controls */}
         <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">

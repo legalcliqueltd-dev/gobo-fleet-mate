@@ -28,6 +28,7 @@ import AdminSignup from '@/pages/app/admin/AdminSignup';
 import AdminForgotPassword from '@/pages/app/admin/AdminForgotPassword';
 import AdminAppFleet from '@/pages/app/admin/AdminAppFleet';
 import AdminAppDriverDetail from '@/pages/app/admin/AdminAppDriverDetail';
+import AdminAppDriverHistory from '@/pages/app/admin/AdminAppDriverHistory';
 import AdminAppCreateJob from '@/pages/app/admin/AdminAppCreateJob';
 import AdminAppAddDriver from '@/pages/app/admin/AdminAppAddDriver';
 import AdminAppStations from '@/pages/app/admin/AdminAppStations';
@@ -164,6 +165,7 @@ export default function NativeApp() {
                               <Routes>
                                 <Route path="fleet" element={<AdminAppFleet />} />
                                 <Route path="drivers/new" element={<AdminAppAddDriver />} />
+                                <Route path="drivers/:driverId/history" element={<AdminAppDriverHistory />} />
                                 <Route path="drivers/:driverId" element={<AdminAppDriverDetail />} />
                                 <Route path="jobs/new" element={<AdminAppCreateJob />} />
                                 <Route path="stations" element={<AdminAppStations />} />

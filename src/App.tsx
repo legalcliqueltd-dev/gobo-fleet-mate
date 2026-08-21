@@ -18,6 +18,7 @@ import DriverDetails from '@/pages/DriverDetails';
 import FleetAnalytics from '@/pages/FleetAnalytics';
 import Geofences from '@/pages/Geofences';
 import Stations from '@/pages/Stations';
+import DriverHistory from '@/pages/DriverHistory';
 import Trips from '@/pages/Trips';
 import Settings from '@/pages/Settings';
 import Status from '@/pages/Status';
@@ -154,6 +155,14 @@ export default function App() {
                   element={
                     <ProtectedRoute>
                       <DriverDetails />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/driver/:driverId/history"
+                  element={
+                    <ProtectedRoute>
+                      <DriverHistory />
                     </ProtectedRoute>
                   }
                 />
