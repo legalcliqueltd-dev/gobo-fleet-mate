@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, ChevronRight, Gauge, Loader2, Route as RouteIcon, Timer, TrendingUp, Users, Wallet } from 'lucide-react';
+import { Activity, ChevronRight, Gauge, Loader2, Route as RouteIcon, Timer, TrendingUp, Users, Wallet, ClipboardCheck } from 'lucide-react';
 import { useFleetBreakdown } from '@/hooks/useFleetBreakdown';
 import { STATUS_CLASSES, STATUS_LABEL } from '@/lib/driverStatus';
 import { getDriverAccent } from '@/lib/driverAccent';
@@ -154,6 +154,24 @@ export default function AdminAppInsights() {
               <span className="block text-sm font-semibold">Expenses</span>
               <span className="block text-xs text-muted-foreground">
                 Fuel, repairs and tolls logged by your drivers
+              </span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/app/admin/reports')}
+            className="mt-2.5 flex w-full items-center gap-3.5 rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors hover:bg-muted"
+            style={{ boxShadow: 'var(--shadow-card)' }}
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent">
+              <ClipboardCheck className="h-5 w-5 text-primary" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">Checks and problems</span>
+              <span className="block text-xs text-muted-foreground">
+                Vehicle faults and issues raised from the road
               </span>
             </span>
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />

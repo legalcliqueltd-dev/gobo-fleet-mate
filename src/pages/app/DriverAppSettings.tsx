@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { User, Battery, MapPin, Unlink, Power, AlertTriangle, Palette, Trash2, Shield, FileText, GraduationCap, Repeat } from 'lucide-react';
+import { User, Battery, MapPin, Unlink, Power, AlertTriangle, Palette, Trash2, Shield, FileText, GraduationCap, Repeat, ClipboardCheck, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
@@ -165,6 +165,41 @@ export default function DriverAppSettings() {
           <p className="eyebrow mb-1">Your app</p>
           <h1 className="font-heading text-2xl font-bold">Settings</h1>
         </div>
+
+        {/* The driver's own tools, first — these are his, not the office's. */}
+        <Card>
+          <CardContent className="flex items-center justify-between gap-3 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
+                <ClipboardCheck className="h-5 w-5 text-accent-foreground" />
+              </div>
+              <div>
+                <p className="font-semibold leading-tight">My record</p>
+                <p className="text-xs text-muted-foreground">Your week's work and your proof</p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => navigate('/app/record')}>
+              Open
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="flex items-center justify-between gap-3 p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
+                <ShieldCheck className="h-5 w-5 text-accent-foreground" />
+              </div>
+              <div>
+                <p className="font-semibold leading-tight">Vehicle check</p>
+                <p className="text-xs text-muted-foreground">Log faults, or report a problem</p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => navigate('/app/checks')}>
+              Open
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Tutorial replay */}
         <Card>
