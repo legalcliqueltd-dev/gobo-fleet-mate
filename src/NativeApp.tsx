@@ -34,8 +34,10 @@ import AdminAppDriverDetail from '@/pages/app/admin/AdminAppDriverDetail';
 import AdminAppDriverHistory from '@/pages/app/admin/AdminAppDriverHistory';
 import AdminAppCreateJob from '@/pages/app/admin/AdminAppCreateJob';
 import AdminAppAddDriver from '@/pages/app/admin/AdminAppAddDriver';
+import AdminAppCodes from '@/pages/app/admin/AdminAppCodes';
 import AdminAppExpenses from '@/pages/app/admin/AdminAppExpenses';
 import AdminAppReports from '@/pages/app/admin/AdminAppReports';
+import AdminAppDailyReport from '@/pages/app/admin/AdminAppDailyReport';
 import AdminAppStations from '@/pages/app/admin/AdminAppStations';
 import AdminAppStationDetail from '@/pages/app/admin/AdminAppStationDetail';
 import AdminAppTasks from '@/pages/app/admin/AdminAppTasks';
@@ -194,11 +196,13 @@ export default function NativeApp() {
                               <Routes>
                                 <Route path="fleet" element={<AdminAppFleet />} />
                                 <Route path="drivers/new" element={<AdminAppAddDriver />} />
+                                <Route path="codes" element={<AdminAppCodes />} />
                                 <Route path="drivers/:driverId/history" element={<AdminAppDriverHistory />} />
                                 <Route path="drivers/:driverId" element={<AdminAppDriverDetail />} />
                                 <Route path="jobs/new" element={<AdminAppCreateJob />} />
                                 <Route path="expenses" element={<AdminAppExpenses />} />
                                 <Route path="reports" element={<AdminAppReports />} />
+                                <Route path="today" element={<AdminAppDailyReport />} />
                                 <Route path="stations" element={<AdminAppStations />} />
                                 <Route path="stations/:stationId" element={<AdminAppStationDetail />} />
                                 <Route path="tasks" element={<AdminAppTasks />} />

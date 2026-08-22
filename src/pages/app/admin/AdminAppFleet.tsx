@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Fragment } from 'react';
 import { Circle, GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronRight, ChevronUp, Layers, LocateFixed, Plus, RefreshCw, Users, X, ZoomIn } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, KeyRound, Layers, LocateFixed, Plus, RefreshCw, Users, X, ZoomIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { getNavMapStyle } from '@/lib/mapStyles';
@@ -340,6 +340,15 @@ export default function AdminAppFleet() {
           aria-label="Add a driver"
         >
           <Plus className="h-5 w-5" />
+        </Button>
+        <Button
+          variant="secondary"
+          size="icon"
+          className="h-11 w-11 rounded-full border border-border shadow-lg"
+          onClick={() => navigate('/app/admin/codes')}
+          aria-label="Drivers and codes"
+        >
+          <KeyRound className="h-5 w-5" />
         </Button>
         <Button
           variant="secondary"

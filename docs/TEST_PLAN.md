@@ -28,7 +28,8 @@ supabase/migrations/20260822090000_driver_reports.sql
 ```
 
 **Quick check they applied:** open the app → Stations tab. If it says "Could not
-load stations. Has the database migration been run?", the SQL did not take.
+load stations. Has the database migration been run?", the SQL did not take. The
+same applies to Insights → Expenses and Insights → Checks and problems.
 
 ---
 
@@ -125,8 +126,8 @@ proof is worthless.
 | # | Test | Expected | Pass |
 | --- | --- | --- | --- |
 | 6.1 | Driver sends SOS | Appears on the manager's Alerts within seconds | ☐ |
-| 6.2 | Tap "Show on map" | Map renders **inside the app** | ☐ |
-| 6.3 | Tap "Open in Google Maps" | Leaves to Maps with directions | ☐ |
+| 6.2 | Tap "Show on map" | Sheet slides up; map **inside the app** | ☐ |
+| 6.3 | Stations on that sheet | Visible, so distance to the round is judgeable | ☐ |
 | 6.4 | Resolve it | Moves to the resolved section | ☐ |
 
 ---
@@ -156,8 +157,11 @@ proof is worthless.
 | 8.4 | Mark Tyres as Problem, add a photo, send | Saved with the fault | ☐ |
 | 8.5 | Manager → Insights → Checks and problems | Fault sorts **above** the clean check | ☐ |
 | 8.6 | Report a problem → Road blocked → photo | Sends with location | ☐ |
-| 8.7 | Manager taps "Where it was raised" | Opens Maps at that point | ☐ |
+| 8.7 | Manager taps "Where it was raised" | In-app sheet at that point — app never left | ☐ |
 | 8.8 | Mark resolved | Moves down the list | ☐ |
+| 8.9 | Driver → Settings | "Yours" section is visually distinct (tinted, own heading) | ☐ |
+| 8.10 | Settings → My record | His stops, jobs, distance, days and receipt log | ☐ |
+| 8.11 | Driver tutorial | Includes Money, Stations/proof and Vehicle check slides | ☐ |
 
 ---
 
@@ -178,27 +182,75 @@ noise filtering is not working.
 
 ---
 
-## 10. Website parity
+## 10. Codes: revoke, replace, delete
+
+The rule under test is **revoke never erases**. A driver's records are evidence
+for him as much as for you, so removing access must not be able to delete them.
 
 | # | Test | Expected | Pass |
 | --- | --- | --- | --- |
-| 10.1 | Log in on the website | Same account as the app | ☐ |
-| 10.2 | Stations page | Same stations, same colours | ☐ |
-| 10.3 | Dashboard map | Stations drawn with completion state | ☐ |
-| 10.4 | Driver → history | Same trips/stops as the app | ☐ |
+| 10.1 | Fleet map → key icon (or Settings → Drivers & codes) | Every code listed, grouped "Ready to hand out" / "In use" | ☐ |
+| 10.2 | An unclaimed code | Shown **large and readable**, with Share | ☐ |
+| 10.3 | A claimed code | Shown as ●●●●●● until you tap the eye | ☐ |
+| 10.4 | Revoke an active driver | Confirm dialog states records are kept | ☐ |
+| 10.5 | After revoking | Driver disappears from the live map | ☐ |
+| 10.6 | **On the driver's phone, within ~2 min or on reopening** | Logged out, told to ask for a new code | ☐ |
+| 10.7 | Driver tries the **old** code | Rejected — it was rotated on revoke | ☐ |
+| 10.8 | Manager → that driver's history / receipts / expenses | **All still there** | ☐ |
+| 10.9 | Give the new code to a driver | Joins normally onto the same vehicle | ☐ |
+| 10.10 | "New code" on an active driver | Old code dies; that driver is logged out | ☐ |
+| 10.11 | Delete on an unclaimed code | Allowed | ☐ |
+| 10.12 | Delete on a code a driver has used | **Not offered at all** | ☐ |
+
+**10.6 and 10.8 are the two that matter.** If the driver keeps transmitting after
+revocation, the button is a lie. If his records vanish, the evidence trail can be
+erased by firing someone.
 
 ---
 
-## 11. Release readiness
+## 11. In-app maps and today's summary
 
 | # | Test | Expected | Pass |
 | --- | --- | --- | --- |
-| 11.1 | App name on the home screen | **FleetTrackMate** (not "-Driver") | ☐ |
-| 11.2 | Signed AAB version | versionCode **5**, versionName 2.2.1 | ☐ |
-| 11.3 | Fresh install → first manager login | Tutorial shows **once**, then never again | ☐ |
-| 11.4 | Settings → How to use | Tutorial opens on demand | ☐ |
-| 11.5 | Dark mode across every screen | No unreadable text, no white flashes | ☐ |
-| 11.6 | Play Console upload | Accepted; no targetSdk warning | ☐ |
+| 11.1 | Alerts → Show on map | Map **slides up from the bottom**, app never left | ☐ |
+| 11.2 | On that sheet | Stations and live vehicles visible around the incident | ☐ |
+| 11.3 | Drag the sheet down / tap outside | Dismisses | ☐ |
+| 11.4 | Expand button | Grows to near full screen, map re-centres | ☐ |
+| 11.5 | Checks & problems → Where it was raised | Same sheet | ☐ |
+| 11.6 | Driver detail → On map | Same sheet, centred on the driver | ☐ |
+| 11.7 | Anywhere in the manager app | **Nothing** jumps out to the Google Maps app | ☐ |
+| 11.8 | Insights → Today's summary | Stations, jobs, alerts, spend for today | ☐ |
+| 11.9 | Share today's summary | Share sheet with readable plain text | ☐ |
+| 11.10 | Station markers | **Pin-shaped**, glyph inside, tip on the exact point | ☐ |
+| 11.11 | Zoom out past city level | Pins become dots; roads stay readable | ☐ |
+| 11.12 | Driver history date strip | Starts at **Today**, scrolls back; "Pick" opens a date picker | ☐ |
+
+**11.7:** the driver's own turn-by-turn *does* still open Google Maps, and that is
+intended — it is real navigation, not a glance.
+
+---
+
+## 12. Website parity
+
+| # | Test | Expected | Pass |
+| --- | --- | --- | --- |
+| 12.1 | Log in on the website | Same account as the app | ☐ |
+| 12.2 | Stations page | Same stations, same colours | ☐ |
+| 12.3 | Dashboard map | Stations drawn with completion state | ☐ |
+| 12.4 | Driver → history | Same trips/stops as the app | ☐ |
+
+---
+
+## 13. Release readiness
+
+| # | Test | Expected | Pass |
+| --- | --- | --- | --- |
+| 13.1 | App name on the home screen | **FleetTrackMate** (not "-Driver") | ☐ |
+| 13.2 | Signed AAB version | versionCode **5**, versionName 2.2.1 | ☐ |
+| 13.3 | Fresh install → first manager login | Tutorial shows **once**, then never again | ☐ |
+| 13.4 | Settings → How to use | Tutorial opens on demand | ☐ |
+| 13.5 | Dark mode across every screen | No unreadable text, no white flashes | ☐ |
+| 13.6 | Play Console upload | Accepted; no targetSdk warning | ☐ |
 
 ---
 

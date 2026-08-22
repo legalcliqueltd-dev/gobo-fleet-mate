@@ -59,7 +59,10 @@ export function useDriverLocations() {
       const { data: driversData, error: driversError } = await supabase
         .from('drivers')
         .select('*')
-        .in('admin_code', Array.from(codes));
+        .in('admin_code', Array.from(codes))
+        // A revoked driver keeps every record they produced, but they are no
+        // longer part of the live fleet and must leave the map.
+        .neq('status', 'revoked');
 
       if (driversError) throw driversError;
       if (!driversData || driversData.length === 0) {

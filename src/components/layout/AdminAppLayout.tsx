@@ -60,9 +60,11 @@ export default function AdminAppLayout({ children }: PropsWithChildren) {
   // supply their own header title.
   const SUB_ROUTES: { match: string; parent: string; title: string }[] = [
     { match: '/app/admin/drivers/new', parent: '/app/admin/fleet', title: 'Add driver' },
+    { match: '/app/admin/codes', parent: '/app/admin/fleet', title: 'Drivers & codes' },
     { match: '/app/admin/history', parent: '/app/admin/fleet', title: 'History' },
     { match: '/app/admin/expenses', parent: '/app/admin/insights', title: 'Expenses' },
     { match: '/app/admin/reports', parent: '/app/admin/insights', title: 'Checks & problems' },
+    { match: '/app/admin/today', parent: '/app/admin/insights', title: "Today's summary" },
     { match: '/app/admin/drivers/', parent: '/app/admin/fleet', title: 'Driver' },
     { match: '/app/admin/jobs/new', parent: '/app/admin/tasks', title: 'Assign job' },
     { match: '/app/admin/stations/', parent: '/app/admin/stations', title: 'Station' },

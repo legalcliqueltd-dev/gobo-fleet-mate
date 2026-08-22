@@ -7,6 +7,7 @@ import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { useTaskNotifications } from '@/hooks/useTaskNotifications';
 import { useDrivingMode } from '@/hooks/useDrivingMode';
 import OfflineQueue from '@/components/OfflineQueue';
+import { useAccessGuard } from '@/hooks/useAccessGuard';
 
 const leftNavItems = [
   { path: '/app/dashboard', icon: Home, label: 'Home' },
@@ -25,6 +26,9 @@ export default function DriverAppLayout({ children }: PropsWithChildren) {
   const { session } = useDriverSession();
   const { unreadCount } = useTaskNotifications(session?.driverId, session?.adminCode);
   const { isDriving, speedKmh } = useDrivingMode();
+
+  // Enforces manager-side revocation on this device.
+  useAccessGuard();
 
   // Check if on home page
   const isHomePage = location.pathname === '/app' || location.pathname === '/app/dashboard';

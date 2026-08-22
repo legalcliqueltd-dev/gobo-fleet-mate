@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ChevronRight,
   GraduationCap,
+  KeyRound,
   FileText,
   LogOut,
   Repeat,
@@ -130,6 +131,15 @@ export default function AdminAppSettings() {
         className="mb-5 overflow-hidden rounded-2xl border border-border bg-card"
         style={{ boxShadow: 'var(--shadow-card)' }}
       >
+        <Row
+          icon={KeyRound}
+          label="Drivers & codes"
+          hint="Share, revoke or replace connection codes"
+          onClick={() => navigate('/app/admin/codes')}
+        />
+
+        <div className="border-t border-border" />
+
         <Row
           icon={GraduationCap}
           label="How to use FleetTrackMate"

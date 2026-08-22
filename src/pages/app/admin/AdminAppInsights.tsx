@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, ChevronRight, Gauge, Loader2, Route as RouteIcon, Timer, TrendingUp, Users, Wallet, ClipboardCheck } from 'lucide-react';
+import { Activity, ChevronRight, Gauge, Loader2, Route as RouteIcon, Timer, TrendingUp, Users, Wallet, ClipboardCheck, CalendarCheck } from 'lucide-react';
 import { useFleetBreakdown } from '@/hooks/useFleetBreakdown';
 import { STATUS_CLASSES, STATUS_LABEL } from '@/lib/driverStatus';
 import { getDriverAccent } from '@/lib/driverAccent';
@@ -80,6 +80,26 @@ export default function AdminAppInsights() {
           </button>
         ))}
       </div>
+
+      {/* Today's summary leads, because "did today go to plan?" is the question
+          asked daily; the ranges below are for looking back. */}
+      <button
+        type="button"
+        onClick={() => navigate('/app/admin/today')}
+        className="mb-4 flex w-full items-center gap-3.5 rounded-2xl border border-primary/30 bg-accent px-4 py-4 text-left transition-colors"
+        style={{ boxShadow: 'var(--shadow-card)' }}
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15">
+          <CalendarCheck className="h-5 w-5 text-primary" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold">Today's summary</span>
+          <span className="block text-xs text-muted-foreground">
+            Stations, jobs, alerts and spend — shareable
+          </span>
+        </span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-primary" />
+      </button>
 
       {loading && (
         <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
