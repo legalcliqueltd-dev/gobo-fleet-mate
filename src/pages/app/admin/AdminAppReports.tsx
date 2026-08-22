@@ -22,6 +22,7 @@ import {
   updateReportStatus,
   type DriverReport,
 } from '@/integrations/supabase/reports';
+import LocationSheet, { type SheetFocus } from '@/components/admin/LocationSheet';
 import { cn } from '@/lib/utils';
 
 /**
@@ -39,6 +40,7 @@ export default function AdminAppReports() {
   const [names, setNames] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [sheet, setSheet] = useState<SheetFocus | null>(null);
 
   const load = useCallback(async () => {
     if (codes.length === 0) {
@@ -206,10 +208,16 @@ export default function AdminAppReports() {
                       <button
                         type="button"
                         onClick={() =>
-                          window.open(
-                            `https://www.google.com/maps/dir/?api=1&destination=${report.latitude},${report.longitude}`,
-                            '_system'
-                          )
+                          setSheet({
+                            lat: report.latitude!,
+                            lng: report.longitude!,
+                            title:
+                              report.type === 'problem'
+                                ? kind?.label ?? 'Problem'
+                                : 'Vehicle check',
+                            subtitle: names[report.driver_id] ?? report.driver_id,
+                            tone: report.type === 'problem' ? 'alert' : 'info',
+                          })
                         }
                         className="mt-2 inline-flex min-h-[36px] items-center gap-1 text-xs font-medium text-primary"
                       >
@@ -239,6 +247,8 @@ export default function AdminAppReports() {
           })}
         </ul>
       </div>
+
+      <LocationSheet focus={sheet} onClose={() => setSheet(null)} />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConf
 import { getNavMapStyle } from '@/lib/mapStyles';
 import { useTheme } from '@/contexts/ThemeContext';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import LocationSheet, { type SheetFocus } from '@/components/admin/LocationSheet';
 import { cn } from '@/lib/utils';
 
 const isClosed = (status: string) => status === 'resolved' || status === 'cancelled';
@@ -35,11 +36,9 @@ export default function AdminAppAlerts() {
   });
 
   const [busyId, setBusyId] = useState<string | null>(null);
-  // Which incident is showing its map. The map lives inside the card rather
-  // than sending the manager out to another app: seeing where a driver is in
-  // trouble is the first thing needed, and leaving the app to find out loses
-  // the incident list and every other alert alongside it.
-  const [mappedId, setMappedId] = useState<string | null>(null);
+  // Where the pull-up map is pointing. Nothing here ever leaves the app: the
+  // incident list and the rest of the fleet stay one dismiss away.
+  const [sheet, setSheet] = useState<SheetFocus | null>(null);
   const [clearOpen, setClearOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
 
@@ -86,14 +85,6 @@ export default function AdminAppAlerts() {
     } finally {
       setClearing(false);
     }
-  };
-
-  const openInMaps = (event: SOSEventWithDriver) => {
-    if (event.latitude == null || event.longitude == null) return;
-    window.open(
-      `https://www.google.com/maps/dir/?api=1&destination=${event.latitude},${event.longitude}&travelmode=driving`,
-      '_system'
-    );
   };
 
   const renderCard = (event: SOSEventWithDriver, isActive: boolean) => {
@@ -144,58 +135,23 @@ export default function AdminAppAlerts() {
             />
           )}
 
-          {/* In-app map for this incident */}
-          {hasLocation && mappedId === event.id && (
-            <div className="mt-2.5 overflow-hidden rounded-lg border border-border">
-              {isLoaded ? (
-                <GoogleMap
-                  mapContainerStyle={{ width: '100%', height: 170 }}
-                  center={{ lat: event.latitude!, lng: event.longitude! }}
-                  zoom={16}
-                  options={{
-                    disableDefaultUI: true,
-                    gestureHandling: 'greedy',
-                    clickableIcons: false,
-                    styles: getNavMapStyle(isDark),
-                  }}
-                >
-                  <Marker
-                    position={{ lat: event.latitude!, lng: event.longitude! }}
-                    icon={{
-                      path: google.maps.SymbolPath.CIRCLE,
-                      scale: 10,
-                      fillColor: '#dc2626',
-                      fillOpacity: 1,
-                      strokeColor: '#ffffff',
-                      strokeWeight: 3,
-                    }}
-                  />
-                </GoogleMap>
-              ) : (
-                <div className="flex h-[170px] items-center justify-center bg-muted">
-                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => openInMaps(event)}
-                className="flex w-full items-center justify-center gap-1.5 border-t border-border bg-card py-2.5 text-xs font-medium text-muted-foreground"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                Open in Google Maps for directions
-              </button>
-            </div>
-          )}
-
           <div className="mt-3 flex gap-2">
             {hasLocation && (
               <Button
                 variant="outline"
                 className="h-10 flex-1 gap-1.5 text-xs"
-                onClick={() => setMappedId((current) => (current === event.id ? null : event.id))}
+                onClick={() =>
+                  setSheet({
+                    lat: event.latitude!,
+                    lng: event.longitude!,
+                    title: event.hazard?.replace(/_/g, ' ') || 'Emergency',
+                    subtitle: event.driver_name || 'Unknown driver',
+                    tone: 'alert',
+                  })
+                }
               >
                 <MapPin className="h-4 w-4" />
-                {mappedId === event.id ? 'Hide map' : 'Show on map'}
+                Show on map
               </Button>
             )}
             {isActive && (
@@ -258,6 +214,8 @@ export default function AdminAppAlerts() {
           </section>
         )}
       </div>
+
+      <LocationSheet focus={sheet} onClose={() => setSheet(null)} />
 
       <ConfirmDialog
         open={clearOpen}

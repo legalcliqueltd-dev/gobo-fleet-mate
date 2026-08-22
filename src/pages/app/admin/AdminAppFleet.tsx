@@ -173,38 +173,33 @@ export default function AdminAppFleet() {
                   zIndex: 1,
                 }}
               />
-              <Marker
-                position={{ lat: s.latitude, lng: s.longitude }}
-                zIndex={2}
-                title={`${s.name} — ${STATE_LABEL[s.state]}`}
-                onClick={() => navigate(`/app/admin/stations/${s.id}`)}
-                icon={{
-                  url: stationMarkerIcon(s.kind, STATE_COLOR[s.state], tier, s.state === 'done')
-                    .url,
-                  scaledSize: new google.maps.Size(
-                    stationMarkerIcon(s.kind, STATE_COLOR[s.state], tier).size,
-                    stationMarkerIcon(s.kind, STATE_COLOR[s.state], tier).size
-                  ),
-                  anchor: new google.maps.Point(
-                    stationMarkerIcon(s.kind, STATE_COLOR[s.state], tier).size / 2,
-                    stationMarkerIcon(s.kind, STATE_COLOR[s.state], tier).size / 2
-                  ),
-                  labelOrigin: new google.maps.Point(
-                    stationMarkerIcon(s.kind, STATE_COLOR[s.state], tier).size / 2,
-                    stationMarkerIcon(s.kind, STATE_COLOR[s.state], tier).size + 8
-                  ),
-                }}
-                label={
-                  tier === 'full'
-                    ? {
-                        text: s.name.length > 16 ? `${s.name.slice(0, 15)}…` : s.name,
-                        color: isDark ? '#dbe2ea' : '#1f2937',
-                        fontSize: '10px',
-                        fontWeight: '700',
-                      }
-                    : undefined
-                }
-              />
+              {(() => {
+                const icon = stationMarkerIcon(s.kind, STATE_COLOR[s.state], tier, s.state === 'done');
+                return (
+                  <Marker
+                    position={{ lat: s.latitude, lng: s.longitude }}
+                    zIndex={2}
+                    title={`${s.name} — ${STATE_LABEL[s.state]}`}
+                    onClick={() => navigate(`/app/admin/stations/${s.id}`)}
+                    icon={{
+                      url: icon.url,
+                      scaledSize: new google.maps.Size(icon.width, icon.height),
+                      anchor: new google.maps.Point(icon.anchorX, icon.anchorY),
+                      labelOrigin: new google.maps.Point(icon.width / 2, icon.labelY),
+                    }}
+                    label={
+                      tier === 'full'
+                        ? {
+                            text: s.name.length > 16 ? `${s.name.slice(0, 15)}…` : s.name,
+                            color: isDark ? '#dbe2ea' : '#1f2937',
+                            fontSize: '10px',
+                            fontWeight: '700',
+                          }
+                        : undefined
+                    }
+                  />
+                );
+              })()}
             </Fragment>
           ))}
 

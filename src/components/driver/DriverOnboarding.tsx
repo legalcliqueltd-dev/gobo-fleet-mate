@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Home, ClipboardList, AlertTriangle, Settings, MapPin, Navigation } from 'lucide-react';
+import { Home, ClipboardList, AlertTriangle, Settings, MapPin, Navigation, Wallet, Camera, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -101,6 +101,25 @@ function SettingsDemo() {
   );
 }
 
+
+/* The driver's own tools. Rendered in the accent colour that marks "yours"
+   everywhere else in the app, so the tutorial teaches the same visual code. */
+function YoursDemo({ items }: { items: { icon: typeof Home; label: string }[] }) {
+  return (
+    <div className="flex items-center gap-3">
+      {items.map(({ icon: Icon, label }) => (
+        <div
+          key={label}
+          className="flex h-20 w-20 flex-col items-center justify-center gap-1.5 rounded-2xl border border-primary/30 bg-accent"
+        >
+          <Icon className="h-6 w-6 text-primary" />
+          <span className="text-[10px] font-semibold text-accent-foreground">{label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const slides = [
   {
     demo: () => <MapDemo />,
@@ -131,6 +150,45 @@ const slides = [
     title: 'Go on or off duty in Settings',
     description:
       'Settings holds your duty toggle — turn tracking on when your shift starts and off when it ends. That switch is always yours.',
+  },
+  {
+    demo: () => (
+      <YoursDemo
+        items={[
+          { icon: Wallet, label: 'Money' },
+          { icon: Camera, label: 'Receipt' },
+        ]}
+      />
+    ),
+    title: 'Keep track of your money',
+    description:
+      'The Money tab is yours. Log fuel, repairs and tolls as you pay for them — photograph the receipt or upload one you already have. Your manager sees the total and approves it, and you keep the proof.',
+  },
+  {
+    demo: () => (
+      <YoursDemo
+        items={[
+          { icon: MapPin, label: 'Stations' },
+          { icon: Camera, label: 'Proof' },
+        ]}
+      />
+    ),
+    title: 'Stations and your proof',
+    description:
+      'Some places you must visit show on your map. When you arrive and stay a minute it records automatically, then you take one photo as proof. That photo is your record too — Settings → My record keeps every one.',
+  },
+  {
+    demo: () => (
+      <YoursDemo
+        items={[
+          { icon: ShieldCheck, label: 'Check' },
+          { icon: AlertTriangle, label: 'Problem' },
+        ]}
+      />
+    ),
+    title: 'Protect yourself before you drive',
+    description:
+      'Settings → Vehicle check lets you photograph any damage before your shift, so you are not blamed for it later. Hit a blocked road or a closed site? Report it once with a photo instead of explaining it on the phone.',
   },
   {
     demo: () => <SettingsDemo />,

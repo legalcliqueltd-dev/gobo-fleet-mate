@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { User, Battery, MapPin, Unlink, Power, AlertTriangle, Palette, Trash2, Shield, FileText, GraduationCap, Repeat, ClipboardCheck, ShieldCheck } from 'lucide-react';
+import { User, Battery, MapPin, Unlink, Power, AlertTriangle, Palette, Trash2, Shield, FileText, GraduationCap, Repeat, ClipboardCheck, ShieldCheck, Wallet, UserCircle, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
@@ -166,40 +166,62 @@ export default function DriverAppSettings() {
           <h1 className="font-heading text-2xl font-bold">Settings</h1>
         </div>
 
-        {/* The driver's own tools, first — these are his, not the office's. */}
-        <Card>
-          <CardContent className="flex items-center justify-between gap-3 p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
-                <ClipboardCheck className="h-5 w-5 text-accent-foreground" />
-              </div>
-              <div>
-                <p className="font-semibold leading-tight">My record</p>
-                <p className="text-xs text-muted-foreground">Your week's work and your proof</p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => navigate('/app/record')}>
-              Open
-            </Button>
-          </CardContent>
-        </Card>
+        {/* ── Yours ──
+            Visually separated on purpose. Everything else on this screen
+            configures what the office receives; these three belong to the
+            driver. Same accent the tutorial uses, so the colour itself comes
+            to mean "this one is for you". */}
+        <section className="rounded-2xl border border-primary/25 bg-accent/40 p-3">
+          <div className="mb-3 flex items-center gap-2 px-1">
+            <UserCircle className="h-4 w-4 text-primary" />
+            <h2 className="font-heading text-sm font-bold uppercase tracking-wider text-primary">
+              Yours
+            </h2>
+          </div>
 
-        <Card>
-          <CardContent className="flex items-center justify-between gap-3 p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
-                <ShieldCheck className="h-5 w-5 text-accent-foreground" />
-              </div>
-              <div>
-                <p className="font-semibold leading-tight">Vehicle check</p>
-                <p className="text-xs text-muted-foreground">Log faults, or report a problem</p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => navigate('/app/checks')}>
-              Open
-            </Button>
-          </CardContent>
-        </Card>
+          <div className="space-y-2">
+            {[
+              {
+                icon: Wallet,
+                title: 'Money',
+                hint: 'Log fuel, repairs and tolls to get paid back',
+                to: '/app/expenses',
+              },
+              {
+                icon: ClipboardCheck,
+                title: 'My record',
+                hint: "Your week's work, and every receipt you sent",
+                to: '/app/record',
+              },
+              {
+                icon: ShieldCheck,
+                title: 'Vehicle check',
+                hint: 'Log faults before you drive, or report a problem',
+                to: '/app/checks',
+              },
+            ].map(({ icon: Icon, title, hint, to }) => (
+              <button
+                key={to}
+                type="button"
+                onClick={() => navigate(to)}
+                className="flex w-full items-center gap-3 rounded-xl border border-primary/20 bg-card p-3.5 text-left transition-colors active:bg-muted"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                  <Icon className="h-5 w-5 text-primary" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold leading-tight">{title}</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">{hint}</span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-primary" />
+              </button>
+            ))}
+          </div>
+
+          <p className="px-1 pb-1 pt-3 text-[11px] leading-relaxed text-muted-foreground">
+            These are for you. Your manager only sees what you send.
+          </p>
+        </section>
 
         {/* Tutorial replay */}
         <Card>

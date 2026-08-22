@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Circle, GoogleMap, Marker, Polyline, useJsApiLoader } from '@react-google-maps/api';
 import {
+  CalendarDays,
   Camera,
   Car,
   Layers,
@@ -34,10 +35,15 @@ function isoDay(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function lastDays(count: number): Date[] {
+/**
+ * Most recent first. The strip previously ran oldest-to-newest, which put
+ * today off the right-hand edge — so it opened scrolled away from the day a
+ * manager almost always wants.
+ */
+function recentDays(count: number): Date[] {
   return Array.from({ length: count }, (_, i) => {
     const d = new Date();
-    d.setDate(d.getDate() - (count - 1 - i));
+    d.setDate(d.getDate() - i);
     return d;
   });
 }
@@ -91,7 +97,7 @@ export default function DriverHistoryView({
   const [mapType, setMapType] = useState<'roadmap' | 'hybrid'>('roadmap');
 
   const accent = getDriverAccent(driverId);
-  const days = useMemo(() => lastDays(14), []);
+  const days = useMemo(() => recentDays(30), []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -324,33 +330,66 @@ export default function DriverHistoryView({
 
       {/* ── Day picker, summary, timeline ── */}
       <div className="flex min-h-0 flex-1 flex-col lg:h-[620px]">
-        {/* Day strip */}
-        <div className="flex gap-1.5 overflow-x-auto border-b border-border px-3 py-2.5">
-          {days.map((d) => {
-            const isSelected = isoDay(d) === isoDay(day);
-            const isToday = isoDay(d) === isoDay(new Date());
-            return (
-              <button
-                key={isoDay(d)}
-                type="button"
-                onClick={() => setDay(d)}
-                className={cn(
-                  'flex min-h-[52px] w-12 shrink-0 flex-col items-center justify-center rounded-xl text-center transition-colors',
-                  isSelected
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
-                )}
-              >
-                <span className="text-[10px] font-medium uppercase">
-                  {isToday ? 'Today' : format(d, 'EEE')}
-                </span>
-                <span className="telemetry text-sm font-bold">{format(d, 'd')}</span>
-              </button>
-            );
-          })}
+        {/* Day strip — today first, scrolling back through the month, with a
+            date picker for anything older. */}
+        <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
+          <div className="flex flex-1 gap-1.5 overflow-x-auto">
+            {days.map((d) => {
+              const isSelected = isoDay(d) === isoDay(day);
+              const isToday = isoDay(d) === isoDay(new Date());
+              return (
+                <button
+                  key={isoDay(d)}
+                  type="button"
+                  onClick={() => setDay(d)}
+                  className={cn(
+                    'flex min-h-[52px] w-12 shrink-0 flex-col items-center justify-center rounded-xl text-center transition-colors',
+                    isSelected
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <span className="text-[10px] font-medium uppercase">
+                    {isToday ? 'Today' : format(d, 'EEE')}
+                  </span>
+                  <span className="telemetry text-sm font-bold">{format(d, 'd')}</span>
+                  {!isToday && (
+                    <span className="text-[9px] uppercase opacity-70">{format(d, 'MMM')}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Any date at all, for last month or last quarter */}
+          <label
+            className="relative flex h-[52px] w-12 shrink-0 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-border text-muted-foreground"
+            title="Pick any date"
+          >
+            <CalendarDays className="h-4 w-4" />
+            <span className="mt-0.5 text-[9px] font-semibold uppercase">Pick</span>
+            <input
+              type="date"
+              max={isoDay(new Date())}
+              value={isoDay(day)}
+              onChange={(e) => {
+                if (!e.target.value) return;
+                const [y, m, d] = e.target.value.split('-').map(Number);
+                setDay(new Date(y, m - 1, d));
+              }}
+              className="absolute inset-0 cursor-pointer opacity-0"
+            />
+          </label>
         </div>
 
         {/* Summary */}
+        <div className="px-3 pt-3">
+          <p className="text-xs font-medium text-muted-foreground">
+            {isoDay(day) === isoDay(new Date())
+              ? 'Today'
+              : format(day, 'EEEE d MMMM yyyy')}
+          </p>
+        </div>
         <div className="flex gap-2 px-3 py-3">
           <Stat icon={RouteIcon} label="Distance" value={`${summary.distanceKm.toFixed(1)} km`} />
           <Stat icon={Car} label="Driving" value={formatDuration(summary.drivingMinutes)} />

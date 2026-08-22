@@ -224,24 +224,29 @@ const DriverGoogleMap = forwardRef<DriverGoogleMapHandle, DriverGoogleMapProps>(
               zIndex: 1,
             }}
           />
-          <Marker
-            position={{ lat: s.lat, lng: s.lng }}
-            zIndex={4}
-            clickable={false}
-            title={s.name}
-            icon={{
-              url: stationMarkerIcon(s.kind, s.color, 'full', s.done).url,
-              scaledSize: new google.maps.Size(34, 34),
-              anchor: new google.maps.Point(17, 17),
-              labelOrigin: new google.maps.Point(17, 42),
-            }}
-            label={{
-              text: s.name.length > 16 ? `${s.name.slice(0, 15)}…` : s.name,
-              color: isDark ? '#dbe2ea' : '#1f2937',
-              fontSize: '10px',
-              fontWeight: '700',
-            }}
-          />
+          {(() => {
+            const icon = stationMarkerIcon(s.kind, s.color, 'full', s.done);
+            return (
+              <Marker
+                position={{ lat: s.lat, lng: s.lng }}
+                zIndex={4}
+                clickable={false}
+                title={s.name}
+                icon={{
+                  url: icon.url,
+                  scaledSize: new google.maps.Size(icon.width, icon.height),
+                  anchor: new google.maps.Point(icon.anchorX, icon.anchorY),
+                  labelOrigin: new google.maps.Point(icon.width / 2, icon.labelY),
+                }}
+                label={{
+                  text: s.name.length > 16 ? `${s.name.slice(0, 15)}…` : s.name,
+                  color: isDark ? '#dbe2ea' : '#1f2937',
+                  fontSize: '10px',
+                  fontWeight: '700',
+                }}
+              />
+            );
+          })()}
         </div>
       ))}
 

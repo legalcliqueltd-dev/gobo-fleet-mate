@@ -37,6 +37,7 @@ import {
   formatGapDuration,
   type TrackingGap,
 } from '@/lib/trackingGaps';
+import LocationSheet, { type SheetFocus } from '@/components/admin/LocationSheet';
 import { cn } from '@/lib/utils';
 
 type DriverRow = {
@@ -112,6 +113,7 @@ export default function AdminAppDriverDetail() {
   const [disconnectOpen, setDisconnectOpen] = useState(false);
   const [gaps, setGaps] = useState<TrackingGap[]>([]);
   const [openGap, setOpenGap] = useState<TrackingGap | null>(null);
+  const [sheet, setSheet] = useState<SheetFocus | null>(null);
 
   const since = useMemo(() => getTimeRange(range), [range]);
   const { data: insights, isLoading: insightsLoading } = useDriverInsights(driverId, since);
@@ -169,13 +171,6 @@ export default function AdminAppDriverDetail() {
   const status = getVehicleStatus(location?.speed ?? 0, location?.updated_at ?? driver?.last_seen_at);
   const name = driver?.driver_name?.trim() || 'Unnamed driver';
 
-  const openDirections = () => {
-    if (!location) return;
-    window.open(
-      `https://www.google.com/maps/dir/?api=1&destination=${location.latitude},${location.longitude}&travelmode=driving`,
-      '_system'
-    );
-  };
 
   const copyCode = async () => {
     if (!driver?.admin_code) return;
@@ -277,6 +272,23 @@ export default function AdminAppDriverDetail() {
             <History className="h-4 w-4" />
             History
           </Button>
+          {location && (
+            <Button
+              variant="outline"
+              className="h-11 flex-1 gap-1.5 text-xs"
+              onClick={() =>
+                setSheet({
+                  lat: location.latitude,
+                  lng: location.longitude,
+                  title: name,
+                  subtitle: `Last seen ${formatLastSeen(location.updated_at)}`,
+                })
+              }
+            >
+              <MapPin className="h-4 w-4" />
+              On map
+            </Button>
+          )}
         </div>
       </div>
 
@@ -476,6 +488,8 @@ export default function AdminAppDriverDetail() {
           </div>
         </section>
       </div>
+
+      <LocationSheet focus={sheet} onClose={() => setSheet(null)} />
 
       <ConfirmDialog
         open={disconnectOpen}
