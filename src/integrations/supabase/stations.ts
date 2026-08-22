@@ -232,6 +232,45 @@ export async function fetchTodayVisitsForCodes(adminCodes: string[]): Promise<St
   return (data ?? []) as StationVisit[];
 }
 
+
+/**
+ * Replace a station's driver list.
+ *
+ * An empty list means "everyone on this fleet code" rather than "nobody" —
+ * that is the sane default for a shared site, and it means a manager who never
+ * opens this control still gets working behaviour.
+ */
+export async function saveStationAssignments(
+  stationId: string,
+  driverIds: string[]
+): Promise<void> {
+  const { error: clearError } = await db
+    .from('station_assignments')
+    .delete()
+    .eq('station_id', stationId);
+  if (clearError) throw clearError;
+
+  if (driverIds.length === 0) return;
+
+  const { error } = await db
+    .from('station_assignments')
+    .insert(driverIds.map((driver_id) => ({ station_id: stationId, driver_id })));
+  if (error) throw error;
+}
+
+/** Drivers on a set of fleet codes, for the assignment picker. */
+export async function fetchDriversForCodes(
+  adminCodes: string[]
+): Promise<{ driver_id: string; driver_name: string | null }[]> {
+  if (adminCodes.length === 0) return [];
+  const { data, error } = await db
+    .from('drivers')
+    .select('driver_id, driver_name')
+    .in('admin_code', adminCodes);
+  if (error) throw error;
+  return data ?? [];
+}
+
 /** Metres between two coordinates (haversine). */
 export function distanceMeters(
   a: { lat: number; lng: number },

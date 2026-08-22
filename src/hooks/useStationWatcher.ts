@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import {
   distanceMeters,
+  fetchStationAssignments,
   fetchStationsForDriver,
   fetchTodayVisits,
   isDueToday,
@@ -57,7 +58,18 @@ export function useStationWatcher(
         fetchStationsForDriver(session.adminCode),
         fetchTodayVisits(session.driverId),
       ]);
-      setStations(stationRows.filter(isDueToday));
+
+      // Honour per-driver assignment: a station with no rows applies to the
+      // whole fleet, one with rows only to the drivers named. Without this the
+      // manager's picker would silently do nothing on the driver's phone.
+      const due = stationRows.filter(isDueToday);
+      const assignments = await fetchStationAssignments(due.map((s) => s.id)).catch(() => ({}));
+      setStations(
+        due.filter((station) => {
+          const assigned = assignments[station.id] ?? [];
+          return assigned.length === 0 || assigned.includes(session.driverId);
+        })
+      );
       setVisits(visitRows);
       visitRows.forEach((v) => recorded.current.add(v.station_id));
     } catch (err) {

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Fragment } from 'react';
 import { Circle, GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronRight, ChevronUp, Layers, LocateFixed, Plus, RefreshCw, Users, ZoomIn } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, Layers, LocateFixed, Plus, RefreshCw, Users, X, ZoomIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { getNavMapStyle } from '@/lib/mapStyles';
@@ -45,6 +45,7 @@ export default function AdminAppFleet() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Marker detail follows the zoom so pins never tile over the road network.
   const [tier, setTier] = useState<MarkerTier>('small');
+  const [showRoundChip, setShowRoundChip] = useState(true);
   const { drivers, loading, refetch } = useDriverLocations();
   const navigate = useNavigate();
   // Selecting a vehicle scopes the round to that driver, so the map answers
@@ -251,28 +252,31 @@ export default function AdminAppFleet() {
         ))}
       </div>
 
-      {/* Today's round — the daily question, answered without counting pins. */}
-      {stationSummary.total > 0 && (
+      {/* Station progress. The bare "2/10" read as a mystery number, so it now
+          says what it counts, and can be dismissed for managers who do not run
+          stations at all. */}
+      {stationSummary.total > 0 && showRoundChip && (
         <div
           className={cn(
-            'absolute left-3 z-[1000] flex items-center gap-2.5 rounded-xl border border-border bg-background/95 px-3 py-2 backdrop-blur transition-all',
+            'absolute left-3 z-[1000] flex items-center gap-3 rounded-xl border border-border bg-background/95 px-3 py-2 backdrop-blur transition-all',
             sheetOpen ? 'bottom-[13.5rem]' : 'bottom-20'
           )}
           style={{ boxShadow: 'var(--shadow-card)' }}
         >
           <div className="min-w-0">
             <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              {selectedId ? "Driver's round" : "Today's round"}
+              Stations visited today
             </p>
             <p className="telemetry text-sm font-bold leading-tight">
               {stationSummary.done}
-              <span className="font-normal text-muted-foreground">/{stationSummary.total}</span>
-              <span className="ml-1.5 text-xs font-medium text-muted-foreground">done</span>
+              <span className="font-normal text-muted-foreground"> of {stationSummary.total}</span>
+              {selectedId && (
+                <span className="ml-1.5 text-[11px] font-medium text-primary">this driver</span>
+              )}
             </p>
           </div>
 
-          {/* Progress ring reduced to a bar: readable at a glance, cheap to draw */}
-          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
+          <div className="h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full bg-success transition-all"
               style={{
@@ -280,6 +284,15 @@ export default function AdminAppFleet() {
               }}
             />
           </div>
+
+          <button
+            type="button"
+            onClick={() => setShowRoundChip(false)}
+            className="-mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
+            aria-label="Hide station progress"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
 

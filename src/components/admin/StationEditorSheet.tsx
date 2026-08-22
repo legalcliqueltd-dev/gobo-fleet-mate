@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Circle, GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
-import { Layers, Loader2, X } from 'lucide-react';
+import { Check, Layers, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
@@ -13,6 +13,9 @@ import { Textarea } from '@/components/ui/textarea';
 import FormError from '@/components/admin/FormError';
 import {
   createStation,
+  fetchDriversForCodes,
+  fetchStationAssignments,
+  saveStationAssignments,
   updateStation,
   STATION_KINDS,
   type Recurrence,
@@ -80,7 +83,35 @@ export default function StationEditorSheet({
   });
   const [active, setActive] = useState(station.active ?? true);
   const [saving, setSaving] = useState(false);
+
+  // Who owes this station. Empty === everyone on the fleet code, which is the
+  // right default for a shared site and means a manager who ignores this
+  // control still gets sensible behaviour.
+  const [fleetDrivers, setFleetDrivers] = useState<{ driver_id: string; driver_name: string | null }[]>([]);
+  const [assignedIds, setAssignedIds] = useState<string[]>([]);
+  const [everyone, setEveryone] = useState(true);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        setFleetDrivers(await fetchDriversForCodes(adminCodes));
+        if (station.id) {
+          const map = await fetchStationAssignments([station.id]);
+          const ids = map[station.id] ?? [];
+          setAssignedIds(ids);
+          setEveryone(ids.length === 0);
+        }
+      } catch (err) {
+        console.warn('[StationEditorSheet] could not load drivers:', err);
+      }
+    })();
+  }, [adminCodes, station.id]);
+
+  const toggleDriver = (driverId: string) =>
+    setAssignedIds((prev) =>
+      prev.includes(driverId) ? prev.filter((d) => d !== driverId) : [...prev, driverId]
+    );
 
   const toggleDay = (day: number) =>
     setDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
@@ -108,12 +139,13 @@ export default function StationEditorSheet({
       };
 
       if (isNew) {
-        await createStation({
+        const created = await createStation({
           ...payload,
           admin_user_id: station.admin_user_id!,
           latitude: coords.lat,
           longitude: coords.lng,
         });
+        await saveStationAssignments(created.id, everyone ? [] : assignedIds);
         toast.success('Station created');
       } else {
         // Editing can move the station too, so the coordinates go with it.
@@ -122,6 +154,7 @@ export default function StationEditorSheet({
           latitude: coords.lat,
           longitude: coords.lng,
         });
+        await saveStationAssignments(station.id!, everyone ? [] : assignedIds);
         toast.success('Station updated');
       }
       onSaved();
@@ -363,6 +396,82 @@ export default function StationEditorSheet({
             />
           </span>
         </button>
+
+        {/* Who has to attend */}
+        <div className="space-y-2">
+          <Label>Who must visit</Label>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setEveryone(true)}
+              className={cn(
+                'rounded-xl border p-3 text-left transition-colors',
+                everyone ? 'border-primary bg-accent' : 'border-border bg-card'
+              )}
+            >
+              <span className="block text-sm font-semibold">Every driver</span>
+              <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                Anyone on this fleet
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setEveryone(false)}
+              className={cn(
+                'rounded-xl border p-3 text-left transition-colors',
+                !everyone ? 'border-primary bg-accent' : 'border-border bg-card'
+              )}
+            >
+              <span className="block text-sm font-semibold">Only some</span>
+              <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                Pick them below
+              </span>
+            </button>
+          </div>
+
+          {!everyone && (
+            <div className="space-y-1.5 pt-1">
+              {fleetDrivers.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
+                  No drivers connected yet.
+                </p>
+              ) : (
+                fleetDrivers.map((driver) => {
+                  const picked = assignedIds.includes(driver.driver_id);
+                  return (
+                    <button
+                      key={driver.driver_id}
+                      type="button"
+                      onClick={() => toggleDriver(driver.driver_id)}
+                      className={cn(
+                        'flex min-h-[52px] w-full items-center gap-3 rounded-xl border px-3 text-left transition-colors',
+                        picked ? 'border-primary bg-accent' : 'border-border bg-card'
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2',
+                          picked ? 'border-primary bg-primary' : 'border-input'
+                        )}
+                      >
+                        {picked && <Check className="h-3 w-3 text-primary-foreground" />}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                        {driver.driver_name?.trim() || 'Unnamed driver'}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+              {!everyone && assignedIds.length === 0 && (
+                <p className="text-xs text-warning">
+                  Nobody selected — this station will not appear for any driver.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
 
         {/* Schedule */}
         <div className="space-y-2">
