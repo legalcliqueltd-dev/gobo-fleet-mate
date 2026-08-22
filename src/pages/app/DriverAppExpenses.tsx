@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Camera, Check, Loader2, Plus, Receipt, Wallet, X } from 'lucide-react';
+import { Camera, Check, Image as ImageIcon, Loader2, Plus, Wallet, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -229,10 +229,21 @@ function ExpenseComposer({
   const [photo, setPhoto] = useState<{ file: File; preview: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const attachPhoto = async () => {
+  /**
+   * Attach a receipt image.
+   *
+   * Gallery is allowed here, and deliberately so — the opposite of the station
+   * receipt rule. A station photo proves the driver was physically present, so
+   * it must be taken live or the proof means nothing. An expense receipt proves
+   * a payment happened, and that evidence legitimately already exists in his
+   * phone: a bank transfer confirmation, a POS slip photographed at the
+   * counter, a screenshot from a payment app. Forcing the camera would just
+   * make him photograph his own screen.
+   */
+  const attachPhoto = async (source: 'camera' | 'gallery') => {
     try {
       if (isNativePlatform()) {
-        const shot = await capturePhoto('camera');
+        const shot = await capturePhoto(source);
         if (!shot) return;
         setPhoto({
           file: dataUrlToFile(shot.dataUrl, `receipt-${Date.now()}.jpg`),
@@ -240,10 +251,11 @@ function ExpenseComposer({
         });
         return;
       }
+
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*';
-      input.capture = 'environment';
+      if (source === 'camera') input.capture = 'environment';
       input.onchange = () => {
         const file = input.files?.[0];
         if (file) setPhoto({ file, preview: URL.createObjectURL(file) });
@@ -251,7 +263,7 @@ function ExpenseComposer({
       input.click();
     } catch (err) {
       console.error('[ExpenseComposer] photo failed:', err);
-      toast.error('Could not open the camera');
+      toast.error(source === 'camera' ? 'Could not open the camera' : 'Could not open your gallery');
     }
   };
 
@@ -371,17 +383,28 @@ function ExpenseComposer({
               </button>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={attachPhoto}
-              className="flex min-h-[76px] w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card text-sm font-medium text-muted-foreground"
-            >
-              <Camera className="h-5 w-5" />
-              Take a photo of the receipt
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => attachPhoto('camera')}
+                className="flex min-h-[84px] flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-card text-xs font-medium text-muted-foreground"
+              >
+                <Camera className="h-5 w-5" />
+                Take a photo
+              </button>
+              <button
+                type="button"
+                onClick={() => attachPhoto('gallery')}
+                className="flex min-h-[84px] flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-card text-xs font-medium text-muted-foreground"
+              >
+                <ImageIcon className="h-5 w-5" />
+                Upload from gallery
+              </button>
+            </div>
           )}
           <p className="text-xs text-muted-foreground">
-            Not every purchase gives a receipt — you can log it without one.
+            Photograph a paper receipt, or upload a transfer confirmation you already have. Not
+            every purchase gives a receipt — you can log it without one.
           </p>
         </div>
 
