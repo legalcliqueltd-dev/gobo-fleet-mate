@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Copy, Loader2, MessageCircle, Share2, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import FormError from '@/components/admin/FormError';
+import { useEntitlements } from '@/hooks/useEntitlements';
 
 /**
  * Create a connection code from the phone.
@@ -25,6 +26,8 @@ export default function AdminAppAddDriver() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  const { driverLimit, isPro } = useEntitlements();
+  const [deviceCount, setDeviceCount] = useState<number | null>(null);
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
@@ -35,10 +38,28 @@ export default function AdminAppAddDriver() {
     ? `You have been added to ${name.trim() || 'the fleet'} on FleetTrackMate.\n\nYour connection code is: ${code}\n\nOpen FleetTrackMate, choose "I drive", and enter this code with your name.`
     : '';
 
+  // How many codes already exist, so the plan's cap can be enforced here as
+  // well as on the website — a limit enforced in only one place is not a limit.
+  useEffect(() => {
+    if (!user) return;
+    void supabase
+      .from('devices')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .then(({ count }) => setDeviceCount(count ?? 0));
+  }, [user]);
+
+  const atLimit = deviceCount != null && deviceCount >= driverLimit;
+
   const create = async () => {
     setError('');
     if (!name.trim()) return setError('Give the driver or vehicle a name.');
     if (!user) return setError('You are not signed in.');
+    if (atLimit) {
+      return setError(
+        `Your plan covers up to ${driverLimit} drivers. Plans are managed on fleettrackmate.com.`
+      );
+    }
 
     setCreating(true);
     try {
@@ -133,6 +154,11 @@ export default function AdminAppAddDriver() {
               <p className="text-xs text-muted-foreground">
                 Only you see this. It labels the vehicle on your map.
               </p>
+              {deviceCount != null && !isPro && (
+                <p className="telemetry text-xs text-muted-foreground">
+                  {deviceCount} of {driverLimit} drivers used
+                </p>
+              )}
             </div>
 
             <div className="mt-4">
@@ -188,7 +214,11 @@ export default function AdminAppAddDriver() {
         style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom, 0px))' }}
       >
         {!code ? (
-          <Button className="h-12 w-full font-semibold" disabled={creating} onClick={create}>
+          <Button
+            className="h-12 w-full font-semibold"
+            disabled={creating || atLimit}
+            onClick={create}
+          >
             {creating ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

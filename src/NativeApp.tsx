@@ -8,6 +8,7 @@ import { DriverSessionProvider } from '@/contexts/DriverSessionContext';
 import DriverProtectedRoute from '@/components/DriverProtectedRoute';
 import AdminProtectedRoute from '@/components/AdminProtectedRoute';
 import AdminAppLayout from '@/components/layout/AdminAppLayout';
+import SubscriptionGate from '@/components/admin/SubscriptionGate';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { registerAuthDeepLinkHandler } from '@/services/adminAuth';
 
@@ -195,19 +196,19 @@ export default function NativeApp() {
                             <AdminAppLayout>
                               <Routes>
                                 <Route path="fleet" element={<AdminAppFleet />} />
-                                <Route path="drivers/new" element={<AdminAppAddDriver />} />
+                                <Route path="drivers/new" element={<SubscriptionGate feature="Adding drivers" reason="Creating new connection codes.">{<AdminAppAddDriver />}</SubscriptionGate>} />
                                 <Route path="codes" element={<AdminAppCodes />} />
-                                <Route path="drivers/:driverId/history" element={<AdminAppDriverHistory />} />
+                                <Route path="drivers/:driverId/history" element={<SubscriptionGate feature="Driver history" reason="Route replay, trips and stops.">{<AdminAppDriverHistory />}</SubscriptionGate>} />
                                 <Route path="drivers/:driverId" element={<AdminAppDriverDetail />} />
-                                <Route path="jobs/new" element={<AdminAppCreateJob />} />
-                                <Route path="expenses" element={<AdminAppExpenses />} />
-                                <Route path="reports" element={<AdminAppReports />} />
-                                <Route path="today" element={<AdminAppDailyReport />} />
-                                <Route path="stations" element={<AdminAppStations />} />
-                                <Route path="stations/:stationId" element={<AdminAppStationDetail />} />
-                                <Route path="tasks" element={<AdminAppTasks />} />
+                                <Route path="jobs/new" element={<SubscriptionGate feature="Assigning jobs" reason="Sending work to a driver.">{<AdminAppCreateJob />}</SubscriptionGate>} />
+                                <Route path="expenses" element={<SubscriptionGate feature="Expenses" reason="Approving what your drivers spend.">{<AdminAppExpenses />}</SubscriptionGate>} />
+                                <Route path="reports" element={<SubscriptionGate feature="Checks and problems" reason="Vehicle faults raised by drivers.">{<AdminAppReports />}</SubscriptionGate>} />
+                                <Route path="today" element={<SubscriptionGate feature="Today's summary" reason="Your end-of-day figures.">{<AdminAppDailyReport />}</SubscriptionGate>} />
+                                <Route path="stations" element={<SubscriptionGate feature="Stations" requires="stations">{<AdminAppStations />}</SubscriptionGate>} />
+                                <Route path="stations/:stationId" element={<SubscriptionGate feature="Stations" requires="stations">{<AdminAppStationDetail />}</SubscriptionGate>} />
+                                <Route path="tasks" element={<SubscriptionGate feature="Jobs" reason="Dispatching work to drivers.">{<AdminAppTasks />}</SubscriptionGate>} />
                                 <Route path="alerts" element={<AdminAppAlerts />} />
-                                <Route path="insights" element={<AdminAppInsights />} />
+                                <Route path="insights" element={<SubscriptionGate feature="Insights" reason="Distance, speeds and per-driver figures.">{<AdminAppInsights />}</SubscriptionGate>} />
                                 <Route path="settings" element={<AdminAppSettings />} />
                                 <Route path="*" element={<Navigate to="/app/admin/fleet" replace />} />
                               </Routes>

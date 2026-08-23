@@ -9,6 +9,8 @@ import { getNavMapStyle } from '@/lib/mapStyles';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDriverLocations } from '@/hooks/useDriverLocations';
 import { useStationProgress, STATE_COLOR, STATE_LABEL } from '@/hooks/useStationProgress';
+import { useStationMapPreference } from '@/hooks/useStationMapPreference';
+import { useEntitlements } from '@/hooks/useEntitlements';
 import { stationMarkerIcon, tierForZoom, type MarkerTier } from '@/lib/stationMarker';
 import { getDriverAccent } from '@/lib/driverAccent';
 import {
@@ -51,6 +53,10 @@ export default function AdminAppFleet() {
   // Selecting a vehicle scopes the round to that driver, so the map answers
   // "has THIS driver finished?" rather than a fleet-wide blur.
   const { stations, summary: stationSummary } = useStationProgress(selectedId);
+  const { enabled: showStations } = useStationMapPreference();
+  const { canUseStations } = useEntitlements();
+  // Hidden when switched off, and when the plan does not include stations.
+  const visibleStations = showStations && canUseStations ? stations : [];
   const mapRef = useRef<google.maps.Map | null>(null);
 
   const { isLoaded } = useJsApiLoader({
@@ -158,7 +164,7 @@ export default function AdminAppFleet() {
         >
           {/* Stations sit under the vehicles: they are the context a
               position is read against, not the subject of the screen. */}
-          {stations.map((s) => (
+          {visibleStations.map((s) => (
             <Fragment key={s.id}>
               <Circle
                 center={{ lat: s.latitude, lng: s.longitude }}

@@ -20,6 +20,9 @@ import {
   type Station,
   type StationVisit,
 } from '@/integrations/supabase/stations';
+import { useEntitlements } from '@/hooks/useEntitlements';
+import StationsUpsell from '@/components/admin/StationsUpsell';
+import PaymentWall from '@/components/PaymentWall';
 import { cn } from '@/lib/utils';
 
 const FALLBACK_CENTER = { lat: 6.5244, lng: 3.3792 };
@@ -68,6 +71,8 @@ export default function Stations() {
   const [editing, setEditing] = useState<Partial<Station> | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [preview, setPreview] = useState<StationVisit | null>(null);
+  const { hasAccess, canUseStations, loading: entitlementsLoading } = useEntitlements();
+  const [showPlans, setShowPlans] = useState(false);
 
   const selected = stations.find((s) => s.id === selectedId) ?? null;
 
@@ -169,6 +174,17 @@ export default function Stations() {
     : stations[0]
       ? { lat: stations[0].latitude, lng: stations[0].longitude }
       : FALLBACK_CENTER;
+
+  // Stations are the premium feature; Basic accounts get the explainer with a
+  // real call to action, which the app is not allowed to show.
+  if (!entitlementsLoading && hasAccess && !canUseStations) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-6">
+        {showPlans && <PaymentWall onDismiss={() => setShowPlans(false)} />}
+        <StationsUpsell onUpgrade={() => setShowPlans(true)} />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">

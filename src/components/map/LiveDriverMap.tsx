@@ -12,6 +12,8 @@ import { useRealtimeDriverLocations, LiveDriverLocation } from '@/hooks/useRealt
 import { formatTimeAgo, interpolatePosition, easeOutCubic } from '@/utils/mapInterpolation';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useStationProgress, STATE_COLOR, STATE_LABEL } from '@/hooks/useStationProgress';
+import { useStationMapPreference } from '@/hooks/useStationMapPreference';
+import { useEntitlements } from '@/hooks/useEntitlements';
 import { stationMarkerIcon, tierForZoom, type MarkerTier } from '@/lib/stationMarker';
 import { getMapStyle } from '@/lib/mapStyles';
 import { getDriverAccent } from '@/lib/driverAccent';
@@ -419,6 +421,10 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
   const { drivers, loading, error, lastUpdate, connectionStatus } = useRealtimeDriverLocations();
   // Scoped to the selected driver so the map answers whether THEY are done.
   const { stations, summary: stationSummary } = useStationProgress(selectedDriverId ?? null);
+  const { enabled: showStations } = useStationMapPreference();
+  const { canUseStations } = useEntitlements();
+  // Hidden when switched off, and when the plan does not include stations.
+  const visibleStations = showStations && canUseStations ? stations : [];
   
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -648,7 +654,7 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
         {/* Manager-marked stations — context for where vehicles should be.
             Muted relative to the vehicles so they never compete with live
             positions for attention. */}
-        {stations.map((s) => (
+        {visibleStations.map((s) => (
           <Fragment key={s.id}>
             <Circle
               center={{ lat: s.latitude, lng: s.longitude }}

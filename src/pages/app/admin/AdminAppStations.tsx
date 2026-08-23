@@ -11,6 +11,7 @@ import StationEditorSheet from '@/components/admin/StationEditorSheet';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { getNavMapStyle } from '@/lib/mapStyles';
 import { fetchStations, kindMeta, type Station } from '@/integrations/supabase/stations';
+import { useStationMapPreference } from '@/hooks/useStationMapPreference';
 import { cn } from '@/lib/utils';
 
 const FALLBACK_CENTER = { lat: 6.5244, lng: 3.3792 };
@@ -54,6 +55,7 @@ export default function AdminAppStations() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<Station> | null>(null);
   const [mapType, setMapType] = useState<'hybrid' | 'roadmap'>('hybrid');
+  const { enabled: showOnFleetMap, toggle: setShowOnFleetMap } = useStationMapPreference();
 
   const load = useCallback(async () => {
     if (codes.length === 0) {
@@ -172,6 +174,33 @@ export default function AdminAppStations() {
           </span>
         </div>
       </div>
+
+      {/* Whether these appear on the live fleet map */}
+      <button
+        type="button"
+        onClick={() => setShowOnFleetMap(!showOnFleetMap)}
+        className="flex items-center gap-3 border-b border-border px-4 py-3 text-left"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium">Show on the fleet map</span>
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            Draw these stations alongside your vehicles
+          </span>
+        </span>
+        <span
+          className={cn(
+            'relative h-6 w-11 shrink-0 rounded-full transition-colors',
+            showOnFleetMap ? 'bg-primary' : 'bg-input'
+          )}
+        >
+          <span
+            className={cn(
+              'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
+              showOnFleetMap ? 'translate-x-[1.375rem]' : 'translate-x-0.5'
+            )}
+          />
+        </span>
+      </button>
 
       {/* List */}
       <div className="flex-1 overflow-y-auto px-4 py-4">

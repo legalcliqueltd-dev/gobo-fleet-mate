@@ -230,27 +230,55 @@ intended — it is real navigation, not a glance.
 
 ---
 
-## 12. Website parity
+## 12. Plans: free, Basic, Pro
+
+The model: **drivers are free forever**; only the manager side is gated.
 
 | # | Test | Expected | Pass |
 | --- | --- | --- | --- |
-| 12.1 | Log in on the website | Same account as the app | ☐ |
-| 12.2 | Stations page | Same stations, same colours | ☐ |
-| 12.3 | Dashboard map | Stations drawn with completion state | ☐ |
-| 12.4 | Driver → history | Same trips/stops as the app | ☐ |
+| 12.1 | Driver app on an expired manager's fleet | Fully working — tracking, stations, receipts, expenses | ☐ |
+| 12.2 | Manager on trial | Everything works, stations included | ☐ |
+| 12.3 | Manager on **Basic**, open Stations | Explainer: what stations are and how they work | ☐ |
+| 12.4 | That explainer **in the app** | Ends with plain text, **no Subscribe button or link** | ☐ |
+| 12.5 | That explainer **on the website** | Ends with a working "See plans" button | ☐ |
+| 12.6 | Basic manager's fleet map | No station pins drawn | ☐ |
+| 12.7 | Basic manager, add a 3rd driver | Blocked, with the two-driver cap explained | ☐ |
+| 12.8 | Pro manager | Stations work; driver count unlimited | ☐ |
+| 12.9 | **Expired** manager, fleet map | Still loads — vehicles visible | ☐ |
+| 12.10 | Expired manager: Jobs, Insights, Expenses, History, Today | Each shows a lock naming the feature | ☐ |
+| 12.11 | Expired manager: Alerts | **Still works** — safety is never gated | ☐ |
+| 12.12 | Stations screen → "Show on the fleet map" off | Pins disappear from the fleet map | ☐ |
+
+**12.4 is a store-compliance test, not a preference.** A purchase button inside
+the app breaks App Store guideline 3.1.3(f) and Play's billing policy. The app
+teaches and stops; the website sells.
+
+**12.11:** an SOS from a driver in trouble must never be hidden behind a lapsed
+card.
 
 ---
 
-## 13. Release readiness
+## 13. Website parity
 
 | # | Test | Expected | Pass |
 | --- | --- | --- | --- |
-| 13.1 | App name on the home screen | **FleetTrackMate** (not "-Driver") | ☐ |
-| 13.2 | Signed AAB version | versionCode **5**, versionName 2.2.1 | ☐ |
-| 13.3 | Fresh install → first manager login | Tutorial shows **once**, then never again | ☐ |
-| 13.4 | Settings → How to use | Tutorial opens on demand | ☐ |
-| 13.5 | Dark mode across every screen | No unreadable text, no white flashes | ☐ |
-| 13.6 | Play Console upload | Accepted; no targetSdk warning | ☐ |
+| 14.1 | Log in on the website | Same account as the app | ☐ |
+| 13.2 | Stations page | Same stations, same colours | ☐ |
+| 13.3 | Dashboard map | Stations drawn with completion state | ☐ |
+| 13.4 | Driver → history | Same trips/stops as the app | ☐ |
+
+---
+
+## 14. Release readiness
+
+| # | Test | Expected | Pass |
+| --- | --- | --- | --- |
+| 14.1 | App name on the home screen | **FleetTrackMate** (not "-Driver") | ☐ |
+| 14.2 | Signed AAB version | versionCode **5**, versionName 2.2.1 | ☐ |
+| 14.3 | Fresh install → first manager login | Tutorial shows **once**, then never again | ☐ |
+| 14.4 | Settings → How to use | Tutorial opens on demand | ☐ |
+| 14.5 | Dark mode across every screen | No unreadable text, no white flashes | ☐ |
+| 14.6 | Play Console upload | Accepted; no targetSdk warning | ☐ |
 
 ---
 
