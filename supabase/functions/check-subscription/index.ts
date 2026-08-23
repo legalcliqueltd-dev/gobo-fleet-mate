@@ -254,8 +254,31 @@ serve(async (req) => {
       }
     }
 
-    // Check Paystack for active subscription (simplified - would need webhook for full implementation)
-    // For now, rely on profile data that would be updated via webhook
+    // Providers that are not Stripe — Paystack today — never appear in the
+    // Stripe lookup above, and record their result ONLY in these profile
+    // columns. Reading them here is what this branch always claimed to do; it
+    // previously fell straight through, so a customer who had paid with
+    // Paystack was told their access had expired.
+    const profileEnd = safeDate(profile?.subscription_end_at);
+    if (profile?.subscription_status === "active" && profileEnd && profileEnd > now) {
+      logStep("Active subscription from profile", {
+        plan: profile?.subscription_plan,
+        provider: profile?.payment_provider,
+        subscriptionEnd: profileEnd.toISOString(),
+      });
+
+      return new Response(JSON.stringify({
+        status: "active",
+        plan: profile?.subscription_plan ?? "basic",
+        subscription_end: profileEnd.toISOString(),
+        payment_provider: profile?.payment_provider ?? "paystack",
+        trial_days_remaining: 0,
+        trial_expired: false,
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
 
     // Return trial status if no active subscription
     const status = trialExpired ? "expired" : "trial";
