@@ -25,6 +25,7 @@ Run these in the Supabase SQL editor if you have not already:
 supabase/migrations/20260813090000_stations_and_visits.sql
 supabase/migrations/20260821120000_driver_expenses.sql
 supabase/migrations/20260822090000_driver_reports.sql
+supabase/migrations/20260823090000_review_account_access.sql   # store reviewers
 ```
 
 **Quick check they applied:** open the app → Stations tab. If it says "Could not
@@ -248,6 +249,7 @@ The model: **drivers are free forever**; only the manager side is gated.
 | 12.10 | Expired manager: Jobs, Insights, Expenses, History, Today | Each shows a lock naming the feature | ☐ |
 | 12.11 | Expired manager: Alerts | **Still works** — safety is never gated | ☐ |
 | 12.12 | Stations screen → "Show on the fleet map" off | Pins disappear from the fleet map | ☐ |
+| 12.13 | Sign in as the review account (akeduye@gmail.com) | Everything unlocked, Stations included | ☐ |
 
 **12.4 is a store-compliance test, not a preference.** A purchase button inside
 the app breaks App Store guideline 3.1.3(f) and Play's billing policy. The app
