@@ -143,3 +143,88 @@ export async function clearAdminContact(userId: string): Promise<void> {
     .eq('contact_type', 'admin');
   if (error) throw error;
 }
+
+/** Buckets reject anything larger; resize before we ever hit the network. */
+const AVATAR_MAX_PX = 512;
+
+/**
+ * Shrink to a square JPEG before upload.
+ *
+ * A modern phone camera produces 3–8 MB, which the bucket's 2 MB cap would
+ * reject outright — and a manager whose photo silently fails to save has no
+ * way to know why. Resizing client-side means the upload is ~50 KB and the
+ * limit is never approached, rather than being a trap.
+ *
+ * Centre-cropped because every place this renders is a circle; letting the
+ * browser squash a portrait into one looks broken.
+ */
+async function toSquareJpeg(file: File): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  const side = Math.min(bitmap.width, bitmap.height);
+  const canvas = document.createElement('canvas');
+  canvas.width = AVATAR_MAX_PX;
+  canvas.height = AVATAR_MAX_PX;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not process that image.');
+
+  ctx.drawImage(
+    bitmap,
+    (bitmap.width - side) / 2,
+    (bitmap.height - side) / 2,
+    side,
+    side,
+    0,
+    0,
+    AVATAR_MAX_PX,
+    AVATAR_MAX_PX
+  );
+  bitmap.close();
+
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error('Could not process that image.'))),
+      'image/jpeg',
+      0.85
+    )
+  );
+}
+
+/**
+ * Upload a new profile picture and record it on the profile.
+ *
+ * The path is `admin/<uid>/…`, which the storage policy requires: the uid
+ * segment is what stops one manager overwriting another's picture. The
+ * timestamped filename means the CDN never serves a stale image after a
+ * change, which `upsert` on a fixed name would.
+ */
+export async function uploadAvatar(userId: string, file: File): Promise<string> {
+  const blob = await toSquareJpeg(file);
+  const path = `admin/${userId}/${Date.now()}.jpg`;
+
+  const { error: upErr } = await supabase.storage
+    .from('avatars')
+    .upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+  if (upErr) throw upErr;
+
+  const url = supabase.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+
+  const { error: profErr } = await supabase
+    .from('profiles')
+    .update({ avatar_url: url })
+    .eq('id', userId);
+  if (profErr) throw profErr;
+
+  // Mirrored into auth metadata for the same reason the name is: it is what
+  // the client already has on every screen without another query.
+  await supabase.auth.updateUser({ data: { avatar_url: url } });
+
+  return url;
+}
+
+/** Remove the picture. The stored object is left; the reference is what shows. */
+export async function clearAvatar(userId: string): Promise<void> {
+  const { error } = await supabase.from('profiles').update({ avatar_url: null }).eq('id', userId);
+  if (error) throw error;
+  await supabase.auth.updateUser({ data: { avatar_url: null } });
+}

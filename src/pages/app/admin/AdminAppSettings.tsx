@@ -75,6 +75,7 @@ export default function AdminAppSettings() {
   const displayName =
     (user?.user_metadata?.full_name as string | undefined)?.trim() || email.split('@')[0];
   const initial = displayName.charAt(0).toUpperCase();
+  const avatarUrl = (user?.user_metadata?.avatar_url as string | undefined) ?? null;
 
   const planLabel = (() => {
     if (subscription.status === 'active') {
@@ -108,8 +109,12 @@ export default function AdminAppSettings() {
         className="mb-5 flex w-full items-center gap-4 rounded-2xl border border-border bg-card p-5 text-left transition-colors hover:bg-muted"
         style={{ boxShadow: 'var(--shadow-card)' }}
       >
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary font-heading text-lg font-bold text-primary-foreground">
-          {initial}
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary font-heading text-lg font-bold text-primary-foreground">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            initial
+          )}
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate font-heading text-base font-semibold text-foreground">{displayName}</p>

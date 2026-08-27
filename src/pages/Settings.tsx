@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import PaymentModal from '@/components/PaymentModal';
 import ActivePlanView from '@/components/payment/ActivePlanView';
+import AvatarPicker from '@/components/admin/AvatarPicker';
 import { toast } from 'sonner';
 import {
   clearAdminContact,
@@ -38,6 +39,7 @@ export default function Settings() {
   // Display name — write-once at signup until now.
   const [displayName, setDisplayName] = useState('');
   const [savingName, setSavingName] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   // Emergency contact — one value applied to every device this admin owns.
   const [emergencyName, setEmergencyName] = useState('');
@@ -101,6 +103,7 @@ export default function Settings() {
 
   useEffect(() => {
     setDisplayName(((user?.user_metadata?.full_name as string | undefined) ?? '').trim());
+    setAvatarUrl((user?.user_metadata?.avatar_url as string | undefined) ?? null);
   }, [user]);
 
   const handleSaveName = async () => {
@@ -176,6 +179,15 @@ export default function Settings() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {user && (
+            <AvatarPicker
+              userId={user.id}
+              currentUrl={avatarUrl}
+              displayName={displayName || user.email || '?'}
+              onChange={setAvatarUrl}
+            />
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="display-name">Your name</Label>
             <div className="flex gap-2">

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import FormError from '@/components/admin/FormError';
+import AvatarPicker from '@/components/admin/AvatarPicker';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   clearAdminContact,
@@ -37,12 +38,14 @@ export default function ProfileSheet({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState('');
   const [hasContact, setHasContact] = useState(false);
   const [noCodes, setNoCodes] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
 
     setName(((user.user_metadata?.full_name as string | undefined) ?? '').trim());
+    setAvatarUrl((user.user_metadata?.avatar_url as string | undefined) ?? null);
 
     fetchAdminContact(user.id)
       .then(({ contact, codes }) => {
@@ -115,6 +118,17 @@ export default function ProfileSheet({ onClose }: { onClose: () => void }) {
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto px-4 py-5">
+          {user && (
+            <div className="mb-6">
+              <AvatarPicker
+                userId={user.id}
+                currentUrl={avatarUrl}
+                displayName={name || user.email || '?'}
+                onChange={setAvatarUrl}
+              />
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <Label htmlFor="profile-name">Your name</Label>
             <div className="relative">

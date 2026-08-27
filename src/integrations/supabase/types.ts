@@ -613,6 +613,7 @@ export type Database = {
       profiles: {
         Row: {
           auto_registered: boolean | null
+          avatar_url: string | null
           created_at: string
           email: string | null
           full_name: string | null
@@ -628,6 +629,7 @@ export type Database = {
         }
         Insert: {
           auto_registered?: boolean | null
+          avatar_url?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
@@ -643,6 +645,7 @@ export type Database = {
         }
         Update: {
           auto_registered?: boolean | null
+          avatar_url?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
