@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { signInWithProvider, type SocialProvider } from '@/services/adminAuth';
+import {
+  signInWithProvider,
+  SignInCancelledError,
+  type SocialProvider,
+} from '@/services/adminAuth';
 import { isIOS } from '@/utils/platformDetection';
 
 function GoogleGlyph() {
@@ -60,9 +64,9 @@ export default function SocialAuthButtons({ onError }: { onError: (message: stri
     try {
       await signInWithProvider(provider);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Sign-in failed. Please try again.';
-      // A user closing the native sheet is a cancellation, not an error worth showing.
-      if (!/cancel|closed|dismiss/i.test(message)) onError(message);
+      // Closing the sheet is a decision, not a failure — say nothing.
+      if (err instanceof SignInCancelledError) return;
+      onError(err instanceof Error ? err.message : 'Sign-in failed. Please try again.');
     } finally {
       setPending(null);
     }

@@ -62,9 +62,16 @@ export default function SubscriptionGate({
         Your plan has ended, so this part of the app is unavailable.
       </p>
 
+      {/*
+        No website named here, on purpose. Guideline 3.1.3(f) allows a free
+        companion app to a paid web tool only while there is "no purchasing
+        inside the app, OR calls to action for purchase outside of the app" —
+        and "manage your plan at example.com" is precisely such a call to
+        action. Stating what still works is not.
+      */}
       <p className="mt-6 max-w-xs text-xs leading-relaxed text-muted-foreground">
         Your live map still works, and nothing has been deleted — every record is waiting for you.
-        Plans are managed on fleettrackmate.com.
+        This part of the app unlocks again as soon as your plan is active.
       </p>
     </div>
   );

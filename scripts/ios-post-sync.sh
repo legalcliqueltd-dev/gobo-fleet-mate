@@ -78,14 +78,46 @@ add_background_modes() {
 }
 
 echo "=== Location Permissions ==="
-add_string_key "NSLocationWhenInUseUsageDescription" "FleetTrackMate needs your location to share your position with your fleet manager."
-add_string_key "NSLocationAlwaysAndWhenInUseUsageDescription" "FleetTrackMate needs continuous location access to track your position even when the app is in the background."
-add_string_key "NSMotionUsageDescription" "FleetTrackMate uses motion data to optimize battery usage during location tracking."
+add_string_key "NSLocationWhenInUseUsageDescription" "FleetTrackMate shares your live location with your fleet manager while you are on shift, so they can see where you are, route the next job to you, and send help if you raise an SOS."
+add_string_key "NSLocationAlwaysAndWhenInUseUsageDescription" "FleetTrackMate keeps sharing your location with your fleet manager while a shift is running, including when the app is in the background or your screen is off, so your route, stops and station visits are recorded without you having to keep the app open. Tracking stops when you end your shift or disconnect."
+add_string_key "NSMotionUsageDescription" "FleetTrackMate uses motion data to detect when your vehicle has stopped so it can pause GPS updates and save your battery."
 
 echo ""
 echo "=== Camera & Media Permissions ==="
-add_string_key "NSCameraUsageDescription" "FleetTrackMate needs camera access to capture photos for emergency reports and delivery proof."
-add_string_key "NSPhotoLibraryUsageDescription" "FleetTrackMate needs photo library access to select photos and videos for emergency reports and delivery proof."
+add_string_key "NSCameraUsageDescription" "FleetTrackMate uses the camera for delivery proof, station visit photos, shift-start vehicle checks and expense receipts."
+add_string_key "NSPhotoLibraryUsageDescription" "FleetTrackMate lets you attach a photo you already have as an expense receipt or a problem report."
+
+echo ""
+echo "=== App Store hygiene ==="
+# Name shown on the home screen. Matches android/app/src/main/res/values/strings.xml
+# — the native app carries both the driver and manager faces, so it is not
+# "FleetTrackMate Driver" any more.
+if [ "$($PLIST_BUDDY -c "Print :CFBundleDisplayName" "$PLIST_PATH" 2>/dev/null)" = "FleetTrackMate" ]; then
+  echo "✓ CFBundleDisplayName (FleetTrackMate)"
+else
+  $PLIST_BUDDY -c "Set :CFBundleDisplayName FleetTrackMate" "$PLIST_PATH" 2>/dev/null \
+    || $PLIST_BUDDY -c "Add :CFBundleDisplayName string FleetTrackMate" "$PLIST_PATH"
+  echo "➕ CFBundleDisplayName (set to FleetTrackMate)"
+fi
+
+# Answers the export-compliance question at build time rather than on every
+# single upload. False is correct: the app uses only standard HTTPS/TLS.
+if $PLIST_BUDDY -c "Print :ITSAppUsesNonExemptEncryption" "$PLIST_PATH" >/dev/null 2>&1; then
+  echo "✓ ITSAppUsesNonExemptEncryption"
+else
+  $PLIST_BUDDY -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST_PATH"
+  echo "➕ ITSAppUsesNonExemptEncryption (false)"
+fi
+
+# Capacitor's template still ships armv7, an architecture iOS dropped at 11.
+if $PLIST_BUDDY -c "Print :UIRequiredDeviceCapabilities" "$PLIST_PATH" 2>/dev/null | grep -q armv7; then
+  $PLIST_BUDDY -c "Delete :UIRequiredDeviceCapabilities" "$PLIST_PATH"
+  $PLIST_BUDDY -c "Add :UIRequiredDeviceCapabilities array" "$PLIST_PATH"
+  $PLIST_BUDDY -c "Add :UIRequiredDeviceCapabilities: string arm64" "$PLIST_PATH"
+  echo "➕ UIRequiredDeviceCapabilities (armv7 → arm64)"
+else
+  echo "✓ UIRequiredDeviceCapabilities"
+fi
 
 echo ""
 echo "=== Background Modes ==="
@@ -182,6 +214,48 @@ done
 echo ""
 echo "UIBackgroundModes:"
 $PLIST_BUDDY -c "Print :UIBackgroundModes" "$PLIST_PATH" 2>/dev/null || echo "  (not found)"
+
+echo ""
+echo "=== Native plugin wiring ==="
+# Three separate things have to agree before a notification can fire on iOS,
+# and each has failed silently here before:
+#   1. the plugin is listed in the generated capacitor.config.json
+#   2. its pod is installed (Podfile.lock, not just Podfile)
+#   3. the sound files are members of the App target
+# A miss on any one of them shows up as "notifications just don't work on
+# iPhone" with nothing in the logs, so they are checked loudly instead.
+wiring_ok=1
+
+GEN_CONFIG="ios/App/App/capacitor.config.json"
+if [ -f "$GEN_CONFIG" ] && grep -q "@capacitor/local-notifications" "$GEN_CONFIG"; then
+  echo "✓ @capacitor/local-notifications in capacitor.config.json"
+else
+  echo "✗ @capacitor/local-notifications MISSING from $GEN_CONFIG"
+  echo "   Driver job / station / SOS alerts will be silent on iOS."
+  wiring_ok=0
+fi
+
+if grep -q "CapacitorLocalNotifications" ios/App/Podfile.lock 2>/dev/null; then
+  echo "✓ CapacitorLocalNotifications pod installed"
+else
+  echo "✗ CapacitorLocalNotifications NOT in Podfile.lock — run: (cd ios/App && pod install)"
+  wiring_ok=0
+fi
+
+for sound in alert.wav chime.wav; do
+  if grep -q "$sound in Resources" ios/App/App.xcodeproj/project.pbxproj 2>/dev/null; then
+    echo "✓ $sound is a member of the App target"
+  else
+    echo "✗ $sound is on disk but NOT in the Xcode Resources build phase"
+    echo "   iOS resolves notification sounds by bundle filename; it will be silent."
+    wiring_ok=0
+  fi
+done
+
+if [ "$wiring_ok" -eq 0 ]; then
+  echo ""
+  echo "⚠️  Native plugin wiring is incomplete — fix the ✗ lines above before archiving."
+fi
 
 echo ""
 echo "─────────────────────────────────"

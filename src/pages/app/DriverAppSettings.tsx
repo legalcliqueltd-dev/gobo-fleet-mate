@@ -1,15 +1,19 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { useAppRole } from '@/contexts/AppRoleContext';
 import { detectNativePlatform } from '@/utils/platformDetection';
 import { supabase } from '@/integrations/supabase/client';
 import { trackingService } from '@/services/trackingService';
+import {
+  notificationsEnabled,
+  requestNotificationPermission,
+} from '@/services/notifications';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { User, Battery, MapPin, Unlink, Power, AlertTriangle, Palette, Trash2, Shield, FileText, GraduationCap, Repeat, ClipboardCheck, ShieldCheck, Wallet, UserCircle, ChevronRight } from 'lucide-react';
+import { User, Battery, Bell, MapPin, Unlink, Power, AlertTriangle, Palette, Trash2, Shield, FileText, GraduationCap, Repeat, ClipboardCheck, ShieldCheck, Wallet, UserCircle, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
@@ -49,6 +53,36 @@ export default function DriverAppSettings() {
   const [highAccuracy, setHighAccuracy] = useState(
     localStorage.getItem('highAccuracyMode') !== 'false'
   );
+
+  // Reflects the OS setting, not a preference of ours — there is nothing to
+  // store, and a switch that lies about whether alerts will arrive is worse
+  // than no switch. iOS only ever shows its prompt once, so once the answer
+  // is "no" the row sends the driver to Settings instead of asking again.
+  const [alertsOn, setAlertsOn] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    notificationsEnabled().then((granted) => {
+      if (alive) setAlertsOn(granted);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const handleAlertsChange = async (checked: boolean) => {
+    if (!checked) {
+      toast.info('Turn alerts off in your phone\u2019s Settings app for FleetTrackMate.');
+      return;
+    }
+    const granted = await requestNotificationPermission();
+    setAlertsOn(granted);
+    toast[granted ? 'success' : 'error'](
+      granted
+        ? 'Alerts on \u2014 you will hear new jobs and station arrivals.'
+        : 'Your phone is blocking alerts. Turn them on in Settings for FleetTrackMate.'
+    );
+  };
 
   const handleDutyChange = (checked: boolean) => {
     if (checked) {
@@ -353,6 +387,29 @@ export default function DriverAppSettings() {
             )}
           </CardContent>
         </Card>
+
+        {/* Alerts */}
+        {isNativeApp && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                Alerts
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="alerts">Sound and banners</Label>
+                  <p className="text-xs text-muted-foreground">
+                    New jobs, stations you still owe a visit, and low-battery warnings
+                  </p>
+                </div>
+                <Switch id="alerts" checked={alertsOn} onCheckedChange={handleAlertsChange} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Location Settings */}
         <Card>

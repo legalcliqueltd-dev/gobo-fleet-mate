@@ -1,6 +1,10 @@
 import UIKit
 import Capacitor
 
+#if canImport(GoogleSignIn)
+import GoogleSignIn
+#endif
+
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
@@ -34,8 +38,31 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-        // Called when the app was launched with a url. Feel free to add additional processing here,
-        // but if you want the App API to support tracking app url opens, make sure to keep this call
+        // Two different kinds of URL arrive here, and they must not be confused.
+        //
+        // 1. com.googleusercontent.apps.<id>://
+        //    Google's own OAuth callback. GoogleSignIn (used by
+        //    @capgo/capacitor-social-login) parks the sign-in continuation
+        //    internally and only resumes it when the URL is handed to
+        //    `GIDSignIn.handle`. Route it to Capacitor instead and the account
+        //    sheet closes onto a screen that never changes — the sign-in is
+        //    left waiting forever with no error to show. The URL scheme itself
+        //    is registered in Info.plist by scripts/ios-post-sync.sh.
+        //
+        // 2. fleettrackmate://auth/callback
+        //    Our own scheme, carrying the Supabase session back from a
+        //    browser OAuth round trip, an email confirmation, or a password
+        //    reset. That belongs to Capacitor's App plugin, which surfaces it
+        //    to JS as `appUrlOpen` (see services/adminAuth.ts).
+        //
+        // `handle` returns false for anything it does not recognise, so the
+        // fallthrough below stays correct for every other URL.
+        #if canImport(GoogleSignIn)
+        if GIDSignIn.sharedInstance.handle(url) {
+            return true
+        }
+        #endif
+
         return ApplicationDelegateProxy.shared.application(app, open: url, options: options)
     }
 

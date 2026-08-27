@@ -56,8 +56,10 @@ export default function AdminAppAddDriver() {
     if (!name.trim()) return setError('Give the driver or vehicle a name.');
     if (!user) return setError('You are not signed in.');
     if (atLimit) {
+      // States the limit and stops. Naming where to go and pay would be a
+      // call to action for purchase outside the app (guideline 3.1.3(f)).
       return setError(
-        `Your plan covers up to ${driverLimit} drivers. Plans are managed on fleettrackmate.com.`
+        `Your plan covers up to ${driverLimit} drivers. Remove one to add another.`
       );
     }
 

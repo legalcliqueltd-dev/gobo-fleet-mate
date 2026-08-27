@@ -79,10 +79,12 @@ export default function StationsUpsell({ onUpgrade }: { onUpgrade?: () => void }
         </p>
 
         {isNative ? (
-          // No purchase control in the app — store rules. Plain text only.
+          // No purchase control in the app, and no address to go and buy at
+          // either: guideline 3.1.3(f) rules out calls to action for purchase
+          // outside the app just as firmly as purchase inside it. Naming the
+          // website here would be the call to action.
           <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-            Plans are managed on fleettrackmate.com. Once your plan changes, stations appear here
-            automatically.
+            Stations appear here automatically once your plan includes them.
           </p>
         ) : (
           <Button className="mt-4 h-11 w-full font-semibold" onClick={onUpgrade}>
