@@ -47,3 +47,15 @@ verify_jwt = false
 
 [functions.paystack-webhook]
 verify_jwt = false
+
+# Deliberately NOT verify_jwt = false, unlike the functions above: this one
+# destroys an account, so the platform rejects an unauthenticated call before
+# it ever reaches the handler (which verifies the token again itself).
+[functions.delete-account]
+verify_jwt = true
+
+# Cross-tenant reads and plan grants. Platform-verified JWT first, then the
+# handler re-checks for the platform_owner role — the role is what actually
+# authorises, the JWT check just rejects anonymous callers earlier.
+[functions.platform-admin]
+verify_jwt = true

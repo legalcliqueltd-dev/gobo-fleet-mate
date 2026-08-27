@@ -21,6 +21,7 @@ import Stations from '@/pages/Stations';
 import DriverHistory from '@/pages/DriverHistory';
 import Trips from '@/pages/Trips';
 import Settings from '@/pages/Settings';
+import PlatformConsole from '@/pages/platform/PlatformConsole';
 import Status from '@/pages/Status';
 import Driver from '@/pages/Driver';
 import DriverDashboard from '@/pages/driver/DriverDashboard';
@@ -219,6 +220,18 @@ export default function App() {
                   element={
                     <ProtectedRoute>
                       <Settings />
+                    </ProtectedRoute>
+                  }
+                />
+                {/* Operator console. Web only — never imported by NativeApp.tsx,
+                    so it stays out of the iOS / Android bundles. The real gate
+                    is server-side in the platform-admin edge function; this
+                    route only decides what to render. */}
+                <Route
+                  path="/platform"
+                  element={
+                    <ProtectedRoute>
+                      <PlatformConsole />
                     </ProtectedRoute>
                   }
                 />

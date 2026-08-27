@@ -112,9 +112,19 @@ serve(async (req) => {
         if (userErr || !userData.user) {
           return new Response(JSON.stringify({ error: 'Invalid token' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
-        const { data: roleData } = await supabase.from('user_roles').select('role').eq('user_id', userData.user.id).eq('role', 'admin').maybeSingle();
+
+        // MUST be platform_owner, not 'admin'. Every signup is handed 'admin'
+        // by the trigger in migration 20260209155655, so gating on it let any
+        // customer mail the entire user base from our own domain.
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userData.user.id)
+          .eq('role', 'platform_owner')
+          .maybeSingle();
         if (!roleData) {
-          return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          console.warn(`bulk-email: refused non-owner ${userData.user.id}`);
+          return new Response(JSON.stringify({ error: 'Platform owner access required' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
       }
     }
@@ -122,7 +132,11 @@ serve(async (req) => {
     const body = await req.json();
     const filter: string = body.filter || 'all';
     const customSubject: string | undefined = body.subject;
-    const customHtml: string | undefined = body.html;
+    // NOTE: body.html is deliberately ignored. Letting a caller supply the
+    // body means the worst case of any future auth slip is a phishing mail
+    // sent from noreply@fleettrackmate.com, wearing our template. Custom
+    // sends get our wrapper around plain text instead.
+    const customText: string | undefined = body.text;
 
     // Build query
     let query = supabase.from('profiles').select('id, email, full_name, trial_started_at, subscription_status, subscription_end_at, subscription_plan, payment_provider').not('email', 'is', null);
@@ -184,7 +198,9 @@ serve(async (req) => {
         html = emailTemplate('Your trial has expired', trialExpiredBody(name), `${APP_URL}/settings`, 'Upgrade Now');
       } else {
         subject = customSubject || 'Update from FleetTrackMate';
-        html = customHtml || emailTemplate('Important Update', `<p>Hi ${name},</p><p>We have an important update for you. Please log in to your dashboard for details.</p>`, APP_URL, 'Go to Dashboard');
+        const bodyText = (customText || 'We have an important update for you. Please log in to your dashboard for details.')
+          .replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+        html = emailTemplate('Important Update', `<p>Hi ${name},</p><p>${bodyText}</p>`, APP_URL, 'Go to Dashboard');
       }
 
       const result = await sendEmail(profile.email, subject, html);
