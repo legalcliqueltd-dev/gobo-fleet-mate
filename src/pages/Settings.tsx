@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Bell, Info, Palette, MapPin, Battery, Settings as SettingsIcon, User, CreditCard, Crown, Calendar, CheckCircle2, Mail, Send, Loader2, Phone, AlertTriangle } from 'lucide-react';
+import { Bell, Info, Palette, MapPin, Battery, Settings as SettingsIcon, User, CreditCard, Crown, Calendar, CheckCircle2, Loader2, Phone, AlertTriangle } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -11,22 +11,18 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import PaymentModal from '@/components/PaymentModal';
-import PaymentWall from '@/components/PaymentWall';
+import ActivePlanView from '@/components/payment/ActivePlanView';
 import { toast } from 'sonner';
-
-// Platform-owner actions (bulk emails etc.) are hidden from regular fleet
-// admins. Override with VITE_PLATFORM_ADMIN_EMAILS (comma-separated).
-const PLATFORM_ADMIN_EMAILS = (import.meta.env.VITE_PLATFORM_ADMIN_EMAILS || 'gobeth.ltd@gmail.com')
-  .split(',')
-  .map((e: string) => e.trim().toLowerCase())
-  .filter(Boolean);
+import {
+  clearAdminContact,
+  fetchAdminContact,
+  saveAdminContact,
+  updateDisplayName,
+} from '@/services/adminProfile';
 
 export default function Settings() {
-  const { user, subscription } = useAuth();
-  const isPlatformAdmin = !!user?.email && PLATFORM_ADMIN_EMAILS.includes(user.email.toLowerCase());
+  const { user, subscription, refreshSubscription } = useAuth();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showManageWall, setShowManageWall] = useState(false);
-  const [sendingInvoices, setSendingInvoices] = useState(false);
   const [tokens, setTokens] = useState<{ id: string; token: string; platform: string; created_at: string }[]>([]);
   
   const [locationTrackingEnabled, setLocationTrackingEnabled] = useState(() => {
@@ -39,6 +35,10 @@ export default function Settings() {
     return localStorage.getItem('batterySavingMode') === 'true';
   });
 
+  // Display name — write-once at signup until now.
+  const [displayName, setDisplayName] = useState('');
+  const [savingName, setSavingName] = useState(false);
+
   // Emergency contact — one value applied to every device this admin owns.
   const [emergencyName, setEmergencyName] = useState('');
   const [emergencyPhone, setEmergencyPhone] = useState('');
@@ -50,36 +50,10 @@ export default function Settings() {
     if (!user) return;
     setEmergencyLoading(true);
     try {
-      const { data: devices, error: devErr } = await supabase
-        .from('devices')
-        .select('connection_code')
-        .eq('user_id', user.id);
-      if (devErr) throw devErr;
-
-      const codes = (devices ?? [])
-        .map((d) => d.connection_code)
-        .filter((c): c is string => typeof c === 'string' && c.length > 0);
+      const { contact, codes } = await fetchAdminContact(user.id);
       setAdminConnectionCodes(codes);
-
-      if (codes.length === 0) {
-        setEmergencyName('');
-        setEmergencyPhone('');
-        return;
-      }
-
-      const { data: contacts, error: ecErr } = await supabase
-        .from('emergency_contacts')
-        .select('contact_name, contact_phone')
-        .in('admin_code', codes)
-        .eq('is_active', true)
-        .order('contact_type', { ascending: false })
-        .order('created_at', { ascending: true })
-        .limit(1);
-      if (ecErr) throw ecErr;
-
-      const row = contacts?.[0];
-      setEmergencyName(row?.contact_name ?? '');
-      setEmergencyPhone(row?.contact_phone ?? '');
+      setEmergencyName(contact?.name ?? '');
+      setEmergencyPhone(contact?.phone ?? '');
     } catch (err) {
       console.warn('Failed to load emergency contact:', err);
     } finally {
@@ -89,45 +63,12 @@ export default function Settings() {
 
   const handleSaveEmergencyContact = async () => {
     if (!user) return;
-    const phone = emergencyPhone.trim();
-    if (!phone) {
-      toast.error('Phone number is required');
-      return;
-    }
-    if (adminConnectionCodes.length === 0) {
-      toast.error('Add a device first, then set the emergency contact.');
-      return;
-    }
-
     setEmergencySaving(true);
     try {
-      const name = emergencyName.trim() || 'Fleet Administrator';
-
-      // Replace any existing 'admin' contacts on each of this admin's devices
-      // with the new value. Delete-then-insert avoids relying on a particular
-      // unique constraint shape in the existing schema.
-      const { error: delErr } = await supabase
-        .from('emergency_contacts')
-        .delete()
-        .in('admin_code', adminConnectionCodes)
-        .eq('contact_type', 'admin');
-      if (delErr) throw delErr;
-
-      const rows = adminConnectionCodes.map((code) => ({
-        admin_code: code,
-        contact_name: name,
-        contact_phone: phone,
-        contact_type: 'admin',
-        contact_role: 'Fleet Administrator',
-        is_active: true,
-      }));
-      const { error: insErr } = await supabase.from('emergency_contacts').insert(rows);
-      if (insErr) throw insErr;
-
-      toast.success(`Emergency contact updated for ${rows.length} device${rows.length === 1 ? '' : 's'}`);
+      const count = await saveAdminContact(user.id, { name: emergencyName, phone: emergencyPhone });
+      toast.success(`Emergency contact updated for ${count} device${count === 1 ? '' : 's'}`);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save emergency contact';
-      toast.error(message);
+      toast.error(err instanceof Error ? err.message : 'Failed to save emergency contact');
     } finally {
       setEmergencySaving(false);
     }
@@ -137,18 +78,12 @@ export default function Settings() {
     if (!user || adminConnectionCodes.length === 0) return;
     setEmergencySaving(true);
     try {
-      const { error } = await supabase
-        .from('emergency_contacts')
-        .delete()
-        .in('admin_code', adminConnectionCodes)
-        .eq('contact_type', 'admin');
-      if (error) throw error;
+      await clearAdminContact(user.id);
       setEmergencyName('');
       setEmergencyPhone('');
       toast.success('Emergency contact cleared. Drivers will see "not set" until you save a new number.');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to clear emergency contact';
-      toast.error(message);
+      toast.error(err instanceof Error ? err.message : 'Failed to clear emergency contact');
     } finally {
       setEmergencySaving(false);
     }
@@ -162,6 +97,23 @@ export default function Settings() {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
     if (!error) setTokens(data ?? []);
+  };
+
+  useEffect(() => {
+    setDisplayName(((user?.user_metadata?.full_name as string | undefined) ?? '').trim());
+  }, [user]);
+
+  const handleSaveName = async () => {
+    if (!user) return;
+    setSavingName(true);
+    try {
+      await updateDisplayName(user.id, displayName);
+      toast.success('Name updated.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not update your name.');
+    } finally {
+      setSavingName(false);
+    }
   };
 
   useEffect(() => {
@@ -183,25 +135,6 @@ export default function Settings() {
     toast.success('Update interval changed. Reload to apply.');
   };
 
-  const handleSendInvoices = async () => {
-    setSendingInvoices(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error('Please log in first'); return; }
-      
-      const { data, error } = await supabase.functions.invoke('bulk-email', {
-        body: { filter: 'paid' },
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      
-      if (error) throw error;
-      toast.success(`Invoices sent: ${data.sent} successful, ${data.failed} failed`);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to send invoices');
-    } finally {
-      setSendingInvoices(false);
-    }
-  };
 
   const handleBatterySavingToggle = (enabled: boolean) => {
     setBatterySavingMode(enabled);
@@ -231,6 +164,46 @@ export default function Settings() {
           <p className="text-muted-foreground">Manage your account and preferences</p>
         </div>
       </div>
+
+      {/* Profile */}
+      <Card className="border-2 border-border">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-primary/20">
+              <User className="h-4 w-4 text-primary" />
+            </div>
+            <h2 className="font-heading text-lg font-semibold">Profile</h2>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="display-name">Your name</Label>
+            <div className="flex gap-2">
+              <Input
+                id="display-name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Ada Okafor"
+                className="max-w-sm"
+              />
+              <Button onClick={handleSaveName} disabled={savingName || !displayName.trim()}>
+                {savingName ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : 'Save'}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Shown on your dashboard and on the reports you send.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Email</Label>
+            <Input value={user?.email ?? ''} disabled className="max-w-sm" />
+            <p className="text-xs text-muted-foreground">
+              Your sign-in address. Contact support to change it.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Billing & Subscription */}
       <Card className="border-2 border-border">
@@ -306,53 +279,28 @@ export default function Settings() {
           {/* Action buttons */}
           <div className="flex flex-wrap items-center gap-3">
             {subscription.status === 'active' ? (
-              <>
-                <Button variant="outline" onClick={() => setShowManageWall(true)}>
-                  Manage subscription
+              subscription.plan === 'basic' && (
+                <Button variant="default" onClick={() => setShowPaymentModal(true)}>
+                  Upgrade to Pro
                 </Button>
-                {subscription.plan === 'basic' && (
-                  <Button variant="default" onClick={() => setShowPaymentModal(true)}>
-                    Upgrade to Pro
-                  </Button>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  Downgrade or cancel from here.
-                </p>
-              </>
+              )
             ) : (
               <Button variant="default" onClick={() => setShowPaymentModal(true)}>
                 Subscribe Now
               </Button>
             )}
           </div>
-
-          {/* Send Invoice Emails — platform owner only */}
-          {isPlatformAdmin && subscription.status === 'active' && (
-            <div className="rounded-lg border border-dashed border-border p-4 space-y-2">
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <p className="text-sm font-medium">Email Actions</p>
-              </div>
-              <p className="text-xs text-muted-foreground">Send invoice emails to all paid subscribers with their plan details and expiration date.</p>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSendInvoices}
-                disabled={sendingInvoices}
-              >
-                {sendingInvoices ? (
-                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Sending...</>
-                ) : (
-                  <><Send className="h-4 w-4 mr-2" /> Send Invoices to Paid Users</>
-                )}
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
 
+      {/* Change plan — inline, not behind an overlay. Downgrade and cancel used
+          to live inside PaymentWall, which Settings opened as a full-screen
+          layer over itself; nobody found them there. */}
+      {subscription.status === 'active' && (subscription.plan === 'pro' || subscription.plan === 'basic') && (
+        <ActivePlanView subscription={subscription} onRefresh={refreshSubscription} />
+      )}
+
       <PaymentModal open={showPaymentModal} onOpenChange={setShowPaymentModal} />
-      {showManageWall && <PaymentWall onDismiss={() => setShowManageWall(false)} />}
 
       <Card className="border-2 border-border">
         <CardHeader className="pb-3">
