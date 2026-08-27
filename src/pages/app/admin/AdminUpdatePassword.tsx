@@ -3,14 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2, Lock } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import PasswordInput from '@/components/admin/PasswordInput';
 import { Label } from '@/components/ui/label';
 import AuthScreenShell from '@/components/admin/AuthScreenShell';
 import FormError from '@/components/admin/FormError';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { friendlyAuthError } from '@/services/authErrors';
 
 const schema = z
   .object({
@@ -59,7 +61,7 @@ export default function AdminUpdatePassword() {
     setErrorMsg('');
     const { error } = await supabase.auth.updateUser({ password: values.password });
     if (error) {
-      setErrorMsg(error.message);
+      setErrorMsg(friendlyAuthError(error, 'update'));
       return;
     }
     navigate('/app/admin/fleet', { replace: true });
@@ -74,33 +76,25 @@ export default function AdminUpdatePassword() {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="password">New password</Label>
-          <div className="relative">
-            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+          <PasswordInput
               id="password"
-              type="password"
               autoComplete="new-password"
               placeholder="At least 6 characters"
-              className="h-12 pl-10"
+            className="h-12 "
               {...register('password')}
             />
-          </div>
           {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
         </div>
 
         <div className="space-y-1.5">
           <Label htmlFor="confirm">Confirm new password</Label>
-          <div className="relative">
-            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+          <PasswordInput
               id="confirm"
-              type="password"
               autoComplete="new-password"
               placeholder="Type it again"
-              className="h-12 pl-10"
+            className="h-12 "
               {...register('confirm')}
             />
-          </div>
           {errors.confirm && <p className="text-sm text-destructive">{errors.confirm.message}</p>}
         </div>
 

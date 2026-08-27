@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import AuthScreenShell from '@/components/admin/AuthScreenShell';
 import FormError from '@/components/admin/FormError';
 import { sendPasswordReset } from '@/services/adminAuth';
+import { friendlyAuthError } from '@/services/authErrors';
 
 const schema = z.object({ email: z.string().email('Enter a valid email') });
 type FormValues = z.infer<typeof schema>;
@@ -31,7 +32,7 @@ export default function AdminForgotPassword() {
       await sendPasswordReset(values.email);
       setSentTo(values.email);
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Could not send the reset link.');
+      setErrorMsg(friendlyAuthError(err, 'reset'));
     }
   };
 

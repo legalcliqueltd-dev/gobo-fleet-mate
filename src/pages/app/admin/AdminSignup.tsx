@@ -3,9 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2, Lock, Mail, MailCheck, User } from 'lucide-react';
+import { Loader2, Mail, MailCheck, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import PasswordInput from '@/components/admin/PasswordInput';
 import { Label } from '@/components/ui/label';
 import AuthScreenShell from '@/components/admin/AuthScreenShell';
 import SocialAuthButtons from '@/components/admin/SocialAuthButtons';
@@ -13,12 +14,19 @@ import AuthDivider from '@/components/admin/AuthDivider';
 import FormError from '@/components/admin/FormError';
 import { signUpWithEmail } from '@/services/adminAuth';
 import { useAuth } from '@/contexts/AuthContext';
+import { friendlyAuthError } from '@/services/authErrors';
 
-const schema = z.object({
-  fullName: z.string().trim().min(2, 'Enter your name'),
-  email: z.string().email('Enter a valid email'),
-  password: z.string().min(6, 'At least 6 characters'),
-});
+const schema = z
+  .object({
+    fullName: z.string().trim().min(2, 'Enter your name'),
+    email: z.string().email('Enter a valid email'),
+    password: z.string().min(6, 'At least 6 characters'),
+    confirm: z.string().min(6, 'Re-enter your password'),
+  })
+  .refine((d) => d.password === d.confirm, {
+    message: 'Passwords do not match',
+    path: ['confirm'],
+  });
 type FormValues = z.infer<typeof schema>;
 
 export default function AdminSignup() {
@@ -37,7 +45,7 @@ export default function AdminSignup() {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { fullName: '', email: '', password: '' },
+    defaultValues: { fullName: '', email: '', password: '', confirm: '' },
   });
 
   const onSubmit = async (values: FormValues) => {
@@ -51,7 +59,7 @@ export default function AdminSignup() {
       if (needsConfirmation) setAwaitingConfirmation(values.email);
       else navigate('/app/admin/fleet', { replace: true });
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Could not create your account.');
+      setErrorMsg(friendlyAuthError(err, 'signup'));
     }
   };
 
@@ -129,18 +137,26 @@ export default function AdminSignup() {
 
         <div className="space-y-1.5">
           <Label htmlFor="password">Password</Label>
-          <div className="relative">
-            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              id="password"
-              type="password"
-              autoComplete="new-password"
-              placeholder="At least 6 characters"
-              className="h-12 pl-10"
-              {...register('password')}
-            />
-          </div>
+          <PasswordInput
+            id="password"
+            autoComplete="new-password"
+            placeholder="At least 6 characters"
+            className="h-12"
+            {...register('password')}
+          />
           {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="confirm">Confirm password</Label>
+          <PasswordInput
+            id="confirm"
+            autoComplete="new-password"
+            placeholder="Type it again"
+            className="h-12"
+            {...register('confirm')}
+          />
+          {errors.confirm && <p className="text-sm text-destructive">{errors.confirm.message}</p>}
         </div>
 
         <FormError message={errorMsg} />

@@ -3,9 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2, Lock, Mail } from 'lucide-react';
+import { Loader2, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import PasswordInput from '@/components/admin/PasswordInput';
 import { Label } from '@/components/ui/label';
 import AuthScreenShell from '@/components/admin/AuthScreenShell';
 import SocialAuthButtons from '@/components/admin/SocialAuthButtons';
@@ -14,6 +15,7 @@ import FormError from '@/components/admin/FormError';
 import SwitchModeLink from '@/components/SwitchModeLink';
 import { signInWithEmail } from '@/services/adminAuth';
 import { useAuth } from '@/contexts/AuthContext';
+import { friendlyAuthError } from '@/services/authErrors';
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -46,7 +48,7 @@ export default function AdminLogin() {
       await signInWithEmail(values.email, values.password);
       navigate('/app/admin/fleet', { replace: true });
     } catch (err) {
-      setErrorMsg(err instanceof Error ? err.message : 'Could not sign in.');
+      setErrorMsg(friendlyAuthError(err, 'login'));
     }
   };
 
@@ -93,17 +95,13 @@ export default function AdminLogin() {
               Forgot?
             </Link>
           </div>
-          <div className="relative">
-            <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              placeholder="••••••••"
-              className="h-12 pl-10"
-              {...register('password')}
-            />
-          </div>
+          <PasswordInput
+            id="password"
+            autoComplete="current-password"
+            placeholder="••••••••"
+            className="h-12"
+            {...register('password')}
+          />
           {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
         </div>
 
