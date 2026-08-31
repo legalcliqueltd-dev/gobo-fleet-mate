@@ -70,49 +70,9 @@ serve(async (req) => {
 });
 
 async function emailAdminOnSOS(sosEvent: any) {
-  // Find admin email via admin_code -> devices.connection_code -> devices.user_id -> profiles.email
-  let adminEmail: string | null = null;
-  let adminName: string | null = null;
-
-  if (sosEvent.admin_code) {
-    const { data: device } = await supabase
-      .from('devices')
-      .select('user_id')
-      .eq('connection_code', sosEvent.admin_code)
-      .maybeSingle();
-
-    if (device?.user_id) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('email, full_name')
-        .eq('id', device.user_id)
-        .maybeSingle();
-
-      adminEmail = profile?.email || null;
-      adminName = profile?.full_name || null;
-    }
-  }
-
-  // Fallback: if SOS has user_id, check user_roles for admins
-  if (!adminEmail && sosEvent.user_id) {
-    const { data: adminRoles } = await supabase
-      .from('user_roles')
-      .select('user_id')
-      .eq('role', 'admin');
-
-    if (adminRoles?.length) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('email, full_name')
-        .in('id', adminRoles.map(r => r.user_id))
-        .not('email', 'is', null);
-
-      if (profiles?.length) {
-        adminEmail = profiles[0].email;
-        adminName = profiles[0].full_name;
-      }
-    }
-  }
+  const owner = await resolveOwningAdmin(sosEvent);
+  const adminEmail = owner?.email ?? null;
+  const adminName = owner?.name ?? null;
 
   if (!adminEmail) {
     console.log('No admin email found for SOS notification');
@@ -156,29 +116,73 @@ async function emailAdminOnSOS(sosEvent: any) {
   await sendEmail(adminEmail, subject, html);
 }
 
-async function notifyAdmins(sosEvent: any) {
-  const { data: adminRoles } = await supabase
-    .from('user_roles')
-    .select('user_id')
-    .eq('role', 'admin');
+/**
+ * The one manager this SOS belongs to.
+ *
+ * admin_code is the reliable route: it is the connection code the driver
+ * joined with, and it maps to exactly one device and therefore one owner.
+ * user_id is only a fallback because sos-create sets it to null for
+ * code-based drivers, which is every driver.
+ *
+ * Returns null rather than guessing. There is no such thing as a reasonable
+ * default recipient for an emergency alert.
+ */
+async function resolveOwningAdmin(
+  sosEvent: any
+): Promise<{ id: string; email: string | null; name: string | null } | null> {
+  if (sosEvent.admin_code) {
+    const { data: device } = await supabase
+      .from('devices')
+      .select('user_id')
+      .eq('connection_code', sosEvent.admin_code)
+      .maybeSingle();
 
-  if (!adminRoles || adminRoles.length === 0) {
-    console.log('No admins to notify');
+    if (device?.user_id) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('email, full_name')
+        .eq('id', device.user_id)
+        .maybeSingle();
+      return { id: device.user_id, email: profile?.email ?? null, name: profile?.full_name ?? null };
+    }
+  }
+
+  if (sosEvent.user_id) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', sosEvent.user_id)
+      .maybeSingle();
+    if (profile) {
+      return { id: sosEvent.user_id, email: profile.email ?? null, name: profile.full_name ?? null };
+    }
+  }
+
+  return null;
+}
+
+async function notifyAdmins(sosEvent: any) {
+  // Scoped to the owning manager. This used to gather push tokens for every
+  // account holding role='admin' — which the signup trigger grants to
+  // everyone — so implementing the send would have pushed one fleet's
+  // emergency to every user on the platform.
+  const owner = await resolveOwningAdmin(sosEvent);
+  if (!owner) {
+    console.log('No owning admin resolved; not notifying');
     return;
   }
 
-  const adminIds = adminRoles.map((r) => r.user_id);
   const { data: tokens } = await supabase
     .from('notification_tokens')
     .select('token')
-    .in('user_id', adminIds);
+    .eq('user_id', owner.id);
 
   if (!tokens || tokens.length === 0) {
     console.log('No admin tokens found');
     return;
   }
 
-  console.log(`Would notify ${tokens.length} admins about SOS: ${sosEvent.hazard}`);
+  console.log(`Would notify ${tokens.length} device(s) for admin ${owner.id} about SOS: ${sosEvent.hazard}`);
 }
 
 async function notifyDriver(sosEvent: any, message: string) {
