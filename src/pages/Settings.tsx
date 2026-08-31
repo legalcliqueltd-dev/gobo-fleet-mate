@@ -13,6 +13,9 @@ import { Input } from '@/components/ui/input';
 import PaymentModal from '@/components/PaymentModal';
 import ActivePlanView from '@/components/payment/ActivePlanView';
 import AvatarPicker from '@/components/admin/AvatarPicker';
+import PasswordInput from '@/components/admin/PasswordInput';
+import { changePassword, hasPasswordIdentity, signInProviders } from '@/services/accountSecurity';
+import { friendlyAuthError } from '@/services/authErrors';
 import { toast } from 'sonner';
 import {
   clearAdminContact,
@@ -40,6 +43,15 @@ export default function Settings() {
   const [displayName, setDisplayName] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  // Password change — previously this section told people to use the Supabase
+  // dashboard, which no customer can log into.
+  const [pwCurrent, setPwCurrent] = useState('');
+  const [pwNext, setPwNext] = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
+  const [savingPw, setSavingPw] = useState(false);
+  const canChangePassword = hasPasswordIdentity(user);
+  const providers = signInProviders(user);
 
   // Emergency contact — one value applied to every device this admin owns.
   const [emergencyName, setEmergencyName] = useState('');
@@ -105,6 +117,26 @@ export default function Settings() {
     setDisplayName(((user?.user_metadata?.full_name as string | undefined) ?? '').trim());
     setAvatarUrl((user?.user_metadata?.avatar_url as string | undefined) ?? null);
   }, [user]);
+
+  const handleChangePassword = async () => {
+    if (pwNext !== pwConfirm) {
+      toast.error('The two new passwords do not match.');
+      return;
+    }
+    if (!user?.email) return;
+    setSavingPw(true);
+    try {
+      await changePassword(user.email, pwCurrent, pwNext);
+      setPwCurrent('');
+      setPwNext('');
+      setPwConfirm('');
+      toast.success('Password changed.');
+    } catch (err) {
+      toast.error(friendlyAuthError(err, 'update'));
+    } finally {
+      setSavingPw(false);
+    }
+  };
 
   const handleSaveName = async () => {
     if (!user) return;
@@ -538,9 +570,53 @@ export default function Settings() {
               <p className="text-xs text-muted-foreground">Email</p>
               <p className="font-medium">{user?.email}</p>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Manage your email and password from the Supabase Auth dashboard.
-            </p>
+            {canChangePassword ? (
+              <div className="space-y-3 pt-1">
+                <p className="text-xs text-muted-foreground">Password</p>
+                <div className="grid gap-3 sm:grid-cols-3 max-w-2xl">
+                  <PasswordInput
+                    showLockIcon={false}
+                    autoComplete="current-password"
+                    value={pwCurrent}
+                    onChange={(e) => setPwCurrent(e.target.value)}
+                    placeholder="Current"
+                  />
+                  <PasswordInput
+                    showLockIcon={false}
+                    autoComplete="new-password"
+                    value={pwNext}
+                    onChange={(e) => setPwNext(e.target.value)}
+                    placeholder="New"
+                  />
+                  <PasswordInput
+                    showLockIcon={false}
+                    autoComplete="new-password"
+                    value={pwConfirm}
+                    onChange={(e) => setPwConfirm(e.target.value)}
+                    placeholder="Confirm new"
+                  />
+                </div>
+                <Button
+                  onClick={handleChangePassword}
+                  disabled={savingPw || !pwCurrent || !pwNext || !pwConfirm}
+                >
+                  {savingPw ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Changing...</>
+                  ) : (
+                    'Change password'
+                  )}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Your current password is required so that someone with access to an open session
+                  cannot lock you out of your own account.
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                You sign in with {providers.join(' and ') || 'a connected account'}, so there is no
+                password on this account to change.
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>

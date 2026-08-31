@@ -4,6 +4,7 @@ import {
   ChevronRight,
   GraduationCap,
   KeyRound,
+  Lock,
   FileText,
   LogOut,
   Repeat,
@@ -18,6 +19,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import ThemeSegmented from '@/components/ThemeSegmented';
 import AdminTutorial from '@/components/admin/AdminTutorial';
 import ProfileSheet from '@/components/admin/ProfileSheet';
+import ChangePasswordSheet from '@/components/admin/ChangePasswordSheet';
 import { useAppRole } from '@/contexts/AppRoleContext';
 import { signOutAdmin } from '@/services/adminAuth';
 import { cn } from '@/lib/utils';
@@ -70,6 +72,7 @@ export default function AdminAppSettings() {
   const [switchOpen, setSwitchOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   const email = user?.email ?? '—';
   const displayName =
@@ -152,6 +155,15 @@ export default function AdminAppSettings() {
         <div className="border-t border-border" />
 
         <Row
+          icon={Lock}
+          label="Change password"
+          hint="Without an email round trip"
+          onClick={() => setPasswordOpen(true)}
+        />
+
+        <div className="border-t border-border" />
+
+        <Row
           icon={KeyRound}
           label="Drivers & codes"
           hint="Share, revoke or replace connection codes"
@@ -211,6 +223,7 @@ export default function AdminAppSettings() {
 
       {tutorialOpen && <AdminTutorial onClose={() => setTutorialOpen(false)} />}
       {profileOpen && <ProfileSheet onClose={() => setProfileOpen(false)} />}
+      {passwordOpen && <ChangePasswordSheet onClose={() => setPasswordOpen(false)} />}
 
       <ConfirmDialog
         open={signOutOpen}
