@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -179,6 +179,63 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_expenses: {
+        Row: {
+          admin_code: string
+          amount: number
+          category: string
+          created_at: string
+          currency: string
+          driver_id: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          note: string | null
+          photo_url: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          spent_at: string
+          status: string
+        }
+        Insert: {
+          admin_code: string
+          amount: number
+          category?: string
+          created_at?: string
+          currency?: string
+          driver_id: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          note?: string | null
+          photo_url?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          spent_at?: string
+          status?: string
+        }
+        Update: {
+          admin_code?: string
+          amount?: number
+          category?: string
+          created_at?: string
+          currency?: string
+          driver_id?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          note?: string | null
+          photo_url?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          spent_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       driver_location_history: {
         Row: {
           accuracy: number | null
@@ -242,6 +299,60 @@ export type Database = {
           longitude?: number
           speed?: number | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      driver_reports: {
+        Row: {
+          admin_code: string
+          created_at: string
+          details: Json
+          driver_id: string
+          has_fault: boolean
+          id: string
+          latitude: number | null
+          longitude: number | null
+          note: string | null
+          photos: string[]
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          type: string
+        }
+        Insert: {
+          admin_code: string
+          created_at?: string
+          details?: Json
+          driver_id: string
+          has_fault?: boolean
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          note?: string | null
+          photos?: string[]
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          type: string
+        }
+        Update: {
+          admin_code?: string
+          created_at?: string
+          details?: Json
+          driver_id?: string
+          has_fault?: boolean
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          note?: string | null
+          photos?: string[]
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          type?: string
         }
         Relationships: []
       }
@@ -466,9 +577,43 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_audit_log: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_id: string
+          created_at: string
+          details: Json
+          id: string
+          target_email: string | null
+          target_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_id: string
+          created_at?: string
+          details?: Json
+          id?: string
+          target_email?: string | null
+          target_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_id?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          target_email?: string | null
+          target_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           auto_registered: boolean | null
+          avatar_url: string | null
           created_at: string
           email: string | null
           full_name: string | null
@@ -484,6 +629,7 @@ export type Database = {
         }
         Insert: {
           auto_registered?: boolean | null
+          avatar_url?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
@@ -499,6 +645,7 @@ export type Database = {
         }
         Update: {
           auto_registered?: boolean | null
+          avatar_url?: string | null
           created_at?: string
           email?: string | null
           full_name?: string | null
@@ -640,6 +787,172 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      station_assignments: {
+        Row: {
+          created_at: string
+          driver_id: string
+          id: string
+          station_id: string
+        }
+        Insert: {
+          created_at?: string
+          driver_id: string
+          id?: string
+          station_id: string
+        }
+        Update: {
+          created_at?: string
+          driver_id?: string
+          id?: string
+          station_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "station_assignments_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      station_visits: {
+        Row: {
+          accuracy_m: number | null
+          admin_code: string
+          arrived_at: string
+          closest_distance_m: number | null
+          created_at: string
+          departed_at: string | null
+          driver_id: string
+          dwell_seconds: number | null
+          flag_reason: string | null
+          id: string
+          photo_distance_m: number | null
+          photo_lat: number | null
+          photo_lng: number | null
+          photo_submitted_at: string | null
+          photo_url: string | null
+          station_id: string
+          status: string
+          visit_date: string
+        }
+        Insert: {
+          accuracy_m?: number | null
+          admin_code: string
+          arrived_at?: string
+          closest_distance_m?: number | null
+          created_at?: string
+          departed_at?: string | null
+          driver_id: string
+          dwell_seconds?: number | null
+          flag_reason?: string | null
+          id?: string
+          photo_distance_m?: number | null
+          photo_lat?: number | null
+          photo_lng?: number | null
+          photo_submitted_at?: string | null
+          photo_url?: string | null
+          station_id: string
+          status?: string
+          visit_date?: string
+        }
+        Update: {
+          accuracy_m?: number | null
+          admin_code?: string
+          arrived_at?: string
+          closest_distance_m?: number | null
+          created_at?: string
+          departed_at?: string | null
+          driver_id?: string
+          dwell_seconds?: number | null
+          flag_reason?: string | null
+          id?: string
+          photo_distance_m?: number | null
+          photo_lat?: number | null
+          photo_lng?: number | null
+          photo_submitted_at?: string | null
+          photo_url?: string | null
+          station_id?: string
+          status?: string
+          visit_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "station_visits_station_id_fkey"
+            columns: ["station_id"]
+            isOneToOne: false
+            referencedRelation: "stations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stations: {
+        Row: {
+          active: boolean
+          admin_code: string
+          admin_user_id: string
+          color: string
+          created_at: string
+          id: string
+          kind: string
+          latitude: number
+          longitude: number
+          min_dwell_seconds: number
+          name: string
+          notes: string | null
+          radius_m: number
+          recurrence: string
+          recurrence_days: number[] | null
+          requires_photo: boolean
+          updated_at: string
+          window_end: string | null
+          window_start: string | null
+        }
+        Insert: {
+          active?: boolean
+          admin_code: string
+          admin_user_id: string
+          color?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          latitude: number
+          longitude: number
+          min_dwell_seconds?: number
+          name: string
+          notes?: string | null
+          radius_m?: number
+          recurrence?: string
+          recurrence_days?: number[] | null
+          requires_photo?: boolean
+          updated_at?: string
+          window_end?: string | null
+          window_start?: string | null
+        }
+        Update: {
+          active?: boolean
+          admin_code?: string
+          admin_user_id?: string
+          color?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          latitude?: number
+          longitude?: number
+          min_dwell_seconds?: number
+          name?: string
+          notes?: string | null
+          radius_m?: number
+          recurrence?: string
+          recurrence_days?: number[] | null
+          requires_photo?: boolean
+          updated_at?: string
+          window_end?: string | null
+          window_start?: string | null
+        }
+        Relationships: []
       }
       task_reports: {
         Row: {
@@ -1032,6 +1345,7 @@ export type Database = {
       }
       is_admin: { Args: { user_id: string }; Returns: boolean }
       is_admin_from_auth: { Args: never; Returns: boolean }
+      is_platform_owner: { Args: { check_user_id?: string }; Returns: boolean }
       register_driver_with_code: {
         Args: {
           p_admin_code: string
@@ -1078,7 +1392,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "driver" | "user"
+      app_role: "admin" | "moderator" | "driver" | "user" | "platform_owner"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1206,7 +1520,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "moderator", "driver", "user"],
+      app_role: ["admin", "moderator", "driver", "user", "platform_owner"],
     },
   },
 } as const

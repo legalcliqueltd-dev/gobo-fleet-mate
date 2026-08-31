@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Trash2, AlertTriangle, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +7,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
+/** The real address, and the one the privacy policy publishes. */
+const SUPPORT_EMAIL = "gobeth.ltd@gmail.com";
+
 const DeleteAccount = () => {
+  const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -20,19 +24,26 @@ const DeleteAccount = () => {
 
     setDeleting(true);
     try {
-      // Send deletion request email to admin
-      await supabase.functions.invoke("send-email", {
-        body: {
-          to: "privacy@gftm.com",
-          subject: `Account Deletion Request – ${user.email}`,
-          html: `<p>User <strong>${user.email}</strong> (ID: ${user.id}) has requested full account and data deletion.</p>`,
-        },
-      });
+      // Deletes for real, here and now. This used to email a request and
+      // promise action "within 7 days", which App Store guideline 5.1.1(v)
+      // does not accept: an app that creates accounts must delete them from
+      // inside the app, not queue a support ticket.
+      const { data, error } = await supabase.functions.invoke("delete-account");
 
-      toast.success("Your deletion request has been submitted. We'll process it within 7 days.");
+      if (error || data?.error) {
+        throw new Error(data?.error ?? error?.message ?? "Deletion failed");
+      }
+
+      toast.success("Your account and all its data have been permanently deleted.");
       await signOut();
-    } catch {
-      toast.error("Something went wrong. Please email privacy@gftm.com directly.");
+      navigate("/", { replace: true });
+    } catch (err) {
+      console.error("[DeleteAccount] deletion failed:", err);
+      toast.error(
+        err instanceof Error && err.message
+          ? err.message
+          : `Could not delete your account. Please email ${SUPPORT_EMAIL}.`
+      );
     } finally {
       setDeleting(false);
     }
@@ -58,7 +69,7 @@ const DeleteAccount = () => {
           </div>
           <h1 className="text-4xl font-bold mb-4">Delete Your Account</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Request permanent deletion of your Fleet Track Mate account and all associated data.
+            Permanently delete your FleetTrackMate account and all associated data.
           </p>
         </div>
       </section>
@@ -88,7 +99,7 @@ const DeleteAccount = () => {
                 ))}
               </ul>
               <p className="text-sm text-muted-foreground mt-4">
-                Deletion is permanent and cannot be undone. We process requests within <strong>7 business days</strong>.
+                Deletion is permanent, immediate, and cannot be undone.
               </p>
             </CardContent>
           </Card>
@@ -99,7 +110,7 @@ const DeleteAccount = () => {
                 {!confirming ? (
                   <Button variant="destructive" className="w-full" onClick={() => setConfirming(true)}>
                     <Trash2 className="w-4 h-4 mr-2" />
-                    Request Account Deletion
+                    Delete My Account
                   </Button>
                 ) : (
                   <div className="space-y-3">
@@ -122,16 +133,19 @@ const DeleteAccount = () => {
             <Card className="bg-muted/30">
               <CardContent className="pt-6 space-y-4">
                 <p className="text-muted-foreground">
-                  <strong>Not logged in?</strong> You can still request deletion by emailing us directly.
+                  <strong>Not logged in?</strong> Sign in to delete your account instantly, or email us and we will do it for you.
                 </p>
                 <div className="flex items-center gap-2">
                   <Mail className="w-4 h-4 text-primary" />
-                  <a href="mailto:privacy@gftm.com?subject=Account%20Deletion%20Request" className="text-primary underline">
-                    privacy@gftm.com
+                  <a
+                    href={`mailto:${SUPPORT_EMAIL}?subject=Account%20Deletion%20Request`}
+                    className="text-primary underline"
+                  >
+                    {SUPPORT_EMAIL}
                   </a>
                 </div>
                 <Link to="/auth/login">
-                  <Button variant="outline" className="w-full mt-2">Log in to delete automatically</Button>
+                  <Button variant="outline" className="w-full mt-2">Sign in to delete my account</Button>
                 </Link>
               </CardContent>
             </Card>

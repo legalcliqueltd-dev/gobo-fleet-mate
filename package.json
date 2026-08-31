@@ -17,7 +17,8 @@
     "cap:sync:android": "npm run cap:prepare:driver && npx cap sync android && bash scripts/android-post-sync.sh && npm run cap:doctor:android",
     "cap:clean:android": "powershell -ExecutionPolicy Bypass -File scripts/android-post-sync.ps1",
     "cap:build:android": "npm run build:native && npm run cap:sync:android && npm run cap:verify:bundle",
-    "cap:verify:bundle": "bash scripts/verify-native-bundle.sh"
+    "cap:verify:bundle": "bash scripts/verify-native-bundle.sh",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.4",

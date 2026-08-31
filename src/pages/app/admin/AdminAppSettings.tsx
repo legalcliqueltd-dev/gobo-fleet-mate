@@ -4,10 +4,12 @@ import {
   ChevronRight,
   GraduationCap,
   KeyRound,
+  Lock,
   FileText,
   LogOut,
   Repeat,
   Shield,
+  ShieldAlert,
   Trash2,
   UserRound,
 } from 'lucide-react';
@@ -16,6 +18,8 @@ import ConfirmDialog from '@/components/ConfirmDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import ThemeSegmented from '@/components/ThemeSegmented';
 import AdminTutorial from '@/components/admin/AdminTutorial';
+import ProfileSheet from '@/components/admin/ProfileSheet';
+import ChangePasswordSheet from '@/components/admin/ChangePasswordSheet';
 import { useAppRole } from '@/contexts/AppRoleContext';
 import { signOutAdmin } from '@/services/adminAuth';
 import { cn } from '@/lib/utils';
@@ -67,11 +71,14 @@ export default function AdminAppSettings() {
   const [signOutOpen, setSignOutOpen] = useState(false);
   const [switchOpen, setSwitchOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
 
   const email = user?.email ?? '—';
   const displayName =
     (user?.user_metadata?.full_name as string | undefined)?.trim() || email.split('@')[0];
   const initial = displayName.charAt(0).toUpperCase();
+  const avatarUrl = (user?.user_metadata?.avatar_url as string | undefined) ?? null;
 
   const planLabel = (() => {
     if (subscription.status === 'active') {
@@ -99,18 +106,25 @@ export default function AdminAppSettings() {
   return (
     <div className="h-full overflow-y-auto px-4 py-5">
       {/* Identity */}
-      <div
-        className="mb-5 flex items-center gap-4 rounded-2xl border border-border bg-card p-5"
+      <button
+        type="button"
+        onClick={() => setProfileOpen(true)}
+        className="mb-5 flex w-full items-center gap-4 rounded-2xl border border-border bg-card p-5 text-left transition-colors hover:bg-muted"
         style={{ boxShadow: 'var(--shadow-card)' }}
       >
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary font-heading text-lg font-bold text-primary-foreground">
-          {initial}
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary font-heading text-lg font-bold text-primary-foreground">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            initial
+          )}
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate font-heading text-base font-semibold text-foreground">{displayName}</p>
           <p className="truncate text-xs text-muted-foreground">{email}</p>
         </div>
-      </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+      </button>
 
       {/* Plan — status only, no purchase actions */}
       <div
@@ -131,6 +145,24 @@ export default function AdminAppSettings() {
         className="mb-5 overflow-hidden rounded-2xl border border-border bg-card"
         style={{ boxShadow: 'var(--shadow-card)' }}
       >
+        <Row
+          icon={ShieldAlert}
+          label="Your profile & emergency contact"
+          hint="Your name, and the number drivers call in an emergency"
+          onClick={() => setProfileOpen(true)}
+        />
+
+        <div className="border-t border-border" />
+
+        <Row
+          icon={Lock}
+          label="Change password"
+          hint="Without an email round trip"
+          onClick={() => setPasswordOpen(true)}
+        />
+
+        <div className="border-t border-border" />
+
         <Row
           icon={KeyRound}
           label="Drivers & codes"
@@ -190,6 +222,8 @@ export default function AdminAppSettings() {
       <p className="py-8 text-center text-xs text-muted-foreground">FleetTrackMate · Manager</p>
 
       {tutorialOpen && <AdminTutorial onClose={() => setTutorialOpen(false)} />}
+      {profileOpen && <ProfileSheet onClose={() => setProfileOpen(false)} />}
+      {passwordOpen && <ChangePasswordSheet onClose={() => setPasswordOpen(false)} />}
 
       <ConfirmDialog
         open={signOutOpen}

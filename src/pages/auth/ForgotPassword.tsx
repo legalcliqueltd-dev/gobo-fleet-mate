@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from '@/integrations/supabase/client';
+import { friendlyAuthError } from '@/services/authErrors';
 
 const schema = z.object({ email: z.string().email('Enter a valid email') });
 type FormValues = z.infer<typeof schema>;
@@ -20,7 +21,7 @@ export default function ForgotPassword() {
     const { error } = await supabase.auth.resetPasswordForEmail(values.email, {
       redirectTo: `${window.location.origin}/auth/update-password`,
     });
-    if (error) setErrorMsg(error.message);
+    if (error) setErrorMsg(friendlyAuthError(error, 'reset'));
     else setSent(true);
   };
 

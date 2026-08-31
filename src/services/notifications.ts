@@ -88,6 +88,10 @@ export async function requestNotificationPermission(): Promise<boolean> {
   try {
     const existing = await plugin.checkPermissions();
     if (existing.display === 'granted') return true;
+    // 'denied' means the user already said no. Asking again does nothing —
+    // iOS shows the system prompt exactly once per install — so returning
+    // early keeps `notify()` from retrying on every single alert.
+    if (existing.display === 'denied') return false;
     const asked = await plugin.requestPermissions();
     return asked.display === 'granted';
   } catch (err) {
@@ -132,6 +136,14 @@ export async function notify(
 
   const { plugin } = await loadPlugin();
   if (!plugin) return;
+
+  // iOS delivers nothing at all until the user has authorised notifications,
+  // and — unlike Android — never surfaces an error for the attempt: schedule()
+  // resolves happily and the alert simply does not appear. So the permission
+  // is settled here, at the first alert worth showing, which is also the moment
+  // the request makes sense to the driver ("you have arrived at X"). Asking on
+  // cold start instead would be a prompt with no context attached to it.
+  if (!(await requestNotificationPermission())) return;
 
   try {
     await ensureChannels(plugin);

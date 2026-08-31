@@ -137,6 +137,7 @@ ensure_manifest_permission "android.permission.ACCESS_BACKGROUND_LOCATION"
 ensure_manifest_permission "android.permission.FOREGROUND_SERVICE"
 ensure_manifest_permission "android.permission.FOREGROUND_SERVICE_LOCATION"
 ensure_manifest_permission "android.permission.WAKE_LOCK"
+ensure_manifest_permission "android.permission.POST_NOTIFICATIONS"
 ensure_manifest_feature "android.hardware.location.gps"
 echo ""
 

@@ -26,6 +26,31 @@ export type SocialProvider = 'google' | 'apple';
 /** Custom scheme registered in the Android manifest and iOS Info.plist. */
 export const AUTH_DEEP_LINK = 'fleettrackmate://auth/callback';
 
+/**
+ * What a `fleettrackmate://auth/...` link turned out to be.
+ *
+ * 'recovery' matters on native: the link signs the user in, but leaving them
+ * on the fleet screen means the password they asked to reset is never
+ * actually changed. The caller routes them to the "set a new password" screen.
+ */
+export type AuthCallbackKind = 'recovery' | 'session' | 'none';
+
+/**
+ * True when the error came from the user dismissing the provider's own sheet.
+ *
+ * Worth naming precisely, because the browser fallback must not fire here: a
+ * driver who taps "Cancel" on the Apple sheet and is then thrown into Safari
+ * reads it as the app malfunctioning, and there is nothing for the fallback to
+ * recover from — the native path worked exactly as intended.
+ */
+function isUserCancellation(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err ?? '');
+  const code = (err as { code?: string | number } | null)?.code;
+  // ASAuthorizationError.canceled == 1001; Google's iOS SDK uses -5.
+  if (code === 1001 || code === '1001' || code === -5 || code === '-5') return true;
+  return /cancel|closed|dismiss|abort/i.test(message);
+}
+
 const env = import.meta.env as Record<string, string | undefined>;
 
 const GOOGLE_WEB_CLIENT_ID = env.VITE_GOOGLE_WEB_CLIENT_ID ?? '';
@@ -176,11 +201,22 @@ async function signInViaBrowser(provider: SocialProvider): Promise<void> {
   }
 }
 
+/** Raised when the user closed the provider sheet themselves. */
+export class SignInCancelledError extends Error {
+  constructor() {
+    super('Sign-in cancelled.');
+    this.name = 'SignInCancelledError';
+  }
+}
+
 /** Sign in with Google or Apple, preferring the native account sheet. */
 export async function signInWithProvider(provider: SocialProvider): Promise<void> {
   try {
     if (await signInNatively(provider)) return;
   } catch (err) {
+    // A dismissed sheet is an answer, not a fault. Retrying in the browser
+    // would drag the user through a second sign-in they already declined.
+    if (isUserCancellation(err)) throw new SignInCancelledError();
     console.warn(`[adminAuth] native ${provider} sign-in failed, falling back to browser:`, err);
   }
   await signInViaBrowser(provider);
@@ -233,42 +269,54 @@ export async function signOutAdmin(): Promise<void> {
 }
 
 /**
- * Complete a browser OAuth round trip.
+ * Complete a round trip through the browser or the user's email.
  *
- * Supabase hands the session back either as `?code=` (PKCE) or as tokens in
- * the URL fragment (implicit), depending on the client's flow type, so we
- * accept both shapes.
+ * Three different journeys come back through this one link — social sign-in,
+ * email confirmation, and password reset — and Supabase hands the session
+ * back either as `?code=` (PKCE) or as tokens in the URL fragment (implicit),
+ * depending on the client's flow type. All shapes are accepted, and the kind
+ * is reported so the caller can send a password reset somewhere useful.
  */
-export async function completeOAuthCallback(url: string): Promise<boolean> {
+export async function completeOAuthCallback(url: string): Promise<AuthCallbackKind> {
   try {
     const parsed = new URL(url);
+    const hash = new URLSearchParams(parsed.hash.replace(/^#/, ''));
+
+    // Supabase marks the journey with `type`, in the query string on the PKCE
+    // flow and in the fragment on the implicit one.
+    const isRecovery =
+      parsed.searchParams.get('type') === 'recovery' || hash.get('type') === 'recovery';
 
     const code = parsed.searchParams.get('code');
     if (code) {
       const { error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) throw error;
-      return true;
+      return isRecovery ? 'recovery' : 'session';
     }
 
-    const hash = new URLSearchParams(parsed.hash.replace(/^#/, ''));
     const access_token = hash.get('access_token');
     const refresh_token = hash.get('refresh_token');
     if (access_token && refresh_token) {
       const { error } = await supabase.auth.setSession({ access_token, refresh_token });
       if (error) throw error;
-      return true;
+      return isRecovery ? 'recovery' : 'session';
     }
   } catch (err) {
-    console.error('[adminAuth] OAuth callback failed:', err);
+    console.error('[adminAuth] auth callback failed:', err);
   }
-  return false;
+  return 'none';
 }
 
 /**
- * Listen for the app being reopened by the OAuth deep link. Registered once
+ * Listen for the app being reopened by an auth deep link. Registered once
  * from the native entry point; returns a cleanup function.
+ *
+ * `onComplete` fires only when a session was actually established, so the
+ * caller can react to the kind of link that produced it.
  */
-export function registerAuthDeepLinkHandler(): () => void {
+export function registerAuthDeepLinkHandler(
+  onComplete?: (kind: Exclude<AuthCallbackKind, 'none'>) => void
+): () => void {
   if (!detectNativePlatform()) return () => {};
 
   let removeListener: (() => void) | null = null;
@@ -277,9 +325,10 @@ export function registerAuthDeepLinkHandler(): () => void {
   import('@capacitor/app')
     .then(async ({ App }) => {
       const handle = await App.addListener('appUrlOpen', ({ url }) => {
-        if (url?.startsWith('fleettrackmate://auth')) {
-          void completeOAuthCallback(url);
-        }
+        if (!url?.startsWith('fleettrackmate://auth')) return;
+        void completeOAuthCallback(url).then((kind) => {
+          if (kind !== 'none' && !cancelled) onComplete?.(kind);
+        });
       });
       if (cancelled) handle.remove();
       else removeListener = () => handle.remove();

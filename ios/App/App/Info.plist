@@ -44,18 +44,20 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>FleetTrackMate needs camera access to capture photos for emergency reports and delivery proof.</string>
+	<string>FleetTrackMate uses the camera for delivery proof, station visit photos, shift-start vehicle checks and expense receipts.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>FleetTrackMate needs continuous location access to track your position even when the app is in the background.</string>
+	<string>FleetTrackMate keeps sharing your location with your fleet manager while a shift is running, including when the app is in the background or your screen is off, so your route, stops and station visits are recorded without you having to keep the app open. Tracking stops when you end your shift or disconnect.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>FleetTrackMate needs your location to share your position with your fleet manager.</string>
+	<string>FleetTrackMate shares your live location with your fleet manager while you are on shift, so they can see where you are, route the next job to you, and send help if you raise an SOS.</string>
 	<key>NSMotionUsageDescription</key>
-	<string>FleetTrackMate uses motion data to optimize battery usage during location tracking.</string>
+	<string>FleetTrackMate uses motion data to detect when your vehicle has stopped so it can pause GPS updates and save your battery.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>FleetTrackMate needs photo library access to select photos and videos for emergency reports and delivery proof.</string>
+	<string>FleetTrackMate lets you attach a photo you already have as an expense receipt or a problem report.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>
@@ -68,7 +70,7 @@
 	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>

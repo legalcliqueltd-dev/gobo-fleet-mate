@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Route, Routes, Navigate } from 'react-router-dom';
+import { Route, Routes, Navigate, useNavigate } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -30,6 +30,7 @@ import AdminEntry from '@/pages/app/admin/AdminEntry';
 import AdminLogin from '@/pages/app/admin/AdminLogin';
 import AdminSignup from '@/pages/app/admin/AdminSignup';
 import AdminForgotPassword from '@/pages/app/admin/AdminForgotPassword';
+import AdminUpdatePassword from '@/pages/app/admin/AdminUpdatePassword';
 import AdminAppFleet from '@/pages/app/admin/AdminAppFleet';
 import AdminAppDriverDetail from '@/pages/app/admin/AdminAppDriverDetail';
 import AdminAppDriverHistory from '@/pages/app/admin/AdminAppDriverHistory';
@@ -49,6 +50,30 @@ import AdminAppSettings from '@/pages/app/admin/AdminAppSettings';
 import Privacy from '@/pages/Privacy';
 import Terms from '@/pages/Terms';
 import DeleteAccount from '@/pages/DeleteAccount';
+
+/**
+ * Completes the journeys that leave the app and come back through
+ * `fleettrackmate://auth/callback`: Google and Apple sign-in through the
+ * system browser, email confirmation, and password reset.
+ *
+ * It lives in its own component purely so it can call `useNavigate` — a
+ * password-reset link signs the manager in silently, and without the redirect
+ * below they would land on the fleet map with the password they came to
+ * change still unchanged.
+ */
+function AuthDeepLinks() {
+  const navigate = useNavigate();
+
+  useEffect(
+    () =>
+      registerAuthDeepLinkHandler((kind) => {
+        if (kind === 'recovery') navigate('/app/admin/reset', { replace: true });
+      }),
+    [navigate]
+  );
+
+  return null;
+}
 
 /**
  * Native-only app entry. Built into the iOS and Android Capacitor bundles.
@@ -92,14 +117,12 @@ export default function NativeApp() {
     return () => window.removeEventListener('unhandledrejection', handleRejection);
   }, []);
 
-  // Completes browser-based Google / Apple sign-in when the OS reopens the
-  // app on the fleettrackmate:// callback.
-  useEffect(() => registerAuthDeepLinkHandler(), []);
-
   return (
     <ThemeProvider>
       <AuthProvider>
         <AppRoleProvider>
+          <AuthDeepLinks />
+
           <ErrorBoundary>
             <Routes>
               {/* Shared legal + account pages, linked from both settings screens */}
@@ -189,6 +212,7 @@ export default function NativeApp() {
                       <Route path="admin/login" element={<AdminLogin />} />
                       <Route path="admin/signup" element={<AdminSignup />} />
                       <Route path="admin/forgot" element={<AdminForgotPassword />} />
+                      <Route path="admin/reset" element={<AdminUpdatePassword />} />
                       <Route
                         path="admin/*"
                         element={

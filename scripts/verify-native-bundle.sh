@@ -37,7 +37,16 @@ FORBIDDEN=(
   "Google Play"
   "Play Store"
   "/downloads/FleetTrackMate"    # APK URL prefix
+  "fleettrackmate.com"           # see below
+  "Plans are managed"            # "…on fleettrackmate.com" — same reason
 )
+
+# On the domain: 3.1.3(f) bars "purchasing inside the app, OR calls to action
+# for purchase outside of the app". Telling a locked-out manager where to go
+# and subscribe is the second kind, so the native bundle names no website at
+# all. The Privacy and Terms screens shipped in this bundle deliberately
+# identify the company by name and email rather than by URL, which is why a
+# blanket ban on the domain does not fight them.
 
 # Allow Android (the platform name) to appear because it is referenced by
 # Capacitor's platform-detection utility (Capacitor.getPlatform() === 'android').

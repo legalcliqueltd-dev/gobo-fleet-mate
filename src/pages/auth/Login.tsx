@@ -8,7 +8,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Mail, Lock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import PasswordInput from '@/components/admin/PasswordInput';
 import { Label } from '@/components/ui/label';
+import { friendlyAuthError } from '@/services/authErrors';
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -35,7 +37,7 @@ export default function Login() {
   const onSubmit = async (values: FormValues) => {
     setErrorMsg(null);
     const { error } = await supabase.auth.signInWithPassword(values);
-    if (error) setErrorMsg(error.message);
+    if (error) setErrorMsg(friendlyAuthError(error, 'login'));
     else navigate(redirectTo, { replace: true });
   };
 
@@ -47,7 +49,7 @@ export default function Login() {
         redirectTo: `${window.location.origin}/dashboard`,
       },
     });
-    if (error) setErrorMsg(error.message);
+    if (error) setErrorMsg(friendlyAuthError(error, 'login'));
   };
 
   return (
@@ -84,16 +86,11 @@ export default function Login() {
                   Forgot password?
                 </Link>
               </div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
+              <PasswordInput
                   id="password"
-                  type="password"
                   placeholder="••••••••"
-                  className="pl-10"
-                  {...register('password')}
+                                    {...register('password')}
                 />
-              </div>
               {errors.password && <p className="text-sm text-destructive mt-1">{errors.password.message}</p>}
             </div>
 
