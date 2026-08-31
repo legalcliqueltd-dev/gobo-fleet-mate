@@ -76,7 +76,12 @@ export default function AdminAppLayout({ children }: PropsWithChildren) {
   const title = subRoute?.title ?? activeTab?.title ?? 'Fleet';
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
+    // Centred column. The app is a phone UI and the binary must keep declaring
+    // iPad support (ITMS-90101 forbids dropping it once shipped), so the choice
+    // is between a stretched phone and a deliberate column. On iPhone
+    // max-w-2xl is wider than the screen, making this wrapper inert.
+    <div className="flex h-screen justify-center overflow-hidden bg-muted/40">
+      <div className="flex h-full w-full max-w-2xl flex-col overflow-hidden bg-background">
       <header
         className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur"
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
@@ -135,7 +140,8 @@ export default function AdminAppLayout({ children }: PropsWithChildren) {
         </div>
       </nav>
 
-      {showTutorial && <AdminTutorial onClose={() => setShowTutorial(false)} />}
+        {showTutorial && <AdminTutorial onClose={() => setShowTutorial(false)} />}
+      </div>
     </div>
   );
 }

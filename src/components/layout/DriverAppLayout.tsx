@@ -67,7 +67,12 @@ export default function DriverAppLayout({ children }: PropsWithChildren) {
   };
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
+    // Centred column. The app is a phone UI and the binary must keep declaring
+    // iPad support (ITMS-90101 forbids dropping it once shipped), so the choice
+    // is between a stretched phone and a deliberate column. On iPhone
+    // max-w-2xl is wider than the screen, making this wrapper inert.
+    <div className="flex h-screen justify-center overflow-hidden bg-muted/40">
+      <div className="flex h-full w-full max-w-2xl flex-col overflow-hidden bg-background">
       {/* Header with back button */}
       <header
         className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur"
@@ -154,6 +159,7 @@ export default function DriverAppLayout({ children }: PropsWithChildren) {
           <div className="flex flex-1">{rightNavItems.map(renderNavItem)}</div>
         </div>
       </nav>
+      </div>
     </div>
   );
 }
