@@ -216,6 +216,24 @@ echo "UIBackgroundModes:"
 $PLIST_BUDDY -c "Print :UIBackgroundModes" "$PLIST_PATH" 2>/dev/null || echo "  (not found)"
 
 echo ""
+echo "=== Device family ==="
+# Apple rejects an update that drops a device the previous version supported
+# (ITMS error 90101). 1.0 and 1.0.1 shipped as "1,2", so iPhone-only is not an
+# option here no matter how much the iPad layout wants work — it has to stay
+# "1,2" until a future major version legitimately drops it, which Apple only
+# permits with a new app record. Caught here rather than at upload, because the
+# feedback loop there is an archive, a notarisation wait, and a rejection.
+DEVICE_FAMILY=$(grep -m1 'TARGETED_DEVICE_FAMILY' ios/App/App.xcodeproj/project.pbxproj | sed 's/.*= *//;s/;//;s/"//g' | tr -d ' ')
+if [ "$DEVICE_FAMILY" = "1,2" ]; then
+  echo "✓ TARGETED_DEVICE_FAMILY = 1,2 (iPhone + iPad, as previously shipped)"
+else
+  echo "❌ TARGETED_DEVICE_FAMILY is '$DEVICE_FAMILY', expected '1,2'."
+  echo "   Uploads will fail with ITMS-90101: an update cannot drop a device"
+  echo "   family the previous version supported."
+  exit 1
+fi
+
+echo ""
 echo "=== Native plugin wiring ==="
 # Three separate things have to agree before a notification can fire on iOS,
 # and each has failed silently here before:

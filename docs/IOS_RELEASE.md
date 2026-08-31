@@ -119,13 +119,23 @@ stores for their drivers) and both absent from the declaration.
 iOS dropped at 11 → `arm64`. Added `ITSAppUsesNonExemptEncryption = false` so
 export compliance stops being asked on every upload.
 
-### A judgement call you may want to reverse
+### iPad: not a choice, as it turns out
 
-`TARGETED_DEVICE_FAMILY` was `"1,2"` — the binary offered itself to iPad, which
-means App Review tests it there. There is no iPad layout, and an untested form
-factor invites a 2.4.1 / 4.0 rejection. **It is now iPhone-only (`1`).** If you
-want iPad, revert that one setting in `project.pbxproj` and budget for the
-layout work; it is not a change you should ship untested either way.
+`TARGETED_DEVICE_FAMILY` was briefly set to `1` (iPhone only), on the reasoning
+that shipping an untested form factor invites a 2.4.1 / 4.0 rejection.
+
+Apple rejected the upload outright — **ITMS-90101**: an update may not drop a
+device family the previous version supported, and 1.0 / 1.0.1 both shipped as
+`"1,2"`. Dropping iPad would require a new app record, not an update.
+
+So it is back to `"1,2"` permanently, and `scripts/ios-post-sync.sh` now fails
+the sync if it ever changes — the feedback loop at upload time is an archive, a
+notarisation wait and a rejection, which is far too slow for a one-character
+setting.
+
+The underlying concern stands: App Review will test on iPad and there is no
+iPad layout. That risk is now unavoidable, so it is worth spending the time on
+a layout that at least does not embarrass itself at 1024pt wide.
 
 ### Still open — your call, not a code fix
 
