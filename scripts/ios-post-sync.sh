@@ -234,6 +234,27 @@ else
 fi
 
 echo ""
+echo "=== iPad orientations ==="
+# ITMS-90474: an iPad-capable bundle must offer all four orientations, or the
+# upload is rejected outright. iPad reads UISupportedInterfaceOrientations~ipad
+# when present and falls back to the generic key when not — and the generic key
+# deliberately omits upside-down, because a phone mounted in a vehicle should
+# not flip.
+#
+# This key was silently deleted once already (Xcode prunes it when the device
+# family is set to iPhone-only), and nothing noticed until Apple rejected the
+# build. Hence the check.
+IPAD_ORIENTATIONS=$($PLIST_BUDDY -c "Print :UISupportedInterfaceOrientations~ipad" "$PLIST_PATH" 2>/dev/null | grep -c UIInterfaceOrientation)
+if [ "$IPAD_ORIENTATIONS" = "4" ]; then
+  echo "✓ UISupportedInterfaceOrientations~ipad has all 4 orientations"
+else
+  echo "❌ UISupportedInterfaceOrientations~ipad has $IPAD_ORIENTATIONS orientations, expected 4."
+  echo "   Uploads fail with ITMS-90474: iPad multitasking requires portrait,"
+  echo "   portrait-upside-down, landscape-left and landscape-right."
+  exit 1
+fi
+
+echo ""
 echo "=== Native plugin wiring ==="
 # Three separate things have to agree before a notification can fire on iOS,
 # and each has failed silently here before:
