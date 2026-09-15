@@ -55,6 +55,10 @@ type LocalNotificationsPlugin = {
   checkPermissions: () => Promise<{ display: string }>;
   createChannel: (channel: Record<string, unknown>) => Promise<void>;
   schedule: (options: { notifications: Record<string, unknown>[] }) => Promise<unknown>;
+  addListener: (
+    event: 'localNotificationActionPerformed',
+    handler: (event: { notification?: { extra?: { route?: string } } }) => void
+  ) => Promise<{ remove: () => void }>;
 };
 
 let pluginBox: Promise<{ plugin: LocalNotificationsPlugin | null }> | null = null;
@@ -130,7 +134,7 @@ export async function notify(
   channel: NotificationChannel,
   title: string,
   body: string,
-  extra?: { id?: number }
+  extra?: { id?: number; route?: string }
 ): Promise<void> {
   if (!detectNativePlatform()) return;
 
@@ -161,6 +165,11 @@ export async function notify(
           // favour of the channel's sound.
           sound: config.sound,
           smallIcon: 'ic_stat_directions_car',
+          // Where tapping this should land. Without it a tap merely brings the
+          // app forward on whatever screen it was last showing — which for an
+          // SOS means being told something urgent happened and then having to
+          // go and find it.
+          extra: extra?.route ? { route: extra.route } : undefined,
         },
       ],
     });
@@ -179,4 +188,41 @@ export async function notificationsEnabled(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+
+/**
+ * Route the app when a notification is tapped.
+ *
+ * Nothing listened for this before, so every alert was a dead end: the driver
+ * or manager was told something had happened and left to navigate to it
+ * themselves. For an SOS that is the difference between a tap and a hunt.
+ *
+ * Registered once from the native entry point; returns a cleanup function.
+ */
+export function registerNotificationTapHandler(navigate: (path: string) => void): () => void {
+  if (!detectNativePlatform()) return () => {};
+
+  let remove: (() => void) | null = null;
+  let cancelled = false;
+
+  loadPlugin()
+    .then(async ({ plugin }) => {
+      if (!plugin || cancelled) return;
+      const handle = await plugin.addListener(
+        'localNotificationActionPerformed',
+        (event: { notification?: { extra?: { route?: string } } }) => {
+          const route = event?.notification?.extra?.route;
+          if (route) navigate(route);
+        }
+      );
+      if (cancelled) handle.remove();
+      else remove = () => handle.remove();
+    })
+    .catch((err) => console.warn('[notifications] tap handler failed to attach:', err));
+
+  return () => {
+    cancelled = true;
+    remove?.();
+  };
 }

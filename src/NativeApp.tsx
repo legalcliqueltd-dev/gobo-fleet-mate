@@ -11,6 +11,7 @@ import AdminAppLayout from '@/components/layout/AdminAppLayout';
 import SubscriptionGate from '@/components/admin/SubscriptionGate';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { registerAuthDeepLinkHandler } from '@/services/adminAuth';
+import { registerNotificationTapHandler } from '@/services/notifications';
 
 import AppEntry from '@/pages/app/AppEntry';
 import RoleSelect from '@/pages/app/RoleSelect';
@@ -76,6 +77,25 @@ function AuthDeepLinks() {
 }
 
 /**
+ * Tapping an alert takes you to it.
+ *
+ * Nothing listened for notification taps before, so every alert was a dead
+ * end: the app came forward on whatever screen it last showed, and being told
+ * an SOS had arrived still left you to go and find it. For the one alert that
+ * is genuinely urgent, that is the whole value of the notification lost.
+ */
+function NotificationTaps() {
+  const navigate = useNavigate();
+
+  useEffect(
+    () => registerNotificationTapHandler((path) => navigate(path)),
+    [navigate]
+  );
+
+  return null;
+}
+
+/**
  * Native-only app entry. Built into the iOS and Android Capacitor bundles.
  *
  * Ships BOTH faces of the product behind a one-time mode picker:
@@ -122,6 +142,7 @@ export default function NativeApp() {
       <AuthProvider>
         <AppRoleProvider>
           <AuthDeepLinks />
+          <NotificationTaps />
 
           <ErrorBoundary>
             <Routes>

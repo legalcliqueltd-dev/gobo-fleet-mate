@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
-import { AlertTriangle, CheckCircle2, ExternalLink, Loader2, MapPin, ShieldCheck, Trash2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ExternalLink, Loader2, MapPin, ShieldCheck, Trash2, X } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,6 +40,7 @@ export default function AdminAppAlerts() {
   // incident list and the rest of the fleet stay one dismiss away.
   const [sheet, setSheet] = useState<SheetFocus | null>(null);
   const [clearOpen, setClearOpen] = useState(false);
+  const [photo, setPhoto] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
 
   const active = useMemo(() => recentSOS.filter((e) => !isClosed(e.status)), [recentSOS]);
@@ -127,12 +128,23 @@ export default function AdminAppAlerts() {
           )}
 
           {event.photo_url && (
-            <img
-              src={event.photo_url}
-              alt="Photo sent with the alert"
-              className="mt-2.5 h-32 w-full rounded-lg object-cover"
-              loading="lazy"
-            />
+            // Tappable, because this is evidence. object-cover on a 128px strip
+            // crops exactly the detail the driver photographed — a damaged
+            // vehicle, a blocked road, whoever is standing there — so the
+            // thumbnail has to open into something you can actually examine.
+            <button
+              type="button"
+              onClick={() => setPhoto(event.photo_url!)}
+              className="mt-2.5 block w-full overflow-hidden rounded-lg"
+              aria-label="View the photo sent with this alert"
+            >
+              <img
+                src={event.photo_url}
+                alt="Photo sent with the alert"
+                className="h-32 w-full object-cover transition-opacity hover:opacity-90"
+                loading="lazy"
+              />
+            </button>
           )}
 
           <div className="mt-3 flex gap-2">
@@ -216,6 +228,28 @@ export default function AdminAppAlerts() {
       </div>
 
       <LocationSheet focus={sheet} onClose={() => setSheet(null)} />
+
+      {/* Evidence viewer. Plain image on a black ground — nothing cropped, and
+          no styling that could be mistaken for part of the photograph. */}
+      {photo && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 p-4"
+          onClick={() => setPhoto(null)}
+          role="dialog"
+          aria-label="Photo sent with the alert"
+        >
+          <button
+            type="button"
+            onClick={() => setPhoto(null)}
+            aria-label="Close"
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white"
+            style={{ marginTop: 'env(safe-area-inset-top, 0px)' }}
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <img src={photo} alt="" className="max-h-full max-w-full object-contain" />
+        </div>
+      )}
 
       <ConfirmDialog
         open={clearOpen}

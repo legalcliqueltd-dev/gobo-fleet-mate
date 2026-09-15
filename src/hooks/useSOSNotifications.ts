@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { notify } from '@/services/notifications';
+import { detectNativePlatform } from '@/utils/platformDetection';
 
 export interface SOSEventWithDriver {
   id: string;
@@ -183,14 +185,31 @@ export function useSOSNotifications(): UseSOSNotificationsReturn {
 
         // list is already ordered desc by created_at, so the first newly-opened is typically the newest
         const newest = newlyOpened[0];
+        // `/ops/incidents` exists only in the web bundle. In the native admin
+        // app this dead-ended at the catch-all redirect, so "View" on an SOS
+        // toast took the manager back to the dashboard — told that something
+        // urgent had happened, and then shown nothing.
+        const incidentsRoute = detectNativePlatform() ? '/app/admin/alerts' : '/ops/incidents';
+
         toast.error(`New SOS Alert: ${String(newest.hazard || 'SOS').toUpperCase()} from ${newest.driver_name}`,
           {
             duration: 10000,
             action: {
               label: 'View',
-              onClick: () => (window.location.href = '/ops/incidents'),
+              onClick: () => (window.location.href = incidentsRoute),
             },
           }
+        );
+
+        // A toast only reaches a manager who already has the app open and is
+        // looking at it. An SOS is the one alert that must survive the app
+        // being in someone's pocket, so post a real notification too — with
+        // its own sound, and a route so tapping it lands on the incident.
+        void notify(
+          'alerts',
+          `SOS — ${String(newest.hazard || 'emergency').replace(/_/g, ' ')}`,
+          `${newest.driver_name || 'A driver'} needs help. Tap to see where.`,
+          { route: incidentsRoute }
         );
         setUnreadIds((prev) => new Set(prev).add(newest.id));
       }
