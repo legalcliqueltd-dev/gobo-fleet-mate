@@ -3,9 +3,9 @@ import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { trackingService } from '@/services/trackingService';
-import { useTrackingService } from '@/hooks/useTrackingService';
+import { useTrackingService, useTrackingWarning } from '@/hooks/useTrackingService';
 import DriverGoogleMap, { type DriverGoogleMapHandle } from '@/components/map/google/DriverGoogleMap';
-import { Crosshair, Wifi, Signal, Layers, MapPin } from 'lucide-react';
+import { Crosshair, Wifi, Signal, Layers, MapPin, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getRouteStrokeColor } from '@/lib/mapStyles';
@@ -104,6 +104,7 @@ export default function DriverAppDashboard() {
   // idempotent — it will not restart an already-running tracker.
   // We never call stop() here; only the user's "Off Duty" toggle does.
   const trackingState = useTrackingService();
+  const trackingWarning = useTrackingWarning();
   const isTracking = trackingState.isTracking;
   const batteryLevel = trackingState.batteryLevel;
   const lastUpdate = trackingState.lastSyncTime;
@@ -311,6 +312,22 @@ export default function DriverAppDashboard() {
           taskTitle={navigatingTask.title}
           onClose={() => setNavigatingTask(null)}
         />
+      )}
+
+      {/* A permission problem stops tracking silently — the app still looks
+          on duty while recording nothing. Say so, loudly, above the map. */}
+      {trackingWarning && (
+        <div className="shrink-0 border-b border-destructive/30 bg-destructive/10 px-4 py-3">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-destructive">Tracking is not running</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-foreground/80">
+                {trackingWarning.message}
+              </p>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="relative h-full w-full flex flex-col min-h-0">

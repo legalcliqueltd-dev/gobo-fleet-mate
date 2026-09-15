@@ -26,3 +26,32 @@ export function useTrackingService(): TrackingState {
 
   return state;
 }
+
+export interface TrackingWarning {
+  code: 'NOT_AUTHORIZED' | 'NEEDS_ALWAYS_PERMISSION';
+  message: string;
+}
+
+/**
+ * Permission problems that silently stop tracking.
+ *
+ * Kept separate from TrackingState because these are not states the service
+ * moves through — they are conditions the driver has to go and fix in the OS
+ * settings, and until they do, the app looks like it is tracking while
+ * recording nothing. That gap between "appears on duty" and "is actually
+ * reporting" is the whole failure this surfaces.
+ */
+export function useTrackingWarning(): TrackingWarning | null {
+  const [warning, setWarning] = useState<TrackingWarning | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<TrackingWarning>).detail;
+      if (detail?.code) setWarning(detail);
+    };
+    trackingService.addEventListener('error', handler as EventListener);
+    return () => trackingService.removeEventListener('error', handler as EventListener);
+  }, []);
+
+  return warning;
+}

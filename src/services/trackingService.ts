@@ -17,7 +17,8 @@
  * On the web/PWA we use navigator.geolocation.watchPosition.
  */
 
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+import type { BackgroundGeolocationPlugin } from '@capacitor-community/background-geolocation';
 import { Geolocation } from '@capacitor/geolocation';
 import { supabase } from '@/integrations/supabase/client';
 import { detectNativePlatform, isAndroid, isIOS } from '@/utils/platformDetection';
@@ -83,6 +84,8 @@ class TrackingService extends EventTarget {
   };
 
   private BackgroundGeolocation: any = null;
+  private androidWatcher: any = null;
+  private androidWatcherId: string | null = null;
   private listenerSubscriptions: Array<{ remove: () => void }> = [];
   private syncRetryTimer: ReturnType<typeof setInterval> | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
@@ -208,6 +211,15 @@ class TrackingService extends EventTarget {
       }
     }
 
+    if (this.androidWatcherId && this.androidWatcher) {
+      try {
+        await this.androidWatcher.removeWatcher({ id: this.androidWatcherId });
+      } catch (e) {
+        console.warn('[TrackingService] removeWatcher failed:', e);
+      }
+      this.androidWatcherId = null;
+    }
+
     if (this.nativeWatchId) {
       try {
         await Geolocation.clearWatch({ id: this.nativeWatchId });
@@ -227,6 +239,10 @@ class TrackingService extends EventTarget {
       this.androidPollTimer = null;
     }
 
+    // The capawesome foreground service no longer runs on the Android path —
+    // @capacitor-community/background-geolocation owns that notification now.
+    // Still stopped here because a device upgrading from an older build can
+    // have the old service running, and nothing else would ever shut it down.
     await stopAndroidForegroundService();
 
     this.removeListeners();
@@ -349,6 +365,36 @@ class TrackingService extends EventTarget {
 
     await BG.start();
 
+    // Verify what iOS ACTUALLY granted.
+    //
+    // locationAuthorizationRequest: 'Always' above is a request, not an
+    // outcome. iOS offers "While Using" first and defers "Always" to a second
+    // prompt it may show much later — so a driver who taps "While Using" gets
+    // a plugin that starts cleanly, reports no error, and then stops
+    // delivering the moment they leave the app. Nothing here noticed, which is
+    // why iOS showed the same symptom as Android for a completely different
+    // reason.
+    //
+    // Status 3 is AUTHORIZATION_STATUS_ALWAYS; 4 is WHEN_IN_USE.
+    try {
+      const providerState = await BG.getProviderState();
+      const status = providerState?.status;
+      if (status != null && status !== BG.AUTHORIZATION_STATUS_ALWAYS) {
+        console.warn('[TrackingService] iOS granted', status, '— not Always');
+        this.dispatchEvent(
+          new CustomEvent('error', {
+            detail: {
+              code: 'NEEDS_ALWAYS_PERMISSION',
+              message:
+                'Location is set to "While Using the App". Tracking will stop when you leave FleetTrackMate — set it to "Always" to stay on duty.',
+            },
+          })
+        );
+      }
+    } catch (e) {
+      console.warn('[TrackingService] could not read provider state:', e);
+    }
+
     this.startNativeCountPoll();
     await this.mirrorNativeQueue();
     await this.pollNativeCount();
@@ -411,76 +457,78 @@ class TrackingService extends EventTarget {
 
   // ─── Android (Capacitor Geolocation + Foreground Service) ────────
   private async startAndroid() {
-    if (!isGeolocationPluginAvailable()) {
-      console.warn('[TrackingService] Capacitor Geolocation plugin unavailable');
-      return;
-    }
+    // Capacitor's Geolocation.watchPosition used to drive this, and it is the
+    // reason tracking "stopped when you left the app": that watcher delivers
+    // into the WebView, and Android freezes WebView JS under Doze within
+    // minutes of backgrounding. The setInterval backup died the same way. The
+    // result was a fix at start, nothing during the journey, and another fix
+    // when the app was reopened — two points, joined by a straight line.
+    //
+    // @capacitor-community/background-geolocation runs a real foreground
+    // service instead, so the OS keeps delivering while the app is away. The
+    // notification is not decoration: on Android it is what BUYS the
+    // background permission, and it is also the honest disclosure that a
+    // driver is being tracked.
+    // This package ships no JS entry point — only native code and types — so
+    // it is bound through Capacitor's registry rather than imported.
+    const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>(
+      'BackgroundGeolocation'
+    );
+    this.androidWatcher = BackgroundGeolocation;
 
-    const permission = await Geolocation.checkPermissions();
-    if (permission.location !== 'granted') {
-      const req = await Geolocation.requestPermissions();
-      if (req.location !== 'granted') {
-        throw new Error('Location permission denied');
-      }
-    }
-
-    const fgStarted = await startAndroidForegroundService();
-    if (!fgStarted) {
-      // Without the foreground service Android will freeze us shortly after
-      // the app is backgrounded — tracking would silently become foreground-only.
-      console.error('[TrackingService] FOREGROUND SERVICE FAILED TO START — background tracking will not survive minimizing the app. Check notification permission / service declaration.');
-    }
-
-    // Initial fix
     try {
-      const pos = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0,
-      });
-      if (pos) this.handlePosition(pos.coords);
-    } catch (e) {
-      console.warn('[TrackingService] Initial fix failed:', e);
-    }
-
-    // PRIMARY: native watchPosition. The OS pushes fixes into the WebView via
-    // the plugin bridge, so updates keep flowing while the app is backgrounded.
-    // (The previous setInterval polling died in background: Chromium throttles
-    // and then freezes JS timers a few minutes after minimizing — that was the
-    // "only tracks while the app is open" bug.)
-    try {
-      this.nativeWatchId = await Geolocation.watchPosition(
-        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 },
-        (pos, err) => {
-          if (err) {
-            console.warn('[TrackingService] watchPosition error:', err);
+      this.androidWatcherId = await BackgroundGeolocation.addWatcher(
+        {
+          // Defining backgroundMessage is what enables background delivery.
+          // Without it the plugin only guarantees foreground updates.
+          backgroundMessage: 'Sharing your location with your fleet manager.',
+          backgroundTitle: 'FleetTrackMate — on duty',
+          requestPermissions: true,
+          // Never accept a cached fix: a stale point plotted as current is
+          // worse than a gap, because it reads as the driver being somewhere
+          // they are not.
+          stale: false,
+          // Every 15 m. Tight enough that the drawn line follows the road
+          // rather than cutting corners, loose enough not to log a point per
+          // second while stationary at a junction.
+          distanceFilter: 15,
+        },
+        (position, error) => {
+          if (error) {
+            if (error.code === 'NOT_AUTHORIZED') {
+              // Permission refused or location services off. The driver has to
+              // fix this in Settings; nothing we retry here will help.
+              this.dispatchEvent(
+                new CustomEvent('error', {
+                  detail: {
+                    code: 'NOT_AUTHORIZED',
+                    message:
+                      'Location permission is off. Tracking cannot run until it is allowed all the time.',
+                  },
+                })
+              );
+            }
+            console.warn('[TrackingService] background watcher error:', error);
             return;
           }
-          if (pos) this.handlePosition(pos.coords);
+          if (!position) return;
+
+          this.handlePosition({
+            latitude: position.latitude,
+            longitude: position.longitude,
+            accuracy: position.accuracy,
+            altitude: position.altitude,
+            altitudeAccuracy: position.altitudeAccuracy,
+            heading: position.bearing,
+            speed: position.speed,
+          });
         }
       );
-      console.log('[TrackingService] Native watchPosition active:', this.nativeWatchId);
+      console.log('[TrackingService] background watcher active:', this.androidWatcherId);
     } catch (e) {
-      console.warn('[TrackingService] watchPosition failed, falling back to polling only:', e);
+      console.error('[TrackingService] addWatcher failed:', e);
+      throw e;
     }
-
-    // BACKUP: slow poll to nudge a fix if the watcher goes quiet while the app
-    // is foregrounded (timers only run reliably in foreground — that's fine,
-    // the watcher covers background).
-    this.androidPollTimer = setInterval(async () => {
-      try {
-        const last = this.state.lastLocation?.timestamp?.getTime() ?? 0;
-        if (Date.now() - last < 45_000) return; // watcher is healthy
-        const pos = await Geolocation.getCurrentPosition({
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 5000,
-        });
-        if (pos) this.handlePosition(pos.coords);
-      } catch (e) {
-        console.warn('[TrackingService] Android backup poll failed:', e);
-      }
-    }, 60_000);
   }
 
   // ─── Web / PWA ────────────────────────────────────────────────

@@ -1,6 +1,16 @@
 #!/bin/bash
 # Post-sync script for Android
-# Removes Transistorsoft plugin from Android build (it's iOS-only)
+# Removes the Transistorsoft plugin from the Android build.
+#
+# NOT because it is iOS-only — it ships a full Android implementation. It is
+# removed because the Android module requires a PAID LICENCE for release
+# builds (its own README: "will not work with RELEASE builds without
+# purchasing a license"). iOS needs no licence, which is why it stays there.
+#
+# Android background tracking is handled by
+# @capacitor-community/background-geolocation (MIT) instead. If a Transistorsoft
+# licence is ever purchased, delete this stripping and configure the key —
+# that plugin's motion detection is materially better for battery.
 # Verifies @capacitor/geolocation and @capacitor/camera plugins are preserved
 # Ensures AndroidManifest.xml has required permissions and features
 # Run after: npx cap sync android
@@ -72,7 +82,7 @@ if [ -f "$PLUGINS_JSON" ] && grep -qi "transistorsoft" "$PLUGINS_JSON"; then
 fi
 
 echo ""
-echo "[OK] Android build cleaned - Transistorsoft plugin removed (iOS-only)"
+echo "[OK] Transistorsoft stripped from Android (paid licence); using @capacitor-community/background-geolocation"
 echo ""
 
 if [ -f "$ANDROID_DIR/app/src/main/assets/capacitor.config.json" ] && grep -q '"server"' "$ANDROID_DIR/app/src/main/assets/capacitor.config.json"; then

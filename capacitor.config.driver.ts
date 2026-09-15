@@ -31,7 +31,12 @@ const config: CapacitorConfig = {
     '@capacitor/haptics',
     '@capacitor/keyboard',
     '@capacitor/status-bar',
-    // Keeps tracking alive while the app is backgrounded on Android
+    // Real background location on Android: a foreground service the OS keeps
+    // delivering to, rather than a WebView watcher Doze freezes minutes after
+    // the driver leaves the app.
+    '@capacitor-community/background-geolocation',
+    // Legacy: still used by the web driver dashboard, and stopped on upgrade
+    // so a service from an older build cannot be orphaned.
     '@capawesome-team/capacitor-android-foreground-service',
     '@transistorsoft/capacitor-background-geolocation',
     '@transistorsoft/capacitor-background-fetch',
