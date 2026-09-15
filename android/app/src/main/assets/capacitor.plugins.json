@@ -20,6 +20,10 @@
 		"classpath": "ee.forgr.capacitor.social.login.SocialLoginPlugin"
 	},
 	{
+		"pkg": "@capacitor-community/background-geolocation",
+		"classpath": "com.equimaps.capacitor_background_geolocation.BackgroundGeolocation"
+	},
+	{
 		"pkg": "@capawesome-team/capacitor-android-foreground-service",
 		"classpath": "io.capawesome.capacitorjs.plugins.foregroundservice.ForegroundServicePlugin"
 	}

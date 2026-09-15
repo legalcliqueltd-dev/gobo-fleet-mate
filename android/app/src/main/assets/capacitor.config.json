@@ -12,6 +12,7 @@
 		"@capacitor/haptics",
 		"@capacitor/keyboard",
 		"@capacitor/status-bar",
+		"@capacitor-community/background-geolocation",
 		"@capawesome-team/capacitor-android-foreground-service",
 		"@transistorsoft/capacitor-background-geolocation",
 		"@transistorsoft/capacitor-background-fetch"
