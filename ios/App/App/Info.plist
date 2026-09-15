@@ -56,6 +56,8 @@
 	<string>FleetTrackMate shares your live location with your fleet manager while you are on shift, so they can see where you are, route the next job to you, and send help if you raise an SOS.</string>
 	<key>NSMotionUsageDescription</key>
 	<string>FleetTrackMate uses motion data to detect when your vehicle has stopped so it can pause GPS updates and save your battery.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Required by the camera component. FleetTrackMate does not add any photos to your library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>FleetTrackMate lets you attach a photo you already have as an expense receipt or a problem report.</string>
 	<key>UIBackgroundModes</key>

@@ -86,6 +86,13 @@ echo ""
 echo "=== Camera & Media Permissions ==="
 add_string_key "NSCameraUsageDescription" "FleetTrackMate uses the camera for delivery proof, station visit photos, shift-start vehicle checks and expense receipts."
 add_string_key "NSPhotoLibraryUsageDescription" "FleetTrackMate lets you attach a photo you already have as an expense receipt or a problem report."
+# REQUIRED EVEN THOUGH WE NEVER SAVE TO THE LIBRARY.
+# CameraPlugin.swift checks CameraPropertyListKeys.allCases unconditionally at
+# the top of getPhoto() and rejects the call if ANY of the three is absent —
+# saveToGallery:false does not exempt it. The May 2026 audit removed this key
+# on the reasoning that we do not write to the library, which silently broke
+# the camera on every iOS build since.
+add_string_key "NSPhotoLibraryAddUsageDescription" "Required by the camera component. FleetTrackMate does not add any photos to your library."
 
 echo ""
 echo "=== App Store hygiene ==="
@@ -198,7 +205,7 @@ echo ""
 # Verification - show all permission-related keys
 echo "📋 Verification (current values):"
 echo "─────────────────────────────────"
-for key in "NSLocationWhenInUseUsageDescription" "NSLocationAlwaysAndWhenInUseUsageDescription" "NSMotionUsageDescription" "NSCameraUsageDescription" "NSPhotoLibraryUsageDescription"; do
+for key in "NSLocationWhenInUseUsageDescription" "NSLocationAlwaysAndWhenInUseUsageDescription" "NSMotionUsageDescription" "NSCameraUsageDescription" "NSPhotoLibraryUsageDescription" "NSPhotoLibraryAddUsageDescription"; do
   value=$($PLIST_BUDDY -c "Print :$key" "$PLIST_PATH" 2>/dev/null)
   if [ $? -eq 0 ]; then
     # Truncate long values for display
