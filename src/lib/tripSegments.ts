@@ -191,10 +191,12 @@ export function summarise(segments: Segment[]): DaySummary {
 /** "1 h 12 m" / "43 m" — compact enough for a timeline row. */
 export function formatDuration(minutes: number): string {
   const rounded = Math.round(minutes);
-  if (rounded < 60) return `${rounded} m`;
+  // "min", never "m". These durations sit directly beside distances in km, and
+  // "2 m" next to "1.0 km" reads as two metres.
+  if (rounded < 60) return `${rounded} min`;
   const hours = Math.floor(rounded / 60);
   const rest = rounded % 60;
-  return rest ? `${hours} h ${rest} m` : `${hours} h`;
+  return rest ? `${hours} h ${rest} min` : `${hours} h`;
 }
 
 /** Every point in the day, for fitting the map to the whole route. */

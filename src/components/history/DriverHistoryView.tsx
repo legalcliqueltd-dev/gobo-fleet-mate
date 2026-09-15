@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Circle, GoogleMap, Marker, Polyline, useJsApiLoader } from '@react-google-maps/api';
 import {
   CalendarDays,
@@ -158,7 +158,7 @@ export default function DriverHistoryView({
   return (
     <div className="flex h-full flex-col lg:grid lg:h-auto lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-4">
       {/* ── Map ── */}
-      <div className="relative h-[42vh] shrink-0 overflow-hidden border-b border-border lg:h-[620px] lg:rounded-xl lg:border">
+      <div className="relative h-[52vh] shrink-0 overflow-hidden border-b border-border lg:h-[640px] lg:rounded-xl lg:border">
         {isLoaded ? (
           <GoogleMap
             mapContainerStyle={{ width: '100%', height: '100%' }}
@@ -175,22 +175,60 @@ export default function DriverHistoryView({
               styles: mapType === 'roadmap' ? getNavMapStyle(isDark) : undefined,
             }}
           >
-            {/* Route. A casing stroke under the line keeps it legible over
-                both pale roads and satellite imagery. */}
+            {/* Route.
+                Drawn as TWO strokes per trip: a dark casing underneath and a
+                bright core on top. A single flat line disappears against pale
+                roads and against satellite imagery alike — the casing is what
+                keeps it readable on both. (The previous code promised this in
+                a comment but only ever drew one stroke.)
+
+                Arrowheads are spaced along the path because a route without
+                direction cannot answer the question people actually ask of
+                it: which way did they go, and in what order. */}
             {trips.map((trip, index) => {
               const globalIndex = segments.indexOf(trip);
               const dimmed = selected != null && selected !== globalIndex;
+              const core = dimmed ? '#94a3b8' : accent;
+
               return (
-                <Polyline
-                  key={`trip-${index}`}
-                  path={trip.path}
-                  options={{
-                    strokeColor: dimmed ? '#94a3b8' : accent,
-                    strokeOpacity: dimmed ? 0.35 : 0.95,
-                    strokeWeight: dimmed ? 3 : 5,
-                    zIndex: dimmed ? 1 : 3,
-                  }}
-                />
+                <Fragment key={`trip-${index}`}>
+                  <Polyline
+                    path={trip.path}
+                    options={{
+                      strokeColor: isDark ? '#0b1220' : '#ffffff',
+                      strokeOpacity: dimmed ? 0.3 : 0.85,
+                      strokeWeight: dimmed ? 6 : 9,
+                      zIndex: dimmed ? 1 : 2,
+                      clickable: false,
+                    }}
+                  />
+                  <Polyline
+                    path={trip.path}
+                    onClick={() => setSelected(globalIndex)}
+                    options={{
+                      strokeColor: core,
+                      strokeOpacity: dimmed ? 0.45 : 1,
+                      strokeWeight: dimmed ? 3 : 5,
+                      zIndex: dimmed ? 2 : 3,
+                      icons: dimmed
+                        ? undefined
+                        : [
+                            {
+                              icon: {
+                                path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                                scale: 2.6,
+                                fillColor: core,
+                                fillOpacity: 1,
+                                strokeColor: isDark ? '#0b1220' : '#ffffff',
+                                strokeWeight: 1.4,
+                              },
+                              offset: '6%',
+                              repeat: '110px',
+                            },
+                          ],
+                    }}
+                  />
+                </Fragment>
               );
             })}
 
@@ -270,41 +308,75 @@ export default function DriverHistoryView({
               ) : null
             )}
 
-            {/* Start / end of the day */}
+            {/* Start and end of the day.
+                Previously two bare coloured dots: on a route that loops back
+                on itself, nothing told you which end was the beginning. They
+                now carry letters, and sit above everything else. */}
             {start && (
               <Marker
                 position={start}
-                zIndex={6}
-                title="First movement"
+                zIndex={7}
+                title="First movement of the day"
                 icon={{
                   path: google.maps.SymbolPath.CIRCLE,
-                  scale: 8,
+                  scale: 11,
                   fillColor: '#16a34a',
                   fillOpacity: 1,
                   strokeColor: '#ffffff',
                   strokeWeight: 3,
                 }}
+                label={{ text: 'A', color: '#ffffff', fontSize: '11px', fontWeight: '700' }}
               />
             )}
             {finish && (
               <Marker
                 position={finish}
-                zIndex={6}
+                zIndex={7}
                 title="Last known position"
                 icon={{
                   path: google.maps.SymbolPath.CIRCLE,
-                  scale: 8,
+                  scale: 11,
                   fillColor: '#dc2626',
                   fillOpacity: 1,
                   strokeColor: '#ffffff',
                   strokeWeight: 3,
                 }}
+                label={{ text: 'B', color: '#ffffff', fontSize: '11px', fontWeight: '700' }}
               />
             )}
           </GoogleMap>
         ) : (
           <div className="flex h-full items-center justify-center bg-muted">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        )}
+
+        {/* Legend. Three colours were carrying three different meanings with
+            nothing on screen to say so. Sits top-left, clear of the satellite
+            toggle and of the "Show whole day" pill at the bottom. */}
+        {segments.length > 0 && (
+          <div
+            className="pointer-events-none absolute left-3 top-3 flex flex-col gap-1 rounded-lg bg-background/90 px-2.5 py-2 backdrop-blur"
+            style={{ boxShadow: 'var(--shadow-card)' }}
+          >
+            <span className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+              <span className="h-2 w-2 rounded-full bg-success" />
+              A — started
+            </span>
+            <span className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+              <span className="h-2 w-2 rounded-full bg-destructive" />
+              B — ended
+            </span>
+            <span className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+              <span className="h-0.5 w-4 rounded-full" style={{ backgroundColor: accent }} />
+              driven
+            </span>
+            {summary.darkMinutes > 0 && (
+              <span className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
+                <span className="h-0.5 w-4 rounded-full bg-warning" />
+                no signal
+              </span>
+            )}
           </div>
         )}
 
