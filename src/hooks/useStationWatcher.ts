@@ -41,6 +41,8 @@ export function useStationWatcher(
   const [loading, setLoading] = useState(true);
   /** Station the driver is physically inside right now, if any. */
   const [insideStation, setInsideStation] = useState<Station | null>(null);
+  /** Seconds left on the dwell requirement, so the wait is visible. */
+  const [dwellRemaining, setDwellRemaining] = useState<number | null>(null);
 
   /** station id -> when we first saw them inside the radius this stay */
   const insideSince = useRef<Record<string, number>>({});
@@ -50,6 +52,26 @@ export function useStationWatcher(
   const recorded = useRef<Set<string>>(new Set());
   /** recent speeds for the motion check */
   const speedBuffer = useRef<number[]>([]);
+
+  /**
+   * Ticks the dwell check on a clock instead of on movement.
+   *
+   * THE BUG THIS FIXES: the native watcher uses a 15 m distanceFilter, so a
+   * driver who parks and sits still produces NO further position updates. The
+   * dwell check lived in an effect keyed on position, so it ran once on
+   * arrival — when dwell was zero — and then never again. The arrival only
+   * fired when GPS drift eventually crossed 15 m, which is why standing in the
+   * office for the required minute did nothing and it took closer to an hour.
+   *
+   * The "You are at X" chip appeared because that single fix set it, which is
+   * what made the failure so confusing: the app plainly knew he was there.
+   */
+  const [dwellTick, setDwellTick] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setDwellTick((t) => t + 1), 5000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!session) return;
@@ -107,7 +129,11 @@ export function useStationWatcher(
         // Left the area — reset the stay so the dwell timer starts fresh.
         delete insideSince.current[station.id];
         delete closest.current[station.id];
-        setInsideStation((current) => (current?.id === station.id ? null : current));
+        setInsideStation((current) => {
+          if (current?.id !== station.id) return current;
+          setDwellRemaining(null);
+          return null;
+        });
         return;
       }
 
@@ -120,6 +146,13 @@ export function useStationWatcher(
       );
 
       const dwellSeconds = Math.round((now - insideSince.current[station.id]) / 1000);
+
+      // Surface the countdown. Waiting with no feedback is indistinguishable
+      // from the feature being broken — which is how this looked in the field.
+      if (!recorded.current.has(station.id)) {
+        setDwellRemaining(Math.max(0, station.min_dwell_seconds - dwellSeconds));
+      }
+
       if (dwellSeconds < station.min_dwell_seconds) return;
       if (recorded.current.has(station.id)) return;
 
@@ -163,12 +196,12 @@ export function useStationWatcher(
         console.warn(`[useStationWatcher] ${station.name}: ${motion.reason}`);
       }
     });
-  }, [position?.lat, position?.lng, stations, session, accuracy, refresh]);
+  }, [position?.lat, position?.lng, stations, session, accuracy, refresh, dwellTick]);
 
   const visitFor = useCallback(
     (stationId: string) => visits.find((v) => v.station_id === stationId) ?? null,
     [visits]
   );
 
-  return { stations, visits, loading, refresh, visitFor, insideStation };
+  return { stations, visits, loading, refresh, visitFor, insideStation, dwellRemaining };
 }

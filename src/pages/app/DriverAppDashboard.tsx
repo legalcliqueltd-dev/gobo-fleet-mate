@@ -258,6 +258,7 @@ export default function DriverAppDashboard() {
     visitFor,
     refresh: refreshStations,
     insideStation,
+    dwellRemaining,
   } = useStationWatcher(currentLocation, speed, accuracy, session);
 
   const stationPins = stations.map((s) => {
@@ -442,6 +443,11 @@ export default function DriverAppDashboard() {
               <MapPin className="h-4 w-4 shrink-0" />
               <span className="truncate text-xs font-semibold">
                 You are at {insideStation.name}
+                {dwellRemaining != null && dwellRemaining > 0 && (
+                  <span className="ml-1 font-normal opacity-90">
+                    · receipt unlocks in {dwellRemaining}s
+                  </span>
+                )}
               </span>
             </div>
           </div>
