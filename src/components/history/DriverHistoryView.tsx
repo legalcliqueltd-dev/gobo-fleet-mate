@@ -156,9 +156,14 @@ export default function DriverHistoryView({
   const finish = trips[trips.length - 1]?.path.slice(-1)[0];
 
   return (
-    <div className="flex h-full flex-col lg:grid lg:h-auto lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-4">
+    // On a phone this scrolls as ONE column. Pinning it to the viewport meant
+    // the map took 52vh, the date strip, stats and warning took the rest, and
+    // the timeline — the entire reason for the page — was left a ~45px slot
+    // showing half a row. Desktop keeps the fixed two-pane below, where there
+    // is genuinely room for both.
+    <div className="flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-4">
       {/* ── Map ── */}
-      <div className="relative h-[52vh] shrink-0 overflow-hidden border-b border-border lg:h-[640px] lg:rounded-xl lg:border">
+      <div className="relative h-[44vh] min-h-[240px] shrink-0 overflow-hidden border-b border-border lg:h-[640px] lg:min-h-0 lg:rounded-xl lg:border">
         {isLoaded ? (
           <GoogleMap
             mapContainerStyle={{ width: '100%', height: '100%' }}
@@ -401,7 +406,7 @@ export default function DriverHistoryView({
       </div>
 
       {/* ── Day picker, summary, timeline ── */}
-      <div className="flex min-h-0 flex-1 flex-col lg:h-[620px]">
+      <div className="flex flex-col lg:h-[620px] lg:min-h-0">
         {/* Day strip — today first, scrolling back through the month, with a
             date picker for anything older. */}
         <div className="flex items-center gap-2 border-b border-border px-3 py-2.5">
@@ -478,7 +483,7 @@ export default function DriverHistoryView({
         )}
 
         {/* Timeline */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">
+        <div className="px-3 pb-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
