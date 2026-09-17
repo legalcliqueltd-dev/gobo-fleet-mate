@@ -40,6 +40,7 @@ import AdminAppAddDriver from '@/pages/app/admin/AdminAppAddDriver';
 import AdminAppCodes from '@/pages/app/admin/AdminAppCodes';
 import AdminAppExpenses from '@/pages/app/admin/AdminAppExpenses';
 import AdminAppReports from '@/pages/app/admin/AdminAppReports';
+import AdminAppHistory from '@/pages/app/admin/AdminAppHistory';
 import AdminAppDailyReport from '@/pages/app/admin/AdminAppDailyReport';
 import AdminAppStations from '@/pages/app/admin/AdminAppStations';
 import AdminAppStationDetail from '@/pages/app/admin/AdminAppStationDetail';
@@ -248,6 +249,7 @@ export default function NativeApp() {
                                 <Route path="jobs/new" element={<SubscriptionGate feature="Assigning jobs" reason="Sending work to a driver.">{<AdminAppCreateJob />}</SubscriptionGate>} />
                                 <Route path="expenses" element={<SubscriptionGate feature="Expenses" reason="Approving what your drivers spend.">{<AdminAppExpenses />}</SubscriptionGate>} />
                                 <Route path="reports" element={<SubscriptionGate feature="Checks and problems" reason="Vehicle faults raised by drivers.">{<AdminAppReports />}</SubscriptionGate>} />
+                                <Route path="history" element={<SubscriptionGate feature="History" reason="Route replay for any driver.">{<AdminAppHistory />}</SubscriptionGate>} />
                                 <Route path="today" element={<SubscriptionGate feature="Today's summary" reason="Your end-of-day figures.">{<AdminAppDailyReport />}</SubscriptionGate>} />
                                 <Route path="stations" element={<SubscriptionGate feature="Stations" requires="stations">{<AdminAppStations />}</SubscriptionGate>} />
                                 <Route path="stations/:stationId" element={<SubscriptionGate feature="Stations" requires="stations">{<AdminAppStationDetail />}</SubscriptionGate>} />

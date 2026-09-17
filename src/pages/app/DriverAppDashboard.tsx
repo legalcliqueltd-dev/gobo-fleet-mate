@@ -38,6 +38,17 @@ type TrailPoint = {
   speed: number | null;
 };
 
+/** Metres between two points (haversine) — used to reject GPS jitter. */
+function metresBetween(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const R = 6371000;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 const TRAIL_STORAGE_KEY = 'driver_location_trail';
 const MAX_TRAIL_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -84,8 +95,16 @@ export default function DriverAppDashboard() {
       try {
         const parsed = JSON.parse(stored) as TrailPoint[];
         const now = Date.now();
-        const validTrail = parsed.filter(p => now - p.timestamp < MAX_TRAIL_AGE_MS);
-        setTrail(validTrail);
+        const fresh = parsed.filter(p => now - p.timestamp < MAX_TRAIL_AGE_MS);
+
+        // Re-apply the movement filter to points saved by earlier builds,
+        // otherwise yesterday's jitter starburst stays drawn for a day.
+        const cleaned: TrailPoint[] = [];
+        for (const point of fresh) {
+          const last = cleaned[cleaned.length - 1];
+          if (!last || metresBetween(last, point) >= 20) cleaned.push(point);
+        }
+        setTrail(cleaned);
       } catch (e) {
         console.error('Failed to parse stored trail:', e);
       }
@@ -128,11 +147,31 @@ export default function DriverAppDashboard() {
     if (loc.accuracy !== null) setAccuracy(loc.accuracy);
     setLastSyncTime(trackingState.lastSyncTime);
 
-    if (onDuty && loc.accuracy !== null && loc.accuracy < 100) {
+    // Only extend the trail when the driver has genuinely MOVED.
+    //
+    // A parked phone still reports a new position every few seconds, scattered
+    // randomly inside its accuracy radius. Joining those with a line drew a
+    // starburst of rubbish over the map — the vehicle appeared to tear around
+    // a 40 m circle while sitting in a car park. The same jitter is already
+    // filtered server-side for distance stats; the drawn trail needs it too.
+    //
+    // The gate is the accuracy radius itself, floored at 20 m: a fix can only
+    // prove movement if it moved further than its own margin of error.
+    if (onDuty && loc.accuracy !== null && loc.accuracy < 60) {
       setTrail(prev => {
         const now = Date.now();
         const lastPoint = prev[prev.length - 1];
         if (lastPoint && now - lastPoint.timestamp < 10000) return prev;
+
+        if (lastPoint) {
+          const moved = metresBetween(
+            { lat: lastPoint.lat, lng: lastPoint.lng },
+            { lat: loc.latitude, lng: loc.longitude }
+          );
+          const threshold = Math.max(20, loc.accuracy ?? 20);
+          if (moved < threshold) return prev;
+        }
+
         const newTrail = [
           ...prev.filter(p => now - p.timestamp < MAX_TRAIL_AGE_MS),
           { lat: loc.latitude, lng: loc.longitude, timestamp: now, speed: loc.speed }

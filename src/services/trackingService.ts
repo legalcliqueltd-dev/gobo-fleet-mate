@@ -697,6 +697,10 @@ class TrackingService extends EventTarget {
             batteryLevel: this.state.batteryLevel,
           },
         });
+        // A successful heartbeat proves the link is alive. Without this, a
+        // PARKED driver — who by design sends no location fixes — was shown
+        // "Connection stale", which is alarming and untrue.
+        this.setState({ lastSyncTime: new Date() });
       } catch (err) {
         console.warn('[TrackingService] heartbeat failed:', err);
       }

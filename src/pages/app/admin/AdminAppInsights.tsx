@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, ChevronRight, Gauge, Loader2, Route as RouteIcon, Timer, TrendingUp, Users, Wallet, ClipboardCheck, CalendarCheck } from 'lucide-react';
+import { Activity, ChevronRight, Gauge, Loader2, Route as RouteIcon, Timer, TrendingUp, Users, Wallet, ClipboardCheck, CalendarCheck, History } from 'lucide-react';
 import { useFleetBreakdown } from '@/hooks/useFleetBreakdown';
 import { STATUS_CLASSES, STATUS_LABEL } from '@/lib/driverStatus';
 import { getDriverAccent } from '@/lib/driverAccent';
+import { useAdminBadges } from '@/hooks/useAdminBadges';
 import { cn } from '@/lib/utils';
 
 const RANGES = [
@@ -15,6 +16,44 @@ const RANGES = [
 function formatMinutes(minutes: number): { value: string; unit: string } {
   if (minutes >= 60) return { value: (minutes / 60).toFixed(1), unit: 'h' };
   return { value: Math.round(minutes).toString(), unit: 'min' };
+}
+
+/** One navigation row, with an optional "needs you" dot. */
+function InsightRow({
+  icon: Icon,
+  title,
+  hint,
+  badge,
+  onClick,
+}: {
+  icon: typeof Gauge;
+  title: string;
+  hint: string;
+  badge?: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3.5 rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors active:bg-muted"
+      style={{ boxShadow: 'var(--shadow-card)' }}
+    >
+      <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent">
+        <Icon className="h-5 w-5 text-primary" />
+        {badge != null && badge > 0 && (
+          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 font-mono text-[10px] font-bold text-destructive-foreground">
+            {badge > 9 ? '9+' : badge}
+          </span>
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold">{title}</span>
+        <span className="block text-xs text-muted-foreground">{hint}</span>
+      </span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+    </button>
+  );
 }
 
 function StatTile({
@@ -55,6 +94,7 @@ function StatTile({
 export default function AdminAppInsights() {
   const [days, setDays] = useState(7);
   const navigate = useNavigate();
+  const { pendingExpenses, openReports } = useAdminBadges();
   const { drivers, totals, loading, error } = useFleetBreakdown(days);
 
   const idle = formatMinutes(totals?.idleMinutes ?? 0);
@@ -116,6 +156,10 @@ export default function AdminAppInsights() {
 
       {!loading && !error && totals && (
         <>
+          {/* Fleet-wide figures sit BELOW the per-driver list on purpose:
+              "9.4 km across everyone" answers nobody's question. The
+              individual rows above are what a manager actually reads. */}
+          <p className="eyebrow mb-2 mt-6">Fleet totals</p>
           <div className="grid grid-cols-2 gap-3">
             <StatTile icon={RouteIcon} label="Distance" value={totals.distanceKm.toFixed(1)} unit="km" />
             <StatTile
@@ -158,44 +202,31 @@ export default function AdminAppInsights() {
             </div>
           </div>
 
-          {/* Expenses live here rather than in a seventh tab: money spent is
-              a fleet metric, and this is where a manager already comes to
-              read numbers. */}
-          <button
-            type="button"
-            onClick={() => navigate('/app/admin/expenses')}
-            className="mt-5 flex w-full items-center gap-3.5 rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors hover:bg-muted"
-            style={{ boxShadow: 'var(--shadow-card)' }}
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent">
-              <Wallet className="h-5 w-5 text-primary" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold">Expenses</span>
-              <span className="block text-xs text-muted-foreground">
-                Fuel, repairs and tolls logged by your drivers
-              </span>
-            </span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigate('/app/admin/reports')}
-            className="mt-2.5 flex w-full items-center gap-3.5 rounded-2xl border border-border bg-card px-4 py-4 text-left transition-colors hover:bg-muted"
-            style={{ boxShadow: 'var(--shadow-card)' }}
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent">
-              <ClipboardCheck className="h-5 w-5 text-primary" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold">Checks and problems</span>
-              <span className="block text-xs text-muted-foreground">
-                Vehicle faults and issues raised from the road
-              </span>
-            </span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-          </button>
+          {/* The three places work actually waits, in the order a manager
+              needs them. History leads because "where did they go" is the
+              question asked most, and it used to be buried inside a driver. */}
+          <div className="mt-5 space-y-2.5">
+            <InsightRow
+              icon={History}
+              title="History by driver"
+              hint="Replay any driver's day, or pick a date"
+              onClick={() => navigate('/app/admin/history')}
+            />
+            <InsightRow
+              icon={Wallet}
+              title="Expenses"
+              hint="Fuel, repairs and tolls logged by your drivers"
+              badge={pendingExpenses}
+              onClick={() => navigate('/app/admin/expenses')}
+            />
+            <InsightRow
+              icon={ClipboardCheck}
+              title="Checks and problems"
+              hint="Vehicle faults and issues raised from the road"
+              badge={openReports}
+              onClick={() => navigate('/app/admin/reports')}
+            />
+          </div>
 
           {/* Per-driver breakdown */}
           <div className="mt-7">
