@@ -61,6 +61,20 @@ three are registered (debug, upload, Play app-signing).
 | 2.2 | Tap Share | Native share sheet with the code in the message | ☐ |
 | 2.3 | On phone 2: "I drive" → enter that code + a name | Connects successfully | ☐ |
 | 2.4 | Back on the manager map | That driver appears within ~30 s | ☐ |
+| 2.5 | After the driver tour finishes | A **permissions carousel** starts: location → notifications → battery | ☐ |
+| 2.6 | Each card | States plainly *why*, before any system prompt appears | ☐ |
+| 2.7 | Tap "Allow location" | Android's own dialog; choosing **Allow all the time** ticks the step | ☐ |
+| 2.8 | Tap "Open battery settings" | Lands on the battery screen for FleetTrackMate | ☐ |
+| 2.9 | Tap "Skip", or "Not now" on every card | Carousel closes; the app is **fully usable** | ☐ |
+| 2.10 | Force-close and reopen the app | Carousel does **not** appear again | ☐ |
+
+**2.9 is deliberate.** Permissions squeezed out of someone get revoked the same
+week. A driver who skips is asked again the next time the feature needs it, in
+context — not held hostage at the door.
+
+The battery step is the one that decides whether background tracking survives on
+cheap Android hardware, and no app can grant it to itself. The card can only open
+the right screen and say what to pick — confirm the driver actually picked it.
 
 ---
 
@@ -76,6 +90,17 @@ Everything else depends on this. Do not skip it.
 | 3.4 | Walk/drive 200 m while backgrounded | Position follows on the manager map | ☐ |
 | 3.5 | Airplane mode 5 min, then restore | Queued points flush; no gap in history | ☐ |
 | 3.6 | Driver battery percentage | Matches the phone's real battery | ☐ |
+| 3.7 | While On Duty, **switch the driver's location off** | Within ~10 min the manager's fleet map shows an amber banner: "*name* stopped reporting" | ☐ |
+| 3.8 | Tap that banner | Opens the vehicle list and flies to that driver | ☐ |
+| 3.9 | That driver's list row | Reads "Stopped reporting — tracking may be off", in amber, not "3 h ago" | ☐ |
+| 3.10 | A driver who simply finished last night | Reads "Off duty or app closed", grey — **no** banner | ☐ |
+| 3.11 | A driver who connected but never went On Duty | Reads "Never reported — app not set up" | ☐ |
+
+**3.7–3.11 are one test in five parts:** "offline" on its own is useless, because a
+driver who finished for the day and a driver whose tracking silently died look
+identical, and only one of them needs a phone call. The split is by recency — a
+driver reporting minutes ago and then silent has almost certainly lost background
+permission or been battery-killed.
 
 **3.3 is the single most important test in this document.** If tracking dies when
 backgrounded, nothing built on top of it means anything.
@@ -225,6 +250,19 @@ erased by firing someone.
 | 11.10 | Station markers | **Pin-shaped**, glyph inside, tip on the exact point | ☐ |
 | 11.11 | Zoom out past city level | Pins become dots; roads stay readable | ☐ |
 | 11.12 | Driver history date strip | Starts at **Today**, scrolls back; "Pick" opens a date picker | ☐ |
+| 11.13 | Fleet map → tap a car marker | A **focus card** rises: name, place, status, four round buttons | ☐ |
+| 11.14 | The line under the name | A real place in words — "Awolowo Road, Ikoyi" — not coordinates | ☐ |
+| 11.15 | Follow the same driver for several minutes | The place line updates when they change street, not every fix | ☐ |
+| 11.16 | The card's status line | Moving shows km/h; offline shows why it is offline | ☐ |
+| 11.17 | "Accurate to about N m" | Present when the fix is rough; absent when the phone reports no accuracy | ☐ |
+| 11.18 | A selected vehicle with a rough fix | A soft halo in the driver's colour shows the error radius | ☐ |
+| 11.19 | Zoom in / History / Driver / Send job | All four go where they say; **Send job** arrives with that driver pre-picked | ☐ |
+| 11.20 | Pick a vehicle from the open list | The list **closes** behind the card | ☐ |
+| 11.21 | Tap ✕ on the card | Card closes, selection clears, map controls drop back down | ☐ |
+
+**11.14 needs the Geocoding API enabled** on the Google Cloud project. If it is
+not, or the quota is spent, the line is simply absent — the card still renders
+with everything else. An absent place line is a billing check, not a bug.
 
 **11.7:** the driver's own turn-by-turn *does* still open Google Maps, and that is
 intended — it is real navigation, not a glance.
