@@ -49,3 +49,35 @@ export function formatLastSeen(lastSeenIso: string | null | undefined): string {
   if (seconds < 86400) return `${Math.round(seconds / 3600)} h ago`;
   return `${Math.round(seconds / 86400)} d ago`;
 }
+
+/**
+ * Why a vehicle is offline — which is the question a manager actually has.
+ *
+ * "Offline" alone is useless: a driver finished for the day and a driver whose
+ * tracking silently died look identical, and only one of them needs a phone
+ * call. A driver who was reporting minutes ago and then stopped has almost
+ * certainly lost background permission, been battery-killed by the OS, or
+ * switched location off — all fixable, and all invisible until someone asks.
+ */
+export type OfflineReason = 'never_started' | 'just_dropped' | 'long_gone' | null;
+
+/** Dropped out within this window: recent enough that something broke. */
+const JUST_DROPPED_MS = 45 * 60 * 1000;
+
+export function getOfflineReason(
+  status: VehicleStatus,
+  lastSeenIso: string | null | undefined
+): OfflineReason {
+  if (status !== 'offline') return null;
+  if (!lastSeenIso) return 'never_started';
+
+  const age = Date.now() - new Date(lastSeenIso).getTime();
+  if (!Number.isFinite(age)) return 'never_started';
+  return age < JUST_DROPPED_MS ? 'just_dropped' : 'long_gone';
+}
+
+export const OFFLINE_REASON_TEXT: Record<Exclude<OfflineReason, null>, string> = {
+  never_started: 'Never reported — app not set up',
+  just_dropped: 'Stopped reporting — tracking may be off',
+  long_gone: 'Off duty or app closed',
+};

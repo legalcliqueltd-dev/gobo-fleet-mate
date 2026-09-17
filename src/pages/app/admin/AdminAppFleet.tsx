@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Fragment } from 'react';
 import { Circle, GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronRight, ChevronUp, KeyRound, Layers, LocateFixed, Plus, RefreshCw, Users, X, ZoomIn } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, ChevronUp, KeyRound, Layers, LocateFixed, Plus, RefreshCw, Users, X, ZoomIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { getNavMapStyle } from '@/lib/mapStyles';
@@ -16,7 +16,9 @@ import { stationMarkerIcon, tierForZoom, type MarkerTier } from '@/lib/stationMa
 import { getDriverAccent } from '@/lib/driverAccent';
 import {
   formatLastSeen,
+  getOfflineReason,
   getVehicleStatus,
+  OFFLINE_REASON_TEXT,
   STATUS_CLASSES,
   STATUS_LABEL,
   type VehicleStatus,
@@ -88,6 +90,7 @@ export default function AdminAppFleet() {
             speedKmh,
             lastSeen,
             status: getVehicleStatus(speedKmh, lastSeen),
+            offlineReason: getOfflineReason(getVehicleStatus(speedKmh, lastSeen), lastSeen),
             accent: getDriverAccent(d.driver_id),
           };
         })
@@ -96,6 +99,13 @@ export default function AdminAppFleet() {
           return rank[a.status] - rank[b.status] || a.name.localeCompare(b.name);
         }),
     [drivers]
+  );
+
+  // "Just dropped" means they were reporting minutes ago and then stopped —
+  // which is a fault, unlike a driver who has been off since last night.
+  const troubled = useMemo(
+    () => vehicles.filter((v) => v.offlineReason === 'just_dropped'),
+    [vehicles]
   );
 
   const counts = useMemo(
@@ -238,6 +248,34 @@ export default function AdminAppFleet() {
             );
           })}
         </GoogleMap>
+      )}
+
+      {/* Drivers whose tracking looks BROKEN, not merely finished. Without
+          this the two are indistinguishable on the map, and only one of them
+          needs a phone call. */}
+      {troubled.length > 0 && (
+        <button
+          type="button"
+          onClick={() => {
+            setSheetOpen(true);
+            flyTo(troubled[0].lat, troubled[0].lng, troubled[0].id);
+          }}
+          className="absolute left-3 right-3 top-[4.6rem] z-[1000] flex items-center gap-2.5 rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-left backdrop-blur"
+          style={{ boxShadow: 'var(--shadow-card)' }}
+        >
+          <AlertTriangle className="h-4 w-4 shrink-0 text-warning" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-xs font-semibold text-warning">
+              {troubled.length === 1
+                ? `${troubled[0].name} stopped reporting`
+                : `${troubled.length} drivers stopped reporting`}
+            </span>
+            <span className="block text-[11px] text-muted-foreground">
+              Tracking may be switched off on their phone
+            </span>
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-warning" />
+        </button>
       )}
 
       {/* Status summary */}
@@ -472,8 +510,17 @@ export default function AdminAppFleet() {
                         />
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold text-foreground">{v.name}</p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {formatLastSeen(v.lastSeen)}
+                          <p
+                            className={cn(
+                              'truncate text-xs',
+                              v.offlineReason === 'just_dropped'
+                                ? 'text-warning'
+                                : 'text-muted-foreground'
+                            )}
+                          >
+                            {v.offlineReason
+                              ? OFFLINE_REASON_TEXT[v.offlineReason]
+                              : formatLastSeen(v.lastSeen)}
                           </p>
                         </div>
                         <div className="shrink-0 text-right">

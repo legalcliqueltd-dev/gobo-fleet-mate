@@ -14,6 +14,7 @@ import DriverStatusCard from '@/components/driver/DriverStatusCard';
 import DebugStatusPanel from '@/components/driver/DebugStatusPanel';
 import LocationBlocker from '@/components/driver/LocationBlocker';
 import DriverOnboarding, { isOnboardingCompleted } from '@/components/driver/DriverOnboarding';
+import PermissionsCarousel, { permissionsSetupDone } from '@/components/driver/PermissionsCarousel';
 import ActiveTaskCard from '@/components/driver/ActiveTaskCard';
 import StationsCard from '@/components/driver/StationsCard';
 import { useStationWatcher } from '@/hooks/useStationWatcher';
@@ -71,6 +72,9 @@ export default function DriverAppDashboard() {
   const [navigatingTask, setNavigatingTask] = useState<Task | null>(null);
   const [followMode, setFollowMode] = useState(true);
   const [showTutorial, setShowTutorial] = useState(() => !isOnboardingCompleted());
+  // Permissions come AFTER the tour: asking for background location before
+  // explaining what the app does is how you get a refusal.
+  const [showPermissions, setShowPermissions] = useState(() => !permissionsSetupDone());
 
   const isNativeIOS = detectNativePlatform() && isIOS();
   const isNativeAndroid = detectNativePlatform() && isAndroid();
@@ -334,6 +338,10 @@ export default function DriverAppDashboard() {
 
   // First-run tutorial comes before the permission ask so drivers know
   // why location is needed before Android prompts them.
+  if (!showTutorial && showPermissions) {
+    return <PermissionsCarousel onDone={() => setShowPermissions(false)} />;
+  }
+
   if (showTutorial) {
     return <DriverOnboarding onComplete={() => setShowTutorial(false)} />;
   }
