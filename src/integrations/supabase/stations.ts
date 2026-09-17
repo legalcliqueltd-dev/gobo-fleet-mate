@@ -82,15 +82,37 @@ export async function fetchStations(adminCodes: string[]): Promise<Station[]> {
   return (data ?? []) as Station[];
 }
 
-/** Active stations for one driver's fleet code. */
+/**
+ * Active stations for a driver.
+ *
+ * Resolves through `stations_for_code`, which maps the driver's connection
+ * code to the MANAGER who owns it and returns that manager's stations.
+ *
+ * The direct `admin_code` match this replaced was wrong in a way that only
+ * showed up on real fleets: every vehicle has its own connection code, but a
+ * station stores just one, so a station reached exactly one driver and the
+ * rest saw an empty map.
+ *
+ * Falls back to the old behaviour if the function is not deployed yet, so a
+ * client running ahead of the migration still works as it did before rather
+ * than losing stations entirely.
+ */
 export async function fetchStationsForDriver(adminCode: string): Promise<Station[]> {
-  const { data, error } = await db
+  const { data, error } = await (supabase as unknown as {
+    rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
+  }).rpc('stations_for_code', { p_code: adminCode });
+
+  if (!error && Array.isArray(data)) return data as Station[];
+
+  console.warn('[stations] stations_for_code unavailable, falling back to code match:', error);
+
+  const fallback = await db
     .from('stations')
     .select('*')
     .eq('admin_code', adminCode)
     .eq('active', true);
-  if (error) throw error;
-  return (data ?? []) as Station[];
+  if (fallback.error) throw fallback.error;
+  return (fallback.data ?? []) as Station[];
 }
 
 export async function createStation(station: Partial<NewStation>): Promise<Station> {

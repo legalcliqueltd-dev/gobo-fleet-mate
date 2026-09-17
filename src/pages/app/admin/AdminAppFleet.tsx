@@ -10,6 +10,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useDriverLocations } from '@/hooks/useDriverLocations';
 import { useStationProgress, STATE_COLOR, STATE_LABEL } from '@/hooks/useStationProgress';
 import { useStationMapPreference } from '@/hooks/useStationMapPreference';
+import { driverMarkerIcon } from '@/lib/driverMarker';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { stationMarkerIcon, tierForZoom, type MarkerTier } from '@/lib/stationMarker';
 import { getDriverAccent } from '@/lib/driverAccent';
@@ -67,7 +68,10 @@ export default function AdminAppFleet() {
   const hasAutoFitted = useRef(false);
 
   const [mapType, setMapType] = useState<'roadmap' | 'satellite'>('roadmap');
-  const [sheetOpen, setSheetOpen] = useState(true);
+  // Closed on arrival. The map is the reason this screen exists; opening a
+  // list over it on every visit means the manager's first action is always to
+  // dismiss something. The handle below advertises itself instead.
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const vehicles = useMemo(
     () =>
@@ -209,30 +213,30 @@ export default function AdminAppFleet() {
             </Fragment>
           ))}
 
-          {vehicles.map((v) => (
-            <Marker
-              key={v.id}
-              position={{ lat: v.lat, lng: v.lng }}
-              onClick={() => setSelectedId(v.id)}
-              zIndex={selectedId === v.id ? 1000 : 1}
-              icon={{
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: selectedId === v.id ? 12 : 9,
-                fillColor: STATUS_MARKER_COLOR[v.status],
-                fillOpacity: 1,
-                strokeColor: '#ffffff',
-                strokeWeight: selectedId === v.id ? 3.5 : 2.5,
-                // Push the name clear of the disc so the two never overlap.
-                labelOrigin: new google.maps.Point(0, selectedId === v.id ? 3.4 : 3.9),
-              }}
-              label={{
-                text: v.name.length > 18 ? `${v.name.slice(0, 17)}…` : v.name,
-                color: isDark ? '#e6eaf0' : '#111827',
-                fontSize: '11px',
-                fontWeight: '600',
-              }}
-            />
-          ))}
+          {vehicles.map((v) => {
+            const icon = driverMarkerIcon(v.accent, v.status, selectedId === v.id);
+            return (
+              <Marker
+                key={v.id}
+                  position={{ lat: v.lat, lng: v.lng }}
+                  onClick={() => setSelectedId(v.id)}
+                  zIndex={selectedId === v.id ? 1000 : 1}
+                  title={`${v.name} — ${STATUS_LABEL[v.status]}`}
+                  icon={{
+                    url: icon.url,
+                    scaledSize: new google.maps.Size(icon.size, icon.size),
+                    anchor: new google.maps.Point(icon.anchor, icon.anchor),
+                    labelOrigin: new google.maps.Point(icon.anchor, icon.labelY),
+                  }}
+                  label={{
+                    text: v.name.length > 18 ? `${v.name.slice(0, 17)}…` : v.name,
+                    color: isDark ? '#e6eaf0' : '#111827',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                  }}
+                />
+            );
+          })}
         </GoogleMap>
       )}
 
@@ -379,18 +383,46 @@ export default function AdminAppFleet() {
             className="flex w-full items-center gap-2.5 px-4 py-3"
             aria-expanded={sheetOpen}
           >
-            <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className="flex-1 text-left font-heading text-sm font-semibold">
-              Vehicles
-              <span className="telemetry ml-1.5 font-normal text-muted-foreground">
-                {vehicles.length}
+            {/* A live dot while anything is moving: the handle then reads as
+                something worth opening rather than a static bar. */}
+            <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+              {counts.moving > 0 && (
+                <span className="absolute inline-flex h-4 w-4 animate-ping rounded-full bg-success opacity-60" />
+              )}
+              <span
+                className={cn(
+                  'relative h-2.5 w-2.5 rounded-full',
+                  counts.moving > 0 ? 'bg-success' : 'bg-muted-foreground'
+                )}
+              />
+            </span>
+
+            <span className="flex-1 text-left">
+              <span className="block font-heading text-sm font-semibold">
+                Vehicles
+                <span className="telemetry ml-1.5 font-normal text-muted-foreground">
+                  {vehicles.length}
+                </span>
+              </span>
+              <span className="block text-[11px] text-muted-foreground">
+                {counts.moving > 0
+                  ? `${counts.moving} moving now — tap to open`
+                  : 'Tap to pick a vehicle'}
               </span>
             </span>
-            {sheetOpen ? (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronUp className="h-4 w-4 text-muted-foreground" />
-            )}
+
+            <span
+              className={cn(
+                'flex h-8 w-8 items-center justify-center rounded-full transition-all',
+                sheetOpen ? 'bg-muted' : 'bg-success/15'
+              )}
+            >
+              {sheetOpen ? (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronUp className="h-4 w-4 text-success" />
+              )}
+            </span>
           </button>
 
           {sheetOpen && (
