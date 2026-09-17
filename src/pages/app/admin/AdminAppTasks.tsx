@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, Loader2, MapPin, Package, Plus, Trash2, User } from 'lucide-react';
+import { ChevronRight, Clock, Loader2, MapPin, Package, Plus, Trash2, User } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAdminCodes } from '@/hooks/useAdminCodes';
 import { Button } from '@/components/ui/button';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import JobDetailSheet, { type JobForDetail } from '@/components/admin/JobDetailSheet';
 import { getDriverAccent } from '@/lib/driverAccent';
 import { cn } from '@/lib/utils';
 
@@ -59,6 +60,7 @@ export default function AdminAppTasks() {
   const [bucket, setBucket] = useState<Bucket>('waiting');
   const [clearOpen, setClearOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [openJob, setOpenJob] = useState<JobForDetail | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -194,101 +196,86 @@ export default function AdminAppTasks() {
         <ul className="space-y-2.5">
           {visible.map((task) => {
             const driver = task.assigned_driver_id ? driverNames[task.assigned_driver_id] : null;
+            const accent = task.assigned_driver_id
+              ? getDriverAccent(task.assigned_driver_id)
+              : '#6b7280';
+            const failed = task.status === 'failed';
+
             return (
-              <li
-                key={task.id}
-                className="rounded-2xl border border-border bg-card p-5"
-                style={{ boxShadow: 'var(--shadow-card)' }}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <h3 className="min-w-0 flex-1 font-heading text-base font-semibold leading-snug text-foreground">
-                    {task.title}
-                  </h3>
-                  {task.status === 'failed' && (
-                    <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
-                      Failed
-                    </span>
-                  )}
-                </div>
-
-                {task.description && (
-                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{task.description}</p>
-                )}
-
-                {/* Who has it — named, colour-keyed to the map marker, and
-                    tappable straight through to that driver. */}
+              <li key={task.id}>
+                {/* One tap opens the JOB. It used to open the driver, which
+                    left the delivery photos — the whole point of collecting
+                    them — with nowhere to be seen. */}
                 <button
                   type="button"
-                  disabled={!task.assigned_driver_id}
                   onClick={() =>
-                    task.assigned_driver_id &&
-                    navigate(`/app/admin/drivers/${task.assigned_driver_id}`)
+                    setOpenJob({
+                      id: task.id,
+                      title: task.title,
+                      description: task.description,
+                      status: task.status,
+                      created_at: task.created_at,
+                      due_at: task.due_at,
+                      dropoff_lat: task.dropoff_lat,
+                      dropoff_lng: task.dropoff_lng,
+                      driverName: driver,
+                      accent,
+                    })
                   }
-                  className={cn(
-                    'mt-2 inline-flex max-w-full items-center gap-2 rounded-full py-1 pl-1 pr-2.5 text-xs font-medium',
-                    task.assigned_driver_id
-                      ? 'bg-muted text-foreground'
-                      : 'bg-warning/10 text-warning'
-                  )}
+                  className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-3 py-3 text-left transition-colors active:bg-muted"
+                  style={{ boxShadow: 'var(--shadow-card)' }}
                 >
-                  {task.assigned_driver_id ? (
-                    <>
-                      <span
-                        className="h-5 w-1 shrink-0 rounded-full"
-                        style={{ backgroundColor: getDriverAccent(task.assigned_driver_id) }}
-                      />
-                      <span className="truncate">{driver ?? 'Loading…'}</span>
-                    </>
-                  ) : (
-                    <>
-                      <User className="ml-1 h-3.5 w-3.5" />
-                      Unassigned
-                    </>
-                  )}
+                  {/* The driver's colour, matching their map marker */}
+                  <span
+                    className="h-9 w-1 shrink-0 rounded-full"
+                    style={{ backgroundColor: accent }}
+                  />
+
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                        {task.title}
+                      </span>
+                      {failed && (
+                        <span className="shrink-0 rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold text-destructive">
+                          Failed
+                        </span>
+                      )}
+                    </span>
+
+                    <span className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                      <span className="truncate">{driver ?? 'Unassigned'}</span>
+                      {task.due_at && (
+                        <span className="shrink-0">
+                          · {formatDistanceToNow(new Date(task.due_at), { addSuffix: true })}
+                        </span>
+                      )}
+                    </span>
+
+                    {/* Progress as a single slim bar rather than a block of
+                        chrome on every row. */}
+                    <span className="mt-2 flex gap-1">
+                      {PROGRESS_STEPS.map((step, index) => {
+                        const reached = index <= progressIndex(task.status);
+                        return (
+                          <span
+                            key={step}
+                            className={cn(
+                              'h-1 flex-1 rounded-full',
+                              failed && index === progressIndex(task.status)
+                                ? 'bg-destructive'
+                                : reached
+                                  ? 'bg-primary'
+                                  : 'bg-muted'
+                            )}
+                          />
+                        );
+                      })}
+                    </span>
+                  </span>
+
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </button>
-
-                {/* Progress */}
-                <div className="mt-2.5">
-                  <div className="flex gap-1">
-                    {PROGRESS_STEPS.map((step, index) => {
-                      const reached = index <= progressIndex(task.status);
-                      const failed = task.status === 'failed';
-                      return (
-                        <div
-                          key={step}
-                          className={cn(
-                            'h-1.5 flex-1 rounded-full',
-                            failed && index === progressIndex(task.status)
-                              ? 'bg-destructive'
-                              : reached
-                                ? 'bg-primary'
-                                : 'bg-muted'
-                          )}
-                        />
-                      );
-                    })}
-                  </div>
-                  <p className="mt-1 text-[11px] font-medium text-muted-foreground">
-                    {task.status === 'failed'
-                      ? 'Failed'
-                      : PROGRESS_STEPS[progressIndex(task.status)]}
-                  </p>
-                </div>
-
-                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                  {task.due_at && (
-                    <span className="inline-flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" />
-                      {formatDistanceToNow(new Date(task.due_at), { addSuffix: true })}
-                    </span>
-                  )}
-                  {task.dropoff_lat != null && task.dropoff_lng != null && (
-                    <span className="inline-flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5" />
-                      Drop-off set
-                    </span>
-                  )}
-                </div>
               </li>
             );
           })}
@@ -310,6 +297,8 @@ export default function AdminAppTasks() {
           Assign job
         </Button>
       </div>
+
+      <JobDetailSheet job={openJob} onClose={() => setOpenJob(null)} />
 
       <ConfirmDialog
         open={clearOpen}

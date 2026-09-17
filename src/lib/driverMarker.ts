@@ -41,7 +41,11 @@ export type DriverIcon = {
 export function driverMarkerIcon(
   accent: string,
   status: VehicleStatus,
-  selected = false
+  selected = false,
+  /** Degrees clockwise from north. Rotates the car so it faces the way it is
+   *  travelling — only meaningful for the driver's own marker, where heading
+   *  is known and useful. */
+  heading?: number | null
 ): DriverIcon {
   // 34px selected, 28px otherwise: big enough to read the shape, small enough
   // that a dozen of them do not blanket the streets.
@@ -58,8 +62,12 @@ export function driverMarkerIcon(
     <g opacity="${dim}" filter="url(#d)">
       <circle cx="20" cy="20" r="17" fill="${accent}" stroke="#ffffff" stroke-width="2.5"/>
       <circle cx="20" cy="20" r="18.6" fill="none" stroke="${ring}" stroke-width="2.6"/>
-      <g transform="translate(8 8) scale(1)">
-        <path d="${CAR_PATH}" fill="#ffffff"/>
+      <g transform="rotate(${
+        typeof heading === 'number' && Number.isFinite(heading) ? Math.round(heading) : 0
+      } 20 20)">
+        <g transform="translate(8 8)">
+          <path d="${CAR_PATH}" fill="#ffffff"/>
+        </g>
       </g>
     </g>
   </svg>`;

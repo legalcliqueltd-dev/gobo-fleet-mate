@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Circle, GoogleMap, Marker, Polyline, useJsApiLoader } from '@react-google-maps/api';
 import { stationMarkerIcon } from '@/lib/stationMarker';
+import { driverMarkerIcon } from '@/lib/driverMarker';
 import type { StationKind } from '@/integrations/supabase/stations';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { getNavMapStyle, getRouteStrokeColor } from '@/lib/mapStyles';
@@ -288,34 +289,32 @@ const DriverGoogleMap = forwardRef<DriverGoogleMapHandle, DriverGoogleMapProps>(
             />
           )}
 
-          {/* The puck: a dark disc under a white heading arrow, the shape
-              ride-hailing apps trained everyone to read. */}
-          <Marker
-            position={rendered.pos}
-            zIndex={10}
-            clickable={false}
-            icon={{
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 11,
-              fillColor: puckColor,
-              fillOpacity: 1,
-              strokeColor: '#ffffff',
-              strokeWeight: 3,
-            }}
-          />
-          <Marker
-            position={rendered.pos}
-            zIndex={11}
-            clickable={false}
-            icon={{
-              path: 'M 0,-5.5 L 4,4.5 L 0,2 L -4,4.5 Z',
-              fillColor: '#ffffff',
-              fillOpacity: 1,
-              strokeWeight: 0,
-              rotation: rendered.heading,
-              anchor: new google.maps.Point(0, 0),
-            }}
-          />
+          {/* The driver's own vehicle, using the SAME car marker the manager
+              sees on the fleet map. One symbol for one thing across both
+              apps: when a driver and a dispatcher talk on the phone about
+              "where you are on the map", they are now looking at the same
+              shape. Rotated to heading, which the driver's own marker knows
+              and the manager's does not. */}
+          {(() => {
+            const icon = driverMarkerIcon(
+              puckColor,
+              isTracking ? 'moving' : 'offline',
+              true,
+              rendered.heading
+            );
+            return (
+              <Marker
+                position={rendered.pos}
+                zIndex={10}
+                clickable={false}
+                icon={{
+                  url: icon.url,
+                  scaledSize: new google.maps.Size(icon.size, icon.size),
+                  anchor: new google.maps.Point(icon.anchor, icon.anchor),
+                }}
+              />
+            );
+          })()}
         </>
       )}
     </GoogleMap>

@@ -70,7 +70,12 @@ export default function StationEditorSheet({
   const [requiresPhoto, setRequiresPhoto] = useState(station.requires_photo ?? true);
   const [recurrence, setRecurrence] = useState<Recurrence>(station.recurrence ?? 'daily');
   const [days, setDays] = useState<number[]>(station.recurrence_days ?? []);
-  const [adminCode, setAdminCode] = useState(station.admin_code ?? adminCodes[0] ?? '');
+  // Kept only to populate the legacy admin_code column. It is NOT a decision
+  // the manager makes any more: a station belongs to the whole fleet, and
+  // stations_for_code resolves drivers to their manager rather than to a code.
+  // Asking someone to pick a hex code when they have already chosen drivers by
+  // name was asking them to remember the wrong thing.
+  const [adminCode] = useState(station.admin_code ?? adminCodes[0] ?? '');
   const [address, setAddress] = useState('');
   // Satellite by default: a station is a physical place — a gate, a skip, a
   // yard corner — and imagery identifies it far faster than a road map, which
@@ -513,27 +518,6 @@ export default function StationEditorSheet({
             </div>
           )}
         </div>
-
-        {adminCodes.length > 1 && (
-          <div className="space-y-1.5">
-            <Label>Fleet code</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {adminCodes.map((code) => (
-                <button
-                  key={code}
-                  type="button"
-                  onClick={() => setAdminCode(code)}
-                  className={cn(
-                    'telemetry min-h-[40px] rounded-lg border px-3 text-sm font-semibold',
-                    adminCode === code ? 'border-primary bg-accent' : 'border-border bg-card'
-                  )}
-                >
-                  {code}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         <div className="space-y-1.5">
           <Label htmlFor="st-notes">Instructions for the driver (optional)</Label>
