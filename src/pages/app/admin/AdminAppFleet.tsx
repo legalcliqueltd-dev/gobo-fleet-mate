@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Fragment } from 'react';
 import { Circle, GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, ChevronDown, ChevronRight, ChevronUp, KeyRound, Layers, LocateFixed, Plus, RefreshCw, Users, X, ZoomIn } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, ChevronUp, KeyRound, Layers, LocateFixed, Plus, RefreshCw, X } from 'lucide-react';
+import VehicleFocusCard from '@/components/admin/VehicleFocusCard';
 import { Button } from '@/components/ui/button';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { getNavMapStyle } from '@/lib/mapStyles';
@@ -88,6 +89,7 @@ export default function AdminAppFleet() {
             lat: d.latitude,
             lng: d.longitude,
             speedKmh,
+            accuracyM: d.accuracy,
             lastSeen,
             status: getVehicleStatus(speedKmh, lastSeen),
             offlineReason: getOfflineReason(getVehicleStatus(speedKmh, lastSeen), lastSeen),
@@ -106,6 +108,13 @@ export default function AdminAppFleet() {
   const troubled = useMemo(
     () => vehicles.filter((v) => v.offlineReason === 'just_dropped'),
     [vehicles]
+  );
+
+  // The focused vehicle drives the card, the halo, and how much map chrome
+  // stays on screen — so it is resolved once, here.
+  const selected = useMemo(
+    () => vehicles.find((v) => v.id === selectedId) ?? null,
+    [vehicles, selectedId]
   );
 
   const counts = useMemo(
@@ -131,10 +140,19 @@ export default function AdminAppFleet() {
     hasAutoFitted.current = true;
   }, [vehicles]);
 
+  // Picking a vehicle closes the list. You have made your choice, and the
+  // card that replaces it carries every action the row offered.
   const flyTo = (lat: number, lng: number, id: string) => {
     setSelectedId(id);
+    setSheetOpen(false);
     mapRef.current?.panTo({ lat, lng });
     mapRef.current?.setZoom(16);
+  };
+
+  const zoomToSelected = () => {
+    if (!selected || !mapRef.current) return;
+    mapRef.current.panTo({ lat: selected.lat, lng: selected.lng });
+    mapRef.current.setZoom(18);
   };
 
   const fitAll = () => {
@@ -223,6 +241,28 @@ export default function AdminAppFleet() {
             </Fragment>
           ))}
 
+          {/* How precise the fix actually is, drawn the way Find My draws it.
+              Only when the error is wider than the marker — a 10 m halo hides
+              under the car icon and adds nothing but paint. */}
+          {selected &&
+            selected.accuracyM != null &&
+            Number.isFinite(selected.accuracyM) &&
+            selected.accuracyM > 25 && (
+              <Circle
+                center={{ lat: selected.lat, lng: selected.lng }}
+                radius={selected.accuracyM}
+                options={{
+                  strokeColor: selected.accent,
+                  strokeOpacity: 0.35,
+                  strokeWeight: 1,
+                  fillColor: selected.accent,
+                  fillOpacity: 0.12,
+                  clickable: false,
+                  zIndex: 0,
+                }}
+              />
+            )}
+
           {vehicles.map((v) => {
             const icon = driverMarkerIcon(v.accent, v.status, selectedId === v.id);
             return (
@@ -302,7 +342,7 @@ export default function AdminAppFleet() {
         <div
           className={cn(
             'absolute left-3 z-[1000] flex items-center gap-3 rounded-xl border border-border bg-background/95 px-3 py-2 backdrop-blur transition-all',
-            sheetOpen ? 'bottom-[13.5rem]' : 'bottom-20'
+            selected ? 'bottom-[16.5rem]' : sheetOpen ? 'bottom-[13.5rem]' : 'bottom-20'
           )}
           style={{ boxShadow: 'var(--shadow-card)' }}
         >
@@ -343,7 +383,7 @@ export default function AdminAppFleet() {
       <div
         className={cn(
           'absolute right-3 z-[1000] flex flex-col gap-2 transition-all',
-          sheetOpen ? 'bottom-[13.5rem]' : 'bottom-20'
+          selected ? 'bottom-[16.5rem]' : sheetOpen ? 'bottom-[13.5rem]' : 'bottom-20'
         )}
       >
         <Button
@@ -363,23 +403,6 @@ export default function AdminAppFleet() {
           aria-label="Show all vehicles"
         >
           <LocateFixed className="h-5 w-5" />
-        </Button>
-        {/* Zoom right in on the selected vehicle — close enough to read which
-            side of a site they are on, which "fit all" can never show. */}
-        <Button
-          variant="secondary"
-          size="icon"
-          className="h-11 w-11 rounded-full border border-border shadow-lg"
-          disabled={!selectedId}
-          onClick={() => {
-            const vehicle = vehicles.find((v) => v.id === selectedId);
-            if (!vehicle || !mapRef.current) return;
-            mapRef.current.panTo({ lat: vehicle.lat, lng: vehicle.lng });
-            mapRef.current.setZoom(18);
-          }}
-          aria-label="Zoom to the selected vehicle"
-        >
-          <ZoomIn className="h-5 w-5" />
         </Button>
         <Button
           size="icon"
@@ -411,6 +434,19 @@ export default function AdminAppFleet() {
 
       {/* Vehicle sheet */}
       <div className="absolute inset-x-0 bottom-0 z-[1000]">
+        {selected && (
+          <div className="px-3 pb-2">
+            <VehicleFocusCard
+              vehicle={selected}
+              onClose={() => setSelectedId(null)}
+              onZoom={zoomToSelected}
+              onHistory={() => navigate(`/app/admin/drivers/${selected.id}/history`)}
+              onDetails={() => navigate(`/app/admin/drivers/${selected.id}`)}
+              onAssignJob={() => navigate(`/app/admin/jobs/new?driver=${selected.id}`)}
+            />
+          </div>
+        )}
+
         <div
           className="rounded-t-2xl border-t border-border bg-background/95 backdrop-blur"
           style={{ boxShadow: '0 -8px 24px -12px hsl(224 44% 11% / 0.25)' }}
