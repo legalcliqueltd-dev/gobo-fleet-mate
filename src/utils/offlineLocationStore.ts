@@ -171,6 +171,38 @@ export async function removeSyncedLocations(ids: number[]): Promise<void> {
   }
 }
 
+/**
+ * Drop one queued point by its syncKey.
+ *
+ * Used when a live send succeeds: the point was written to the queue BEFORE
+ * the attempt (so a failure can never lose it), and the server has now stored
+ * it through the live path. Leaving it queued would post it a second time on
+ * the next drain and draw the same fix twice in the history.
+ */
+export async function removeLocationBySyncKey(syncKey: string): Promise<void> {
+  if (!syncKey) return;
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      if (!store.indexNames.contains('syncKey')) {
+        resolve();
+        return;
+      }
+      const req = store.index('syncKey').getKey(syncKey);
+      req.onsuccess = () => {
+        if (req.result !== undefined) store.delete(req.result);
+      };
+      req.onerror = () => reject(req.error);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (error) {
+    console.error('[OfflineLocationStore] removeLocationBySyncKey error:', error);
+  }
+}
+
 /** Get the count of pending locations */
 export async function getPendingCount(): Promise<number> {
   try {

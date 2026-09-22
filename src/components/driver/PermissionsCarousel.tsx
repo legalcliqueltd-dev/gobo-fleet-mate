@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BatteryCharging, Bell, Check, ChevronRight, MapPin, ShieldCheck } from 'lucide-react';
+import { BatteryCharging, Bell, Check, ChevronRight, MapPin, ShieldCheck, TriangleAlert } from 'lucide-react';
 import { Geolocation } from '@capacitor/geolocation';
 import { Button } from '@/components/ui/button';
 import { requestNotificationPermission, notificationsEnabled } from '@/services/notifications';
@@ -16,7 +16,7 @@ export function permissionsSetupDone(): boolean {
   }
 }
 
-type StepId = 'location' | 'notifications' | 'battery';
+type StepId = 'location' | 'notifications' | 'battery' | 'keepalive';
 
 type Step = {
   id: StepId;
@@ -25,6 +25,10 @@ type Step = {
   body: string;
   why: string;
   action: string;
+  /** Nothing to request — this card only has something to tell the driver. */
+  informational?: boolean;
+  /** Extra lines shown as a warning block. */
+  warnings?: string[];
 };
 
 const STEPS: Step[] = [
@@ -52,6 +56,20 @@ const STEPS: Step[] = [
     why: 'Set FleetTrackMate to Unrestricted so your day records even with the app closed. This is the setting phones most often get wrong.',
     action: 'Open battery settings',
   },
+  {
+    id: 'keepalive',
+    icon: TriangleAlert,
+    title: 'What stops your tracking',
+    body: 'Three things switch it off. If any of them happen, your day stops being recorded and your manager sees you as missing.',
+    why: 'None of these are faults in the app — they are the phone doing what it was told. Knowing them is the difference between a full day of proof and an empty one.',
+    action: 'Got it',
+    informational: true,
+    warnings: [
+      'Swiping FleetTrackMate away in Recents kills tracking until you open it again.',
+      'Turning location off, or switching to "While using the app", stops it the moment you leave.',
+      'The on-duty notification must stay. Dismissing or blocking it removes what keeps tracking alive.',
+    ],
+  },
 ];
 
 /**
@@ -74,6 +92,7 @@ export default function PermissionsCarousel({ onDone }: { onDone: () => void }) 
     location: false,
     notifications: false,
     battery: false,
+    keepalive: false,
   });
   const [busy, setBusy] = useState(false);
 
@@ -121,7 +140,7 @@ export default function PermissionsCarousel({ onDone }: { onDone: () => void }) 
       } else if (step.id === 'notifications') {
         const ok = await requestNotificationPermission();
         setGranted((g) => ({ ...g, notifications: ok }));
-      } else {
+      } else if (step.id === 'battery') {
         // No app can exempt itself from battery optimisation; Android only
         // lets us open the screen where the driver does it.
         setGranted((g) => ({ ...g, battery: true }));
@@ -131,6 +150,9 @@ export default function PermissionsCarousel({ onDone }: { onDone: () => void }) 
             '_system'
           );
         }
+      } else {
+        // Informational cards are advanced by the button directly.
+        advance();
       }
     } catch (err) {
       console.warn('[PermissionsCarousel] request failed:', err);
@@ -190,6 +212,20 @@ export default function PermissionsCarousel({ onDone }: { onDone: () => void }) 
         </h2>
         <p className="mt-3 text-base leading-relaxed text-muted-foreground">{step.body}</p>
 
+        {step.warnings && (
+          <ul className="mt-5 space-y-2.5">
+            {step.warnings.map((warning) => (
+              <li
+                key={warning}
+                className="flex gap-2.5 rounded-xl border border-warning/30 bg-warning/10 px-3.5 py-3"
+              >
+                <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                <span className="text-sm leading-relaxed text-foreground">{warning}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
         <div className="mt-6 flex gap-3 rounded-2xl border border-border bg-card p-4">
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
           <p className="text-sm leading-relaxed text-muted-foreground">{step.why}</p>
@@ -197,7 +233,11 @@ export default function PermissionsCarousel({ onDone }: { onDone: () => void }) 
       </div>
 
       <div className="relative space-y-2.5 px-7">
-        {done ? (
+        {step.informational ? (
+          <Button className="h-12 w-full text-base font-semibold" onClick={advance}>
+            {step.action}
+          </Button>
+        ) : done ? (
           <Button className="h-12 w-full gap-2 text-base font-semibold" onClick={advance}>
             <Check className="h-5 w-5" />
             {isLast ? 'Done' : 'Next'}

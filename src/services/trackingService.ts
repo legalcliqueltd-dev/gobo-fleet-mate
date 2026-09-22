@@ -26,6 +26,7 @@ import { isGeolocationPluginAvailable } from '@/utils/nativeGeolocation';
 import { startAndroidForegroundService, stopAndroidForegroundService } from '@/utils/androidForegroundService';
 import {
   addOfflineLocation,
+  removeLocationBySyncKey,
   clearLocationsBySource,
   getPendingBatch,
   removeSyncedLocations,
@@ -88,6 +89,8 @@ class TrackingService extends EventTarget {
   private androidWatcherId: string | null = null;
   private listenerSubscriptions: Array<{ remove: () => void }> = [];
   private syncRetryTimer: ReturnType<typeof setInterval> | null = null;
+  /** Teardown for the event-driven drain triggers. */
+  private drainTriggerCleanup: (() => void) | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private nativeCountTimer: ReturnType<typeof setInterval> | null = null;
   private androidPollTimer: ReturnType<typeof setInterval> | null = null;
@@ -567,15 +570,62 @@ class TrackingService extends EventTarget {
     this.setState({ lastLocation: loc });
     this.dispatchEvent(new CustomEvent('location', { detail: loc }));
 
-    // Throttle sends to once per 30s
+    // Record on a 30 s cadence, then try to send.
+    //
+    // THE BUG THIS FIXES: this used to `return` here when throttled, throwing
+    // the position away, and the ONLY thing that ever wrote to the offline
+    // queue was the catch block of a failed send. So the queue was fed purely
+    // by network failures — at most one point per 30 s, and only if a fix
+    // happened to arrive at the moment the throttle opened AND the request
+    // then failed. With no signal, `functions.invoke` can hang for a long
+    // while before it rejects, so a driver could be offline for an hour and
+    // come back with two points. That is exactly what was reported.
+    //
+    // Now the queue is the system of record: every 30 s a point is written to
+    // IndexedDB first and unconditionally, whatever the network is doing. The
+    // send is an optimisation on top, and a successful one removes its own
+    // point again so history never gets it twice.
     const now = Date.now();
     if (now - this.lastSentAt < 30_000) return;
     this.lastSentAt = now;
 
-    this.sendLocationUpdate(loc);
+    void this.recordThenSend(loc);
   }
 
-  private async sendLocationUpdate(loc: TrackingLocation) {
+  /**
+   * Queue the fix, then try to deliver it.
+   *
+   * Order matters: written before the attempt, a point survives a crash, a
+   * kill, a hang, or a failure. Written after, it is lost in every one of
+   * those cases — which is the whole reason offline tracking looked broken.
+   */
+  private async recordThenSend(loc: TrackingLocation) {
+    const driverId = this.state.driverId;
+    const adminCode = this.state.adminCode;
+    if (!driverId || !adminCode) return;
+
+    const timestamp = loc.timestamp.toISOString();
+    const syncKey = `${driverId}:${timestamp}:${loc.latitude.toFixed(6)}:${loc.longitude.toFixed(6)}`;
+
+    await addOfflineLocation({
+      syncKey,
+      driverId,
+      adminCode,
+      source: 'js',
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      speed: loc.speed ?? 0,
+      accuracy: loc.accuracy ?? 0,
+      batteryLevel: this.state.batteryLevel,
+      timestamp,
+      createdAt: Date.now(),
+    });
+    this.refreshOfflineCount();
+
+    await this.sendLocationUpdate(loc, syncKey);
+  }
+
+  private async sendLocationUpdate(loc: TrackingLocation, syncKey?: string) {
     const driverId = this.state.driverId;
     const adminCode = this.state.adminCode;
     if (!driverId || !adminCode) return;
@@ -599,23 +649,14 @@ class TrackingService extends EventTarget {
         return;
       }
       this.setState({ lastSyncTime: new Date() });
+      // The live path already wrote this fix to history, so retire our copy
+      // before draining — otherwise the drain posts it again.
+      if (syncKey) await removeLocationBySyncKey(syncKey);
       await this.drainOfflineQueue();
     } catch (err) {
-      console.warn('[TrackingService] send failed, persisting offline:', err);
-      const timestamp = loc.timestamp.toISOString();
-      await addOfflineLocation({
-        syncKey: `${driverId}:${timestamp}:${loc.latitude.toFixed(6)}:${loc.longitude.toFixed(6)}`,
-        driverId,
-        adminCode,
-        source: 'js',
-        latitude: loc.latitude,
-        longitude: loc.longitude,
-        speed: loc.speed ?? 0,
-        accuracy: loc.accuracy ?? 0,
-        batteryLevel: this.state.batteryLevel,
-        timestamp,
-        createdAt: Date.now(),
-      });
+      // Nothing to persist here any more: recordThenSend queued this point
+      // before the attempt, so a failure simply leaves it queued.
+      console.warn('[TrackingService] send failed, point stays queued:', err);
       this.refreshOfflineCount();
     }
   }
@@ -674,6 +715,44 @@ class TrackingService extends EventTarget {
 
     sync();
     this.syncRetryTimer = setInterval(sync, SYNC_RETRY_INTERVAL_MS);
+
+    // THE BUG THIS FIXES: the interval above was the ONLY thing that drained
+    // the queue, and Chromium freezes timers in a backgrounded WebView — which
+    // is precisely the state a driver's phone is in while they drive. Signal
+    // would come back, the timer would still be frozen, and nothing uploaded
+    // until the driver happened to open the app again. To the manager the
+    // driver simply stayed missing.
+    //
+    // These fire on the events that actually coincide with regained
+    // connectivity, and they are delivered even when a timer would not be.
+    const drain = () => {
+      void sync();
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') drain();
+    };
+
+    window.addEventListener('online', drain);
+    document.addEventListener('visibilitychange', onVisible);
+
+    let removeResume: (() => void) | null = null;
+    if (detectNativePlatform()) {
+      void import('@capacitor/app')
+        .then(({ App }) => App.addListener('resume', drain))
+        .then((handle) => {
+          removeResume = () => void handle.remove();
+        })
+        .catch(() => {
+          /* @capacitor/app absent on web — the web listeners above cover it */
+        });
+    }
+
+    this.drainTriggerCleanup = () => {
+      window.removeEventListener('online', drain);
+      document.removeEventListener('visibilitychange', onVisible);
+      removeResume?.();
+    };
   }
 
   private stopSyncRetry() {
@@ -681,6 +760,8 @@ class TrackingService extends EventTarget {
       clearInterval(this.syncRetryTimer);
       this.syncRetryTimer = null;
     }
+    this.drainTriggerCleanup?.();
+    this.drainTriggerCleanup = null;
   }
 
   // ─── Heartbeat ────────────────────────────────────────────────

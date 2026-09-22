@@ -30,6 +30,8 @@ type DriverGoogleMapProps = {
     kind: StationKind;
     radius: number;
     done: boolean;
+    /** The one station worth drawing a geofence ring for right now. */
+    focus?: boolean;
   }[];
   mapType: 'roadmap' | 'satellite';
   isDark: boolean;
@@ -200,8 +202,11 @@ const DriverGoogleMap = forwardRef<DriverGoogleMapHandle, DriverGoogleMapProps>(
           path={trail}
           options={{
             strokeColor: getRouteStrokeColor(isDark),
-            strokeOpacity: 0.95,
-            strokeWeight: 6,
+            // Thin and slightly translucent. This is context for where the
+            // driver just came from, not the subject of the screen — at
+            // weight 6 and full opacity it competed with the road it sits on.
+            strokeOpacity: 0.75,
+            strokeWeight: 4,
             clickable: false,
             zIndex: 1,
           }}
@@ -212,21 +217,30 @@ const DriverGoogleMap = forwardRef<DriverGoogleMapHandle, DriverGoogleMapProps>(
           still outstanding holds the driver's attention. */}
       {stations.map((s) => (
         <div key={s.id}>
-          <Circle
-            center={{ lat: s.lat, lng: s.lng }}
-            radius={s.radius}
-            options={{
-              strokeColor: s.color,
-              strokeOpacity: s.done ? 0.25 : 0.7,
-              strokeWeight: 1.5,
-              fillColor: s.color,
-              fillOpacity: s.done ? 0.05 : 0.14,
-              clickable: false,
-              zIndex: 1,
-            }}
-          />
+          {/* One ring at a time. Drawing a filled circle around all twelve
+              stations tiled the map with translucent discs and buried the
+              streets under them; the ring only means anything for the station
+              being approached, so only that one draws it. */}
+          {s.focus && !s.done && (
+            <Circle
+              center={{ lat: s.lat, lng: s.lng }}
+              radius={s.radius}
+              options={{
+                strokeColor: s.color,
+                strokeOpacity: 0.7,
+                strokeWeight: 1.5,
+                fillColor: s.color,
+                fillOpacity: 0.12,
+                clickable: false,
+                zIndex: 1,
+              }}
+            />
+          )}
           {(() => {
-            const icon = stationMarkerIcon(s.kind, s.color, 'full', s.done);
+            // A completed station has nothing left to tell the driver, so it
+            // shrinks to a dot and drops its name. Outstanding ones keep the
+            // full pin and label.
+            const icon = stationMarkerIcon(s.kind, s.color, s.done ? 'dot' : 'full', s.done);
             return (
               <Marker
                 position={{ lat: s.lat, lng: s.lng }}
@@ -239,12 +253,16 @@ const DriverGoogleMap = forwardRef<DriverGoogleMapHandle, DriverGoogleMapProps>(
                   anchor: new google.maps.Point(icon.anchorX, icon.anchorY),
                   labelOrigin: new google.maps.Point(icon.width / 2, icon.labelY),
                 }}
-                label={{
-                  text: s.name.length > 16 ? `${s.name.slice(0, 15)}…` : s.name,
-                  color: isDark ? '#dbe2ea' : '#1f2937',
-                  fontSize: '10px',
-                  fontWeight: '700',
-                }}
+                label={
+                  s.done
+                    ? undefined
+                    : {
+                        text: s.name.length > 16 ? `${s.name.slice(0, 15)}…` : s.name,
+                        color: isDark ? '#dbe2ea' : '#1f2937',
+                        fontSize: '10px',
+                        fontWeight: '700',
+                      }
+                }
               />
             );
           })()}

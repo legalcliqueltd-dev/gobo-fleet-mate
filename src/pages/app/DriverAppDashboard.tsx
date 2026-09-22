@@ -52,6 +52,10 @@ function metresBetween(a: { lat: number; lng: number }, b: { lat: number; lng: n
 
 const TRAIL_STORAGE_KEY = 'driver_location_trail';
 const MAX_TRAIL_AGE_MS = 24 * 60 * 60 * 1000;
+/** How much of the trail the live map draws — enough to see the last turn. */
+const LIVE_TRAIL_WINDOW_MS = 20 * 60 * 1000;
+/** Hard cap, so a dense stretch of fixes cannot rebuild the spaghetti. */
+const LIVE_TRAIL_MAX_POINTS = 120;
 
 export default function DriverAppDashboard() {
   const { session } = useDriverSession();
@@ -285,7 +289,17 @@ export default function DriverAppDashboard() {
     setMapType(prev => prev === 'roadmap' ? 'satellite' : 'roadmap');
   }, []);
 
-  const trailPath = trail.map(p => ({ lat: p.lat, lng: p.lng }));
+  // Storage keeps the full 24 h — that is the driver's proof of work, and the
+  // history screens read it. The LIVE map does not draw it. A whole day of
+  // driving rendered as one polyline is a ball of spaghetti across the city
+  // that hides the road the driver is actually on, which is what "too much
+  // drawing on the map" was. Navigation apps show where you are going, not
+  // everywhere you have been; this keeps the last stretch for orientation and
+  // throws the rest away at draw time only.
+  const trailPath = trail
+    .filter((p) => Date.now() - p.timestamp < LIVE_TRAIL_WINDOW_MS)
+    .slice(-LIVE_TRAIL_MAX_POINTS)
+    .map((p) => ({ lat: p.lat, lng: p.lng }));
 
   const taskPins = tasks
     .filter((t): t is Task & { dropoff_lat: number; dropoff_lng: number } =>
@@ -304,7 +318,7 @@ export default function DriverAppDashboard() {
     dwellRemaining,
   } = useStationWatcher(currentLocation, speed, accuracy, session);
 
-  const stationPins = stations.map((s) => {
+  const stationPinsRaw = stations.map((s) => {
     const visit = visitFor(s.id);
     return {
       id: s.id,
@@ -317,6 +331,24 @@ export default function DriverAppDashboard() {
       done: visit?.status === 'completed' || (Boolean(visit) && !s.requires_photo),
     };
   });
+
+  // Exactly one station gets a geofence ring: the one being attended, or
+  // failing that the nearest one still outstanding. Twelve translucent discs
+  // on a city map hide the city.
+  const focusStationId = (() => {
+    if (insideStation) return insideStation.id;
+    if (!currentLocation) return null;
+    const outstanding = stationPinsRaw.filter((p) => !p.done);
+    if (outstanding.length === 0) return null;
+    return outstanding.reduce((closest, pin) =>
+      metresBetween(currentLocation, { lat: pin.lat, lng: pin.lng }) <
+      metresBetween(currentLocation, { lat: closest.lat, lng: closest.lng })
+        ? pin
+        : closest
+    ).id;
+  })();
+
+  const stationPins = stationPinsRaw.map((p) => ({ ...p, focus: p.id === focusStationId }));
 
   const activeTask = tasks.find(t => t.status === 'en_route') || tasks[0] || null;
 
