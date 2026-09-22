@@ -91,6 +91,17 @@ class TrackingService extends EventTarget {
   private syncRetryTimer: ReturnType<typeof setInterval> | null = null;
   /** Teardown for the event-driven drain triggers. */
   private drainTriggerCleanup: (() => void) | null = null;
+  /**
+   * syncKeys currently being delivered by the live path.
+   *
+   * A point is queued BEFORE its send is attempted, so between the write and
+   * the success there is a window where the queue holds a point that is
+   * already on its way. A drain firing in that window — and drains now fire on
+   * `online`, resume and visibility, not just a timer — would post it a second
+   * time and put two identical fixes in the history. Holding the key here
+   * keeps the drain off it until its fate is known.
+   */
+  private inFlightKeys = new Set<string>();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private nativeCountTimer: ReturnType<typeof setInterval> | null = null;
   private androidPollTimer: ReturnType<typeof setInterval> | null = null;
@@ -622,7 +633,12 @@ class TrackingService extends EventTarget {
     });
     this.refreshOfflineCount();
 
-    await this.sendLocationUpdate(loc, syncKey);
+    this.inFlightKeys.add(syncKey);
+    try {
+      await this.sendLocationUpdate(loc, syncKey);
+    } finally {
+      this.inFlightKeys.delete(syncKey);
+    }
   }
 
   private async sendLocationUpdate(loc: TrackingLocation, syncKey?: string) {
@@ -668,7 +684,12 @@ class TrackingService extends EventTarget {
     if (!driverId || !adminCode) return;
 
     try {
-      const batch = await getPendingBatch(SYNC_BATCH_SIZE, { excludeSources: ['native_mirror'] });
+      const queued = await getPendingBatch(SYNC_BATCH_SIZE, {
+        excludeSources: ['native_mirror'],
+      });
+      // Skip anything the live path is delivering right now; it will retire
+      // its own copy on success, or leave it here on failure for the next run.
+      const batch = queued.filter((l) => !l.syncKey || !this.inFlightKeys.has(l.syncKey));
       if (batch.length === 0) return;
 
       const trailPoints = batch.map((loc) => ({

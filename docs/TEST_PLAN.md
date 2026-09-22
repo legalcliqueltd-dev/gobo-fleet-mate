@@ -67,6 +67,7 @@ three are registered (debug, upload, Play app-signing).
 | 2.8 | Tap "Open battery settings" | Lands on the battery screen for FleetTrackMate | ☐ |
 | 2.9 | Tap "Skip", or "Not now" on every card | Carousel closes; the app is **fully usable** | ☐ |
 | 2.10 | Force-close and reopen the app | Carousel does **not** appear again | ☐ |
+| 2.11 | Final carousel card | Warns about Recents-swipe, "while using the app", and dismissing the notification | ☐ |
 
 **2.9 is deliberate.** Permissions squeezed out of someone get revoked the same
 week. A driver who skips is asked again the next time the feature needs it, in
@@ -95,6 +96,25 @@ Everything else depends on this. Do not skip it.
 | 3.9 | That driver's list row | Reads "Stopped reporting — tracking may be off", in amber, not "3 h ago" | ☐ |
 | 3.10 | A driver who simply finished last night | Reads "Off duty or app closed", grey — **no** banner | ☐ |
 | 3.11 | A driver who connected but never went On Duty | Reads "Never reported — app not set up" | ☐ |
+| 3.12 | On Duty, **airplane mode on**, walk/drive 10 min | Driver Settings → offline count climbs to **~20**, roughly one per 30 s | ☐ |
+| 3.13 | Still offline, leave the app for those 10 min | Count still climbs — backgrounding must not stop the queue | ☐ |
+| 3.14 | Airplane mode **off**, do not touch the app | Queue drains to 0 **on its own**, within about a minute | ☐ |
+| 3.15 | Manager → that driver → History, same day | The offline stretch is filled in **at the times it happened**, not bunched at the reconnect | ☐ |
+| 3.16 | Count the points in 3.15 | Matches what 3.12 queued — no duplicated fixes at identical timestamps | ☐ |
+| 3.17 | Manager's live fleet map right after 3.14 | **Known gap:** the pin may sit at the last pre-offline position until the next live fix (~30 s) | ☐ |
+
+**3.12 is the number that matters.** The old build returned about *two* points
+for an hour offline, because the queue was only ever written to by a failed
+send. Twenty points for ten minutes means the queue is now fed by the clock
+instead. Anything close to two means this regressed.
+
+**3.14 must happen without opening the app.** Draining used to depend on a
+timer, and Android freezes timers in a backgrounded WebView — so signal came
+back and nothing moved until a human opened the app.
+
+**3.17 is a known limit, not a failure.** Backfill writes history and the
+heartbeat but not the live position row; the map catches up on the next live
+fix. Raise it only if the pin is still stale minutes later.
 
 **3.7–3.11 are one test in five parts:** "offline" on its own is useless, because a
 driver who finished for the day and a driver whose tracking silently died look
@@ -124,6 +144,15 @@ backgrounded, nothing built on top of it means anything.
 | 4.11 | Submit the photo | Station turns **green** on the manager map | ☐ |
 | 4.12 | Manager: tap the station | 14-day strip; today green; photo visible | ☐ |
 | 4.13 | Drive **past** the station without stopping | **No** visit recorded | ☐ |
+| 4.14 | **Two drivers on two different vehicle codes**, same station | **Both** can complete the dwell and send a receipt | ☐ |
+| 4.15 | Watch the driver's chip during the dwell | Counts down, then the Receipt button **unlocks within ~5 s** | ☐ |
+
+**4.14 is the regression test for the field bug.** Stations were readable
+fleet-wide but the RLS policy on the write still required the visit's code to
+equal the station's own stored code. Only the one driver whose code created the
+station could record an arrival; everyone else watched the counter run and
+never got the receipt. Testing with a single driver — or two drivers sharing one
+code — cannot detect this. Use two genuinely different codes.
 
 **4.10 matters:** a gallery option here would let an old photo be resubmitted as
 today's proof. Expenses deliberately allow gallery; stations must not.
@@ -250,6 +279,9 @@ erased by firing someone.
 | 11.10 | Station markers | **Pin-shaped**, glyph inside, tip on the exact point | ☐ |
 | 11.11 | Zoom out past city level | Pins become dots; roads stay readable | ☐ |
 | 11.12 | Driver history date strip | Starts at **Today**, scrolls back; "Pick" opens a date picker | ☐ |
+| 11.13a | **Driver's** map after a few hours on duty | Draws only the **recent** stretch of trail, not the whole day's spaghetti | ☐ |
+| 11.13b | Driver's map with several stations | Only **one** geofence ring — the station being approached | ☐ |
+| 11.13c | A station the driver has completed | Shrinks to a dot and **loses its name label** | ☐ |
 | 11.13 | Fleet map → tap a car marker | A **focus card** rises: name, place, status, four round buttons | ☐ |
 | 11.14 | The line under the name | A real place in words — "Awolowo Road, Ikoyi" — not coordinates | ☐ |
 | 11.15 | Follow the same driver for several minutes | The place line updates when they change street, not every fix | ☐ |
