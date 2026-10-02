@@ -20,6 +20,9 @@ const supabaseAdmin = createClient(
 );
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+// Must match the sender already verified with Resend for this domain —
+// an unverified from-address is accepted by the API and then never delivered.
+const FROM_EMAIL = 'FleetTrackMate <noreply@fleettrackmate.com>';
 
 /** Six digits. Rejected 4 because a million guesses beats ten thousand. */
 function generateCode(): string {
@@ -115,7 +118,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<boo
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'FleetTrackMate <delivery@fleettrackmate.com>',
+        from: FROM_EMAIL,
         to: [to],
         subject,
         html,
@@ -211,13 +214,14 @@ Deno.serve(async (req) => {
       const link = `https://fleettrackmate.com/d/${token}`;
       let emailed = false;
       if (email && (sendVia ?? []).includes('email')) {
+        // profiles has full_name only — there is no company_name column, and
+        // selecting one would error the whole request.
         const { data: profile } = await supabaseAdmin
           .from('profiles')
-          .select('full_name, company_name')
+          .select('full_name')
           .eq('id', user.id)
           .maybeSingle();
-        const business =
-          profile?.company_name || profile?.full_name || 'Your delivery';
+        const business = profile?.full_name || 'Your delivery';
         emailed = await sendEmail(
           email,
           `Your delivery code from ${business}`,
