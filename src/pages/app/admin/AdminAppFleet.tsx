@@ -74,7 +74,12 @@ export default function AdminAppFleet() {
   // Closed on arrival. The map is the reason this screen exists; opening a
   // list over it on every visit means the manager's first action is always to
   // dismiss something. The handle below advertises itself instead.
-  const [sheetOpen, setSheetOpen] = useState(false);
+  // Three steps, not two. 'half' is the default open size and the one most
+  // managers live in; 'tall' exists because a fleet of ten does not fit in a
+  // 176px window and scrolling a small box to find a driver is miserable.
+  // Shut is still where it starts: the map is the reason for this screen.
+  const [sheetStep, setSheetStep] = useState<'shut' | 'half' | 'tall'>('shut');
+  const sheetOpen = sheetStep !== 'shut';
 
   const vehicles = useMemo(
     () =>
@@ -144,7 +149,7 @@ export default function AdminAppFleet() {
   // card that replaces it carries every action the row offered.
   const flyTo = (lat: number, lng: number, id: string) => {
     setSelectedId(id);
-    setSheetOpen(false);
+    setSheetStep('shut');
     mapRef.current?.panTo({ lat, lng });
     mapRef.current?.setZoom(16);
   };
@@ -297,7 +302,7 @@ export default function AdminAppFleet() {
         <button
           type="button"
           onClick={() => {
-            setSheetOpen(true);
+            setSheetStep('half');
             flyTo(troubled[0].lat, troubled[0].lng, troubled[0].id);
           }}
           className="absolute left-3 right-3 top-[4.6rem] z-[1000] flex items-center gap-2.5 rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-left backdrop-blur"
@@ -329,7 +334,13 @@ export default function AdminAppFleet() {
         <div
           className={cn(
             'absolute left-3 z-[1000] flex items-center gap-3 rounded-xl border border-border bg-background/95 px-3 py-2 backdrop-blur transition-all',
-            selected ? 'bottom-[16.5rem]' : sheetOpen ? 'bottom-[13.5rem]' : 'bottom-20'
+            selected
+            ? 'bottom-[16.5rem]'
+            : sheetStep === 'tall'
+              ? 'bottom-[66vh]'
+              : sheetStep === 'half'
+                ? 'bottom-[13.5rem]'
+                : 'bottom-20'
           )}
           style={{ boxShadow: 'var(--shadow-card)' }}
         >
@@ -376,7 +387,13 @@ export default function AdminAppFleet() {
       <div
         className={cn(
           'absolute right-3 z-[1000] flex flex-col gap-2 transition-all',
-          selected ? 'bottom-[16.5rem]' : sheetOpen ? 'bottom-[13.5rem]' : 'bottom-20'
+          selected
+            ? 'bottom-[16.5rem]'
+            : sheetStep === 'tall'
+              ? 'bottom-[66vh]'
+              : sheetStep === 'half'
+                ? 'bottom-[13.5rem]'
+                : 'bottom-20'
         )}
       >
         <Button
@@ -420,9 +437,20 @@ export default function AdminAppFleet() {
         >
           <button
             type="button"
-            onClick={() => setSheetOpen((open) => !open)}
+            onClick={() =>
+              setSheetStep((step) =>
+                step === 'shut' ? 'half' : step === 'half' ? 'tall' : 'shut'
+              )
+            }
             className="flex w-full items-center gap-2.5 px-4 py-3"
             aria-expanded={sheetOpen}
+            aria-label={
+              sheetStep === 'shut'
+                ? 'Show vehicles'
+                : sheetStep === 'half'
+                  ? 'Show more vehicles'
+                  : 'Hide vehicles'
+            }
           >
             {/* A live dot while anything is moving: the handle then reads as
                 something worth opening rather than a static bar. */}
@@ -458,22 +486,34 @@ export default function AdminAppFleet() {
               </span>
             </span>
 
+            {/* The chevron always points where the NEXT tap goes: up to see
+                more, down to put it away from the tall step. */}
             <span
               className={cn(
                 'flex h-8 w-8 items-center justify-center rounded-full transition-all',
-                sheetOpen ? 'bg-muted' : 'bg-success/15'
+                sheetStep === 'shut' ? 'bg-success/15' : 'bg-muted'
               )}
             >
-              {sheetOpen ? (
+              {sheetStep === 'tall' ? (
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               ) : (
-                <ChevronUp className="h-4 w-4 text-success" />
+                <ChevronUp
+                  className={cn(
+                    'h-4 w-4',
+                    sheetStep === 'shut' ? 'text-success' : 'text-muted-foreground'
+                  )}
+                />
               )}
             </span>
           </button>
 
           {sheetOpen && (
-            <div className="max-h-44 overflow-y-auto overscroll-contain px-3 pb-3">
+            <div
+              className={cn(
+                'overflow-y-auto overscroll-contain px-3 pb-3 transition-[max-height] duration-200',
+                sheetStep === 'tall' ? 'max-h-[60vh]' : 'max-h-44'
+              )}
+            >
               {loading && vehicles.length === 0 && (
                 <p className="px-1 py-6 text-center text-sm text-muted-foreground">
                   Loading your fleet…
