@@ -196,130 +196,109 @@ SMS, metered beyond that.
 
 ## 3. The UX
 
-Three audiences. The customer is the one who has never seen your product, cannot
-be trained, and will not install anything — so their page carries the most
-design weight.
+**Governing rule: minimal but purposeful.** Nothing on a screen that is not
+doing a job. No explanatory prose on any surface the owner sees daily. Every
+destination answers "what is this for?" in one phrase or it does not exist.
 
-### 3.1 Business owner — creating the job
+Applied here, that means one hard constraint: **this feature adds no tab, no
+dashboard widget and no new section.** It is a property of a job. The entire
+owner-facing surface is one toggle inside a form they already use.
 
-Extends the existing **Assign job** screen rather than adding a new one.
+### 3.1 Business owner — one toggle, then four fields
 
-```
-  Assign job
-  ─────────────────────────────────────────
-  Driver            [ Musa Ibrahim      ▾ ]
-  What is it        [ 2 cartons of tiles  ]
-  Drop-off          [ 14 Awolowo Rd, Ikoyi]
-  ─────────────────────────────────────────
-  ⬛ Require a delivery code          [ ON ]
-
-     The customer gets a code. Your driver
-     cannot finish this job without it.
-
-     Customer name   [ Mrs Adeyemi       ]
-     Phone           [ 0803 000 0000     ]
-     Email optional  [                   ]
-
-     Code expires    [ 24 hours        ▾ ]
-                     15m · 1h · 6h · 24h
-                     · 2 days · 7 days
-
-     Send by     [✓] WhatsApp  [✓] SMS  [ ] Email
-  ─────────────────────────────────────────
-              [    Send job    ]
-```
-
-Notes on why:
-
-- The toggle is **off by default**. Most jobs do not need it, and a feature that
-  imposes itself gets switched off entirely.
-- The one-line explanation under the toggle is the only training the owner gets.
-  It must say what it *does to the driver*, because that is the part that sells.
-- WhatsApp is pre-ticked because click-to-chat is free and it is where these
-  businesses already live.
-
-On save: code generated, hashed server-side, plaintext shown **once** to the
-owner, and the chosen channel opens.
-
-### 3.2 Customer — the page they land on
-
-Public, token in the URL, **no login, no install**. This is the screen that
-decides whether the feature works.
+The existing **Assign job** form. The block below the rule appears only when the
+toggle is on.
 
 ```
-  ┌─────────────────────────────────────┐
-  │  From  ⬛ Kemi's Tiles              │
-  │                                     │
-  │  Only give this code after you      │
-  │  have checked your item.            │
-  │                                     │
-  │        4 8 2 9 1 7                  │   ← huge, tabular, selectable
-  │                                     │
-  │  Expires in 23h 41m                 │
-  ├─────────────────────────────────────┤
-  │  How this works                     │
-  │                                     │
-  │  1  The driver arrives.             │
-  │  2  Open and check your item        │
-  │     while he is still there.        │
-  │  3  Happy? Give him the code.       │
-  │  4  Not happy? Do NOT give the      │
-  │     code. Report it below and he    │
-  │     takes it back.                  │
-  ├─────────────────────────────────────┤
-  │  🔴  Something is wrong with it     │
-  │  📍  Where is my driver?            │
-  │  ⚠️  I am being pressured           │
-  └─────────────────────────────────────┘
+  Driver        [ Musa Ibrahim        ▾ ]
+  What is it    [ 2 cartons of tiles    ]
+  Drop-off      [ 14 Awolowo Rd, Ikoyi  ]
+  ──────────────────────────────────────
+  Delivery code                    [ ON ]
+  Driver can't finish without it.
+
+  Customer      [ Mrs Adeyemi           ]
+  Phone         [ 0803 000 0000         ]
+  Expires       [ 24 hours            ▾ ]
+  Send by       [✓] WhatsApp  [ ] SMS
+  ──────────────────────────────────────
+            [    Send job    ]
 ```
 
-- **"Where is my driver?"** reuses the tracking you already have, and it is the
-  thing that makes the page feel like a product rather than a text message.
-- **"Something is wrong"** opens the camera, takes up to 3 photos, one reason
-  from a short list, free text optional. Fires to the owner immediately.
-- The code is selectable text so people can copy it; do not make it an image.
-- Works on a cheap Android browser. No framework weight, no fonts to download.
+- **Off by default.** Most jobs do not need it, and a feature that imposes
+  itself gets switched off entirely.
+- **One line of explanation, not two** — and it describes the consequence
+  (`driver can't finish`), not the mechanism. That is the only training the
+  owner gets and the only sentence on the screen.
+- Email is behind the channel row, not a fourth visible field. Phone covers
+  WhatsApp and SMS both.
 
-### 3.3 Driver — the gate
+### 3.2 Customer — one number and two choices
 
-The whole feature lives or dies on one rule: **no code, no receipt.**
+Public page, token in the URL, no login, no install. The audience has never seen
+your product and will not read instructions, so there are none.
 
 ```
-  Job · 2 cartons of tiles
+  ┌───────────────────────────────┐
+  │  Kemi's Tiles                 │
+  │                               │
+  │  Check your item first,       │
+  │  then give the driver:        │
+  │                               │
+  │      4 8 2 9 1 7              │   ← huge, tabular, selectable
+  │                               │
+  │  Expires in 23h 41m           │
+  ├───────────────────────────────┤
+  │  Something's wrong with it  › │
+  │  Where's my driver?         › │
+  └───────────────────────────────┘
+```
+
+Six words carry the whole protocol: *check your item first, then give the
+driver*. An earlier draft of this spec had a four-step numbered explainer here —
+that is exactly the write-up this product is trying to remove. The one line does
+the same work and gets read, which the four steps would not.
+
+- **"Something's wrong"** opens the camera directly. Up to 3 photos, one reason
+  from a short list, free text optional. Fires to the owner immediately. The
+  "I'm being pressured" alert from §2.B lives *inside* this flow as one of the
+  reasons — it does not earn its own row.
+- **"Where's my driver?"** reuses existing tracking. It is what makes this feel
+  like a product rather than a text message.
+- Selectable text, never an image. Must work on a cheap Android browser.
+
+### 3.3 Driver — one gate
+
+```
+  2 cartons of tiles
   14 Awolowo Rd, Ikoyi
-  ─────────────────────────────────────
-  🔒  This delivery needs a code
+  ─────────────────────────────────
+  Ask Mrs Adeyemi for her code
 
-      Ask Mrs Adeyemi for her 6-digit
-      code once she has checked the item.
+    [_] [_] [_] [_] [_] [_]
 
-         [ _ ] [ _ ] [ _ ] [ _ ] [ _ ] [ _ ]
-
-              [   Confirm   ]
-
-      Customer could not give the code?
-      › Report a problem
-  ─────────────────────────────────────
-  📷  Take delivery photo      ⛔ locked
+  Couldn't get the code?         ›
+  ─────────────────────────────────
+  🔒 Photo unlocks after the code
 ```
 
-After a correct code:
+After a correct code the gate is replaced, not added to:
 
 ```
-  ✅  Code confirmed · 14:32 · at the drop-off
-  ─────────────────────────────────────
-  📷  Take delivery photo       → open
+  ✅ Code confirmed · at the drop-off
+  ─────────────────────────────────
+  📷 Take delivery photo          ›
 ```
 
-- The photo button is **visible but locked**, not hidden. The driver must
-  understand *why* they cannot finish, or they will assume the app is broken —
-  the same mistake that made the station receipt look broken for a month.
-- "at the drop-off" / "**1.4 km from the drop-off**" is computed from the fix at
-  redemption. Free, from existing tracking, and it is the line that makes the
-  record worth something in a dispute.
-- Six separate boxes, numeric keypad, auto-advance. No paste-a-code field.
+- The locked photo row stays **visible**. A driver who cannot see why he is
+  stuck assumes the app is broken — the exact mistake that made the station
+  receipt look dead for a month. Six words prevent a support call.
+- `at the drop-off` / `1.4 km from the drop-off` is computed from the fix at
+  redemption. One phrase, no label, no card. It is the line that wins a dispute.
+- Six boxes, numeric keypad, auto-advance. No paste field, no "verify" button —
+  the sixth digit submits.
 
-### 3.4 The states a job can now be in
+### 3.4 Job states
 
 ```
   assigned → code_sent → en_route → ┬→ code_verified → delivered
@@ -328,8 +307,9 @@ After a correct code:
                                     └→ code_expired
 ```
 
-Each terminal state needs an owner-facing screen. `rejected_by_customer` is the
-one that earns the subscription — it is the receipt for goods coming back.
+These surface as a **status word on the existing job row** — not a new screen,
+not a badge system. `rejected_by_customer` is the one worth a detail view,
+because it is the receipt for goods coming back.
 
 ---
 
