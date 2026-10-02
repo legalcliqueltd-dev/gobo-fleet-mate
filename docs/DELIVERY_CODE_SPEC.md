@@ -116,22 +116,27 @@ screen and still impossible to miss — but one line above it changes behaviour 
 the door, and costs nothing. **This is your call, but I would not ship it the
 other way round.**
 
-### D. The driver may not have the app — this is the market-sizing problem
+### D. The driver must be someone you control — decided
 
-If codes can only be redeemed inside the driver app, your market shrinks to
-businesses that already run dedicated drivers on FleetTrackMate. A shop owner
-who calls an okada rider is excluded, and that is most of the market you
-described wanting.
+**Owner decision: no anonymous riders.** A random okada rider can simply
+abscond with the goods, and no code protects against that — the code governs
+*handover*, and there is no handover if the rider never arrives. The delivery
+person is therefore always either your own driver or a logistics company you
+have told to use the app.
 
-**Fix: two redemption paths.**
+This narrows the market deliberately, and it is the right trade: a feature that
+appears to protect you while the rider rides away is worse than no feature.
 
-1. **In-app** (driver has FleetTrackMate) — full experience, GPS-bound, works
-   offline.
-2. **Web link** — the rider gets an SMS with a one-page form: enter code, take
+It does **not** mean the driver must install anything. Two redemption paths,
+both for *known* drivers:
+
+1. **In-app** — full experience, GPS-bound, works offline (§2.H).
+2. **Web link** — an invited driver gets a one-page form: enter code, take
    photo, done. No install. Browser geolocation where granted.
 
-This roughly triples the addressable market and is not much extra work, because
-the customer page (§3.2) is already a public token-addressed page.
+The distinction that matters: the web path is for a driver you have **invited
+and can identify**, not for whoever happens to be passing. The link is issued
+against a driver record, not handed out.
 
 ### E. Brute force
 
@@ -169,28 +174,71 @@ Verify on-device, queue the redemption. This drops straight into the offline
 queue you just rebuilt — the redemption is one more thing that drains on
 reconnect.
 
-### I. Channel cost will decide your margin
+### I. Sending the code — and the conflict with §2.J
+
+Channel costs, as facts (pricing is fixed and not under discussion here):
 
 - **SMS (Nigeria):** registered sender ID required; roughly ₦3–4 per message via
-  Termii / Africa's Talking / Twilio. 100 deliveries/month ≈ ₦300–400 of pure
-  cost against a ₦3,000 subscription.
+  Termii / Africa's Talking / Twilio.
 - **WhatsApp Business API:** template pre-approval, per-conversation pricing,
-  and weeks of setup. Do not block v1 on it.
-- **Email:** nearly free, but Nigerian retail customers often will not read it.
+  weeks of setup.
+- **Email:** effectively free, but Nigerian retail customers often will not read
+  it.
 
-**Fix for v1 — use click-to-chat, not the API:**
+An earlier draft of this document recommended **WhatsApp click-to-chat**
+(`wa.me/<number>?text=…`) as the v1 channel: free, no approval, and it matches
+how these businesses already work.
 
-```
-https://wa.me/<customer-number>?text=<url-encoded message>
-```
+**That recommendation is now dead, and it is worth understanding why.**
+Click-to-chat composes the message in *the owner's own WhatsApp*. The owner
+therefore necessarily sees everything in it — including the code. That directly
+violates §2.J below. You cannot have both.
 
-The owner taps *Send on WhatsApp*, their own WhatsApp opens with the message
-already written to that customer, they press send. **Zero API cost, zero
-approval, available today.** Most small business owners already run their whole
-business through WhatsApp, so this matches how they work.
+**Therefore: all code delivery must be server-side.**
 
-Bundle: unlimited email + unlimited WhatsApp click-to-chat + a quota of ~100
-SMS, metered beyond that.
+- **v1: email + SMS**, both sent by the server. Email carries no marginal cost;
+  SMS is an operating cost of the feature.
+- **WhatsApp via the Business API** when approval comes through. Worth starting
+  the application now, because it is the channel these customers actually read
+  and the approval is the long pole.
+- **Click-to-chat may only ever be offered as an explicitly labelled fallback**
+  — "sends from your phone; you will see the code" — or not at all. My
+  recommendation is not at all, because a security guarantee with a convenient
+  exception is not a guarantee.
+
+### J. The owner must never see the code — decided
+
+**Owner decision, and a good one.** If the business owner can read the code they
+can complete deliveries themselves, and every guarantee in this document
+collapses: the audit trail would then prove only that *someone with owner
+access* confirmed a handover.
+
+So the plaintext code is **never shown to the owner — not at creation, not
+after**. The server generates it, hashes it, and sends it to the customer
+directly. The owner sees only *status*: sent → viewed → redeemed, plus the
+redemption time and distance.
+
+Consequences to hold onto:
+
+- Kills click-to-chat (§2.I).
+- Phone support cannot read the code back to a customer. The support path is
+  **reissue**, not disclosure — see §2.K.
+- The code column in `delivery_codes` is a hash with a salt and there is no
+  plaintext column anywhere. Nothing to leak and nothing to subpoena.
+
+### K. Expiry and reissue — decided
+
+**Owner decision:** if a code expires undelivered, the owner can issue a new
+one. The customer contacts the owner or support to ask; the owner reissues from
+the job.
+
+Design consequences:
+
+- Reissue **invalidates the previous code** — never two live codes for one job.
+- Every reissue is logged with who did it and when. A job reissued five times is
+  a pattern worth seeing.
+- Reissue sends through the same server-side channels; the owner still never
+  sees the value.
 
 ---
 
@@ -220,7 +268,7 @@ toggle is on.
   Customer      [ Mrs Adeyemi           ]
   Phone         [ 0803 000 0000         ]
   Expires       [ 24 hours            ▾ ]
-  Send by       [✓] WhatsApp  [ ] SMS
+  Send by       [✓] SMS  [ ] Email
   ──────────────────────────────────────
             [    Send job    ]
 ```
@@ -230,8 +278,12 @@ toggle is on.
 - **One line of explanation, not two** — and it describes the consequence
   (`driver can't finish`), not the mechanism. That is the only training the
   owner gets and the only sentence on the screen.
-- Email is behind the channel row, not a fourth visible field. Phone covers
-  WhatsApp and SMS both.
+- Channels are SMS and email only until WhatsApp Business API approval lands
+  (§2.I). WhatsApp appears as a third checkbox the day it is approved — no
+  other screen changes.
+- The code is **never shown here**, before or after sending (§2.J). Once sent
+  this block collapses to a status line: `Code sent · viewed 14:02 · not yet
+  used`, with a **Reissue** action.
 
 ### 3.2 Customer — one number and two choices
 
@@ -424,7 +476,79 @@ Three deliberate choices:
 
 ---
 
-## 5. What already exists
+## 5. Verified businesses
+
+This is the other half of the scam problem, and it is a better answer to it than
+the code is.
+
+§2.A is blunt that the delivery code cannot stop the triangulation scam, because
+the money moves outside the system. A **verified badge does attack it directly**:
+the scam depends on a stranger being able to pose as a legitimate vendor. If
+posing requires passing identity checks tied to a real NIN and a real face, the
+scam stops being cheap.
+
+The two features are complementary and should be sold together:
+
+> **The badge proves the business is real. The code proves the goods arrived.**
+
+### Where it actually matters
+
+One placement carries almost all the value — the customer page (§3.2), because
+that is the only screen a stranger sees before deciding whether to trust:
+
+```
+  Kemi's Tiles  ✓ Verified business
+```
+
+Everywhere else is decoration. Resist adding it to six screens.
+
+### How to build it without taking on a liability
+
+**Do not collect and store NIN numbers or ID photographs yourself.** That makes
+you a high-value breach target and puts you squarely under the **Nigeria Data
+Protection Act (2023)**, and NIN verification is regulated by NIMC — it must go
+through a licensed verification agent regardless.
+
+Use a licensed Nigerian KYC provider — Smile Identity, Prembly (Identitypass),
+Youverify, Dojah or VerifyMe all expose NIN + liveness APIs. Then:
+
+- Store **only the provider's verification reference, the result, and the
+  timestamp**. Never the NIN, never the document image, never the selfie.
+- Re-verify on a schedule rather than treating a badge as permanent.
+- Keep an audit record of *what was checked and when*, because one day somebody
+  will ask.
+
+### The liability nobody thinks about until it happens
+
+A badge is a **claim you are making about someone else**. If a verified business
+defrauds a buyer, you lent them the credibility that made it work. That is
+survivable, but only with:
+
+- **Terms that state precisely what the badge means** — "we confirmed this
+  person's identity", not "this business is trustworthy". The gap between those
+  two sentences is the whole legal exposure.
+- **Revocation** that is fast and visible, and that retroactively marks past
+  deliveries as "verified at the time, revoked since".
+- A **report-this-business** path from the customer page.
+
+### Two design rules
+
+1. **Never gate the delivery code behind verification.** An unverified business
+   must still be able to send codes, or adoption dies at the first screen.
+   Verification is an upgrade, not a toll gate.
+2. **Verification is about the business, not the driver.** Drivers are already
+   controlled (§2.D) and already identified by their connection code. Do not
+   build a second KYC flow for them.
+
+### Pricing
+
+Paid, through the Stripe/Paystack system that already exists. **No pricing
+changes are proposed anywhere in this document** — the existing plan structure
+and amounts stand as they are.
+
+---
+
+## 6. What already exists
 
 The data model was designed for this and abandoned:
 
@@ -443,7 +567,7 @@ on day one.
 
 ---
 
-## 6. On rebranding — my recommendation is don't
+## 7. On rebranding — my recommendation is don't
 
 You asked whether to rebrand the whole driver app. I would not, for three
 reasons:
@@ -467,34 +591,50 @@ Instead:
 
 ---
 
-## 7. What I would build, in order
+## 8. What I would build, in order
 
-**Before writing code — validate the price.** Put the §3.2 customer page up as a
-static mock-up, show it to ten business owners who currently use GIG, and ask
-for ₦3,000. Their answers are worth more than any part of this document. The
-whole feature is three weeks; this test is a day.
+Pricing is settled and not part of this plan. Build order is driven by what
+makes the feature usable, then what makes it safe.
 
-Then:
+- **v1 (~2 weeks)** — code generation and hashing, the customer page, the in-app
+  driver gate and receipt lock, **server-side email + SMS**, reissue. Server-side
+  sending is in v1 rather than v2 because §2.J makes it a correctness
+  requirement, not a nicety.
+- **v2 (~1 week)** — rejection-with-photo, the pressured-customer reason,
+  the invited-driver web link, WhatsApp Business API once approved.
+  **Start the WhatsApp application during v1** — approval is the long pole and
+  it costs nothing to have it running in the background.
+- **v3** — offline verification via the shipped hash, redemption-distance flags,
+  driver behaviour patterns (§2.B).
+- **Separate track** — verified businesses (§5). It shares no code with the
+  delivery feature and can be built in parallel or much later. Its dependency is
+  commercial, not technical: pick a KYC provider first.
 
-- **v1 (~1.5 weeks)** — code generation, the customer page, in-app driver gate,
-  receipt lock, WhatsApp click-to-chat + email. No SMS, no rejection flow.
-  This is enough to sell.
-- **v2 (~1 week)** — rejection-with-photo, the "pressured" alert, SMS with a
-  registered sender ID, the driver web-link path for riders without the app.
-- **v3** — offline verification via shipped hash, redemption-distance flags,
-  driver behaviour patterns. Escrow is **not** on this list and should not be
-  until a licensed partner is signed.
+Escrow (§2.A) is **not** on this list and should not be until a licensed
+partner is signed.
 
 ---
 
-## 8. Open questions for the owner
+## 9. Decisions made, and what is still open
 
-1. Is the delivery person always someone you control, or sometimes a random
-   okada rider? This decides whether §2.D (driver web link) is v1 or v2.
-2. Is ₦3,000/month per business, or per driver? It changes the whole unit
-   economics of the SMS quota.
-3. What happens to a job whose code expires undelivered — auto-fail, or does
-   the owner reissue? I would reissue, but it is a policy decision.
-4. Do you want the code visible to the owner after sending? Convenient for
-   phone support; it also means a dishonest owner's staff can complete jobs
-   without the customer.
+Settled by the owner:
+
+| Question | Decision |
+| --- | --- |
+| Random okada riders? | **No.** Driver is always someone you control (§2.D) |
+| Driver must install the app? | No — invited drivers may use a web link |
+| Owner sees the code after sending? | **Never** — not even at creation (§2.J) |
+| Expired code | Owner reissues on request; previous code dies (§2.K) |
+| Pricing | **Unchanged.** Existing Stripe/Paystack structure stands |
+| Offline verification | Wanted |
+| Customer + driver web pages | Wanted |
+| Rebrand the app? | No — name the feature, rewrite the listing (§7) |
+
+Still open:
+
+1. **Which KYC provider** for §5. Commercial decision, blocks nothing else.
+2. **Does an expired-then-reissued code reset the inspection window**, or does
+   the customer keep any rejection rights from the first delivery attempt? I
+   would reset it, since the goods are being presented afresh.
+3. **Who may reissue** — only the account owner, or staff too? Matters only once
+   there are staff accounts.
