@@ -274,8 +274,16 @@ export default function NativeApp() {
             </Routes>
           </ErrorBoundary>
 
-          {/* Toasts are used by the manager screens for save / error feedback */}
-          <Toaster position="top-center" richColors closeButton />
+          {/* Toasts are used by the manager screens for save / error feedback.
+              The offset clears the notch: top-center otherwise lands a toast
+              on top of the clock and battery, which is where the phone's own
+              status bar lives and is not ours to cover. */}
+          <Toaster
+            position="top-center"
+            richColors
+            offset="calc(env(safe-area-inset-top, 0px) + 0.75rem)"
+            toastOptions={{ style: { marginInline: '0.5rem' } }}
+          />
         </AppRoleProvider>
       </AuthProvider>
     </ThemeProvider>

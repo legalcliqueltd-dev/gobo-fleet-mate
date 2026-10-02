@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -7,6 +8,7 @@ import { toast } from 'sonner';
  * Uses edge-function polling instead of direct Supabase queries (RLS blocks anon drivers).
  */
 export function useTaskNotifications(driverId: string | undefined, adminCode?: string) {
+  const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
   const [newTaskIds, setNewTaskIds] = useState<Set<string>>(new Set());
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -73,9 +75,18 @@ export function useTaskNotifications(driverId: string | undefined, adminCode?: s
           // New task detected
           setNewTaskIds(prev => new Set(prev).add(task.id));
           playNotificationSound();
-          toast.info(`New Task: ${task.title}`, {
-            description: 'Tap to view details',
-            duration: 5000,
+          // It said "Tap to view details" and tapping did nothing — the toast
+          // carried no action at all. A driver who taps an instruction and
+          // gets no response concludes the app is broken, and he is right to.
+          //
+          // Eight seconds, not five: this arrives while someone is driving,
+          // and five is not long enough to notice, read and decide.
+          toast(`New job — ${task.title}`, {
+            duration: 8000,
+            action: {
+              label: 'Open',
+              onClick: () => navigate('/app/tasks'),
+            },
           });
         }
       }
@@ -85,7 +96,7 @@ export function useTaskNotifications(driverId: string | undefined, adminCode?: s
     } catch (err) {
       console.error('Task notification poll error:', err);
     }
-  }, [driverId, adminCode, playNotificationSound]);
+  }, [driverId, adminCode, playNotificationSound, navigate]);
 
   useEffect(() => {
     if (!driverId) return;
