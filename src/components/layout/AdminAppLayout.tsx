@@ -1,6 +1,7 @@
 import { PropsWithChildren, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Map, ClipboardList, AlertTriangle, BarChart3, MapPin, Settings } from 'lucide-react';
+import { Link as RouterLink } from 'react-router-dom';
 import logo from '@/assets/logo.webp';
 import { cn } from '@/lib/utils';
 import { useSOSNotifications } from '@/hooks/useSOSNotifications';
@@ -13,11 +14,19 @@ type Tab = {
   title: string;
 };
 
+/**
+ * Five tabs, not six.
+ *
+ * Alerts is a notification surface, not a place you browse — you go there
+ * because something happened, which is exactly what a header bell is for. It
+ * moved out of the tab bar so the five remaining destinations each answer
+ * "what is this for?" without hesitating, and so six 10px labels stop fighting
+ * for a 360dp screen.
+ */
 const TABS: Tab[] = [
   { path: '/app/admin/fleet', icon: Map, label: 'Fleet', title: 'Live fleet' },
   { path: '/app/admin/tasks', icon: ClipboardList, label: 'Jobs', title: 'Jobs' },
   { path: '/app/admin/stations', icon: MapPin, label: 'Stations', title: 'Stations' },
-  { path: '/app/admin/alerts', icon: AlertTriangle, label: 'Alerts', title: 'Alerts' },
   { path: '/app/admin/insights', icon: BarChart3, label: 'Insights', title: 'Insights' },
   { path: '/app/admin/settings', icon: Settings, label: 'Settings', title: 'Settings' },
 ];
@@ -59,6 +68,7 @@ export default function AdminAppLayout({ children }: PropsWithChildren) {
   // Sub-routes are not tabs of their own: they keep their parent tab lit and
   // supply their own header title.
   const SUB_ROUTES: { match: string; parent: string; title: string }[] = [
+    { match: '/app/admin/alerts', parent: '/app/admin/alerts', title: 'Alerts' },
     { match: '/app/admin/drivers/new', parent: '/app/admin/fleet', title: 'Add driver' },
     { match: '/app/admin/codes', parent: '/app/admin/fleet', title: 'Drivers & codes' },
     { match: '/app/admin/history', parent: '/app/admin/insights', title: 'History' },
@@ -96,6 +106,21 @@ export default function AdminAppLayout({ children }: PropsWithChildren) {
               {title}
             </h1>
           </div>
+
+          {/* Alerts live here now. A bell is understood without a label, and it
+              only demands attention when it has something to say. */}
+          <RouterLink
+            to="/app/admin/alerts"
+            aria-label={openSOSCount > 0 ? `Alerts, ${openSOSCount} open` : 'Alerts'}
+            className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted"
+          >
+            <AlertTriangle className="h-5 w-5" />
+            {openSOSCount > 0 && (
+              <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 font-mono text-[10px] font-bold text-destructive-foreground">
+                {openSOSCount > 9 ? '9+' : openSOSCount}
+              </span>
+            )}
+          </RouterLink>
         </div>
       </header>
 
@@ -108,7 +133,6 @@ export default function AdminAppLayout({ children }: PropsWithChildren) {
         <div className="flex items-stretch px-1.5 py-1.5">
           {TABS.map(({ path, icon: Icon, label }) => {
             const isActive = activeTabPath.startsWith(path);
-            const badge = path === '/app/admin/alerts' && openSOSCount > 0 ? openSOSCount : 0;
 
             return (
               <Link
@@ -120,17 +144,10 @@ export default function AdminAppLayout({ children }: PropsWithChildren) {
                   isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                <div className="relative">
-                  <Icon className="h-5 w-5" />
-                  {badge > 0 && (
-                    <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 font-mono text-[10px] font-bold text-destructive-foreground">
-                      {badge > 9 ? '9+' : badge}
-                    </span>
-                  )}
-                </div>
-                {/* 10px keeps six labels legible without wrapping on a 360dp
-                    screen; the 44px tap target above is unchanged. */}
-                <span className={cn('text-[10px]', isActive ? 'font-semibold' : 'font-medium')}>
+                <Icon className="h-5 w-5" />
+                {/* Five labels now, so 11px fits without wrapping on a 360dp
+                    screen; the 44px tap target is unchanged. */}
+                <span className={cn('text-[11px]', isActive ? 'font-semibold' : 'font-medium')}>
                   {label}
                 </span>
                 {isActive && <span className="absolute -bottom-0.5 h-1 w-1 rounded-full bg-primary" />}

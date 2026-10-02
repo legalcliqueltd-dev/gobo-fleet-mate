@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Fragment } from 'react';
 import { Circle, GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, ChevronDown, ChevronRight, ChevronUp, KeyRound, Layers, LocateFixed, Plus, RefreshCw, X } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, ChevronUp, KeyRound, Layers, LocateFixed, Plus, X } from 'lucide-react';
 import VehicleFocusCard from '@/components/admin/VehicleFocusCard';
 import { Button } from '@/components/ui/button';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
@@ -52,7 +52,7 @@ export default function AdminAppFleet() {
   // Marker detail follows the zoom so pins never tile over the road network.
   const [tier, setTier] = useState<MarkerTier>('small');
   const [showRoundChip, setShowRoundChip] = useState(true);
-  const { drivers, loading, refetch } = useDriverLocations();
+  const { drivers, loading } = useDriverLocations();
   const navigate = useNavigate();
   // Selecting a vehicle scopes the round to that driver, so the map answers
   // "has THIS driver finished?" rather than a fleet-wide blur.
@@ -318,22 +318,9 @@ export default function AdminAppFleet() {
         </button>
       )}
 
-      {/* Status summary */}
-      <div className="pointer-events-none absolute left-3 right-3 top-3 z-[1000] flex gap-2">
-        {(['moving', 'idle', 'offline'] as VehicleStatus[]).map((status) => (
-          <div
-            key={status}
-            className="pointer-events-auto flex flex-1 items-center gap-2 rounded-xl border border-border bg-background/90 px-2.5 py-2 backdrop-blur"
-            style={{ boxShadow: 'var(--shadow-card)' }}
-          >
-            <span className={cn('h-2 w-2 shrink-0 rounded-full', STATUS_CLASSES[status].dot)} />
-            <div className="min-w-0">
-              <p className="telemetry text-sm font-bold leading-none">{counts[status]}</p>
-              <p className="truncate text-[10px] text-muted-foreground">{STATUS_LABEL[status]}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* The status-summary chips that used to sit here are gone. They
+          occupied the top of a screen whose entire purpose is the map, to
+          repeat three numbers the sheet handle below already states. */}
 
       {/* Station progress. The bare "2/10" read as a mystery number, so it now
           says what it counts, and can be dismissed for managers who do not run
@@ -379,7 +366,13 @@ export default function AdminAppFleet() {
         </div>
       )}
 
-      {/* Map controls */}
+      {/* Map controls — only the two that act on the map itself.
+          Refresh went because the data already refreshes itself (realtime
+          subscription plus a 15 s poll), so the button could only ever
+          duplicate what had already happened. Add-driver and Codes went
+          because they are setup actions, not map actions; they now sit at the
+          foot of the vehicle list, which is where you already are when you
+          think about who drives for you. */}
       <div
         className={cn(
           'absolute right-3 z-[1000] flex flex-col gap-2 transition-all',
@@ -403,32 +396,6 @@ export default function AdminAppFleet() {
           aria-label="Show all vehicles"
         >
           <LocateFixed className="h-5 w-5" />
-        </Button>
-        <Button
-          size="icon"
-          className="h-11 w-11 rounded-full shadow-lg"
-          onClick={() => navigate('/app/admin/drivers/new')}
-          aria-label="Add a driver"
-        >
-          <Plus className="h-5 w-5" />
-        </Button>
-        <Button
-          variant="secondary"
-          size="icon"
-          className="h-11 w-11 rounded-full border border-border shadow-lg"
-          onClick={() => navigate('/app/admin/codes')}
-          aria-label="Drivers and codes"
-        >
-          <KeyRound className="h-5 w-5" />
-        </Button>
-        <Button
-          variant="secondary"
-          size="icon"
-          className="h-11 w-11 rounded-full border border-border shadow-lg"
-          onClick={() => void refetch()}
-          aria-label="Refresh vehicle positions"
-        >
-          <RefreshCw className={cn('h-5 w-5', loading && 'animate-spin')} />
         </Button>
       </div>
 
@@ -479,9 +446,15 @@ export default function AdminAppFleet() {
                 </span>
               </span>
               <span className="block text-[11px] text-muted-foreground">
-                {counts.moving > 0
-                  ? `${counts.moving} moving now — tap to open`
-                  : 'Tap to pick a vehicle'}
+                {vehicles.length === 0
+                  ? 'Tap to add your first driver'
+                  : [
+                      counts.moving > 0 ? `${counts.moving} moving` : null,
+                      counts.idle > 0 ? `${counts.idle} parked` : null,
+                      counts.offline > 0 ? `${counts.offline} offline` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
               </span>
             </span>
 
@@ -592,6 +565,29 @@ export default function AdminAppFleet() {
                   );
                 })}
               </ul>
+
+              {/* Where the two map buttons went. You are already looking at
+                  your drivers; managing them belongs here, not over the map. */}
+              {vehicles.length > 0 && (
+                <div className="mt-2 flex gap-2 border-t border-border pt-2">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/app/admin/drivers/new')}
+                    className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl text-xs font-medium text-muted-foreground transition-colors active:bg-muted"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add driver
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/app/admin/codes')}
+                    className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl text-xs font-medium text-muted-foreground transition-colors active:bg-muted"
+                  >
+                    <KeyRound className="h-4 w-4" />
+                    Drivers & access
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
