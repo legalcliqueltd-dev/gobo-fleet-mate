@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -18,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Package, Calendar } from 'lucide-react';
+import { Package, Calendar, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -67,6 +68,13 @@ export default function CreateTask() {
   const [markers, setMarkers] = useState<LocationMarker[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [showMap, setShowMap] = useState(false);
+
+  // Delivery code — docs/DELIVERY_CODE_SPEC.md. Off by default: most jobs do
+  // not need one, and a feature that imposes itself gets switched off.
+  const [needsCode, setNeedsCode] = useState(false);
+  const [customerName, setCustomerName] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [expiresInMinutes, setExpiresInMinutes] = useState(1440);
   const { isDark } = useTheme();
 
   const { isLoaded } = useJsApiLoader({
@@ -221,6 +229,7 @@ export default function CreateTask() {
         dropoff_radius_m: parseInt(dropoffRadius) || 150,
         due_at: dueDate ? new Date(dueDate).toISOString() : null,
         status: 'assigned',
+        requires_delivery_code: needsCode,
       };
 
       const { data, error } = await supabase
@@ -230,6 +239,30 @@ export default function CreateTask() {
         .single();
 
       if (error) throw error;
+
+      if (needsCode) {
+        // Issued server-side; the plaintext code never reaches this browser.
+        const { data: issued, error: codeError } = await supabase.functions.invoke(
+          'delivery-code',
+          {
+            body: {
+              action: 'issue',
+              taskId: data?.id,
+              customerName: customerName.trim() || null,
+              customerEmail: customerEmail.trim() || null,
+              expiresInMinutes,
+              sendVia: customerEmail.trim() ? ['email'] : [],
+            },
+          }
+        );
+        if (codeError || !issued?.success) {
+          // The task exists; only the code failed. Say so rather than letting
+          // a half-done job look finished.
+          toast.warning('Task created, but the delivery code could not be sent.');
+          navigate('/admin/tasks');
+          return;
+        }
+      }
 
       toast.success('Task created successfully');
       navigate('/admin/tasks');
@@ -416,6 +449,75 @@ export default function CreateTask() {
                     </div>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+
+            {/* Delivery code */}
+            <Card>
+              <CardContent className="space-y-4 pt-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <Label className="flex items-center gap-2 text-base">
+                      <ShieldCheck className="h-4 w-4" />
+                      Delivery code
+                    </Label>
+                    {/* One line, naming the consequence rather than the
+                        mechanism. It is the only training the owner gets. */}
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      The customer gets a code. Your driver cannot finish this
+                      job without it.
+                    </p>
+                  </div>
+                  <Switch checked={needsCode} onCheckedChange={setNeedsCode} />
+                </div>
+
+                {needsCode && (
+                  <div className="space-y-3 border-t pt-4">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="customerName">Customer name</Label>
+                        <Input
+                          id="customerName"
+                          value={customerName}
+                          onChange={(e) => setCustomerName(e.target.value)}
+                          placeholder="Who is receiving it"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="customerEmail">Customer email</Label>
+                        <Input
+                          id="customerEmail"
+                          type="email"
+                          value={customerEmail}
+                          onChange={(e) => setCustomerEmail(e.target.value)}
+                          placeholder="Where the code is sent"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="codeExpiry">Code expires</Label>
+                      <select
+                        id="codeExpiry"
+                        value={expiresInMinutes}
+                        onChange={(e) => setExpiresInMinutes(Number(e.target.value))}
+                        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      >
+                        <option value={15}>15 minutes</option>
+                        <option value={60}>1 hour</option>
+                        <option value={360}>6 hours</option>
+                        <option value={1440}>24 hours</option>
+                        <option value={2880}>2 days</option>
+                        <option value={10080}>7 days</option>
+                      </select>
+                    </div>
+
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      You will never see the code yourself. That is what stops
+                      anyone but the customer confirming the delivery.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
