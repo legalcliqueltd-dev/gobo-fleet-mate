@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
 
       const { data: task, error: taskError } = await supabaseAdmin
         .from('tasks')
-        .select('id, title, description, dropoff_lat, dropoff_lng, pickup_lat, pickup_lng, status, due_at, admin_code')
+        .select('id, title, description, dropoff_lat, dropoff_lng, pickup_lat, pickup_lng, status, due_at, admin_code, requires_delivery_code')
         .eq('id', taskId)
         .eq('assigned_driver_id', driverId)
         .maybeSingle();
