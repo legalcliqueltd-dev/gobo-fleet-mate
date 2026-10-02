@@ -1,12 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
-import { MapContainer, Polyline } from 'react-leaflet';
-import type { Map as LeafletMapType } from 'leaflet';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { GoogleMap, Marker, Polyline, useJsApiLoader } from '@react-google-maps/api';
 import { Capacitor } from '@capacitor/core';
-import { AppTileLayer, DriverMarker, TaskMarker, MapAttribution } from '@/components/map/leaflet/LeafletMap';
 import { Button } from '@/components/ui/button';
 import { X, Navigation, LocateFixed, MapPin } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
-import { getRouteStrokeColor } from '@/lib/mapStyles';
+import { getRouteStrokeColor, getNavMapStyle } from '@/lib/mapStyles';
+import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
+import { driverMarkerIcon } from '@/lib/driverMarker';
 
 // Apple App Review Guideline 4 requires apps with location/mapping features to
 // offer the option to launch the native Apple Maps app. We show the Apple Maps
@@ -14,6 +14,8 @@ import { getRouteStrokeColor } from '@/lib/mapStyles';
 const isIOSDevice =
   Capacitor.getPlatform() === 'ios' ||
   (typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent));
+
+type LatLng = { lat: number; lng: number };
 
 type TaskNavigationMapProps = {
   dropoffLat: number;
@@ -62,6 +64,34 @@ function describeStep(step: {
   }
 }
 
+/** Drop-off pin. Teardrop, tip on the exact point, same red as the task pins. */
+function dropoffIcon(): google.maps.Symbol {
+  return {
+    path: 'M 0,-10 C 5.5,-10 10,-5.5 10,0 C 10,7 0,16 0,16 C 0,16 -10,7 -10,0 C -10,-5.5 -5.5,-10 0,-10 Z',
+    fillColor: '#d32f2f',
+    fillOpacity: 1,
+    strokeColor: '#ffffff',
+    strokeWeight: 2.5,
+    scale: 1.4,
+    anchor: new google.maps.Point(0, 16),
+  };
+}
+
+/**
+ * Full-screen route view for a job.
+ *
+ * MOVED FROM LEAFLET + CARTO TO GOOGLE MAPS. CARTO now requires an API key for
+ * their basemaps, and without one every tile came back stamped "API KEY
+ * REQUIRED" — the map was unreadable. Google is already paid for and already
+ * draws the driver map, the fleet map and the history replay, so this removes
+ * the second map vendor rather than buying a key for it.
+ *
+ * The driver's own marker is the SAME car icon the manager sees on the fleet
+ * map, rotated to heading. One symbol for one thing across the whole product.
+ *
+ * Routing still comes from OSRM, which is OpenStreetMap data and free. Only the
+ * tiles changed.
+ */
 export default function TaskNavigationMap({
   dropoffLat,
   dropoffLng,
@@ -69,13 +99,19 @@ export default function TaskNavigationMap({
   onClose,
 }: TaskNavigationMapProps) {
   const { isDark } = useTheme();
-  const mapRef = useRef<LeafletMapType | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
   const hasFitBounds = useRef(false);
   const lastRouteCalc = useRef(0);
 
-  const [currentPosition, setCurrentPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
+    libraries: GOOGLE_MAPS_LIBRARIES,
+  });
+
+  const [currentPosition, setCurrentPosition] = useState<LatLng | null>(null);
   const [heading, setHeading] = useState<number | null>(null);
-  const [routePath, setRoutePath] = useState<[number, number][]>([]);
+  const [routePath, setRoutePath] = useState<LatLng[]>([]);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
   const [nextStep, setNextStep] = useState<{ instruction: string; distance: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -127,7 +163,7 @@ export default function TaskNavigationMap({
         const route = data?.routes?.[0];
         if (!route) throw new Error('no route');
         setRoutePath(
-          (route.geometry.coordinates as [number, number][]).map(([lng, lat]) => [lat, lng])
+          (route.geometry.coordinates as [number, number][]).map(([lng, lat]) => ({ lat, lng }))
         );
         setRouteInfo({
           distance: formatDistanceM(route.distance),
@@ -144,8 +180,8 @@ export default function TaskNavigationMap({
       .catch(() => {
         // Routing service unreachable — fall back to a straight guide line.
         setRoutePath([
-          [currentPosition.lat, currentPosition.lng],
-          [dropoffLat, dropoffLng],
+          { lat: currentPosition.lat, lng: currentPosition.lng },
+          { lat: dropoffLat, lng: dropoffLng },
         ]);
         const straight = calculateDistance(currentPosition.lat, currentPosition.lng, dropoffLat, dropoffLng);
         setRouteInfo({ distance: `${straight.toFixed(1)} km (direct)`, duration: '—' });
@@ -155,22 +191,20 @@ export default function TaskNavigationMap({
 
   // Fit the whole route into view once we know both ends
   useEffect(() => {
-    if (hasFitBounds.current || !mapRef.current || !currentPosition) return;
-    mapRef.current.fitBounds(
-      [
-        [currentPosition.lat, currentPosition.lng],
-        [dropoffLat, dropoffLng],
-      ],
-      { padding: [48, 48] }
-    );
+    if (hasFitBounds.current || !mapRef.current || !currentPosition || !isLoaded) return;
+    const bounds = new google.maps.LatLngBounds();
+    bounds.extend(currentPosition);
+    bounds.extend({ lat: dropoffLat, lng: dropoffLng });
+    mapRef.current.fitBounds(bounds, 56);
     hasFitBounds.current = true;
-  }, [currentPosition, dropoffLat, dropoffLng]);
+  }, [currentPosition, dropoffLat, dropoffLng, isLoaded]);
 
-  const centerOnMe = () => {
+  const centerOnMe = useCallback(() => {
     if (mapRef.current && currentPosition) {
-      mapRef.current.setView([currentPosition.lat, currentPosition.lng], 16);
+      mapRef.current.panTo(currentPosition);
+      mapRef.current.setZoom(16);
     }
-  };
+  }, [currentPosition]);
 
   const openInGoogleMaps = () => {
     if (currentPosition) {
@@ -189,7 +223,6 @@ export default function TaskNavigationMap({
     const url = `https://maps.apple.com/?daddr=${dropoffLat},${dropoffLng}&dirflg=d`;
     window.open(url, '_blank');
   };
-
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
@@ -229,30 +262,71 @@ export default function TaskNavigationMap({
 
       {/* Map */}
       <div className="flex-1 relative">
-        <MapContainer
-          ref={mapRef}
-          center={[dropoffLat, dropoffLng]}
-          zoom={15}
-          zoomControl={false}
-          attributionControl={false}
-          style={{ width: '100%', height: '100%' }}
-        >
-          <MapAttribution />
-          <AppTileLayer isDark={isDark} mapType="roadmap" />
+        {!isLoaded ? (
+          <div className="flex h-full w-full items-center justify-center bg-muted">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          </div>
+        ) : (
+          <GoogleMap
+            mapContainerStyle={{ width: '100%', height: '100%' }}
+            center={{ lat: dropoffLat, lng: dropoffLng }}
+            zoom={15}
+            onLoad={(map) => {
+              mapRef.current = map;
+            }}
+            options={{
+              disableDefaultUI: true,
+              gestureHandling: 'greedy',
+              clickableIcons: false,
+              styles: getNavMapStyle(isDark),
+            }}
+          >
+            {/* Casing under the route so it stays readable over any road
+                colour, the same treatment the history replay uses. */}
+            {routePath.length > 1 && (
+              <>
+                <Polyline
+                  path={routePath}
+                  options={{
+                    strokeColor: isDark ? '#0b1220' : '#ffffff',
+                    strokeOpacity: 0.9,
+                    strokeWeight: 10,
+                    clickable: false,
+                    zIndex: 1,
+                  }}
+                />
+                <Polyline
+                  path={routePath}
+                  options={{
+                    strokeColor: getRouteStrokeColor(isDark),
+                    strokeOpacity: 1,
+                    strokeWeight: 6,
+                    clickable: false,
+                    zIndex: 2,
+                  }}
+                />
+              </>
+            )}
 
-          {routePath.length > 1 && (
-            <Polyline
-              positions={routePath}
-              pathOptions={{ color: getRouteStrokeColor(isDark), weight: 6, opacity: 0.9 }}
-            />
-          )}
+            <Marker position={{ lat: dropoffLat, lng: dropoffLng }} zIndex={5} icon={dropoffIcon()} />
 
-          {currentPosition && (
-            <DriverMarker position={currentPosition} isTracking={true} heading={heading} />
-          )}
-
-          <TaskMarker position={{ lat: dropoffLat, lng: dropoffLng }} />
-        </MapContainer>
+            {currentPosition && (() => {
+              const icon = driverMarkerIcon('#0b8f4f', 'moving', true, heading);
+              return (
+                <Marker
+                  position={currentPosition}
+                  zIndex={10}
+                  clickable={false}
+                  icon={{
+                    url: icon.url,
+                    scaledSize: new google.maps.Size(icon.size, icon.size),
+                    anchor: new google.maps.Point(icon.anchor, icon.anchor),
+                  }}
+                />
+              );
+            })()}
+          </GoogleMap>
+        )}
 
         {error && (
           <div className="absolute top-4 left-4 right-4 z-[1000] bg-destructive/90 text-destructive-foreground p-3 rounded-lg text-sm">
@@ -271,6 +345,12 @@ export default function TaskNavigationMap({
             <LocateFixed className="h-5 w-5" />
           </Button>
         </div>
+
+        {/* Route geometry is OpenStreetMap data via OSRM; the ODbL asks for
+            credit even though the tiles are now Google's. */}
+        <p className="pointer-events-none absolute bottom-1 left-2 z-[1000] text-[9px] text-muted-foreground/70">
+          Route © OpenStreetMap contributors
+        </p>
       </div>
 
       {/* Footer */}

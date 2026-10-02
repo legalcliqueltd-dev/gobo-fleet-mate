@@ -333,7 +333,7 @@ export default function DriverAppCompleteTask() {
             driver who cannot see why he is stuck assumes the app is broken —
             which is exactly how the station receipt looked dead for a month. */}
             {task?.requires_delivery_code && (
-              <Card className={codeVerified ? 'border-success/40' : 'border-primary/40'}>
+              <Card className={codeVerified ? 'border-success/40 bg-success/5' : 'border-2 border-primary/50 bg-primary/5'}>
                 <CardContent className="p-4">
                   {codeVerified ? (
                     <p className="flex items-center gap-2 text-sm font-semibold text-success">
@@ -362,8 +362,8 @@ export default function DriverAppCompleteTask() {
                           setCodeDigits(v);
                           if (v.length === 6) void verifyCode(v);
                         }}
-                        placeholder="------"
-                        className="telemetry mt-3 h-14 w-full rounded-xl border border-input bg-background text-center text-2xl font-bold tracking-[0.4em]"
+                        placeholder="••••••"
+                        className="telemetry mt-3 h-16 w-full rounded-xl border-2 border-primary bg-background text-center text-3xl font-bold tracking-[0.35em] text-foreground caret-primary outline-none transition-shadow placeholder:font-normal placeholder:text-primary/30 focus:ring-4 focus:ring-primary/25 disabled:opacity-60"
                       />
                       {codeError && (
                         <p className="mt-2 text-xs font-medium text-destructive">{codeError}</p>

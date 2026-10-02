@@ -712,9 +712,15 @@ class TrackingService extends EventTarget {
       }
     } catch (err) {
       console.warn('[TrackingService] drain failed:', err);
+    } finally {
+      // THE BUG THIS FIXES: the count used to be refreshed after the try
+      // block, which the `batch.length === 0` early return skipped entirely.
+      // So the normal online path — write a point, send it live, retire it by
+      // syncKey, then drain and find nothing left — left the badge showing
+      // "1 queued" forever on a driver who was perfectly online. The queue was
+      // empty; only the number was stale. A finally runs on every path.
+      this.refreshOfflineCount();
     }
-
-    this.refreshOfflineCount();
   }
 
   private async refreshOfflineCount() {
