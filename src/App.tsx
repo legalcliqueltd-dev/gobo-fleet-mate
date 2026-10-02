@@ -53,6 +53,7 @@ import DriverAppTasks from '@/pages/app/DriverAppTasks';
 import DriverAppCompleteTask from '@/pages/app/DriverAppCompleteTask';
 import DriverAppSOS from '@/pages/app/DriverAppSOS';
 import DriverAppSettings from '@/pages/app/DriverAppSettings';
+import DeliveryCode from '@/pages/DeliveryCode';
 
 export default function App() {
   const isNativeApp = detectNativePlatform();
@@ -111,6 +112,10 @@ export default function App() {
 
           {/* Public share route without layout */}
           <Route path="/share/:token" element={<TempShare />} />
+          {/* Delivery customer page. Public, token-addressed, no login
+              and nothing to install — the reader has never seen this
+              product and never will again. */}
+          <Route path="/d/:token" element={<DeliveryCode />} />
 
           {/* Landing page - standalone, no AppLayout nav bar */}
           <Route path="/" element={

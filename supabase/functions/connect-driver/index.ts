@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
       const statusFilter = statuses || ['assigned', 'en_route', 'completed'];
       const { data: tasks, error: tasksError } = await supabaseAdmin
         .from('tasks')
-        .select('id, title, description, dropoff_lat, dropoff_lng, pickup_lat, pickup_lng, status, due_at, admin_code')
+        .select('id, title, description, dropoff_lat, dropoff_lng, pickup_lat, pickup_lng, status, due_at, admin_code, requires_delivery_code')
         .eq('assigned_driver_id', driverId)
         .in('status', statusFilter)
         .order('due_at', { ascending: true });

@@ -59,3 +59,8 @@ verify_jwt = true
 # authorises, the JWT check just rejects anonymous callers earlier.
 [functions.platform-admin]
 verify_jwt = true
+
+# Drivers and customers are both unauthenticated; identity is proved by the
+# connection code or the URL token, checked inside the function.
+[functions.delivery-code]
+verify_jwt = false

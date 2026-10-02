@@ -22,6 +22,7 @@ type Task = {
   dropoff_lat: number | null;
   dropoff_lng: number | null;
   admin_code: string | null;
+  requires_delivery_code?: boolean | null;
 };
 
 type MediaFile = {
@@ -44,6 +45,57 @@ export default function DriverAppCompleteTask() {
   const [notes, setNotes] = useState('');
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [showNavigation, setShowNavigation] = useState(false);
+
+  // Delivery code gate. The customer holds the code; without it this job
+  // cannot be completed at all. See docs/DELIVERY_CODE_SPEC.md §3.3.
+  const [codeDigits, setCodeDigits] = useState('');
+  const [codeVerified, setCodeVerified] = useState(false);
+  const [codeDistance, setCodeDistance] = useState<number | null>(null);
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const [checkingCode, setCheckingCode] = useState(false);
+
+  const needsCode = Boolean(task?.requires_delivery_code) && !codeVerified;
+
+  const verifyCode = async (value: string) => {
+    if (!task || !session?.driverId || !session?.adminCode) return;
+    setCheckingCode(true);
+    setCodeError(null);
+    try {
+      const { data } = await supabase.functions.invoke('delivery-code', {
+        body: {
+          action: 'verify',
+          taskId: task.id,
+          driverId: session.driverId,
+          adminCode: session.adminCode,
+          code: value,
+          latitude: currentLocation?.lat,
+          longitude: currentLocation?.lng,
+        },
+      });
+      if (data?.ok) {
+        setCodeVerified(true);
+        setCodeDistance(typeof data.distanceM === 'number' ? data.distanceM : null);
+      } else if (data?.reason === 'locked') {
+        setCodeError('Too many wrong tries. Wait 15 minutes.');
+        setCodeDigits('');
+      } else if (data?.reason === 'no_live_code') {
+        setCodeError('No code for this job. Ask your manager to send one.');
+        setCodeDigits('');
+      } else {
+        setCodeError(
+          typeof data?.attemptsLeft === 'number'
+            ? `Not correct. ${data.attemptsLeft} tries left.`
+            : 'Not correct.'
+        );
+        setCodeDigits('');
+      }
+    } catch (err) {
+      console.error('[CompleteTask] code check failed:', err);
+      setCodeError('Could not check the code. Try again.');
+    } finally {
+      setCheckingCode(false);
+    }
+  };
   const { isDriving } = useDrivingMode();
 
   useEffect(() => {
@@ -276,6 +328,52 @@ export default function DriverAppCompleteTask() {
 
         <Card>
           <CardHeader className="pb-2">
+            {/* THE GATE. Everything about this feature rests on one rule: no code,
+            no receipt. The proof card below stays VISIBLE but inert, because a
+            driver who cannot see why he is stuck assumes the app is broken —
+            which is exactly how the station receipt looked dead for a month. */}
+            {task?.requires_delivery_code && (
+              <Card className={codeVerified ? 'border-success/40' : 'border-primary/40'}>
+                <CardContent className="p-4">
+                  {codeVerified ? (
+                    <p className="flex items-center gap-2 text-sm font-semibold text-success">
+                      <CheckCircle2 className="h-4 w-4" />
+                      Code confirmed
+                      {codeDistance != null && (
+                        <span className="font-normal text-muted-foreground">
+                          · {codeDistance < 100 ? 'at the drop-off' : `${(codeDistance / 1000).toFixed(1)} km away`}
+                        </span>
+                      )}
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-sm font-semibold">Ask the customer for their code</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Only after they have checked the item.
+                      </p>
+                      <input
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        maxLength={6}
+                        value={codeDigits}
+                        disabled={checkingCode}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\D/g, '').slice(0, 6);
+                          setCodeDigits(v);
+                          if (v.length === 6) void verifyCode(v);
+                        }}
+                        placeholder="------"
+                        className="telemetry mt-3 h-14 w-full rounded-xl border border-input bg-background text-center text-2xl font-bold tracking-[0.4em]"
+                      />
+                      {codeError && (
+                        <p className="mt-2 text-xs font-medium text-destructive">{codeError}</p>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             <CardTitle className="text-base flex items-center gap-2">
               <Camera className="h-5 w-5" />
               Proof (Photos/Videos)
@@ -284,15 +382,20 @@ export default function DriverAppCompleteTask() {
             <p className="text-xs text-muted-foreground">Max 5MB per file • Photos and short videos accepted</p>
           </CardHeader>
           <CardContent className="space-y-4">
+            {needsCode && (
+              <p className="rounded-lg bg-muted px-3 py-2 text-xs font-medium text-muted-foreground">
+                Photo unlocks after the code.
+              </p>
+            )}
             <input ref={fileInputRef} type="file" accept="image/*,video/mp4,video/quicktime,video/webm" multiple onChange={handleMediaCapture} className="hidden" />
             <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" className="h-24 border-dashed border-2" onClick={handleNativeCameraCapture}>
+              <Button variant="outline" className="h-24 border-dashed border-2" disabled={needsCode} onClick={handleNativeCameraCapture}>
                 <div className="flex flex-col items-center gap-2">
                   <Camera className="h-6 w-6 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Take photo</span>
                 </div>
               </Button>
-              <Button variant="outline" className="h-24 border-dashed border-2" onClick={handleAddFromDevice}>
+              <Button variant="outline" className="h-24 border-dashed border-2" disabled={needsCode} onClick={handleAddFromDevice}>
                 <div className="flex flex-col items-center gap-2">
                   <Video className="h-6 w-6 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Add photo/video</span>
@@ -381,7 +484,11 @@ export default function DriverAppCompleteTask() {
             )}
             <div className="flex gap-3">
               <Button variant="outline" className="flex-1" onClick={() => navigate('/app/tasks')} disabled={submitting}>Cancel</Button>
-              <Button className="flex-1" onClick={handleSubmit} disabled={submitting || isDriving}>
+              <Button
+                className="flex-1"
+                onClick={handleSubmit}
+                disabled={submitting || isDriving || needsCode}
+              >
                 {submitting ? (
                   <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Submitting...</>
                 ) : (

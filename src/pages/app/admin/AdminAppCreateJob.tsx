@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
 import FormError from '@/components/admin/FormError';
@@ -60,6 +61,13 @@ export default function AdminAppCreateJob() {
   const [dropoffAddress, setDropoffAddress] = useState('');
   const [dropoff, setDropoff] = useState<{ lat: number; lng: number } | null>(null);
   const [dueAt, setDueAt] = useState('');
+
+  // Delivery code. Off by default — most jobs do not need one, and a feature
+  // that imposes itself gets switched off entirely.
+  const [needsCode, setNeedsCode] = useState(false);
+  const [customerName, setCustomerName] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [expiresInMinutes, setExpiresInMinutes] = useState(1440);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -102,7 +110,7 @@ export default function AdminAppCreateJob() {
 
     setSubmitting(true);
     try {
-      const { error: insertError } = await supabase.from('tasks').insert({
+      const { data: created, error: insertError } = await supabase.from('tasks').insert({
         created_by: user!.id,
         assigned_user_id: user!.id,
         assigned_driver_id: selectedDriver.driver_id,
@@ -114,9 +122,34 @@ export default function AdminAppCreateJob() {
         dropoff_radius_m: 150,
         due_at: dueAt ? new Date(dueAt).toISOString() : null,
         status: 'assigned',
-      });
+        requires_delivery_code: needsCode,
+      }).select('id').single();
 
       if (insertError) throw insertError;
+
+      if (needsCode) {
+        // Issued server-side so the plaintext never reaches this device.
+        const { data: issued, error: codeError } = await supabase.functions.invoke(
+          'delivery-code',
+          {
+            body: {
+              action: 'issue',
+              taskId: created?.id,
+              customerName: customerName.trim() || null,
+              customerEmail: customerEmail.trim() || null,
+              expiresInMinutes,
+              sendVia: customerEmail.trim() ? ['email'] : [],
+            },
+          }
+        );
+        if (codeError || !issued?.success) {
+          // The job exists; only the code failed. Say so rather than implying
+          // the whole thing worked.
+          toast.warning('Job created, but the delivery code could not be sent.');
+          navigate('/app/admin/tasks', { replace: true });
+          return;
+        }
+      }
 
       toast.success(`Job sent to ${selectedDriver.driver_name || 'driver'}`);
       navigate('/app/admin/tasks', { replace: true });
@@ -289,6 +322,57 @@ export default function AdminAppCreateJob() {
             onChange={(e) => setDueAt(e.target.value)}
             className="h-12"
           />
+        </section>
+
+        {/* Delivery code — spec docs/DELIVERY_CODE_SPEC.md */}
+        <section className="space-y-3 rounded-xl border border-border bg-card p-3.5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">Delivery code</p>
+              {/* One line, and it names the CONSEQUENCE, not the mechanism.
+                  This is the only training the owner gets. */}
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Driver can&rsquo;t finish without it.
+              </p>
+            </div>
+            <Switch checked={needsCode} onCheckedChange={setNeedsCode} />
+          </div>
+
+          {needsCode && (
+            <div className="space-y-2.5 border-t border-border pt-3">
+              <Input
+                placeholder="Customer name"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                className="h-11"
+              />
+              <Input
+                type="email"
+                inputMode="email"
+                placeholder="Customer email"
+                value={customerEmail}
+                onChange={(e) => setCustomerEmail(e.target.value)}
+                className="h-11"
+              />
+              <select
+                value={expiresInMinutes}
+                onChange={(e) => setExpiresInMinutes(Number(e.target.value))}
+                className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value={15}>Expires in 15 minutes</option>
+                <option value={60}>Expires in 1 hour</option>
+                <option value={360}>Expires in 6 hours</option>
+                <option value={1440}>Expires in 24 hours</option>
+                <option value={2880}>Expires in 2 days</option>
+                <option value={10080}>Expires in 7 days</option>
+              </select>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                Sent to the customer by email. You will never see the code
+                yourself &mdash; that is what stops anyone but the customer
+                confirming the delivery.
+              </p>
+            </div>
+          )}
         </section>
 
         <FormError message={error} />
