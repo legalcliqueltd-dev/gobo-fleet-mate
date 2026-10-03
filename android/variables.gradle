@@ -1,5 +1,5 @@
 ext {
-    minSdkVersion = 23
+    minSdkVersion = 24
     // API 36 (Android 16). Required on two fronts: androidx.browser 1.9.0 (via
     // the social-login plugin) needs compileSdk 36, and Google Play requires
     // targetSdk 36 for app updates from 31 August 2026.
