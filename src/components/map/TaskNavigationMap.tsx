@@ -18,6 +18,15 @@ const isIOSDevice =
   Capacitor.getPlatform() === 'ios' ||
   (typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent));
 
+/** How far the vector map leans. Flat is 0; much past 55 and the horizon
+ *  eats the screen on a phone held in one hand. */
+const NAV_TILT = 50;
+
+/** Below this, the fit has zoomed out so far it is no longer a useful map. */
+const MIN_USEFUL_ZOOM = 10;
+/** Where we land instead: the destination, close enough to read streets. */
+const FAR_AWAY_ZOOM = 15;
+
 type LatLng = { lat: number; lng: number };
 
 type TaskNavigationMapProps = {
@@ -206,16 +215,35 @@ export default function TaskNavigationMap({
     const bounds = new google.maps.LatLngBounds();
     bounds.extend(currentPosition);
     bounds.extend({ lat: dropoffLat, lng: dropoffLng });
-    mapRef.current.fitBounds(bounds, 56);
+    const map = mapRef.current;
+    map.fitBounds(bounds, 56);
+
+    // Framing BOTH ends is only useful while both ends fit on a phone. A
+    // driver who has not started yet — or whose last fix is stale, or who
+    // has been given a stop in another state — gets a fit so wide the map
+    // is a view of the ocean, and the destination is a dot. Below this
+    // zoom, show him the place he is going instead.
+    //
+    // It also keeps the tilt alive: Google clamps maximum tilt by zoom, so
+    // a world-level fit flattens the map no matter what we ask for.
+    google.maps.event.addListenerOnce(map, 'idle', () => {
+      if ((map.getZoom() ?? MIN_USEFUL_ZOOM) < MIN_USEFUL_ZOOM) {
+        map.setCenter({ lat: dropoffLat, lng: dropoffLng });
+        map.setZoom(FAR_AWAY_ZOOM);
+      }
+      if (mapId) map.setTilt(NAV_TILT);
+    });
+
     hasFitBounds.current = true;
-  }, [currentPosition, dropoffLat, dropoffLng, isLoaded]);
+  }, [currentPosition, dropoffLat, dropoffLng, isLoaded, mapId]);
 
   const centerOnMe = useCallback(() => {
     if (mapRef.current && currentPosition) {
       mapRef.current.panTo(currentPosition);
       mapRef.current.setZoom(16);
+      if (mapId) mapRef.current.setTilt(NAV_TILT);
     }
-  }, [currentPosition]);
+  }, [currentPosition, mapId]);
 
   const openInGoogleMaps = () => {
     if (currentPosition) {
@@ -308,6 +336,25 @@ export default function TaskNavigationMap({
             zoom={15}
             onLoad={(map) => {
               mapRef.current = map;
+              // Same pattern as __trackingService: a handle for debugging a
+              // map on a real device, where the camera state is the only way
+              // to tell a Cloud Console problem from a code problem.
+              if (typeof window !== 'undefined') {
+                (window as unknown as Record<string, unknown>).__navMap = map;
+              }
+              if (!mapId) return;
+              // Ask for tilt again after the map exists. The init option is
+              // applied before fitBounds runs, and this also gives us a
+              // straight answer about the Cloud Console side: if the Map ID
+              // was created Raster, renderingType comes back RASTER; if Tilt
+              // was left unticked, tilt comes back 0 however often we ask.
+              map.setTilt(NAV_TILT);
+              console.log(
+                '[TaskNavigationMap] renderingType=%s tilt=%s mapId=%s',
+                map.getRenderingType?.(),
+                map.getTilt(),
+                mapId
+              );
             }}
             options={{
               disableDefaultUI: true,
@@ -320,7 +367,7 @@ export default function TaskNavigationMap({
               ...(mapId
                 ? {
                     mapId,
-                    tilt: 50,
+                    tilt: NAV_TILT,
                     heading: heading ?? 0,
                     tiltInteractionEnabled: true,
                     headingInteractionEnabled: true,
