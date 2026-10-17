@@ -25,7 +25,23 @@
     <!-- Preconnect for performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Loaded ASYNCHRONOUSLY, deliberately.
+
+         As a plain <link rel="stylesheet"> this blocks the HTML parser. If
+         fonts.googleapis.com is unreachable — a dead zone, a captive portal,
+         a DNS failure — the parser never reaches the module script, React
+         never mounts, and the driver gets a white screen with no error. That
+         was reproduced on a device with no route to the internet:
+         document.readyState stuck at "loading" and zero <script> elements
+         parsed. An app whose whole purpose is working where the network does
+         not must never need the network to draw its own UI.
+
+         preload + onload flips it to a stylesheet once it actually arrives;
+         until then the Inter/Helvetica fallback stack renders. -->
+    <link rel="preload" as="style"
+          href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+          onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"></noscript>
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
