@@ -14,15 +14,29 @@ map bills on the same Dynamic Maps SKU as the flat one.
 
 ## Why two Map IDs and not one
 
-A Map ID carries its own **style**, defined in Cloud Console rather than in
-our code. One Map ID can carry one style. TrackMate has a light map and a
-dark map, so it needs one Map ID each.
+A Map ID carries its **style**, defined in Cloud Console rather than in our
+code. The moment a map is vector, Google **ignores the `styles` we send from
+code** — the hand-written styles in `src/lib/mapStyles.ts` stop applying.
+That is why step 2 imports them into Cloud Console. Skip it and the driver
+gets Google's default map colours instead of ours.
 
-This is also the part that costs us something. The moment a map is vector,
-Google **ignores the `styles` we send from code** — the hand-written styles
-in `src/lib/mapStyles.ts` stop applying. That is why step 2 below imports
-them into Cloud Console. Skip it and the driver gets Google's default map
-colours instead of ours.
+A Map ID actually has **two** style slots, Light mode and Dark mode, chosen
+by the map's `colorScheme`. We do not use that mechanism, for two reasons:
+
+1. A style's light-or-dark *type* is fixed when it is created, and a style
+   imported from JSON is registered as a **light** style. It will never
+   appear in the Dark slot's picker — the picker says "You haven't created
+   any styles yet", which means "no dark-TYPE styles", not what it sounds
+   like.
+2. Google's own documentation says custom Map ID styles are "only compatible
+   with the light color scheme for roadmap map types".
+
+So **both Map IDs use their Light mode slot**, and the app chooses between
+the two IDs from its own theme. The slot name only decides which
+`colorScheme` selects it; we never set `colorScheme`, so it is always LIGHT,
+and the style sitting in that slot renders whatever colours it contains —
+including our dark ones. Leave both Dark mode slots on Google default;
+nothing ever asks for them.
 
 ---
 
@@ -54,11 +68,18 @@ Our existing styles have been exported for you as console-importable JSON:
 | `docs/map-styles/nav-light.json` | the style for **TrackMate Nav Light** |
 | `docs/map-styles/nav-dark.json` | the style for **TrackMate Nav Dark** |
 
-1. Go to **Map styles** → **Create style**.
-2. Choose **Import JSON**, paste the contents of `nav-light.json`, save it as
-   `TrackMate Nav Light`.
-3. On the saved style, **Associate** it with the `TrackMate Nav Light` map ID.
-4. Repeat with `nav-dark.json` and the dark map ID.
+1. Go to **Map styles** → **Create style** → the **JSON** tab.
+2. Use **Upload** and pick the file, rather than pasting. The editor is not
+   empty when it opens, so pasting without clearing it first stacks two JSON
+   documents in one box and the console reports a syntax error in a file that
+   is perfectly valid.
+3. Save it as `TrackMate Nav Light`, and **publish** it. A saved-but-
+   unpublished style does nothing.
+4. Repeat with `nav-dark.json` as `TrackMate Nav Dark`.
+5. Attach them: **Map Management** → the map ID → **Map styles** section →
+   **Edit** on the **Light mode** slot → pick the matching style → **Save**.
+   The light Map ID gets the light style; the dark Map ID gets the DARK style
+   in its **Light mode** slot. See the section above for why.
 
 > Re-exporting: if `src/lib/mapStyles.ts` ever changes, run
 > `node scripts/export-map-styles.mjs` to regenerate these JSON files, then
@@ -125,7 +146,10 @@ grep -o "your_light_map_id" dist/assets/*.js | head  # expect a hit
 ```
 
 **Map looks wrong rather than flat?** That is step 2 — the Map ID is working
-and no style is associated with it, so you are seeing Google's defaults.
+and no style is attached to its Light mode slot, so you are seeing Google's
+defaults. The Map ID page's own preview shows this before you ever build:
+stock green landscape, POI pins and highway shields means nothing is
+attached.
 
 ---
 
