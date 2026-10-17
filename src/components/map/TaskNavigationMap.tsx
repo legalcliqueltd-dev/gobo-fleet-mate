@@ -7,8 +7,7 @@ import { getRouteStrokeColor, getNavMapStyle } from '@/lib/mapStyles';
 import {
   GOOGLE_MAPS_API_KEY,
   GOOGLE_MAPS_LIBRARIES,
-  GOOGLE_MAPS_MAP_ID,
-  HAS_VECTOR_MAP,
+  vectorMapId,
 } from '@/lib/googleMapsConfig';
 import { driverMarkerIcon } from '@/lib/driverMarker';
 
@@ -121,6 +120,7 @@ export default function TaskNavigationMap({
 
   const [currentPosition, setCurrentPosition] = useState<LatLng | null>(null);
   const [heading, setHeading] = useState<number | null>(null);
+  const mapId = vectorMapId(isDark);
   const [externalOpen, setExternalOpen] = useState(false);
   const [routePath, setRoutePath] = useState<LatLng[]>([]);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
@@ -300,6 +300,9 @@ export default function TaskNavigationMap({
           </div>
         ) : (
           <GoogleMap
+            // A Map ID is fixed for the life of a map instance — switching
+            // theme has to build a new one, so the id is the React key.
+            key={mapId ?? 'raster'}
             mapContainerStyle={{ width: '100%', height: '100%' }}
             center={{ lat: dropoffLat, lng: dropoffLng }}
             zoom={15}
@@ -313,9 +316,15 @@ export default function TaskNavigationMap({
               // A Map ID switches Google to the vector renderer, which is the
               // only one that honours tilt — that is the "3D-like" view. The
               // same switch moves styling to Cloud Console, so `styles` must
-              // NOT be sent alongside it or Google drops the map ID.
-              ...(HAS_VECTOR_MAP
-                ? { mapId: GOOGLE_MAPS_MAP_ID, tilt: 50, heading: heading ?? 0 }
+              // NOT be sent alongside it or the two conflict.
+              ...(mapId
+                ? {
+                    mapId,
+                    tilt: 50,
+                    heading: heading ?? 0,
+                    tiltInteractionEnabled: true,
+                    headingInteractionEnabled: true,
+                  }
                 : { styles: getNavMapStyle(isDark) }),
             }}
           >
