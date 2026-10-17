@@ -1,6 +1,6 @@
 import { PropsWithChildren, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Map, ClipboardList, AlertTriangle, BarChart3, MapPin, Settings } from 'lucide-react';
+import { Map, ClipboardList, AlertTriangle, BarChart3, MapPin, Settings, MoreHorizontal, X, UserPlus, KeyRound, Wallet, History, ClipboardCheck, CalendarDays } from 'lucide-react';
 import { Link as RouterLink } from 'react-router-dom';
 import logo from '@/assets/logo.webp';
 import { cn } from '@/lib/utils';
@@ -23,12 +23,30 @@ type Tab = {
  * "what is this for?" without hesitating, and so six 10px labels stop fighting
  * for a 360dp screen.
  */
+/**
+ * Three destinations, then everything else behind one control.
+ *
+ * Fleet, Jobs and Stations are the three things a manager opens the app to
+ * do. Insights and Settings were taking a fifth of the bar each to be
+ * visited weekly, so they moved into the overflow with the rest. A tab bar
+ * where every item is equally weighted teaches nothing about what matters.
+ */
 const TABS: Tab[] = [
   { path: '/app/admin/fleet', icon: Map, label: 'Fleet', title: 'Live fleet' },
   { path: '/app/admin/tasks', icon: ClipboardList, label: 'Jobs', title: 'Jobs' },
   { path: '/app/admin/stations', icon: MapPin, label: 'Stations', title: 'Stations' },
-  { path: '/app/admin/insights', icon: BarChart3, label: 'Insights', title: 'Insights' },
-  { path: '/app/admin/settings', icon: Settings, label: 'Settings', title: 'Settings' },
+];
+
+/** Everything that is real but not daily. Grouped the way the work groups. */
+const MORE: { path: string; icon: typeof Map; label: string; note: string }[] = [
+  { path: '/app/admin/drivers/new', icon: UserPlus, label: 'Add a driver', note: 'Create a connection code' },
+  { path: '/app/admin/codes', icon: KeyRound, label: 'Drivers & access', note: 'Issue, replace or revoke' },
+  { path: '/app/admin/insights', icon: BarChart3, label: 'Insights', note: 'Distance and per-driver figures' },
+  { path: '/app/admin/history', icon: History, label: 'History', note: 'Replay any driver’s day' },
+  { path: '/app/admin/today', icon: CalendarDays, label: "Today's summary", note: 'End-of-day figures' },
+  { path: '/app/admin/expenses', icon: Wallet, label: 'Expenses', note: 'What your drivers spent' },
+  { path: '/app/admin/reports', icon: ClipboardCheck, label: 'Checks & problems', note: 'Faults drivers raised' },
+  { path: '/app/admin/settings', icon: Settings, label: 'Settings', note: 'Account and preferences' },
 ];
 
 /**
@@ -54,6 +72,7 @@ export default function AdminAppLayout({ children }: PropsWithChildren) {
   // finished — someone who skips it has still made their choice, and being
   // shown it again would read as nagging.
   const [showTutorial, setShowTutorial] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -154,8 +173,70 @@ export default function AdminAppLayout({ children }: PropsWithChildren) {
               </Link>
             );
           })}
+
+          {/* The fourth control is not a destination — it is the door to the
+              rest. Labelled "More" rather than left as a bare glyph, because
+              an unlabelled ⋯ in a tab bar is a guess. */}
+          <button
+            type="button"
+            onClick={() => setMoreOpen(true)}
+            aria-label="More"
+            className={cn(
+              'relative flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 transition-colors',
+              moreOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <MoreHorizontal className="h-5 w-5" />
+            <span className="text-[11px] font-medium">More</span>
+          </button>
         </div>
       </nav>
+
+      {moreOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end">
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => setMoreOpen(false)}
+            className="absolute inset-0 bg-foreground/40 backdrop-blur-sm"
+          />
+          <div
+            className="relative mx-auto w-full max-w-2xl rounded-t-3xl border-t border-border bg-background pb-2"
+            style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0px))' }}
+          >
+            <div className="flex items-center justify-between px-5 pb-1 pt-4">
+              <p className="font-heading text-lg font-bold tracking-tight">More</p>
+              <button
+                type="button"
+                onClick={() => setMoreOpen(false)}
+                aria-label="Close"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-muted-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="max-h-[66vh] overflow-y-auto px-3 pb-3">
+              {MORE.map(({ path, icon: Icon, label, note }) => (
+                <Link
+                  key={path}
+                  to={path}
+                  onClick={() => setMoreOpen(false)}
+                  className="flex min-h-[56px] items-center gap-3.5 rounded-xl px-2.5 py-2 transition-colors active:bg-muted"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent">
+                    <Icon className="h-[18px] w-[18px] text-accent-foreground" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold">{label}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{note}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
         {showTutorial && <AdminTutorial onClose={() => setShowTutorial(false)} />}
       </div>

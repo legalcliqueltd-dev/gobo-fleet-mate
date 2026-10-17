@@ -26,6 +26,7 @@ import DriverAppSettings from '@/pages/app/DriverAppSettings';
 import DriverAppExpenses from '@/pages/app/DriverAppExpenses';
 import DriverAppRecord from '@/pages/app/DriverAppRecord';
 import DriverAppChecks from '@/pages/app/DriverAppChecks';
+import DriverAppStations from '@/pages/app/DriverAppStations';
 
 import AdminEntry from '@/pages/app/admin/AdminEntry';
 import AdminLogin from '@/pages/app/admin/AdminLogin';
@@ -217,6 +218,14 @@ export default function NativeApp() {
                         element={
                           <DriverProtectedRoute>
                             <DriverAppRecord />
+                          </DriverProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="stations"
+                        element={
+                          <DriverProtectedRoute>
+                            <DriverAppStations />
                           </DriverProtectedRoute>
                         }
                       />

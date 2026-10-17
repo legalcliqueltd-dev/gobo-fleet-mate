@@ -17,8 +17,11 @@ export default {
         xs: '375px',
       },
       fontFamily: {
-        heading: ['"Barlow Semi Condensed"', 'Barlow', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        sans: ['Barlow', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        // The wordmark is Helvetica Neue Heavy + Roman — that weight jump is
+        // the brand's typographic idea. Helvetica Neue cannot be licensed for
+        // the web; Inter Tight at 800 is the closest faithful stand-in.
+        heading: ['"Inter Tight"', 'Inter', '"Helvetica Neue"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        sans: ['Inter', '"Helvetica Neue"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       colors: {
