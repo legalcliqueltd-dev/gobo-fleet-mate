@@ -8,7 +8,17 @@
 
 set -uo pipefail
 
-DIST_DIR="dist/assets"
+# Check whichever bundle is named, defaulting to dist/assets.
+#
+# WHY THIS IS A PARAMETER: checking only dist/ verifies the BUILD and not what
+# was SHIPPED. Running the web build after the native one and then syncing put
+# the full marketing app into android/app/src/main/assets/public while this
+# script, run earlier against dist/, reported a pass. Verify the synced
+# platform assets too — that is the artefact that reaches a store.
+#
+#   bash scripts/verify-native-bundle.sh                                  # dist
+#   bash scripts/verify-native-bundle.sh android/app/src/main/assets/public/assets
+DIST_DIR="${1:-dist/assets}"
 
 if [ ! -d "$DIST_DIR" ]; then
   echo "❌ $DIST_DIR not found. Run 'npm run build:native' first."
