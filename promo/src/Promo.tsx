@@ -9,7 +9,7 @@ const W = 1920;
 const H = 1080;
 
 /**
- * FleetTrackMate promo.
+ * TrackMate promo.
  *
  * Structure follows the product's own claim, in order: here is your city, here
  * are the places a driver must attend, here is the route they actually drove,
@@ -288,7 +288,7 @@ const EndCard: React.FC<{ f: number; fps: number }> = ({ f, fps }) => {
     >
       <div style={{ textAlign: 'center', transform: `translateY(${(1 - enter) * 30}px)` }}>
         <div style={{ color: COLORS.text, fontSize: 104, fontWeight: 700, letterSpacing: -2 }}>
-          FleetTrackMate
+          TrackMate
         </div>
         <div style={{ color: COLORS.textDim, fontSize: 40, marginTop: 14 }}>
           Live tracking, jobs and proof of visit
