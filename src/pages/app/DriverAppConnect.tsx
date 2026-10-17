@@ -144,7 +144,7 @@ export default function DriverAppConnect() {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background p-5">
+    <div className="brand-pattern relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background p-5">
       {/* Faint route-map backdrop — static, battery-friendly */}
       <svg
         viewBox="0 0 400 800"

@@ -29,8 +29,11 @@ export const STATUS_LABEL: Record<VehicleStatus, string> = {
 
 /** Tailwind token classes, so the palette stays theme-aware in dark mode. */
 export const STATUS_CLASSES: Record<VehicleStatus, { dot: string; text: string; chip: string }> = {
-  moving: { dot: 'bg-success', text: 'text-success', chip: 'bg-success/10 text-success' },
-  idle: { dot: 'bg-warning', text: 'text-warning', chip: 'bg-warning/10 text-warning' },
+  // SOLID, not tinted. The brand green is #00ff39 — almost as light as white —
+  // so `bg-success/10 text-success` was invisible on a light card. The logo's
+  // own answer is navy ON green, and it reads far harder across a map too.
+  moving: { dot: 'bg-success', text: 'text-success', chip: 'bg-success text-success-foreground' },
+  idle: { dot: 'bg-warning', text: 'text-warning', chip: 'bg-warning text-warning-foreground' },
   offline: {
     dot: 'bg-muted-foreground',
     text: 'text-muted-foreground',

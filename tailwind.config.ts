@@ -57,6 +57,11 @@ export default {
         },
         // Pure #00ff39. Use for brand moments and map fills, where it sits on
         // its own ground; `success` is the readable text-safe sibling.
+        // The ONLY red in the product. Emergencies, nothing else.
+        sos: {
+          DEFAULT: "hsl(var(--sos))",
+          foreground: "hsl(var(--sos-foreground))",
+        },
         signal: {
           DEFAULT: "hsl(var(--signal))",
           foreground: "hsl(var(--signal-foreground))",

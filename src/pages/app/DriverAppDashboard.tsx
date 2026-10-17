@@ -4,7 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { trackingService } from '@/services/trackingService';
 import { useTrackingService, useTrackingWarning } from '@/hooks/useTrackingService';
-import { MapPin, AlertTriangle, Check, ChevronRight, Package, Navigation } from 'lucide-react';
+import { MapPin, AlertTriangle, Check, ChevronRight, Package, Navigation, ChevronDown, ChevronUp } from 'lucide-react';
+import DriverGoogleMap from '@/components/map/google/DriverGoogleMap';
+import { useTheme } from '@/contexts/ThemeContext';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
 import LocationBlocker from '@/components/driver/LocationBlocker';
 import DriverOnboarding, { isOnboardingCompleted } from '@/components/driver/DriverOnboarding';
@@ -61,6 +63,9 @@ const LIVE_TRAIL_MAX_POINTS = 120;
 export default function DriverAppDashboard() {
   const { session } = useDriverSession();
   const navigate = useNavigate();
+  const { isDark } = useTheme();
+  // Collapsed by default: the map is reassurance, not the job.
+  const [mapOpen, setMapOpen] = useState(false);
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -477,6 +482,51 @@ export default function DriverAppDashboard() {
             </span>
           </div>
         )}
+
+        {/* WHERE I AM. Back by request, but as a strip he opens — not the
+            screen he lands on. Collapsed it is a glance that says the dot is
+            moving and the station is near; expanded it is a real map. */}
+        <section className="overflow-hidden rounded-2xl border border-border bg-card">
+          <button
+            type="button"
+            onClick={() => setMapOpen((o) => !o)}
+            aria-expanded={mapOpen}
+            className="flex w-full items-center gap-3 px-4 py-3 text-left"
+          >
+            <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+              {insideStation ? `At ${insideStation.name}` : 'Where I am'}
+            </span>
+            {mapOpen ? (
+              <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+            )}
+          </button>
+          <div
+            className={cn(
+              'relative w-full transition-all duration-200',
+              mapOpen ? 'h-[52vh]' : 'h-[140px]'
+            )}
+          >
+            <DriverGoogleMap
+              position={currentLocation}
+              heading={heading}
+              accuracy={accuracy}
+              isTracking={isTracking}
+              trail={[]}
+              tasks={[]}
+              stations={stationPins}
+              mapType="roadmap"
+              isDark={isDark}
+              follow
+              onUserDrag={() => {}}
+              onTaskClick={() => {}}
+            />
+            {/* Collapsed, it is a picture, not a control. */}
+            {!mapOpen && <div className="absolute inset-0" aria-hidden="true" />}
+          </div>
+        </section>
 
         {/* TODAY. Jobs and stations are one list, because to a driver they
             are one thing: somewhere he has to be. Splitting them into two

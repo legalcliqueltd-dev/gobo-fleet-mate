@@ -233,14 +233,14 @@ export default function DriverAppSOS() {
       <DriverAppLayout>
         <div className="flex h-full flex-col items-center justify-center space-y-6 p-4 text-center">
           <div className="relative flex h-28 w-28 items-center justify-center">
-            <span className="absolute inset-0 animate-ping rounded-full bg-destructive/30" />
-            <span className="relative flex h-28 w-28 items-center justify-center rounded-full bg-destructive shadow-lg shadow-destructive/40">
-              <AlertTriangle className="h-12 w-12 text-destructive-foreground" />
+            <span className="absolute inset-0 animate-ping rounded-full bg-sos/30" />
+            <span className="relative flex h-28 w-28 items-center justify-center rounded-full bg-sos shadow-lg shadow-sos/40">
+              <AlertTriangle className="h-12 w-12 text-sos-foreground" />
             </span>
           </div>
 
           <div>
-            <p className="mb-2 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-destructive">
+            <p className="mb-2 font-mono text-xs font-semibold uppercase tracking-[0.2em] text-sos">
               Alert sent
             </p>
             <h1 className="mb-2 font-heading text-3xl font-bold">SOS active</h1>
@@ -290,7 +290,7 @@ export default function DriverAppSOS() {
     <DriverAppLayout>
       <div className="flex h-full flex-col p-4">
         <div className="mb-2 text-center">
-          <p className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-destructive">
+          <p className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-sos">
             Emergency
           </p>
           <h1 className="font-heading text-2xl font-bold">SOS</h1>
@@ -327,7 +327,7 @@ export default function DriverAppSOS() {
                 r={RING_RADIUS}
                 fill="none"
                 strokeWidth={RING_STROKE}
-                className="stroke-destructive/20"
+                className="stroke-sos/20"
               />
               <circle
                 cx={RING_SIZE / 2}
@@ -336,7 +336,7 @@ export default function DriverAppSOS() {
                 fill="none"
                 strokeWidth={RING_STROKE}
                 strokeLinecap="round"
-                className="stroke-destructive"
+                className="stroke-sos"
                 style={{
                   strokeDasharray: RING_CIRCUMFERENCE,
                   strokeDashoffset: sosHolding ? 0 : RING_CIRCUMFERENCE,
@@ -350,7 +350,7 @@ export default function DriverAppSOS() {
             {/* Button face */}
             <span
               className={cn(
-                'flex flex-col items-center justify-center rounded-full bg-gradient-to-br from-destructive to-red-700 text-destructive-foreground shadow-2xl shadow-destructive/40',
+                'flex flex-col items-center justify-center rounded-full bg-gradient-to-br from-sos to-red-700 text-sos-foreground shadow-2xl shadow-sos/40',
                 sosHolding && 'animate-pulse'
               )}
               style={{ width: RING_SIZE - 28, height: RING_SIZE - 28 }}
@@ -385,8 +385,8 @@ export default function DriverAppSOS() {
                 className={cn(
                   'flex min-h-[64px] flex-col items-center justify-center gap-1 rounded-lg border px-2 py-2 text-xs font-semibold transition',
                   hazard === value
-                    ? 'border-destructive bg-destructive/10 text-destructive'
-                    : 'border-border bg-card text-muted-foreground hover:border-destructive/50'
+                    ? 'border-sos bg-sos/10 text-sos'
+                    : 'border-border bg-card text-muted-foreground hover:border-sos/50'
                 )}
               >
                 <Icon className="h-5 w-5" />
@@ -405,7 +405,7 @@ export default function DriverAppSOS() {
               <button
                 onClick={removePhoto}
                 aria-label="Remove photo"
-                className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-destructive text-destructive-foreground shadow-md transition hover:bg-destructive/90"
+                className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-sos text-sos-foreground shadow-md transition hover:bg-sos/90"
               >
                 <X className="h-4 w-4" />
               </button>

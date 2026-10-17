@@ -52,16 +52,26 @@
     --accent: 133 100% 94%;            /* palest neon, for hover grounds */
     --accent-foreground: 233 100% 11%;
 
-    --success: 133 100% 26%;           /* brand green hue, readable on white */
-    --success-foreground: 0 0% 100%;
-    --signal: 133 100% 50%;            /* #00ff39 exact — fills, map, brand */
+    --success: 133 100% 50%;           /* #00ff39 — the brand green, exactly */
+    --success-foreground: 233 100% 11%;/* navy ON green, the way the logo does it */
+    --signal: 133 100% 50%;
     --signal-foreground: 233 100% 11%;
 
     --warning: 44 100% 52%;            /* #ffbf0b */
     --warning-foreground: 233 100% 11%;
 
-    --destructive: 4 72% 46%;          /* off-palette on purpose: SOS */
-    --destructive-foreground: 0 0% 100%;
+    /* RED IS RESERVED FOR SOS, nothing else. There are 204 `destructive`
+       usages across the app — delete buttons, form errors, failed uploads —
+       and auditing them one by one would miss some. So the token itself
+       stops being red: destructive is now the palette's amber, and a
+       separate `sos` token carries the only red in the product.
+       Amber rather than navy because an error that looks like body text is
+       an error nobody sees. */
+    --destructive: 44 100% 52%;
+    --destructive-foreground: 233 100% 11%;
+
+    --sos: 4 72% 46%;
+    --sos-foreground: 0 0% 100%;
 
     --border: 0 0% 85%;
     --input: 0 0% 78%;
@@ -73,29 +83,31 @@
     --fleet-blue-dark: 233 100% 8%;
     --fleet-green: 133 100% 50%;
     --fleet-orange: 44 100% 52%;
-    --fleet-red: 4 72% 46%;
+    --fleet-red: 44 100% 52%;
 
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
-    --gradient-hero: linear-gradient(180deg, hsl(220 27% 97%), hsl(219 30% 94%));
-    --gradient-card: linear-gradient(160deg, hsl(0 0% 100%), hsl(220 27% 97.5%));
+    --gradient-hero: linear-gradient(180deg, hsl(0 0% 96%), hsl(0 0% 91%));
+    --gradient-card: linear-gradient(160deg, hsl(0 0% 100%), hsl(0 0% 97%));
 
     /* Shadows */
     --shadow-glow: 0 0 24px hsl(var(--primary) / 0.18);
-    --shadow-card: 0 1px 2px hsl(224 44% 11% / 0.05), 0 8px 24px -12px hsl(224 44% 11% / 0.12);
+    --shadow-card: 0 1px 2px hsl(233 100% 11% / 0.05), 0 8px 24px -12px hsl(233 100% 11% / 0.12);
 
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     --radius: 0.625rem;
 
+    /* These were missed in the brand swap and still held the old dispatch
+       blue (217 90% 44%) — the mismatched blue the owner spotted. */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 224 30% 24%;
-    --sidebar-primary: 217 90% 44%;
+    --sidebar-foreground: 233 30% 24%;
+    --sidebar-primary: 233 100% 11%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 20% 94%;
-    --sidebar-accent-foreground: 224 35% 18%;
-    --sidebar-border: 220 18% 88%;
-    --sidebar-ring: 217 90% 44%;
+    --sidebar-accent: 133 100% 94%;
+    --sidebar-accent-foreground: 233 100% 11%;
+    --sidebar-border: 0 0% 85%;
+    --sidebar-ring: 133 100% 50%;
 
     --safe-bottom: env(safe-area-inset-bottom);
   }
@@ -136,8 +148,11 @@
     --warning: 44 100% 52%;
     --warning-foreground: 233 100% 11%;
 
-    --destructive: 4 84% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 44 100% 52%;
+    --destructive-foreground: 233 100% 11%;
+
+    --sos: 4 84% 60%;
+    --sos-foreground: 0 0% 100%;
 
     --border: 233 45% 22%;
     --input: 233 40% 26%;
@@ -148,22 +163,22 @@
     --fleet-blue-dark: 233 60% 30%;
     --fleet-green: 133 100% 50%;
     --fleet-orange: 44 100% 52%;
-    --fleet-red: 4 84% 60%;
+    --fleet-red: 44 100% 52%;
 
-    --gradient-hero: linear-gradient(180deg, hsl(222 41% 7%), hsl(222 36% 10%));
-    --gradient-card: linear-gradient(160deg, hsl(222 34% 11%), hsl(222 40% 8%));
+    --gradient-hero: linear-gradient(180deg, hsl(233 100% 9%), hsl(233 70% 13%));
+    --gradient-card: linear-gradient(160deg, hsl(233 70% 15%), hsl(233 100% 10%));
 
     --shadow-glow: 0 0 28px hsl(var(--primary) / 0.22);
     --shadow-card: 0 1px 2px hsl(0 0% 0% / 0.3), 0 10px 30px -12px hsl(0 0% 0% / 0.5);
 
-    --sidebar-background: 222 38% 9%;
-    --sidebar-foreground: 218 20% 86%;
-    --sidebar-primary: 214 95% 62%;
-    --sidebar-primary-foreground: 222 45% 8%;
-    --sidebar-accent: 221 28% 15%;
-    --sidebar-accent-foreground: 218 25% 90%;
-    --sidebar-border: 221 26% 16%;
-    --sidebar-ring: 214 95% 62%;
+    --sidebar-background: 233 100% 9%;
+    --sidebar-foreground: 214 100% 93%;
+    --sidebar-primary: 133 100% 50%;
+    --sidebar-primary-foreground: 233 100% 11%;
+    --sidebar-accent: 233 45% 18%;
+    --sidebar-accent-foreground: 214 100% 93%;
+    --sidebar-border: 233 45% 20%;
+    --sidebar-ring: 133 100% 50%;
   }
 }
 
@@ -228,6 +243,16 @@
   }
 
   /* ── Surfaces ── */
+  /* TrackMate texture. The repeating mark, barely there — it is grain on a
+     navy ground, not wallpaper. Reserved for surfaces with little content of
+     their own: the role picker, sign-in, empty states. Never behind a map,
+     a list or a form field. */
+  .brand-pattern {
+    background-image: url('/trackmate-pattern.svg');
+    background-repeat: repeat;
+    background-size: 320px 320px;
+  }
+
   .gradient-text {
     @apply bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent;
   }

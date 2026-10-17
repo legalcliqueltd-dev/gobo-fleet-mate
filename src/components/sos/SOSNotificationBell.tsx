@@ -41,7 +41,7 @@ function SOSEventItem({ event, onRead }: { event: SOSEventWithDriver; onRead: ()
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-0.5">
           <span className="font-medium text-sm truncate">{event.driver_name}</span>
-          <Badge variant={event.status === 'open' ? 'destructive' : 'secondary'} className="text-[10px] px-1.5 py-0">
+          <Badge variant={event.status === 'open' ? 'sos' : 'secondary'} className="text-[10px] px-1.5 py-0">
             {event.status}
           </Badge>
         </div>
@@ -131,11 +131,11 @@ export default function SOSNotificationBell() {
         <PopoverContent className="w-80 p-0" align="end">
           <div className="flex items-center justify-between p-3 border-b border-border">
             <h3 className="font-semibold text-sm flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-destructive" />
+              <AlertTriangle className="h-4 w-4 text-sos" />
               SOS Alerts
             </h3>
             {openSOSCount > 0 && (
-              <Badge variant="destructive" className="text-xs">
+              <Badge variant="sos" className="text-xs">
                 {openSOSCount} Active
               </Badge>
             )}

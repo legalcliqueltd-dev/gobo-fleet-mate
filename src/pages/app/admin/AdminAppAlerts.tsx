@@ -95,7 +95,7 @@ export default function AdminAppAlerts() {
       key={event.id}
       className={cn(
         'rounded-xl border p-3.5',
-        isActive ? 'border-destructive/40 bg-destructive/5' : 'border-border bg-card'
+        isActive ? 'border-sos/40 bg-sos/5' : 'border-border bg-card'
       )}
       style={!isActive ? { boxShadow: 'var(--shadow-card)' } : undefined}
     >
@@ -103,7 +103,7 @@ export default function AdminAppAlerts() {
         <span
           className={cn(
             'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
-            isActive ? 'bg-destructive text-destructive-foreground' : 'bg-muted text-muted-foreground'
+            isActive ? 'bg-sos text-sos-foreground' : 'bg-muted text-muted-foreground'
           )}
         >
           {isActive ? <AlertTriangle className="h-5 w-5" /> : <ShieldCheck className="h-5 w-5" />}
@@ -216,7 +216,7 @@ export default function AdminAppAlerts() {
               <button
                 type="button"
                 onClick={() => setClearOpen(true)}
-                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-destructive"
+                className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-sos"
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 Clear all

@@ -28,7 +28,7 @@ export default function AuthScreenShell({
 
   return (
     <div
-      className="flex min-h-screen flex-col bg-background"
+      className="brand-pattern flex min-h-screen flex-col bg-background"
       style={{
         paddingTop: 'env(safe-area-inset-top, 0px)',
         paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))',

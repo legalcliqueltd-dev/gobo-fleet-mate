@@ -49,7 +49,7 @@ export default function RoleSelect() {
 
   return (
     <div
-      className="flex min-h-screen flex-col bg-background px-6"
+      className="brand-pattern flex min-h-screen flex-col bg-background px-6"
       style={{
         paddingTop: 'max(2.5rem, env(safe-area-inset-top, 0px))',
         paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 0px))',

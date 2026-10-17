@@ -118,7 +118,7 @@ export default function DriverAppLayout({ children }: PropsWithChildren) {
             aria-label="SOS — send an emergency alert"
             className={cn(
               'flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors',
-              isSOSActive ? 'bg-destructive text-destructive-foreground' : 'text-destructive active:bg-destructive/10'
+              isSOSActive ? 'bg-sos text-sos-foreground' : 'text-sos active:bg-sos/10'
             )}
           >
             <AlertTriangle className="h-5 w-5" />
