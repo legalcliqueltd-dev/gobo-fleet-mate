@@ -4,24 +4,25 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { trackingService } from '@/services/trackingService';
 import { useTrackingService, useTrackingWarning } from '@/hooks/useTrackingService';
-import DriverGoogleMap, { type DriverGoogleMapHandle } from '@/components/map/google/DriverGoogleMap';
-import { Crosshair, Wifi, Signal, Layers, MapPin, AlertTriangle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useTheme } from '@/contexts/ThemeContext';
-import { getRouteStrokeColor } from '@/lib/mapStyles';
+import { MapPin, AlertTriangle, Check, ChevronRight, Package, Navigation } from 'lucide-react';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
-import DriverStatusCard from '@/components/driver/DriverStatusCard';
-import DebugStatusPanel from '@/components/driver/DebugStatusPanel';
 import LocationBlocker from '@/components/driver/LocationBlocker';
 import DriverOnboarding, { isOnboardingCompleted } from '@/components/driver/DriverOnboarding';
 import PermissionsCarousel, { permissionsSetupDone } from '@/components/driver/PermissionsCarousel';
-import ActiveTaskCard from '@/components/driver/ActiveTaskCard';
-import StationsCard from '@/components/driver/StationsCard';
 import { useStationWatcher } from '@/hooks/useStationWatcher';
 import TaskNavigationMap from '@/components/map/TaskNavigationMap';
 
 import { cn } from '@/lib/utils';
 import { detectNativePlatform, isIOS, isAndroid } from '@/utils/platformDetection';
+
+/** "43s ago" / "4 min ago". The only telemetry a driver needs: is it live. */
+function formatSince(d: Date | null): string {
+  if (!d) return 'not yet';
+  const s = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (s < 60) return `${s}s ago`;
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  return `${Math.round(s / 3600)} h ago`;
+}
 
 type Task = {
   id: string;
@@ -59,10 +60,7 @@ const LIVE_TRAIL_MAX_POINTS = 120;
 
 export default function DriverAppDashboard() {
   const { session } = useDriverSession();
-  const { isDark } = useTheme();
   const navigate = useNavigate();
-  const mapRef = useRef<DriverGoogleMapHandle | null>(null);
-  const hasInitialCentered = useRef(false);
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -70,11 +68,9 @@ export default function DriverAppDashboard() {
   const [heading, setHeading] = useState<number | null>(null);
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
-  const [mapType, setMapType] = useState<'roadmap' | 'satellite'>('roadmap');
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
   const [trail, setTrail] = useState<TrailPoint[]>([]);
   const [navigatingTask, setNavigatingTask] = useState<Task | null>(null);
-  const [followMode, setFollowMode] = useState(true);
   const [showTutorial, setShowTutorial] = useState(() => !isOnboardingCompleted());
   // Permissions come AFTER the tour: asking for background location before
   // explaining what the app does is how you get a refusal.
@@ -188,10 +184,6 @@ export default function DriverAppDashboard() {
       });
     }
 
-    if (!hasInitialCentered.current && mapRef.current) {
-      mapRef.current.recenter({ lat: loc.latitude, lng: loc.longitude });
-      hasInitialCentered.current = true;
-    }
   }, [trackingState.lastLocation, trackingState.lastSyncTime, onDuty]);
 
   // NOTE: All location watching is handled by trackingService (singleton).
@@ -279,27 +271,9 @@ export default function DriverAppDashboard() {
   }, [session?.driverId, session?.adminCode]);
 
   const centerOnLocation = useCallback(() => {
-    if (mapRef.current && currentLocation) {
-      mapRef.current.recenter(currentLocation);
-      setFollowMode(true);
-    }
   }, [currentLocation]);
 
-  const toggleMapType = useCallback(() => {
-    setMapType(prev => prev === 'roadmap' ? 'satellite' : 'roadmap');
-  }, []);
 
-  // Storage keeps the full 24 h — that is the driver's proof of work, and the
-  // history screens read it. The LIVE map does not draw it. A whole day of
-  // driving rendered as one polyline is a ball of spaghetti across the city
-  // that hides the road the driver is actually on, which is what "too much
-  // drawing on the map" was. Navigation apps show where you are going, not
-  // everywhere you have been; this keeps the last stretch for orientation and
-  // throws the rest away at draw time only.
-  const trailPath = trail
-    .filter((p) => Date.now() - p.timestamp < LIVE_TRAIL_WINDOW_MS)
-    .slice(-LIVE_TRAIL_MAX_POINTS)
-    .map((p) => ({ lat: p.lat, lng: p.lng }));
 
   const taskPins = tasks
     .filter((t): t is Task & { dropoff_lat: number; dropoff_lng: number } =>
@@ -351,6 +325,43 @@ export default function DriverAppDashboard() {
   const stationPins = stationPinsRaw.map((p) => ({ ...p, focus: p.id === focusStationId }));
 
   const activeTask = tasks.find(t => t.status === 'en_route') || tasks[0] || null;
+
+  // Jobs and stations, merged and ordered by what is still owed. To a driver
+  // these are the same object — somewhere he has to be — and keeping them in
+  // two separate cards made him look in two places to answer one question.
+  const todayStops = [
+    ...tasks
+      .filter((t) => t.status !== 'delivered' && t.status !== 'cancelled')
+      .map((t) => ({
+        key: `job-${t.id}`,
+        title: t.title,
+        note: 'Job' + (t.status === 'en_route' ? ' · on the way' : ''),
+        done: false,
+        Icon: Package,
+        onOpen: () =>
+          t.dropoff_lat && t.dropoff_lng
+            ? setNavigatingTask(t)
+            : navigate('/app/tasks'),
+      })),
+    ...stations.map((st) => {
+      const visit = visitFor(st.id);
+      const done = visit?.status === 'completed' || (Boolean(visit) && !st.requires_photo);
+      return {
+        key: `station-${st.id}`,
+        title: st.name,
+        note: done
+          ? 'Station · done'
+          : visit
+            ? 'Station · receipt still needed'
+            : 'Station · not yet',
+        done,
+        Icon: Navigation,
+        onOpen: () => navigate('/app/stations'),
+      };
+    }),
+  ].sort((a, b) => Number(a.done) - Number(b.done));
+
+  const stopsLeft = todayStops.filter((s) => !s.done).length;
 
   // A newly assigned task always re-expands the card so it can't be missed.
   const activeTaskId = activeTask?.id ?? null;
@@ -409,163 +420,116 @@ export default function DriverAppDashboard() {
           </div>
         </div>
       )}
+      {/* HOME IS NOT A MAP.
+          The map is gone from this screen on purpose. A driver opening the
+          app at 7am is answering two questions — am I on duty, and what do I
+          owe today — and a live map of a city he is standing in answers
+          neither. It is the MANAGER who needs to see where he is. The map
+          returns the moment he taps a stop, which is the only moment it
+          tells him something he does not already know. */}
+      <div className="space-y-4 px-4 py-5">
 
-      <div className="relative h-full w-full flex flex-col min-h-0">
-        <div className="flex-1 relative min-h-0">
-          <DriverGoogleMap
-            ref={mapRef}
-            position={currentLocation}
-            heading={heading}
-            accuracy={accuracy}
-            isTracking={isTracking}
-            trail={trailPath}
-            tasks={taskPins}
-            stations={stationPins}
-            mapType={mapType}
-            isDark={isDark}
-            follow={followMode}
-            onUserDrag={() => setFollowMode(false)}
-            onTaskClick={(taskId) => {
-              const task = tasks.find((t) => t.id === taskId);
-              if (task) setNavigatingTask(task);
-            }}
-          />
-
-          {/* Top bar: tracking status + GPS quality */}
-          <div className="absolute top-3 left-3 right-3 z-[1000] pointer-events-auto flex items-center justify-between gap-2">
-            <div className={cn(
-              'flex h-10 items-center gap-2 rounded-full border px-3.5 shadow-lg backdrop-blur-md',
-              isTracking
-                ? 'border-success/40 bg-success/90 text-success-foreground'
-                : 'border-border bg-background/90 text-muted-foreground'
-            )}>
-              {isTracking ? <Wifi className="h-4 w-4 animate-pulse" /> : <Signal className="h-4 w-4" />}
-              <span className="font-mono text-xs font-semibold uppercase tracking-[0.12em]">
-                {isTracking ? 'Live' : 'Off'}
-              </span>
-              {speed !== null && speed > 0 && (
-                <span className="telemetry ml-0.5 text-sm font-semibold">{Math.round(speed)} km/h</span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              {pendingOfflineCount > 0 && (
-                <div className="flex h-10 items-center rounded-full bg-warning/95 px-3.5 shadow-lg backdrop-blur-md">
-                  <span className="telemetry text-xs font-semibold text-warning-foreground">
-                    {pendingOfflineCount} queued
-                  </span>
-                </div>
-              )}
-              <div className="flex h-10 items-center gap-1.5 rounded-full border border-border bg-background/90 px-3.5 shadow-lg backdrop-blur-md">
-                <Signal className={cn('h-3.5 w-3.5', signalQuality.color)} />
-                <span className={cn('text-xs font-semibold', signalQuality.color)}>
-                  {signalQuality.label}
-                </span>
-                {accuracy !== null && (
-                  <span className="telemetry text-xs text-muted-foreground">±{Math.round(accuracy)}m</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-
-          {/* Map controls - right side. Bottom offset adapts so the buttons
-              always sit ABOVE the bottom card stack — ActiveTaskCard is ~180px
-              tall, plain DriverStatusCard is ~80px. */}
-          <div
-            className={cn(
-              'absolute right-3 z-[1000] flex flex-col items-end gap-2 pointer-events-auto transition-[bottom] duration-200',
-              activeTask ? (taskCardCollapsed ? 'bottom-24' : 'bottom-56') : 'bottom-36'
+        {/* Duty. The one piece of state he must be able to read at a glance,
+            because everything else in the product depends on it being on. */}
+        <button
+          type="button"
+          onClick={() => navigate('/app/settings')}
+          className={cn(
+            'flex w-full items-center gap-4 rounded-2xl border px-4 py-4 text-left transition-colors',
+            isTracking ? 'border-success/40 bg-success/10' : 'border-warning/40 bg-warning/10'
+          )}
+        >
+          <span className="relative flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+            {isTracking && (
+              <span className="absolute inline-flex h-3.5 w-3.5 animate-ping rounded-full bg-success opacity-60" />
             )}
-          >
-            {followMode ? (
-              <Button
-                size="icon"
-                variant="secondary"
-                onClick={centerOnLocation}
-                className="h-12 w-12 rounded-full border border-border shadow-lg ring-2 ring-primary"
-                aria-label="Following your location"
-              >
-                <Crosshair className="h-5 w-5 text-primary" />
-              </Button>
-            ) : (
-              <Button
-                variant="secondary"
-                onClick={centerOnLocation}
-                className="h-12 rounded-full border border-border px-4 shadow-lg"
-                aria-label="Re-center map on you"
-              >
-                <Crosshair className="h-5 w-5 text-primary" />
-                Re-center
-              </Button>
-            )}
-            <Button
-              size="icon"
-              variant="secondary"
-              onClick={toggleMapType}
-              className="h-12 w-12 rounded-full border border-border shadow-lg"
-              aria-label={mapType === 'roadmap' ? 'Switch to satellite view' : 'Switch to road view'}
-            >
-              <Layers className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
+            <span
+              className={cn(
+                'relative h-3 w-3 rounded-full',
+                isTracking ? 'bg-success' : 'bg-warning'
+              )}
+            />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-heading text-lg font-bold tracking-tight">
+              {isTracking ? 'On duty' : 'Off duty'}
+            </span>
+            <span className="block text-xs text-muted-foreground">
+              {isTracking
+                ? `Sharing your location${lastUpdate ? ` · synced ${formatSince(lastUpdate)}` : ''}`
+                : 'Your manager cannot see you. Tap to go on duty.'}
+            </span>
+          </span>
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+        </button>
 
-        {/* "You are here" — confirms to the driver that the system registered
-            his arrival, which is also the thing his receipt depends on. */}
+        {/* Standing inside a station — the thing his receipt depends on. */}
         {insideStation && (
-          <div className="pointer-events-none absolute inset-x-0 top-16 z-[1000] flex justify-center px-3">
-            <div
-              className="pointer-events-auto flex max-w-full items-center gap-2 rounded-full border border-success/40 bg-success/95 px-3.5 py-2 text-success-foreground"
-              style={{ boxShadow: 'var(--shadow-card)' }}
-            >
-              <MapPin className="h-4 w-4 shrink-0" />
-              <span className="truncate text-xs font-semibold">
-                You are at {insideStation.name}
-                {dwellRemaining != null && dwellRemaining > 0 && (
-                  <span className="ml-1 font-normal opacity-90">
-                    · receipt unlocks in {dwellRemaining}s
-                  </span>
-                )}
-              </span>
-            </div>
+          <div className="flex items-center gap-2.5 rounded-2xl bg-success px-4 py-3 text-success-foreground">
+            <MapPin className="h-4 w-4 shrink-0" />
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+              You are at {insideStation.name}
+              {dwellRemaining != null && dwellRemaining > 0 && (
+                <span className="ml-1 font-normal opacity-90">
+                  · receipt in {dwellRemaining}s
+                </span>
+              )}
+            </span>
           </div>
         )}
 
-        {/* Bottom card area */}
-        <div className="absolute bottom-0 left-0 right-0 z-[1000] p-3 pointer-events-auto">
-          <StationsCard
-            stations={stations}
-            visitFor={visitFor}
-            position={currentLocation}
-            onRefresh={refreshStations}
-          />
-          {import.meta.env.DEV && (
-            <DebugStatusPanel
-              isTracking={isTracking}
-              lastUpdate={lastUpdate}
-              pendingOfflineCount={pendingOfflineCount}
-            />
-          )}
-          {activeTask ? (
-            <ActiveTaskCard
-              task={activeTask}
-              driverLocation={currentLocation}
-              onNavigate={() => setNavigatingTask(activeTask)}
-              collapsed={taskCardCollapsed}
-              onToggleCollapse={() => setTaskCardCollapsed(prev => !prev)}
-            />
+        {/* TODAY. Jobs and stations are one list, because to a driver they
+            are one thing: somewhere he has to be. Splitting them into two
+            cards made him check two places to answer one question. */}
+        <section>
+          <div className="mb-2.5 flex items-baseline justify-between">
+            <h2 className="font-heading text-xl font-bold tracking-tight">Today</h2>
+            <span className="text-xs text-muted-foreground">
+              {stopsLeft === 0 ? 'All done' : `${stopsLeft} left`}
+            </span>
+          </div>
+
+          {todayStops.length === 0 ? (
+            <p className="rounded-2xl border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
+              Nothing assigned yet today.
+            </p>
           ) : (
-            <DriverStatusCard
-              isTracking={isTracking}
-              batteryLevel={batteryLevel}
-              lastSyncTime={lastUpdate}
-              speed={speed}
-              accuracy={accuracy}
-            />
+            <ul className="space-y-2">
+              {todayStops.map((stop) => (
+                <li key={stop.key}>
+                  <button
+                    type="button"
+                    onClick={stop.onOpen}
+                    className={cn(
+                      'flex w-full items-center gap-3.5 rounded-2xl border border-border bg-card px-3.5 py-3.5 text-left transition-colors active:bg-muted',
+                      stop.done && 'opacity-60'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
+                        stop.done ? 'bg-success text-success-foreground' : 'bg-accent text-accent-foreground'
+                      )}
+                    >
+                      {stop.done ? <Check className="h-5 w-5" /> : <stop.Icon className="h-5 w-5" />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-heading text-base font-semibold">
+                        {stop.title}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {stop.note}
+                      </span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
-        </div>
+        </section>
       </div>
+
     </DriverAppLayout>
   );
 }
