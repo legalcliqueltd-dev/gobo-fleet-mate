@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Truck, LayoutDashboard, ChevronRight } from 'lucide-react';
-import logo from '@/assets/logo.webp';
+import logo from '@/assets/brand/trackmate-icon.svg';
 import { useAppRole, type AppRole } from '@/contexts/AppRoleContext';
 
 type Choice = {

@@ -1,6 +1,6 @@
 import { PropsWithChildren, useState } from 'react';
 import { Menu, X, Home, Settings as SettingsIcon, ClipboardList, AlertTriangle, MapPin, Plus } from 'lucide-react';
-import logo from '@/assets/logo.webp';
+import logo from '@/assets/brand/trackmate-icon.svg';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 import { useAuth } from '@/contexts/AuthContext';

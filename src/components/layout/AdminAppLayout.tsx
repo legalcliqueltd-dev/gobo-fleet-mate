@@ -2,7 +2,7 @@ import { PropsWithChildren, useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Map, ClipboardList, AlertTriangle, BarChart3, MapPin, Settings, MoreHorizontal, X, UserPlus, KeyRound, Wallet, History, ClipboardCheck, CalendarDays } from 'lucide-react';
 import { Link as RouterLink } from 'react-router-dom';
-import logo from '@/assets/logo.webp';
+import logo from '@/assets/brand/trackmate-icon.svg';
 import { cn } from '@/lib/utils';
 import { useSOSNotifications } from '@/hooks/useSOSNotifications';
 import AdminTutorial from '@/components/admin/AdminTutorial';

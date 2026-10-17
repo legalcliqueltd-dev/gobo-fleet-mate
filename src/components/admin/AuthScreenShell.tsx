@@ -1,7 +1,7 @@
 import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import logo from '@/assets/logo.webp';
+import logo from '@/assets/brand/trackmate-icon.svg';
 
 type AuthScreenShellProps = {
   title: string;
