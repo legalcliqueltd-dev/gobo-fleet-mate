@@ -60,7 +60,7 @@ export default function AdminLogin() {
       footer={
         <>
           <p>
-            New to FleetTrackMate?{' '}
+            New to TrackMate?{' '}
             <Link to="/app/admin/signup" className="font-medium text-primary">
               Create an account
             </Link>

@@ -17,7 +17,7 @@ async function sendPaymentConfirmationEmail(email: string, plan: string, expiryD
 <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:560px;margin:0 auto;padding:24px;">
     <div style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-      <div style="background:#1e293b;padding:20px 24px;"><h1 style="margin:0;color:#ffffff;font-size:18px;font-weight:700;">FleetTrackMate</h1></div>
+      <div style="background:#1e293b;padding:20px 24px;"><h1 style="margin:0;color:#ffffff;font-size:18px;font-weight:700;">TrackMate</h1></div>
       <div style="padding:24px;">
         <div style="text-align:center;margin-bottom:20px;">
           <div style="width:56px;height:56px;background:#22c55e;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;"><span style="color:#fff;font-size:28px;">&#10003;</span></div>
@@ -48,7 +48,7 @@ async function sendPaymentConfirmationEmail(email: string, plan: string, expiryD
     await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: FROM_EMAIL, to: [email], subject: `Payment Confirmed - FleetTrackMate ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`, html }),
+      body: JSON.stringify({ from: FROM_EMAIL, to: [email], subject: `Payment Confirmed - TrackMate ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`, html }),
     });
     logStep("Confirmation email sent", { to: email });
   } catch (err) {

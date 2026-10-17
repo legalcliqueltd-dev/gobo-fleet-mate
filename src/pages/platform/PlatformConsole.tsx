@@ -413,7 +413,7 @@ export default function PlatformConsole() {
               value={emailText}
               onChange={(e) => setEmailText(e.target.value)}
               rows={4}
-              placeholder="Plain text. It is escaped and wrapped in the FleetTrackMate template — HTML is not accepted."
+              placeholder="Plain text. It is escaped and wrapped in the TrackMate template — HTML is not accepted."
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
             <p className="text-xs text-muted-foreground">

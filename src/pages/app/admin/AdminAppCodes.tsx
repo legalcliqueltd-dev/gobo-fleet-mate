@@ -131,10 +131,10 @@ export default function AdminAppCodes() {
   const share = async (row: Row) => {
     const code = row.device.connection_code;
     if (!code) return;
-    const text = `You have been added to ${row.device.name || 'the fleet'} on FleetTrackMate.\n\nYour connection code is: ${code}\n\nOpen FleetTrackMate, choose "I drive", and enter this code with your name.`;
+    const text = `You have been added to ${row.device.name || 'the fleet'} on TrackMate.\n\nYour connection code is: ${code}\n\nOpen TrackMate, choose "I drive", and enter this code with your name.`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'FleetTrackMate', text });
+        await navigator.share({ title: 'TrackMate', text });
       } catch {
         /* dismissed */
       }

@@ -9,7 +9,7 @@ const Terms = () => {
       icon: CheckCircle,
       title: "Acceptance of Terms",
       content: [
-        "By using FleetTrackMate (the driver mobile app or the fleet administrator web dashboard) you agree to these Terms.",
+        "By using TrackMate (the driver mobile app or the fleet administrator web dashboard) you agree to these Terms.",
         "If you do not agree, do not use the service.",
         "We may update these Terms; continued use after a notice of changes constitutes acceptance.",
       ],
@@ -18,8 +18,8 @@ const Terms = () => {
       icon: FileText,
       title: "Service Description",
       content: [
-        "FleetTrackMate provides a fleet administrator web dashboard for tracking, dispatching, and reporting on vehicles and drivers.",
-        "FleetTrackMate Driver is a free companion mobile app used by drivers, who connect using a code issued by their fleet administrator.",
+        "TrackMate provides a fleet administrator web dashboard for tracking, dispatching, and reporting on vehicles and drivers.",
+        "TrackMate Driver is a free companion mobile app used by drivers, who connect using a code issued by their fleet administrator.",
         "We aim for high availability but do not guarantee uninterrupted service.",
       ],
     },
@@ -47,7 +47,7 @@ const Terms = () => {
       title: "Billing & Subscriptions",
       content: [
         "The driver mobile app is free.",
-        "Fleet administrator subscriptions are sold and billed exclusively on the FleetTrackMate web dashboard.",
+        "Fleet administrator subscriptions are sold and billed exclusively on the TrackMate web dashboard.",
         "Subscriptions auto-renew until cancelled. You can cancel at any time from the web dashboard; cancellation takes effect at the end of the current billing period.",
         "Refund requests are reviewed on a case-by-case basis. Failure to pay may result in suspension of the web dashboard for that account; the driver mobile app remains free.",
       ],
@@ -56,7 +56,7 @@ const Terms = () => {
       icon: Gavel,
       title: "Limitation of Liability",
       content: [
-        "FleetTrackMate is provided 'as is' without warranties of any kind.",
+        "TrackMate is provided 'as is' without warranties of any kind.",
         "We are not liable for indirect, incidental, or consequential damages.",
         "Our aggregate liability is limited to the fees you have paid us in the prior 12 months.",
       ],
@@ -85,7 +85,7 @@ const Terms = () => {
           </div>
           <h1 className="text-4xl font-bold mb-4">Terms of Service</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Please read these terms before using FleetTrackMate. They govern both the driver app and
+            Please read these terms before using TrackMate. They govern both the driver app and
             the administrator web dashboard.
           </p>
           <p className="text-sm text-muted-foreground mt-4">Effective: 2026-05-05</p>

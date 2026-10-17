@@ -72,7 +72,7 @@ export default function DriverAppSettings() {
 
   const handleAlertsChange = async (checked: boolean) => {
     if (!checked) {
-      toast.info('Turn alerts off in your phone\u2019s Settings app for FleetTrackMate.');
+      toast.info('Turn alerts off in your phone\u2019s Settings app for TrackMate.');
       return;
     }
     const granted = await requestNotificationPermission();
@@ -80,7 +80,7 @@ export default function DriverAppSettings() {
     toast[granted ? 'success' : 'error'](
       granted
         ? 'Alerts on \u2014 you will hear new jobs and station arrivals.'
-        : 'Your phone is blocking alerts. Turn them on in Settings for FleetTrackMate.'
+        : 'Your phone is blocking alerts. Turn them on in Settings for TrackMate.'
     );
   };
 
@@ -559,7 +559,7 @@ export default function DriverAppSettings() {
 
         {/* App Info */}
         <div className="pt-4 text-center font-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
-          <p>FleetTrackMate Driver</p>
+          <p>TrackMate Driver</p>
           <p className="mt-0.5">v1.0.0</p>
         </div>
       </div>

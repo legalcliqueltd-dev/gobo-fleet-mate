@@ -57,7 +57,7 @@ export default function Dashboard() {
             console.error('Paystack verification error:', error);
             toast.error('Payment received but activation failed. Please contact support.');
           } else {
-            toast.success(`Payment successful! Welcome to FleetTrackMate ${plan === 'pro' ? 'Pro' : 'Basic'}.`);
+            toast.success(`Payment successful! Welcome to TrackMate ${plan === 'pro' ? 'Pro' : 'Basic'}.`);
           }
           refreshSubscription();
         };

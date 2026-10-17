@@ -43,7 +43,7 @@ const Footer = () => {
                 <Truck className="h-6 w-6 text-primary-foreground" />
               </div>
               <div>
-                <h3 className="font-heading text-xl font-bold leading-tight">FleetTrackMate</h3>
+                <h3 className="font-heading text-xl font-bold leading-tight">TrackMate</h3>
                 <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
                   Fleet tracking console
                 </p>
@@ -110,7 +110,7 @@ const Footer = () => {
       {/* Bottom bar */}
       <div className="border-t border-border">
         <div className="container mx-auto flex flex-col items-center justify-between gap-3 px-4 py-6 text-sm text-muted-foreground md:flex-row">
-          <p>© {new Date().getFullYear()} FleetTrackMate. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} TrackMate. All rights reserved.</p>
           <p className="font-mono text-xs uppercase tracking-[0.15em]">
             Made for fleet managers
           </p>

@@ -11,7 +11,7 @@ import { toast } from "@/hooks/use-toast";
 
 const APK_DOWNLOAD_URL = "https://fleettrackmate.com/downloads/FleetTrackMate.apk";
 
-const SHARE_MESSAGE = `🚗 Download the FleetTrackMate Driver App
+const SHARE_MESSAGE = `🚗 Download the TrackMate Driver App
 
 Track your location, receive tasks, and stay connected with your fleet.
 
@@ -59,7 +59,7 @@ export function ShareAppButton({ variant = "outline", size = "default", classNam
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "FleetTrackMate Driver App",
+          title: "TrackMate Driver App",
           text: SHARE_MESSAGE,
           url: APK_DOWNLOAD_URL,
         });

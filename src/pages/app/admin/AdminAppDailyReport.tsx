@@ -155,7 +155,7 @@ export default function AdminAppDailyReport() {
   const asText = useMemo(() => {
     if (!counts || !totals) return '';
     return [
-      `FleetTrackMate — ${format(new Date(), 'EEEE d MMMM yyyy')}`,
+      `TrackMate — ${format(new Date(), 'EEEE d MMMM yyyy')}`,
       '',
       `Drivers out: ${activeDrivers} of ${totals.driverCount}`,
       `Distance: ${totals.distanceKm.toFixed(1)} km`,

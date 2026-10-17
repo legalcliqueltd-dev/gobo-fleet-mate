@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TrackMate primary lockup: mark + wordmark, navy, transparent ground. -->
+<svg id="Layer_1" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2000 2000">
+  <defs>
+    <style>
+      .cls-1, .cls-2 { font-family: HelveticaNeue-Heavy, 'Helvetica Neue'; font-weight: 800; }
+      .cls-1, .cls-3 { letter-spacing: -.03em; }
+      .cls-2 { letter-spacing: -.12em; }
+      .cls-3 { font-family: HelveticaNeue-Roman, 'Helvetica Neue'; }
+      .cls-4 { font-size: 191.13px; }
+      .cls-4, .cls-5 { fill: #000738; }
+    </style>
+  </defs>
+  <g>
+    <path class="cls-5" d="M696.79,1103.55l-19.87,124.17c-1.91,11.98-12.11,20.67-24.24,20.67h-289.14c-7.38,0-14.3-3.28-18.98-8.98-4.68-5.71-6.53-13.13-5.09-20.37l58.37-291.87c2.29-11.43,12.41-19.73,24.07-19.73h110.95l-12.22,51.87h-32.58l-8.87,34.66h33.29l-9.92,42.15c-3.87,16.42-.08,33.42,10.39,46.64,10.47,13.23,26.15,20.81,43.02,20.81h140.82Z"/>
+    <path class="cls-5" d="M723.62,935.85l-21.29,133.04h-146.36c-6.21,0-11.99-2.79-15.85-7.66-3.86-4.87-5.25-11.14-3.83-17.19l11.8-50.09h40.96l7.57-34.66h-40.37l12.22-51.87h130.91c7.2,0,14.01,3.15,18.68,8.62,4.67,5.48,6.7,12.7,5.56,19.81Z"/>
+  </g>
+  <text class="cls-4" transform="translate(792.8853 1146.1309)"><tspan class="cls-2" x="0" y="0">T</tspan><tspan class="cls-1" x="101.49" y="0">rack</tspan><tspan class="cls-3" x="503.81" y="0">Mate</tspan></text>
+</svg>

@@ -46,7 +46,7 @@ const AppDownload = () => {
                 <Smartphone className="h-10 w-10 text-accent-foreground" />
               </div>
 
-              <h3 className="mb-2 font-heading text-2xl font-bold">FleetTrackMate Driver</h3>
+              <h3 className="mb-2 font-heading text-2xl font-bold">TrackMate Driver</h3>
               <p className="telemetry mb-6 text-xs uppercase tracking-[0.15em] text-muted-foreground">
                 Android 8.0+ · ~50 MB · APK
               </p>

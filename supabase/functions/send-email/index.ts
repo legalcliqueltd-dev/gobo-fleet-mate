@@ -70,7 +70,7 @@ export function emailTemplate(title: string, bodyContent: string, actionUrl?: st
   <div style="max-width:560px;margin:0 auto;padding:24px;">
     <div style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
       <div style="background:#1e293b;padding:20px 24px;">
-        <h1 style="margin:0;color:#ffffff;font-size:18px;font-weight:700;">🚛 FleetTrackMate</h1>
+        <h1 style="margin:0;color:#ffffff;font-size:18px;font-weight:700;">🚛 TrackMate</h1>
       </div>
       <div style="padding:24px;">
         <h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">${title}</h2>
@@ -80,7 +80,7 @@ export function emailTemplate(title: string, bodyContent: string, actionUrl?: st
         ${actionButton}
       </div>
       <div style="padding:16px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;">
-        <p style="margin:0;color:#94a3b8;font-size:12px;">You're receiving this because you have an account on FleetTrackMate. If this wasn't expected, you can safely ignore this email.</p>
+        <p style="margin:0;color:#94a3b8;font-size:12px;">You're receiving this because you have an account on TrackMate. If this wasn't expected, you can safely ignore this email.</p>
       </div>
     </div>
   </div>

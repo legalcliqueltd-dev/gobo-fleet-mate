@@ -65,7 +65,7 @@ export default function RoleSelect() {
         <img src={logo} alt="" className="h-14 w-14 rounded-2xl" />
         <div className="text-center">
           <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground">
-            FleetTrackMate
+            TrackMate
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">How will you use the app?</p>
         </div>

@@ -131,7 +131,7 @@ export default function TempShare() {
           <span className="inline-flex items-center justify-center h-10 w-10 rounded-lg bg-white dark:bg-slate-900 text-cyan-700 dark:text-cyan-300 border-2 border-slate-200 dark:border-slate-800">
             <MapPin className="h-5 w-5" />
           </span>
-          <span>FleetTrackMate</span>
+          <span>TrackMate</span>
         </div>
       </div>
 

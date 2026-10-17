@@ -69,7 +69,7 @@ const DeleteAccount = () => {
           </div>
           <h1 className="text-4xl font-bold mb-4">Delete Your Account</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Permanently delete your FleetTrackMate account and all associated data.
+            Permanently delete your TrackMate account and all associated data.
           </p>
         </div>
       </section>

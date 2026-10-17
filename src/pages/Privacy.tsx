@@ -79,7 +79,7 @@ const Privacy = () => {
           </div>
           <h1 className="text-4xl font-bold mb-4">Privacy Policy</h1>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            This policy explains what FleetTrackMate collects from drivers using the mobile app and from
+            This policy explains what TrackMate collects from drivers using the mobile app and from
             fleet administrators using the web dashboard, and how that information is used and protected.
           </p>
           <p className="text-sm text-muted-foreground mt-4">Last updated: 2026-05-05</p>

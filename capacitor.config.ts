@@ -16,7 +16,7 @@ import { CapacitorConfig } from '@capacitor/cli';
  */
 const config: CapacitorConfig = {
   appId: 'app.fleettrackmate.driver',
-  appName: 'FleetTrackMate',
+  appName: 'TrackMate',
   webDir: 'dist',
   bundledWebRuntime: false,
   includePlugins: [
@@ -97,10 +97,10 @@ export default config;
  * iOS Info.plist entries required (automatically patched by npm run cap:sync:ios):
  * 
  * <key>NSLocationWhenInUseUsageDescription</key>
- * <string>FleetTrackMate needs your location to share your position with your fleet manager.</string>
+ * <string>TrackMate needs your location to share your position with your fleet manager.</string>
  * 
  * <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
- * <string>FleetTrackMate needs continuous location access to track your position even when the app is in the background.</string>
+ * <string>TrackMate needs continuous location access to track your position even when the app is in the background.</string>
  * 
  * <key>UIBackgroundModes</key>
  * <array>

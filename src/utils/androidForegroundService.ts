@@ -42,7 +42,7 @@ export const startAndroidForegroundService = async (): Promise<boolean> => {
 
     await ForegroundService.startForegroundService({
       id: 1001,
-      title: 'FleetTrackMate',
+      title: 'TrackMate',
       body: 'On duty — sharing your location with your fleet',
       smallIcon: 'ic_stat_directions_car',
     });

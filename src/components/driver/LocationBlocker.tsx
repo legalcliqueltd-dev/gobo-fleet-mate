@@ -165,14 +165,14 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
   const openSettings = () => {
     if (isAndroidNative) {
       alert(
-        'To enable location:\n\n1. Tap OK to open App Settings\n2. Tap "Permissions"\n3. Tap "Location"\n4. Select "Allow all the time" or "Allow only while using the app"\n5. Return to FleetTrackMate'
+        'To enable location:\n\n1. Tap OK to open App Settings\n2. Tap "Permissions"\n3. Tap "Location"\n4. Select "Allow all the time" or "Allow only while using the app"\n5. Return to TrackMate'
       );
       try {
         window.location.href = 'intent://app.fleettrackmate.driver#Intent;scheme=package;action=android.settings.APPLICATION_DETAILS_SETTINGS;end';
       } catch { /* ignore */ }
     } else if (isNative) {
       try { window.location.href = 'app-settings:'; } catch { /* ignore */ }
-      alert('Open Settings > FleetTrackMate > Location and allow access, then return here.');
+      alert('Open Settings > TrackMate > Location and allow access, then return here.');
     } else {
       alert('Click the location icon in your browser address bar and allow location access.');
     }
@@ -264,7 +264,7 @@ export default function LocationBlocker({ onPermissionGranted }: LocationBlocker
       </div>
       <h2 className="font-heading text-2xl font-bold text-foreground">Location sharing</h2>
       <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
-        FleetTrackMate Driver collects location data to share your live position with your
+        TrackMate Driver collects location data to share your live position with your
         fleet manager while you are on duty, <strong className="text-foreground">even when the
         app is closed or not in use</strong>. Sharing starts only when you go On Duty, shows a
         permanent notification while active, and stops when you go Off Duty.

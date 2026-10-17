@@ -153,7 +153,7 @@ export default function LocationPermissionPrompt() {
               </>
             ) : (
               <>
-                FleetTrackMate needs access to your location to:
+                TrackMate needs access to your location to:
                 <ul className="mt-3 text-left space-y-2 text-sm">
                   <li>• Track vehicle positions in real-time</li>
                   <li>• Monitor driver locations during SOS emergencies</li>

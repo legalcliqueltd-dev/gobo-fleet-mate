@@ -20,8 +20,8 @@ export type SheetFocus = {
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  moving: '#0b8f4f',
-  idle: '#c47d0a',
+  moving: '#00ff39',
+  idle: '#ffbf0b',
   offline: '#6b7280',
 };
 

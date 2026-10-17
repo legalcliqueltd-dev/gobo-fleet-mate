@@ -119,7 +119,7 @@ function customerEmail(opts: {
                    style="display:block;border-radius:7px;border:0;">
             </td>
             <td style="font-family:${FONT};color:#ffffff;font-size:15px;font-weight:700;letter-spacing:.2px;">
-              FleetTrackMate
+              TrackMate
             </td>
           </tr></table>
         </td></tr>

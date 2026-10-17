@@ -95,7 +95,7 @@ export default function DriverAppLayout({ children }: PropsWithChildren) {
             to="/app"
             className={cn('flex items-center gap-2.5', isHomePage ? 'mx-auto' : 'flex-1 justify-center')}
           >
-            <img src={logo} alt="FleetTrackMate" className="h-8 w-8 rounded-lg" />
+            <img src={logo} alt="TrackMate" className="h-8 w-8 rounded-lg" />
             <span className="font-heading text-lg font-semibold tracking-tight">Driver</span>
           </Link>
 

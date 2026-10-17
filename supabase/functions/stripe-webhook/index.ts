@@ -34,7 +34,7 @@ function paymentConfirmationHtml(plan: string, amount: string, renewalDate: stri
 <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:560px;margin:0 auto;padding:24px;">
     <div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-      <div style="background:#1e293b;padding:20px 24px;"><h1 style="margin:0;color:#fff;font-size:18px;font-weight:700;">FleetTrackMate</h1></div>
+      <div style="background:#1e293b;padding:20px 24px;"><h1 style="margin:0;color:#fff;font-size:18px;font-weight:700;">TrackMate</h1></div>
       <div style="padding:24px;">
         <div style="text-align:center;margin-bottom:20px;">
           <div style="width:56px;height:56px;background:#22c55e;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;"><span style="color:#fff;font-size:28px;">&#10003;</span></div>
@@ -68,14 +68,14 @@ function trialStartedHtml(plan: string, trialEndDate: string, chargeDate: string
 <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:560px;margin:0 auto;padding:24px;">
     <div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-      <div style="background:#1e293b;padding:20px 24px;"><h1 style="margin:0;color:#fff;font-size:18px;font-weight:700;">FleetTrackMate</h1></div>
+      <div style="background:#1e293b;padding:20px 24px;"><h1 style="margin:0;color:#fff;font-size:18px;font-weight:700;">TrackMate</h1></div>
       <div style="padding:24px;">
         <div style="text-align:center;margin-bottom:20px;">
           <div style="width:56px;height:56px;background:#3b82f6;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;"><span style="color:#fff;font-size:28px;">&#128640;</span></div>
           <h2 style="margin:0;color:#1e293b;font-size:22px;">Your Free Trial Has Started</h2>
         </div>
         <div style="color:#475569;font-size:14px;line-height:1.6;">
-          <p>Welcome to FleetTrackMate! Your 7-day free trial is now active. You have full access to all ${plan.charAt(0).toUpperCase() + plan.slice(1)} features.</p>
+          <p>Welcome to TrackMate! Your 7-day free trial is now active. You have full access to all ${plan.charAt(0).toUpperCase() + plan.slice(1)} features.</p>
           <div style="background:#f8fafc;border-radius:8px;padding:16px;margin:16px 0;border:1px solid #e2e8f0;">
             <table style="width:100%;border-collapse:collapse;">
               <tr><td style="padding:6px 0;color:#64748b;font-size:13px;">Plan</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#1e293b;">${plan.charAt(0).toUpperCase() + plan.slice(1)}</td></tr>
@@ -194,13 +194,13 @@ serve(async (req) => {
         if (isTrialing && trialEnd) {
           const fmt = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
           const amount = plan === "pro" ? "$3.99/month" : "$1.99/month";
-          await sendEmail(customerEmail, `Welcome to FleetTrackMate - Your Free Trial Has Started`, 
+          await sendEmail(customerEmail, `Welcome to TrackMate - Your Free Trial Has Started`, 
             trialStartedHtml(plan, fmt(trialEnd), fmt(trialEnd), amount));
         } else {
           const amount = plan === "pro" ? "$3.99/month" : "$1.99/month";
           const fmt = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
           const daysRemaining = Math.ceil((periodEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-          await sendEmail(customerEmail, `Payment Confirmed - FleetTrackMate ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`,
+          await sendEmail(customerEmail, `Payment Confirmed - TrackMate ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`,
             paymentConfirmationHtml(plan, amount, fmt(periodEnd), daysRemaining));
         }
 
@@ -244,7 +244,7 @@ serve(async (req) => {
           const fmt = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
           const amount = plan === "pro" ? "$3.99" : "$1.99";
           const daysRemaining = Math.ceil((periodEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-          await sendEmail(customerEmail, `Payment Confirmed - FleetTrackMate Renewal`,
+          await sendEmail(customerEmail, `Payment Confirmed - TrackMate Renewal`,
             paymentConfirmationHtml(plan, amount, fmt(periodEnd), daysRemaining));
 
           logStep("Renewal processed", { userId: user.id, plan });
@@ -296,14 +296,14 @@ serve(async (req) => {
 <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:560px;margin:0 auto;padding:24px;">
     <div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-      <div style="background:#1e293b;padding:20px 24px;"><h1 style="margin:0;color:#fff;font-size:18px;font-weight:700;">FleetTrackMate</h1></div>
+      <div style="background:#1e293b;padding:20px 24px;"><h1 style="margin:0;color:#fff;font-size:18px;font-weight:700;">TrackMate</h1></div>
       <div style="padding:24px;">
         <div style="text-align:center;margin-bottom:20px;">
           <div style="width:56px;height:56px;background:#f59e0b;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;"><span style="color:#fff;font-size:28px;">&#9200;</span></div>
           <h2 style="margin:0;color:#1e293b;font-size:22px;">Your Trial Ends Soon</h2>
         </div>
         <div style="color:#475569;font-size:14px;line-height:1.6;">
-          <p>Your free trial for FleetTrackMate ${plan.charAt(0).toUpperCase() + plan.slice(1)} ends on <strong>${fmt(trialEnd)}</strong>.</p>
+          <p>Your free trial for TrackMate ${plan.charAt(0).toUpperCase() + plan.slice(1)} ends on <strong>${fmt(trialEnd)}</strong>.</p>
           <p>After that, you'll be charged <strong>${amount}/month</strong> to continue using all features.</p>
           <p>If you'd like to cancel, you can do so from your dashboard settings before your trial ends.</p>
         </div>
@@ -311,11 +311,11 @@ serve(async (req) => {
           <a href="https://fleettrackmate.com/settings" style="background-color:#2563eb;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;">Manage Subscription</a>
         </div>
       </div>
-      <div style="padding:16px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;"><p style="margin:0;color:#94a3b8;font-size:12px;">You're receiving this because you signed up for FleetTrackMate.</p></div>
+      <div style="padding:16px 24px;background:#f8fafc;border-top:1px solid #e2e8f0;"><p style="margin:0;color:#94a3b8;font-size:12px;">You're receiving this because you signed up for TrackMate.</p></div>
     </div>
   </div>
 </body></html>`;
-          await sendEmail(customer.email, `Your FleetTrackMate Trial Ends Soon - ${amount}/month starts ${fmt(trialEnd)}`, html);
+          await sendEmail(customer.email, `Your TrackMate Trial Ends Soon - ${amount}/month starts ${fmt(trialEnd)}`, html);
           logStep("Trial ending email sent", { email: customer.email, trialEnd: fmt(trialEnd) });
         }
         break;

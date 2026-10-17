@@ -53,7 +53,7 @@ const STEPS: Step[] = [
     icon: BatteryCharging,
     title: 'Keep tracking alive',
     body: 'Android battery saver can freeze apps in the background, which would stop your location and your proof being recorded.',
-    why: 'Set FleetTrackMate to Unrestricted so your day records even with the app closed. This is the setting phones most often get wrong.',
+    why: 'Set TrackMate to Unrestricted so your day records even with the app closed. This is the setting phones most often get wrong.',
     action: 'Open battery settings',
   },
   {
@@ -65,7 +65,7 @@ const STEPS: Step[] = [
     action: 'Got it',
     informational: true,
     warnings: [
-      'Swiping FleetTrackMate away in Recents kills tracking until you open it again.',
+      'Swiping TrackMate away in Recents kills tracking until you open it again.',
       'Turning location off, or switching to "While using the app", stops it the moment you leave.',
       'The on-duty notification must stay. Dismissing or blocking it removes what keeps tracking alive.',
     ],

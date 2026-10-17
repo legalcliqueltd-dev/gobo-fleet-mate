@@ -94,5 +94,6 @@ export function getNavMapStyle(isDark: boolean): google.maps.MapTypeStyle[] {
 
 /** Route/trail polyline colors that read on both map themes. */
 export function getRouteStrokeColor(isDark: boolean): string {
-  return isDark ? '#6fb4ff' : '#1d63d8';
+  // TrackMate: pale #dcebff reads on the navy ground, navy reads on light.
+  return isDark ? '#dcebff' : '#000738';
 }

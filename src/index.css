@@ -16,47 +16,63 @@
   :root {
     color-scheme: light;
 
-    --background: 220 27% 97%;
-    --foreground: 224 44% 11%;
+    /* ── TrackMate ──────────────────────────────────────────────────────
+       navy #000738 · neon #00ff39 · amber #ffbf0b · f4f4f4 / e2e2e2 / dcebff
+
+       Neon green is BOTH the brand accent and the "moving" status, by
+       decision. That costs us the usual trick of tinting a status chip
+       (bg-success/10 + text-success), because #00ff39 is almost as light as
+       white and unreadable as text on it. So status chips are SOLID brand
+       colour with navy text instead — which is exactly how the logo lockups
+       are built, and reads far harder across a map than a tint ever did.
+
+       Navy carries primary in light mode; the neon takes over in dark, where
+       navy would vanish into the ground. Red is kept despite being outside
+       the palette: SOS is a safety control and may not be off-brand-safe. */
+
+    --background: 0 0% 96%;            /* #f4f4f4 */
+    --foreground: 233 100% 11%;        /* #000738 */
 
     --card: 0 0% 100%;
-    --card-foreground: 224 44% 11%;
+    --card-foreground: 233 100% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 224 44% 11%;
+    --popover-foreground: 233 100% 11%;
 
-    --primary: 217 90% 44%;
+    --primary: 233 100% 11%;           /* navy — buttons, white text */
     --primary-foreground: 0 0% 100%;
-    --primary-glow: 213 92% 56%;
+    --primary-glow: 133 100% 50%;
 
-    --secondary: 220 20% 92%;
-    --secondary-foreground: 224 35% 18%;
+    --secondary: 0 0% 89%;             /* #e2e2e2 */
+    --secondary-foreground: 233 100% 11%;
 
-    --muted: 220 20% 93%;
-    --muted-foreground: 223 12% 42%;
+    --muted: 0 0% 93%;
+    --muted-foreground: 233 10% 42%;
 
-    --accent: 217 90% 95%;
-    --accent-foreground: 217 90% 32%;
+    --accent: 133 100% 94%;            /* palest neon, for hover grounds */
+    --accent-foreground: 233 100% 11%;
 
-    --success: 152 65% 31%;
+    --success: 133 100% 26%;           /* brand green hue, readable on white */
     --success-foreground: 0 0% 100%;
+    --signal: 133 100% 50%;            /* #00ff39 exact — fills, map, brand */
+    --signal-foreground: 233 100% 11%;
 
-    --warning: 33 94% 44%;
-    --warning-foreground: 0 0% 100%;
+    --warning: 44 100% 52%;            /* #ffbf0b */
+    --warning-foreground: 233 100% 11%;
 
-    --destructive: 4 72% 46%;
+    --destructive: 4 72% 46%;          /* off-palette on purpose: SOS */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 18% 87%;
-    --input: 220 16% 82%;
-    --ring: 217 90% 44%;
+    --border: 0 0% 85%;
+    --input: 0 0% 78%;
+    --ring: 133 100% 50%;
 
     /* Fleet status hues */
-    --fleet-blue: 217 90% 44%;
-    --fleet-blue-light: 213 92% 56%;
-    --fleet-blue-dark: 219 85% 34%;
-    --fleet-green: 152 65% 31%;
-    --fleet-orange: 33 94% 44%;
+    --fleet-blue: 233 100% 11%;
+    --fleet-blue-light: 214 100% 93%;  /* #dcebff */
+    --fleet-blue-dark: 233 100% 8%;
+    --fleet-green: 133 100% 50%;
+    --fleet-orange: 44 100% 52%;
     --fleet-red: 4 72% 46%;
 
     /* Gradients */
@@ -87,46 +103,51 @@
   .dark {
     color-scheme: dark;
 
-    --background: 222 41% 7%;
-    --foreground: 218 25% 92%;
+    /* Dark is the brand's home: navy ground, neon on top — the TrackMate-05
+       lockup. Primary flips to neon here because navy on navy is nothing. */
 
-    --card: 222 36% 10%;
-    --card-foreground: 218 25% 92%;
+    --background: 233 100% 11%;        /* #000738 */
+    --foreground: 214 100% 93%;        /* #dcebff */
 
-    --popover: 222 36% 9%;
-    --popover-foreground: 218 25% 92%;
+    --card: 233 70% 15%;
+    --card-foreground: 214 100% 93%;
 
-    --primary: 214 95% 62%;
-    --primary-foreground: 222 45% 8%;
-    --primary-glow: 209 100% 70%;
+    --popover: 233 70% 14%;
+    --popover-foreground: 214 100% 93%;
 
-    --secondary: 221 28% 16%;
-    --secondary-foreground: 218 25% 90%;
+    --primary: 133 100% 50%;           /* neon — navy text on top */
+    --primary-foreground: 233 100% 11%;
+    --primary-glow: 133 100% 62%;
 
-    --muted: 221 28% 15%;
-    --muted-foreground: 220 12% 62%;
+    --secondary: 233 45% 20%;
+    --secondary-foreground: 214 100% 93%;
 
-    --accent: 216 60% 17%;
-    --accent-foreground: 212 95% 74%;
+    --muted: 233 45% 18%;
+    --muted-foreground: 214 25% 68%;
 
-    --success: 152 55% 45%;
-    --success-foreground: 160 60% 6%;
+    --accent: 233 55% 22%;
+    --accent-foreground: 133 100% 50%;
 
-    --warning: 38 95% 55%;
-    --warning-foreground: 30 70% 8%;
+    --success: 133 100% 50%;           /* on navy the pure neon reads fine */
+    --success-foreground: 233 100% 11%;
+    --signal: 133 100% 50%;
+    --signal-foreground: 233 100% 11%;
+
+    --warning: 44 100% 52%;
+    --warning-foreground: 233 100% 11%;
 
     --destructive: 4 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 221 26% 17%;
-    --input: 221 24% 22%;
-    --ring: 214 95% 62%;
+    --border: 233 45% 22%;
+    --input: 233 40% 26%;
+    --ring: 133 100% 50%;
 
-    --fleet-blue: 214 95% 62%;
-    --fleet-blue-light: 209 100% 70%;
-    --fleet-blue-dark: 217 80% 48%;
-    --fleet-green: 152 55% 45%;
-    --fleet-orange: 38 95% 55%;
+    --fleet-blue: 214 100% 93%;
+    --fleet-blue-light: 214 100% 96%;
+    --fleet-blue-dark: 233 60% 30%;
+    --fleet-green: 133 100% 50%;
+    --fleet-orange: 44 100% 52%;
     --fleet-red: 4 84% 60%;
 
     --gradient-hero: linear-gradient(180deg, hsl(222 41% 7%), hsl(222 36% 10%));

@@ -31,7 +31,7 @@ function expiresIn(iso: string): string {
  * and nothing to install.
  *
  * This is the only screen in the product whose reader has never seen
- * FleetTrackMate and cannot be trained, so it carries one instruction and two
+ * TrackMate and cannot be trained, so it carries one instruction and two
  * choices and nothing else. An earlier draft had a four-step numbered
  * explainer; it was cut because nobody standing at their door with a driver
  * waiting reads four steps.

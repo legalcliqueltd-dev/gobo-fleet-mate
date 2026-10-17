@@ -14,7 +14,7 @@ import { toast } from "sonner";
 const APK_DOWNLOAD_URL = "https://fleettrackmate.com/downloads/FleetTrackMate.apk";
 
 function buildInviteMessage(code: string, deviceName?: string) {
-  return `You've been added to the fleet on FleetTrackMate${deviceName ? ` (${deviceName})` : ""}.
+  return `You've been added to the fleet on TrackMate${deviceName ? ` (${deviceName})` : ""}.
 
 Your connection code: ${code}
 
@@ -71,13 +71,13 @@ export function ShareCodeButton({
   };
 
   const shareEmail = () => {
-    const subject = `Your FleetTrackMate driver code${deviceName ? ` — ${deviceName}` : ""}`;
+    const subject = `Your TrackMate driver code${deviceName ? ` — ${deviceName}` : ""}`;
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message)}`;
   };
 
   const shareNative = async () => {
     try {
-      await navigator.share({ title: "FleetTrackMate driver code", text: message });
+      await navigator.share({ title: "TrackMate driver code", text: message });
     } catch (err) {
       if ((err as Error).name !== "AbortError") {
         copyText(message, "Invite copied — paste it anywhere.");

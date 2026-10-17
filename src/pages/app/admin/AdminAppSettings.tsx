@@ -174,7 +174,7 @@ export default function AdminAppSettings() {
 
         <Row
           icon={GraduationCap}
-          label="How to use FleetTrackMate"
+          label="How to use TrackMate"
           hint="A short tour of every tab"
           onClick={() => setTutorialOpen(true)}
         />
@@ -219,7 +219,7 @@ export default function AdminAppSettings() {
         Sign out
       </Button>
 
-      <p className="py-8 text-center text-xs text-muted-foreground">FleetTrackMate · Manager</p>
+      <p className="py-8 text-center text-xs text-muted-foreground">TrackMate · Manager</p>
 
       {tutorialOpen && <AdminTutorial onClose={() => setTutorialOpen(false)} />}
       {profileOpen && <ProfileSheet onClose={() => setProfileOpen(false)} />}

@@ -29,7 +29,7 @@ function paymentConfirmationHtml(plan: string, amount: string, renewalDate: stri
 <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <div style="max-width:560px;margin:0 auto;padding:24px;">
     <div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
-      <div style="background:#1e293b;padding:20px 24px;"><h1 style="margin:0;color:#fff;font-size:18px;font-weight:700;">FleetTrackMate</h1></div>
+      <div style="background:#1e293b;padding:20px 24px;"><h1 style="margin:0;color:#fff;font-size:18px;font-weight:700;">TrackMate</h1></div>
       <div style="padding:24px;">
         <div style="text-align:center;margin-bottom:20px;">
           <div style="width:56px;height:56px;background:#22c55e;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;"><span style="color:#fff;font-size:28px;">&#10003;</span></div>
@@ -150,7 +150,7 @@ serve(async (req) => {
       // Send confirmation email
       const fmt = (d: Date) => d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
       const daysRemaining = Math.ceil((subscriptionEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-      await sendEmail(email, `Payment Confirmed - FleetTrackMate ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`,
+      await sendEmail(email, `Payment Confirmed - TrackMate ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`,
         paymentConfirmationHtml(plan, amount, fmt(subscriptionEnd), daysRemaining));
 
       logStep("Subscription activated via Paystack webhook", { userId: user.id, plan });

@@ -252,7 +252,7 @@ export default function DriverHistoryView({
                         icon: {
                           path: 'M 0,-1 0,1',
                           strokeOpacity: 0.9,
-                          strokeColor: '#f59e0b',
+                          strokeColor: '#ffbf0b',
                           strokeWeight: 2.5,
                           scale: 3,
                         },
@@ -304,7 +304,7 @@ export default function DriverHistoryView({
                   icon={{
                     path: google.maps.SymbolPath.CIRCLE,
                     scale: 7,
-                    fillColor: '#0b8f4f',
+                    fillColor: '#00ff39',
                     fillOpacity: 1,
                     strokeColor: '#ffffff',
                     strokeWeight: 2,

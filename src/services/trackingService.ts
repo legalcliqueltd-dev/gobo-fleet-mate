@@ -344,7 +344,7 @@ class TrackingService extends EventTarget {
         isBackground: true,
       },
       notification: {
-        title: 'FleetTrackMate',
+        title: 'TrackMate',
         text: 'Tracking your location for your fleet manager',
       },
     });
@@ -400,7 +400,7 @@ class TrackingService extends EventTarget {
             detail: {
               code: 'NEEDS_ALWAYS_PERMISSION',
               message:
-                'Location is set to "While Using the App". Tracking will stop when you leave FleetTrackMate — set it to "Always" to stay on duty.',
+                'Location is set to "While Using the App". Tracking will stop when you leave TrackMate — set it to "Always" to stay on duty.',
             },
           })
         );
@@ -496,7 +496,7 @@ class TrackingService extends EventTarget {
           // Defining backgroundMessage is what enables background delivery.
           // Without it the plugin only guarantees foreground updates.
           backgroundMessage: 'Sharing your location with your fleet manager.',
-          backgroundTitle: 'FleetTrackMate — on duty',
+          backgroundTitle: 'TrackMate — on duty',
           requestPermissions: true,
           // Never accept a cached fix: a stale point plotted as current is
           // worse than a gap, because it reads as the driver being somewhere

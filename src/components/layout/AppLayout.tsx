@@ -60,8 +60,8 @@ export default function AppLayout({ children }: PropsWithChildren) {
         <div className="mx-auto max-w-7xl px-3 xs:px-4 py-3">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2 font-heading font-semibold tracking-tight">
-              <img src={logo} alt="FleetTrackMate" className="h-9 w-9 rounded-lg" />
-              <span className="text-lg">FleetTrackMate</span>
+              <img src={logo} alt="TrackMate" className="h-9 w-9 rounded-lg" />
+              <span className="text-lg">TrackMate</span>
             </Link>
 
             {/* Desktop navigation */}
@@ -243,7 +243,7 @@ export default function AppLayout({ children }: PropsWithChildren) {
       )}
 
       <footer className="mx-auto max-w-7xl px-3 xs:px-4 py-8 text-xs text-muted-foreground">
-        © {new Date().getFullYear()} FleetTrackMate
+        © {new Date().getFullYear()} TrackMate
       </footer>
     </div>
   );

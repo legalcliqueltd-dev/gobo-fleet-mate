@@ -185,7 +185,7 @@ const DriverGoogleMap = forwardRef<DriverGoogleMapHandle, DriverGoogleMapProps>(
     );
   }
 
-  const puckColor = isTracking ? '#0b8f4f' : '#5b6472';
+  const puckColor = isTracking ? '#00ff39' : '#5b6472';
 
   return (
     <GoogleMap

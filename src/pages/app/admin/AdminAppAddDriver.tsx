@@ -35,7 +35,7 @@ export default function AdminAppAddDriver() {
   const [copied, setCopied] = useState(false);
 
   const inviteText = code
-    ? `You have been added to ${name.trim() || 'the fleet'} on FleetTrackMate.\n\nYour connection code is: ${code}\n\nOpen FleetTrackMate, choose "I drive", and enter this code with your name.`
+    ? `You have been added to ${name.trim() || 'the fleet'} on TrackMate.\n\nYour connection code is: ${code}\n\nOpen TrackMate, choose "I drive", and enter this code with your name.`
     : '';
 
   // How many codes already exist, so the plan's cap can be enforced here as
@@ -109,7 +109,7 @@ export default function AdminAppAddDriver() {
     // Native share sheet first — it reaches WhatsApp, SMS and mail at once.
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
-        await navigator.share({ title: 'FleetTrackMate', text: inviteText });
+        await navigator.share({ title: 'TrackMate', text: inviteText });
         return;
       } catch {
         return; // user dismissed the sheet
@@ -203,7 +203,7 @@ export default function AdminAppAddDriver() {
             </div>
 
             <p className="mt-5 text-left text-sm leading-relaxed text-muted-foreground">
-              Ask the driver to open FleetTrackMate, choose <strong>I drive</strong>, and enter
+              Ask the driver to open TrackMate, choose <strong>I drive</strong>, and enter
               this code with their name. They will appear on your fleet map as soon as they go on
               duty.
             </p>

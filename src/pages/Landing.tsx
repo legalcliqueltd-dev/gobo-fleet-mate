@@ -15,7 +15,7 @@ export default function Landing() {
         badge="Fleet operations, live"
         title1="Every vehicle."
         title2="One live map."
-        description="FleetTrackMate puts your whole fleet on a live map — driver locations, trips, geofences and SOS alerts, updated in real time."
+        description="TrackMate puts your whole fleet on a live map — driver locations, trips, geofences and SOS alerts, updated in real time."
       >
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
           <Link to="/auth/signup">

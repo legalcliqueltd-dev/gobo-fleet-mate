@@ -380,7 +380,7 @@ export const useIOSBackgroundTracking = (
         },
         // iOS notification config (no-op on iOS, harmless)
         notification: {
-          title: 'FleetTrackMate',
+          title: 'TrackMate',
           text: 'Tracking your location for your fleet manager',
         },
       });

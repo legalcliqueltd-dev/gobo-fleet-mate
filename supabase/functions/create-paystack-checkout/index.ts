@@ -15,11 +15,11 @@ const logStep = (step: string, details?: any) => {
 const PAYSTACK_PRICES = {
   basic: {
     amount: 289900, // ₦2,899/month
-    name: "FleetTrackMate Basic",
+    name: "TrackMate Basic",
   },
   pro: {
     amount: 579900, // ₦5,799/month
-    name: "FleetTrackMate Pro",
+    name: "TrackMate Pro",
   },
 };
 

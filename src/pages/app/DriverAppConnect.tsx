@@ -163,7 +163,7 @@ export default function DriverAppConnect() {
       <div className="relative z-10 w-full max-w-md">
         {/* Brand */}
         <div className="mb-8 flex flex-col items-center text-center">
-          <img src={logo} alt="FleetTrackMate" className="mb-4 h-20 w-20 rounded-2xl shadow-lg" />
+          <img src={logo} alt="TrackMate" className="mb-4 h-20 w-20 rounded-2xl shadow-lg" />
           <h1 className="font-heading text-3xl font-bold tracking-tight">
             Welcome, driver
           </h1>
@@ -258,7 +258,7 @@ export default function DriverAppConnect() {
         </div>
 
         <p className="mt-4 text-center font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70">
-          FleetTrackMate · Live fleet tracking
+          TrackMate · Live fleet tracking
         </p>
       </div>
     </div>
