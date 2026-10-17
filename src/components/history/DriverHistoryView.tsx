@@ -341,9 +341,9 @@ export default function DriverHistoryView({
                 icon={{
                   path: google.maps.SymbolPath.CIRCLE,
                   scale: 11,
-                  fillColor: '#dc2626',
+                  fillColor: '#000738',
                   fillOpacity: 1,
-                  strokeColor: '#ffffff',
+                  strokeColor: '#00ff39',
                   strokeWeight: 3,
                 }}
                 label={{ text: 'B', color: '#ffffff', fontSize: '11px', fontWeight: '700' }}

@@ -13,18 +13,10 @@ import DriverOnboarding, { isOnboardingCompleted } from '@/components/driver/Dri
 import PermissionsCarousel, { permissionsSetupDone } from '@/components/driver/PermissionsCarousel';
 import { useStationWatcher } from '@/hooks/useStationWatcher';
 import TaskNavigationMap from '@/components/map/TaskNavigationMap';
+import DutyPanel from '@/components/driver/DutyPanel';
 
 import { cn } from '@/lib/utils';
 import { detectNativePlatform, isIOS, isAndroid } from '@/utils/platformDetection';
-
-/** "43s ago" / "4 min ago". The only telemetry a driver needs: is it live. */
-function formatSince(d: Date | null): string {
-  if (!d) return 'not yet';
-  const s = Math.floor((Date.now() - d.getTime()) / 1000);
-  if (s < 60) return `${s}s ago`;
-  if (s < 3600) return `${Math.round(s / 60)} min ago`;
-  return `${Math.round(s / 3600)} h ago`;
-}
 
 type Task = {
   id: string;
@@ -84,10 +76,29 @@ export default function DriverAppDashboard() {
   const isNativeIOS = detectNativePlatform() && isIOS();
   const isNativeAndroid = detectNativePlatform() && isAndroid();
 
-  const [onDuty] = useState(() => {
+  const [onDuty, setOnDuty] = useState(() => {
     const stored = localStorage.getItem('driverOnDuty');
     return stored === null ? true : stored === 'true';
   });
+
+  // Duty is switchable from here now. It used to be readable here and
+  // switchable only in Settings, which meant the one control a driver needs
+  // at the end of a shift was two screens away from the one he was looking at.
+  const goOnDuty = useCallback(() => {
+    setOnDuty(true);
+    if (session?.driverId && session?.adminCode) {
+      trackingService.start(session.driverId, session.adminCode).catch((err) => {
+        console.error('[Dashboard] start failed:', err);
+      });
+    }
+  }, [session?.driverId, session?.adminCode]);
+
+  const goOffDuty = useCallback(() => {
+    setOnDuty(false);
+    trackingService.stop().catch((err) => {
+      console.error('[Dashboard] stop failed:', err);
+    });
+  }, []);
 
   // Task card starts expanded so a new assignment is unmissable, but the
   // driver can shrink it to a pill so it never blocks the map.
@@ -275,11 +286,6 @@ export default function DriverAppDashboard() {
     };
   }, [session?.driverId, session?.adminCode]);
 
-  const centerOnLocation = useCallback(() => {
-  }, [currentLocation]);
-
-
-
   const taskPins = tasks
     .filter((t): t is Task & { dropoff_lat: number; dropoff_lng: number } =>
       t.dropoff_lat != null && t.dropoff_lng != null
@@ -435,38 +441,18 @@ export default function DriverAppDashboard() {
       <div className="space-y-4 px-4 py-5">
 
         {/* Duty. The one piece of state he must be able to read at a glance,
-            because everything else in the product depends on it being on. */}
-        <button
-          type="button"
-          onClick={() => navigate('/app/settings')}
-          className={cn(
-            'flex w-full items-center gap-4 rounded-2xl border px-4 py-4 text-left transition-colors',
-            isTracking ? 'border-success/40 bg-success/10' : 'border-warning/40 bg-warning/10'
-          )}
-        >
-          <span className="relative flex h-3.5 w-3.5 shrink-0 items-center justify-center">
-            {isTracking && (
-              <span className="absolute inline-flex h-3.5 w-3.5 animate-ping rounded-full bg-success opacity-60" />
-            )}
-            <span
-              className={cn(
-                'relative h-3 w-3 rounded-full',
-                isTracking ? 'bg-success' : 'bg-warning'
-              )}
-            />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block font-heading text-lg font-bold tracking-tight">
-              {isTracking ? 'On duty' : 'Off duty'}
-            </span>
-            <span className="block text-xs text-muted-foreground">
-              {isTracking
-                ? `Sharing your location${lastUpdate ? ` · synced ${formatSince(lastUpdate)}` : ''}`
-                : 'Your manager cannot see you. Tap to go on duty.'}
-            </span>
-          </span>
-          <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
-        </button>
+            because everything else in the product depends on it being on —
+            and now the one he can interrogate and switch without leaving. */}
+        <DutyPanel
+          onDuty={onDuty}
+          isTracking={isTracking}
+          lastSyncAt={lastUpdate}
+          batteryLevel={batteryLevel}
+          pendingCount={pendingOfflineCount}
+          accuracy={accuracy}
+          onGoOnDuty={goOnDuty}
+          onGoOffDuty={goOffDuty}
+        />
 
         {/* Standing inside a station — the thing his receipt depends on. */}
         {insideStation && (
@@ -534,9 +520,11 @@ export default function DriverAppDashboard() {
         <section>
           <div className="mb-2.5 flex items-baseline justify-between">
             <h2 className="font-heading text-xl font-bold tracking-tight">Today</h2>
-            <span className="text-xs text-muted-foreground">
-              {stopsLeft === 0 ? 'All done' : `${stopsLeft} left`}
-            </span>
+            {todayStops.length > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {stopsLeft === 0 ? 'All done' : `${stopsLeft} left`}
+              </span>
+            )}
           </div>
 
           {todayStops.length === 0 ? (

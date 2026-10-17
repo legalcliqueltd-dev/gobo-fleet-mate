@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils';
 import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { useTaskNotifications } from '@/hooks/useTaskNotifications';
 import { useDrivingMode } from '@/hooks/useDrivingMode';
-import OfflineQueue from '@/components/OfflineQueue';
 import { useAccessGuard } from '@/hooks/useAccessGuard';
 
 /**
@@ -147,11 +146,18 @@ export default function DriverAppLayout({ children }: PropsWithChildren) {
         {children}
       </main>
 
-      {/* Offline sync queue */}
-      <OfflineQueue />
+      {/* The Sync Queue panel used to sit here, on EVERY driver screen: a
+          card headed "Online • 1 pending (1 mirror)" with Sync and delete
+          buttons. It was a developer's view of an internal queue shown to a
+          driver, in words he has no use for, taking the bottom of every
+          page. The same facts now live in the duty panel on Home, in his
+          language ("Saved here: 2"), and the queue drains itself on signal,
+          resume and visibility — so there was never anything for him to
+          press. The component is kept for the admin side; it is just no
+          longer wallpaper on the driver's phone. */}
 
-      {/* Bottom navigation — SOS is the raised center control so it is
-          always the easiest target in an emergency. */}
+      {/* Bottom navigation. SOS is NOT here — it sits in the header, so the
+          bar carries only the three places a driver actually goes. */}
       <nav
         className="sticky bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}

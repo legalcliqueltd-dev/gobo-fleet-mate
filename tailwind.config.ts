@@ -66,6 +66,11 @@ export default {
           DEFAULT: "hsl(var(--signal))",
           foreground: "hsl(var(--signal-foreground))",
         },
+        // Navy in both themes — the slab the driver screens are headed with.
+        "brand-ink": {
+          DEFAULT: "hsl(var(--brand-ink))",
+          foreground: "hsl(var(--brand-ink-foreground))",
+        },
         warning: {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",

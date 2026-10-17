@@ -73,6 +73,13 @@
     --sos: 4 72% 46%;
     --sos-foreground: 0 0% 100%;
 
+    /* The navy slab the driver screens are headed with. Navy in BOTH themes,
+       because it is the brand's ground — `primary` cannot do this job since
+       it flips to neon in dark. In dark it goes a shade deeper than the page
+       so the slab still reads as a separate surface. */
+    --brand-ink: 233 100% 11%;
+    --brand-ink-foreground: 214 100% 93%;
+
     --border: 0 0% 85%;
     --input: 0 0% 78%;
     --ring: 133 100% 50%;
@@ -153,6 +160,9 @@
 
     --sos: 4 84% 60%;
     --sos-foreground: 0 0% 100%;
+
+    --brand-ink: 233 100% 7%;
+    --brand-ink-foreground: 214 100% 93%;
 
     --border: 233 45% 22%;
     --input: 233 40% 26%;

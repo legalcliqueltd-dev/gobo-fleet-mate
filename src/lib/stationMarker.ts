@@ -89,10 +89,13 @@ export type StationIcon = {
  */
 export function stationMarkerIcon(
   kind: StationKind,
-  color: string,
+  rawColor: string,
   tier: MarkerTier,
   dimmed = false
 ): StationIcon {
+  // Every pin goes through the clamp, so a station saved before the rebrand
+  // cannot put a red marker back on the map.
+  const color = brandSafeStationColor(rawColor);
   const opacity = dimmed ? 0.5 : 1;
 
   if (tier === 'dot') {
@@ -143,14 +146,53 @@ export function stationMarkerIcon(
   };
 }
 
-/** Palette offered when picking a station's colour. */
+/**
+ * Palette offered when picking a station's colour.
+ *
+ * Four, all in the brand's own hue families, all dark enough for the white
+ * glyph the pin draws on top. The old list had eight free hues including a
+ * red, a violet and a pink — red is reserved for SOS and the rest were from
+ * no palette at all, so a map of a dozen stations stopped looking like this
+ * product.
+ */
 export const STATION_COLORS = [
-  '#2563eb', // blue
-  '#0b8f4f', // green
-  '#c47d0a', // amber
-  '#dc2626', // red
-  '#7c3aed', // violet
-  '#0891b2', // cyan
-  '#db2777', // pink
-  '#475569', // slate
+  '#000738', // navy — the brand ink
+  '#007018', // deep green, the neon's hue at marker darkness
+  '#8f6900', // deep amber
+  '#1b2998', // mid navy-blue
 ];
+
+/**
+ * Snap any stored colour onto the palette above.
+ *
+ * Stations created before the rebrand still hold `#dc2626` and friends in the
+ * database. Rather than migrate rows, every pin is drawn through this, so a
+ * legacy red station renders navy until someone edits it.
+ */
+export function brandSafeStationColor(hex: string | null | undefined): string {
+  if (!hex) return STATION_COLORS[0];
+  const want = hex.trim().toLowerCase();
+  if ((STATION_COLORS as string[]).includes(want)) return want;
+
+  const rgb = (h: string) => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(h);
+    if (!m) return null;
+    const n = parseInt(m[1], 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255] as const;
+  };
+  const target = rgb(want);
+  if (!target) return STATION_COLORS[0];
+
+  let best = STATION_COLORS[0];
+  let bestDist = Infinity;
+  for (const candidate of STATION_COLORS) {
+    const c = rgb(candidate)!;
+    const d =
+      (c[0] - target[0]) ** 2 + (c[1] - target[1]) ** 2 + (c[2] - target[2]) ** 2;
+    if (d < bestDist) {
+      bestDist = d;
+      best = candidate;
+    }
+  }
+  return best;
+}

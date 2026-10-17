@@ -1,11 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleMap, Marker, Polyline, useJsApiLoader } from '@react-google-maps/api';
 import { Capacitor } from '@capacitor/core';
-import { Button } from '@/components/ui/button';
-import { X, Navigation, LocateFixed, MapPin } from 'lucide-react';
+import { X, Navigation, LocateFixed, MapPin, ExternalLink } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getRouteStrokeColor, getNavMapStyle } from '@/lib/mapStyles';
-import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
+import {
+  GOOGLE_MAPS_API_KEY,
+  GOOGLE_MAPS_LIBRARIES,
+  GOOGLE_MAPS_MAP_ID,
+  HAS_VECTOR_MAP,
+} from '@/lib/googleMapsConfig';
 import { driverMarkerIcon } from '@/lib/driverMarker';
 
 // Apple App Review Guideline 4 requires apps with location/mapping features to
@@ -64,13 +68,19 @@ function describeStep(step: {
   }
 }
 
-/** Drop-off pin. Teardrop, tip on the exact point, same red as the task pins. */
+/**
+ * Drop-off pin. Teardrop, tip on the exact point.
+ *
+ * It used to be `#d32f2f` — the last red left on a driver's map. Red is the
+ * SOS colour and nothing else, so the destination is now the brand lockup
+ * itself: navy pin, neon rim.
+ */
 function dropoffIcon(): google.maps.Symbol {
   return {
     path: 'M 0,-10 C 5.5,-10 10,-5.5 10,0 C 10,7 0,16 0,16 C 0,16 -10,7 -10,0 C -10,-5.5 -5.5,-10 0,-10 Z',
-    fillColor: '#d32f2f',
+    fillColor: '#000738',
     fillOpacity: 1,
-    strokeColor: '#ffffff',
+    strokeColor: '#00ff39',
     strokeWeight: 2.5,
     scale: 1.4,
     anchor: new google.maps.Point(0, 16),
@@ -111,6 +121,7 @@ export default function TaskNavigationMap({
 
   const [currentPosition, setCurrentPosition] = useState<LatLng | null>(null);
   const [heading, setHeading] = useState<number | null>(null);
+  const [externalOpen, setExternalOpen] = useState(false);
   const [routePath, setRoutePath] = useState<LatLng[]>([]);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
   const [nextStep, setNextStep] = useState<{ instruction: string; distance: string } | null>(null);
@@ -226,39 +237,60 @@ export default function TaskNavigationMap({
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
-      {/* Turn-by-turn info strip */}
-      {nextStep && !isArrived && (
-        <div className="bg-primary text-primary-foreground px-4 py-3 flex items-center gap-3">
-          <Navigation className="h-5 w-5 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">{nextStep.instruction}</p>
-            <p className="telemetry text-xs opacity-80">{nextStep.distance}</p>
+      {/* One navy slab carries the whole header: where he is going, how far,
+          and the next turn. Three separate bars used to stack here and eat a
+          third of the screen before the map began. */}
+      <div
+        className="relative shrink-0 overflow-hidden bg-brand-ink text-brand-ink-foreground"
+        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      >
+        <div className="brand-pattern pointer-events-none absolute inset-0 opacity-70" aria-hidden="true" />
+
+        <div className="relative flex items-center gap-3 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-brand-ink-foreground/55">
+              Navigating to
+            </p>
+            <h2 className="truncate font-heading text-lg font-bold leading-tight tracking-tight">
+              {taskTitle}
+            </h2>
           </div>
+          {routeInfo && (
+            <p className="telemetry shrink-0 text-right text-sm font-semibold">
+              {routeInfo.duration}
+              <span className="block text-[11px] font-normal text-brand-ink-foreground/55">
+                {routeInfo.distance}
+              </span>
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close navigation"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-ink-foreground/10 text-brand-ink-foreground"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
-      )}
+
+        {nextStep && !isArrived && (
+          <div className="relative flex items-center gap-2.5 border-t border-brand-ink-foreground/10 px-4 py-2.5">
+            <Navigation className="h-4 w-4 shrink-0 text-signal" />
+            <p className="min-w-0 flex-1 truncate text-sm font-semibold">{nextStep.instruction}</p>
+            <p className="telemetry shrink-0 text-xs text-brand-ink-foreground/60">
+              {nextStep.distance}
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Arrival banner */}
       {isArrived && (
-        <div className="flex items-center justify-center gap-2 bg-success px-4 py-3 font-semibold text-success-foreground">
+        <div className="flex shrink-0 items-center justify-center gap-2 bg-success px-4 py-3 font-semibold text-success-foreground">
           <MapPin className="h-4 w-4" />
           You've arrived at the drop-off
         </div>
       )}
-
-      {/* Header */}
-      <div className="flex items-center justify-between border-b bg-background px-4 py-3">
-        <div className="flex-1 min-w-0">
-          <h2 className="truncate font-heading font-bold">{taskTitle}</h2>
-          {routeInfo && (
-            <p className="telemetry text-sm text-muted-foreground">
-              {routeInfo.duration} · {routeInfo.distance}
-            </p>
-          )}
-        </div>
-        <Button variant="ghost" size="icon" onClick={onClose} className="h-11 w-11" aria-label="Close navigation">
-          <X className="h-5 w-5" />
-        </Button>
-      </div>
 
       {/* Map */}
       <div className="flex-1 relative">
@@ -278,7 +310,13 @@ export default function TaskNavigationMap({
               disableDefaultUI: true,
               gestureHandling: 'greedy',
               clickableIcons: false,
-              styles: getNavMapStyle(isDark),
+              // A Map ID switches Google to the vector renderer, which is the
+              // only one that honours tilt — that is the "3D-like" view. The
+              // same switch moves styling to Cloud Console, so `styles` must
+              // NOT be sent alongside it or Google drops the map ID.
+              ...(HAS_VECTOR_MAP
+                ? { mapId: GOOGLE_MAPS_MAP_ID, tilt: 50, heading: heading ?? 0 }
+                : { styles: getNavMapStyle(isDark) }),
             }}
           >
             {/* Casing under the route so it stays readable over any road
@@ -311,7 +349,7 @@ export default function TaskNavigationMap({
             <Marker position={{ lat: dropoffLat, lng: dropoffLng }} zIndex={5} icon={dropoffIcon()} />
 
             {currentPosition && (() => {
-              const icon = driverMarkerIcon('#0b8f4f', 'moving', true, heading);
+              const icon = driverMarkerIcon('#00ff39', 'moving', true, heading);
               return (
                 <Marker
                   position={currentPosition}
@@ -334,16 +372,48 @@ export default function TaskNavigationMap({
           </div>
         )}
 
-        <div className="absolute bottom-4 right-4 z-[1000] flex flex-col gap-2">
-          <Button
-            variant="secondary"
-            size="icon"
-            className="h-12 w-12 rounded-full border border-border shadow-lg"
+        {/* Control rail. "Open in Google Maps" used to be a full-width slab
+            in a footer of its own — the loudest thing on a screen whose job
+            is the map. It is a 44px icon now, which is what an escape hatch
+            to another app deserves. Apple Maps stays reachable on iOS, as
+            Guideline 4 requires, via the same control. */}
+        <div className="absolute bottom-4 right-4 z-[1000] flex flex-col items-end gap-2">
+          {externalOpen && (
+            <div className="mb-1 overflow-hidden rounded-xl border border-border bg-popover shadow-lg">
+              <button
+                type="button"
+                onClick={() => { setExternalOpen(false); openInAppleMaps(); }}
+                className="block min-h-[44px] w-full px-4 text-left text-sm font-medium"
+              >
+                Apple Maps
+              </button>
+              <button
+                type="button"
+                onClick={() => { setExternalOpen(false); openInGoogleMaps(); }}
+                className="block min-h-[44px] w-full border-t border-border px-4 text-left text-sm font-medium"
+              >
+                Google Maps
+              </button>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => (isIOSDevice ? setExternalOpen((o) => !o) : openInGoogleMaps())}
+            aria-label={isIOSDevice ? 'Open in another maps app' : 'Open in Google Maps'}
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-lg"
+          >
+            <ExternalLink className="h-[18px] w-[18px]" />
+          </button>
+
+          <button
+            type="button"
             onClick={centerOnMe}
             aria-label="Center on my location"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-ink text-signal shadow-lg"
           >
             <LocateFixed className="h-5 w-5" />
-          </Button>
+          </button>
         </div>
 
         {/* Route geometry is OpenStreetMap data via OSRM; the ODbL asks for
@@ -353,24 +423,6 @@ export default function TaskNavigationMap({
         </p>
       </div>
 
-      {/* Footer */}
-      <div className="p-4 border-t bg-background space-y-2">
-        {isIOSDevice && (
-          <Button className="w-full" size="lg" onClick={openInAppleMaps}>
-            <Navigation className="h-5 w-5 mr-2" />
-            Open in Apple Maps
-          </Button>
-        )}
-        <Button
-          className="w-full"
-          size="lg"
-          variant={isIOSDevice ? 'outline' : 'default'}
-          onClick={openInGoogleMaps}
-        >
-          <Navigation className="h-5 w-5 mr-2" />
-          Open in Google Maps
-        </Button>
-      </div>
     </div>
   );
 }

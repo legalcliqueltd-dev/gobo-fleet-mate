@@ -278,9 +278,10 @@ const DriverGoogleMap = forwardRef<DriverGoogleMapHandle, DriverGoogleMapProps>(
           zIndex={5}
           icon={{
             path: 'M 0,-10 C 5.5,-10 10,-5.5 10,0 C 10,7 0,16 0,16 C 0,16 -10,7 -10,0 C -10,-5.5 -5.5,-10 0,-10 Z',
-            fillColor: '#d32f2f',
+            // Navy pin, neon rim — the lockup. Red belongs to SOS alone.
+            fillColor: '#000738',
             fillOpacity: 1,
-            strokeColor: '#ffffff',
+            strokeColor: '#00ff39',
             strokeWeight: 2.5,
             scale: 1.4,
             anchor: new google.maps.Point(0, 16),

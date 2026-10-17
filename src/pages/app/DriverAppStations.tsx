@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Camera, Check, Loader2, MapPin, Navigation } from 'lucide-react';
 import { useDriverSession } from '@/contexts/DriverSessionContext';
 import TaskNavigationMap from '@/components/map/TaskNavigationMap';
+import DriverScreenHeader from '@/components/driver/DriverScreenHeader';
+import DriverAppLayout from '@/components/layout/DriverAppLayout';
 import {
   fetchStationAssignments,
   fetchStationsForDriver,
@@ -71,7 +73,8 @@ export default function DriverAppStations() {
     void load();
   }, [load]);
 
-  const outstanding = rows.filter((r) => !r.done).length;
+  const done = rows.filter((r) => r.done).length;
+  const outstanding = rows.length - done;
 
   if (navigatingTo) {
     return (
@@ -85,17 +88,19 @@ export default function DriverAppStations() {
   }
 
   return (
-    <div className="px-4 py-5">
-      <h1 className="font-heading text-2xl font-bold tracking-tight">Stations</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {loading
-          ? 'Loading…'
-          : rows.length === 0
-            ? 'Nothing due today.'
-            : outstanding === 0
-              ? 'All done today.'
-              : `${outstanding} still to visit`}
-      </p>
+    // THE BUG THIS FIXES: this screen was built without the layout, so it
+    // rendered with no bottom navigation at all — a driver who tapped
+    // Stations could only leave it with the system back gesture.
+    <DriverAppLayout>
+      <div className="pb-6">
+        <DriverScreenHeader
+        eyebrow="Due today"
+        title="Stations"
+        count={loading ? null : outstanding}
+        countLabel={outstanding === 1 ? 'to visit' : 'to visit'}
+        done={done}
+        total={rows.length}
+      />
 
       {loading && (
         <div className="flex justify-center py-16">
@@ -104,64 +109,87 @@ export default function DriverAppStations() {
       )}
 
       {!loading && rows.length === 0 && (
-        <div className="mt-10 flex flex-col items-center gap-2 px-6 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-            <MapPin className="h-6 w-6 text-muted-foreground" />
+        <div className="mt-12 flex flex-col items-center gap-3 px-8 text-center">
+          <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent">
+            <MapPin className="h-7 w-7 text-accent-foreground" />
           </span>
-          <p className="text-sm text-muted-foreground">
-            Your manager has not set any stations for today.
+          <p className="font-heading text-base font-bold">Nothing due today</p>
+          <p className="max-w-[16rem] text-sm leading-relaxed text-muted-foreground">
+            Your manager has not set any stations for today. They will appear
+            here the moment one is.
           </p>
         </div>
       )}
 
-      <ul className="mt-5 space-y-2">
-        {rows.map(({ station, done, visit }) => (
-          <li key={station.id}>
-            <button
-              type="button"
-              onClick={() => setNavigatingTo(station)}
-              className={cn(
-                'flex w-full items-center gap-3.5 rounded-2xl border px-3.5 py-3.5 text-left transition-colors active:bg-muted',
-                done ? 'border-border bg-card opacity-70' : 'border-border bg-card'
-              )}
-            >
-              <span
+      <ul className="mt-4 space-y-2.5 px-4">
+        {rows.map(({ station, done: isDone, visit }) => {
+          const needsReceipt = !isDone && Boolean(visit) && station.requires_photo;
+          return (
+            <li key={station.id}>
+              <button
+                type="button"
+                onClick={() => setNavigatingTo(station)}
                 className={cn(
-                  'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
-                  done ? 'bg-success text-success-foreground' : 'bg-accent'
+                  'group relative flex w-full items-stretch gap-3.5 overflow-hidden rounded-2xl border border-border bg-card p-3.5 text-left transition-colors active:bg-muted',
+                  isDone && 'opacity-60'
                 )}
-                style={done ? undefined : { backgroundColor: `${station.color}22` }}
               >
-                {done ? (
-                  <Check className="h-5 w-5" />
-                ) : (
-                  <MapPin className="h-5 w-5" style={{ color: station.color }} />
+                {/* A spine marks what is still owed. The station's stored
+                    colour is NOT used here: rows saved before the rebrand hold
+                    reds and violets, and red belongs to SOS alone. */}
+                {!isDone && (
+                  <span className="absolute inset-y-0 left-0 w-1 bg-primary" aria-hidden="true" />
                 )}
-              </span>
 
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-heading text-base font-semibold">
-                  {station.name}
+                <span
+                  className={cn(
+                    'ml-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl',
+                    isDone ? 'bg-success text-success-foreground' : 'bg-accent text-accent-foreground'
+                  )}
+                >
+                  {isDone ? <Check className="h-5 w-5" /> : <MapPin className="h-5 w-5" />}
                 </span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {done
-                    ? 'Done today'
-                    : visit
-                      ? 'Arrived — receipt still needed'
-                      : station.requires_photo
-                        ? 'Visit and take a photo'
-                        : 'Visit required'}
-                </span>
-              </span>
 
-              {!done && station.requires_photo && visit && (
-                <Camera className="h-4 w-4 shrink-0 text-warning" />
-              )}
-              <Navigation className="h-4 w-4 shrink-0 text-muted-foreground" />
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
+                <span className="flex min-w-0 flex-1 flex-col justify-center gap-1">
+                  <span className="truncate font-heading text-[17px] font-bold leading-tight tracking-tight">
+                    {station.name}
+                  </span>
+
+                  {/* Status is a solid chip, not grey prose — a driver reading
+                      this at arm's length in sunlight gets the state from the
+                      colour before he reads the word. */}
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    {isDone ? (
+                      <span className="inline-flex items-center rounded-md bg-success px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-success-foreground">
+                        Done
+                      </span>
+                    ) : needsReceipt ? (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-warning px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-warning-foreground">
+                        <Camera className="h-2.5 w-2.5" />
+                        Receipt due
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-md bg-secondary px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-secondary-foreground">
+                        Not yet
+                      </span>
+                    )}
+                    {!isDone && station.requires_photo && !visit && (
+                      <span className="text-[11px] text-muted-foreground">Photo needed on arrival</span>
+                    )}
+                  </span>
+                </span>
+
+                {/* Navigate: a target, not a chevron. Tapping the card does the
+                    same thing, so this is signposting, not a second control. */}
+                <span className="flex w-10 shrink-0 items-center justify-center self-center rounded-xl bg-primary/5 py-2.5 text-primary">
+                  <Navigation className="h-4 w-4" />
+                </span>
+              </button>
+            </li>
+          );
+        })}
+        </ul>
+      </div>
+    </DriverAppLayout>
   );
 }
