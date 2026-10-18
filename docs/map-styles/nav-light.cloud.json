@@ -1,0 +1,100 @@
+{
+  "variant": "light",
+  "backgroundColor": "#f2f3f5",
+  "metadata": {
+    "source": "TrackMate — scripts/build-cloud-map-styles.mjs",
+    "note": "Driver navigation map. Edit the script, not this file."
+  },
+  "styles": [
+    {
+      "id": "natural.base",
+      "geometry": {
+        "fillColor": "#f2f3f5"
+      }
+    },
+    {
+      "id": "pointOfInterest",
+      "geometry": {
+        "visible": false
+      },
+      "label": {
+        "visible": false
+      }
+    },
+    {
+      "id": "infrastructure.transitStation",
+      "geometry": {
+        "visible": false
+      },
+      "label": {
+        "visible": false
+      }
+    },
+    {
+      "id": "infrastructure.railwayTrack",
+      "geometry": {
+        "visible": false
+      }
+    },
+    {
+      "id": "natural.land",
+      "geometry": {
+        "fillColor": "#eceef1"
+      }
+    },
+    {
+      "id": "natural.water",
+      "geometry": {
+        "fillColor": "#cdd8e3"
+      },
+      "label": {
+        "visible": false
+      }
+    },
+    {
+      "id": "infrastructure.building",
+      "geometry": {
+        "fillColor": "#e6e9ed",
+        "strokeColor": "#dce0e6"
+      }
+    },
+    {
+      "id": "infrastructure.roadNetwork.road.local",
+      "geometry": {
+        "fillColor": "#ffffff"
+      }
+    },
+    {
+      "id": "infrastructure.roadNetwork.road.arterial",
+      "geometry": {
+        "fillColor": "#ffffff"
+      }
+    },
+    {
+      "id": "infrastructure.roadNetwork.road.highway",
+      "geometry": {
+        "fillColor": "#ffffff",
+        "strokeColor": "#dfe3e8"
+      }
+    },
+    {
+      "id": "infrastructure.roadNetwork.road",
+      "label": {
+        "textFillColor": "#8b93a1",
+        "textStrokeColor": "#ffffff",
+        "textStrokeWeight": 3
+      }
+    },
+    {
+      "id": "political",
+      "geometry": {
+        "visible": false
+      },
+      "label": {
+        "textFillColor": "#8b93a1",
+        "textStrokeColor": "#ffffff",
+        "textStrokeWeight": 3
+      }
+    }
+  ]
+}

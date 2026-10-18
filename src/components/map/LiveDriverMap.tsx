@@ -521,6 +521,11 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
   // was trying to look elsewhere.
   const INITIAL_VIEW = useRef({ center: { lat: 9.0820, lng: 8.6753 }, zoom: 5 }).current;
 
+  // Set the moment the Google map exists. The opening-view effect below needs
+  // it: positions usually arrive BEFORE the map does, and without this the
+  // effect has nothing to re-run on.
+  const [mapReady, setMapReady] = useState(false);
+
   // Fly to selected driver - only when selection changes, not on every driver update
   const prevSelectedRef = useRef<string | null>(null);
   useEffect(() => {
@@ -541,6 +546,7 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
   useEffect(() => {
     if (hasAutoFittedRef.current) return;
     if (!mapRef.current) return;
+    void mapReady;
 
     const freshness = (v: any) =>
       new Date(v?.updated_at ?? v?.last_seen_at ?? v?.timestamp ?? 0).getTime();
@@ -552,7 +558,15 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
     mapRef.current.panTo({ lat: target.latitude, lng: target.longitude });
     mapRef.current.setZoom(15);
     hasAutoFittedRef.current = true;
-  }, [validDrivers, validDevices]);
+    // THE BUG THIS FIXES: `mapReady` is in here because this effect used to
+    // depend only on the driver lists. If the positions arrived before the
+    // Google map finished loading — the normal order, since the data is a
+    // cached query and the map is a script download — the effect bailed on
+    // `!mapRef.current`, and nothing re-ran it. The dashboard then sat on
+    // its fallback view of the whole of Nigeria at zoom 5 until the admin
+    // panned there by hand. Whether you saw the fleet or an empty country
+    // came down to which finished loading first.
+  }, [validDrivers, validDevices, mapReady]);
 
   const fitToAll = () => {
     if (!mapRef.current) return;
@@ -630,6 +644,7 @@ export default function LiveDriverMap({ selectedDriverId, onDriverSelect, showDe
         onClick={() => setOpenInfoWindowId(null)}
         onLoad={(map) => {
           mapRef.current = map;
+          setMapReady(true);
           setStationTier(tierForZoom(map.getZoom() ?? 12));
           // Initial framing is handled by the "latest driver" effect above;
           // fitting all here framed stale markers and looked like a random place.

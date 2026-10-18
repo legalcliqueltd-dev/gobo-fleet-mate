@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleMap, Marker, Polyline, useJsApiLoader } from '@react-google-maps/api';
-import { Capacitor } from '@capacitor/core';
-import { X, Navigation, LocateFixed, MapPin, ExternalLink } from 'lucide-react';
+import { X, Navigation, LocateFixed, MapPin, Play, Square, Crosshair } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getRouteStrokeColor, getNavMapStyle } from '@/lib/mapStyles';
 import {
@@ -11,12 +11,14 @@ import {
 } from '@/lib/googleMapsConfig';
 import { driverMarkerIcon } from '@/lib/driverMarker';
 
-// Apple App Review Guideline 4 requires apps with location/mapping features to
-// offer the option to launch the native Apple Maps app. We show the Apple Maps
-// button on iOS (native or Safari) and keep Google Maps available as a fallback.
-const isIOSDevice =
-  Capacitor.getPlatform() === 'ios' ||
-  (typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent));
+// THE HAND-OFF TO GOOGLE/APPLE MAPS IS GONE, deliberately. Sending a driver
+// into another app loses the job, the station, the receipt step and the trail
+// the moment he gets there — the thing he was sent to do is no longer on his
+// screen. This screen now guides him itself.
+//
+// (The old comment here claimed App Store Guideline 4 REQUIRES offering Apple
+// Maps. It does not; no such rule exists. Restoring the button is a few lines
+// if review ever asks.)
 
 /** How far the vector map leans. Flat is 0; much past 55 and the horizon
  *  eats the screen on a phone held in one hand. */
@@ -26,6 +28,9 @@ const NAV_TILT = 50;
 const MIN_USEFUL_ZOOM = 10;
 /** Where we land instead: the destination, close enough to read streets. */
 const FAR_AWAY_ZOOM = 15;
+/** Close enough to read the next turn, wide enough to see it coming. */
+const FOLLOW_ZOOM = 17.5;
+const MAP_VIEW_KEY = 'driver_map_view';
 
 type LatLng = { lat: number; lng: number };
 
@@ -130,7 +135,22 @@ export default function TaskNavigationMap({
   const [currentPosition, setCurrentPosition] = useState<LatLng | null>(null);
   const [heading, setHeading] = useState<number | null>(null);
   const mapId = vectorMapId(isDark);
-  const [externalOpen, setExternalOpen] = useState(false);
+
+  // 3D is the default because that is what a driver is used to from every
+  // other navigation app, and because a leaning map tells him which way he
+  // is pointing without him reading anything. 2D stays one tap away: it is
+  // the better view for understanding a junction before you reach it.
+  // Remembered, because this is a preference, not a per-trip decision.
+  const [view, setView] = useState<'2d' | '3d'>(() => {
+    try {
+      return localStorage.getItem(MAP_VIEW_KEY) === '2d' ? '2d' : '3d';
+    } catch {
+      return '3d';
+    }
+  });
+  // Guidance: the camera rides with him instead of sitting where it was left.
+  const [following, setFollowing] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
   const [routePath, setRoutePath] = useState<LatLng[]>([]);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
   const [nextStep, setNextStep] = useState<{ instruction: string; distance: string } | null>(null);
@@ -237,31 +257,53 @@ export default function TaskNavigationMap({
     hasFitBounds.current = true;
   }, [currentPosition, dropoffLat, dropoffLng, isLoaded, mapId]);
 
-  const centerOnMe = useCallback(() => {
-    if (mapRef.current && currentPosition) {
-      mapRef.current.panTo(currentPosition);
-      mapRef.current.setZoom(16);
-      if (mapId) mapRef.current.setTilt(NAV_TILT);
-    }
-  }, [currentPosition, mapId]);
+  /**
+   * Put the camera behind the driver.
+   *
+   * In 3D this is the whole illusion: lean the map over, turn it so his
+   * heading points up the screen, and sit close. In 2D it is just a
+   * recentre — north stays up, because a flat map that spins is harder to
+   * read, not easier.
+   */
+  const applyCamera = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || !currentPosition) return;
+    map.panTo(currentPosition);
+    if ((map.getZoom() ?? 0) < FOLLOW_ZOOM - 1) map.setZoom(FOLLOW_ZOOM);
+    // Tilt and heading are vector-only; on a raster map they are ignored.
+    if (!mapId) return;
+    map.setTilt(view === '3d' ? NAV_TILT : 0);
+    map.setHeading(view === '3d' ? heading ?? 0 : 0);
+  }, [currentPosition, heading, mapId, view]);
 
-  const openInGoogleMaps = () => {
-    if (currentPosition) {
-      const url = `https://www.google.com/maps/dir/?api=1&origin=${currentPosition.lat},${currentPosition.lng}&destination=${dropoffLat},${dropoffLng}&travelmode=driving`;
-      window.open(url, '_blank');
-    } else {
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${dropoffLat},${dropoffLng}&travelmode=driving`;
-      window.open(url, '_blank');
-    }
-  };
+  // Follow. Re-runs on every new fix, which is what makes the map MOVE —
+  // until now the camera was placed once and then abandoned, so the driver
+  // slid off his own screen and nothing brought him back.
+  useEffect(() => {
+    if (!following) return;
+    applyCamera();
+  }, [following, applyCamera]);
 
-  const openInAppleMaps = () => {
-    // Apple's universal-link format. Opens Apple Maps app on iOS, the web
-    // version elsewhere. Omitting saddr lets Maps use the user's current
-    // location automatically.
-    const url = `https://maps.apple.com/?daddr=${dropoffLat},${dropoffLng}&dirflg=d`;
-    window.open(url, '_blank');
-  };
+  // Switching 2D/3D re-aims the camera even when he is not navigating, so
+  // the toggle does something visible the moment it is pressed.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapId) return;
+    // Tilt itself comes from the options prop; this only has to undo a
+    // rotation, which options does not carry.
+    if (view === '2d') map.setHeading(0);
+    try {
+      localStorage.setItem(MAP_VIEW_KEY, view);
+    } catch {
+      /* private mode — the preference just will not persist */
+    }
+  }, [view, mapId]);
+
+  const startGuidance = useCallback(() => {
+    setHasStarted(true);
+    setFollowing(true);
+    applyCamera();
+  }, [applyCamera]);
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
@@ -334,6 +376,7 @@ export default function TaskNavigationMap({
             mapContainerStyle={{ width: '100%', height: '100%' }}
             center={{ lat: dropoffLat, lng: dropoffLng }}
             zoom={15}
+            onDragStart={() => setFollowing(false)}
             onLoad={(map) => {
               mapRef.current = map;
               // Same pattern as __trackingService: a handle for debugging a
@@ -364,11 +407,16 @@ export default function TaskNavigationMap({
               // only one that honours tilt — that is the "3D-like" view. The
               // same switch moves styling to Cloud Console, so `styles` must
               // NOT be sent alongside it or the two conflict.
+              // THE BUG THIS FIXES: tilt was hardcoded to NAV_TILT here while
+              // the 2D/3D toggle set it imperatively with map.setTilt(). The
+              // library re-applies this options object on every render, and
+              // pressing the toggle IS a render — so setTilt(0) was undone
+              // microseconds later and 2D did nothing at all. The view state
+              // owns tilt now, in one place.
               ...(mapId
                 ? {
                     mapId,
-                    tilt: NAV_TILT,
-                    heading: heading ?? 0,
+                    tilt: view === '3d' ? NAV_TILT : 0,
                     tiltInteractionEnabled: true,
                     headingInteractionEnabled: true,
                   }
@@ -428,53 +476,82 @@ export default function TaskNavigationMap({
           </div>
         )}
 
-        {/* Control rail. "Open in Google Maps" used to be a full-width slab
-            in a footer of its own — the loudest thing on a screen whose job
-            is the map. It is a 44px icon now, which is what an escape hatch
-            to another app deserves. Apple Maps stays reachable on iOS, as
-            Guideline 4 requires, via the same control. */}
-        <div className="absolute bottom-4 right-4 z-[1000] flex flex-col items-end gap-2">
-          {externalOpen && (
-            <div className="mb-1 overflow-hidden rounded-xl border border-border bg-popover shadow-lg">
-              <button
-                type="button"
-                onClick={() => { setExternalOpen(false); openInAppleMaps(); }}
-                className="block min-h-[44px] w-full px-4 text-left text-sm font-medium"
-              >
-                Apple Maps
-              </button>
-              <button
-                type="button"
-                onClick={() => { setExternalOpen(false); openInGoogleMaps(); }}
-                className="block min-h-[44px] w-full border-t border-border px-4 text-left text-sm font-medium"
-              >
-                Google Maps
-              </button>
+        {/* Control rail. Two controls, both about the camera. The
+            "Open in Google Maps" slab that used to live down here is gone:
+            handing the driver to another app loses the job, the station and
+            the receipt step the moment he arrives there. */}
+        <div className="absolute bottom-24 right-4 z-[1000] flex flex-col items-end gap-2">
+          {mapId && (
+            <div className="flex overflow-hidden rounded-full border border-border bg-card shadow-lg">
+              {(['2d', '3d'] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setView(v)}
+                  aria-pressed={view === v}
+                  className={cn(
+                    'min-h-[40px] px-3.5 font-mono text-xs font-bold tracking-wider transition-colors',
+                    view === v
+                      ? 'bg-brand-ink text-signal'
+                      : 'text-muted-foreground active:bg-muted'
+                  )}
+                >
+                  {v.toUpperCase()}
+                </button>
+              ))}
             </div>
           )}
 
           <button
             type="button"
-            onClick={() => (isIOSDevice ? setExternalOpen((o) => !o) : openInGoogleMaps())}
-            aria-label={isIOSDevice ? 'Open in another maps app' : 'Open in Google Maps'}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-lg"
-          >
-            <ExternalLink className="h-[18px] w-[18px]" />
-          </button>
-
-          <button
-            type="button"
-            onClick={centerOnMe}
-            aria-label="Center on my location"
+            onClick={applyCamera}
+            aria-label="Centre on me"
             className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-ink text-signal shadow-lg"
           >
             <LocateFixed className="h-5 w-5" />
           </button>
         </div>
 
+        {/* THE one control. Before it existed the camera was positioned once
+            and then left: the driver drove off his own screen, and dragging
+            the map stranded it somewhere he was not. */}
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-[1000] px-4 pt-10"
+          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
+        >
+          <button
+            type="button"
+            onClick={() => (following ? setFollowing(false) : startGuidance())}
+            className={cn(
+              'pointer-events-auto flex min-h-[54px] w-full items-center justify-center gap-2.5',
+              'rounded-2xl font-heading text-base font-bold tracking-tight shadow-xl transition-colors',
+              following
+                ? 'border border-border bg-card text-foreground'
+                : 'bg-signal text-signal-foreground'
+            )}
+          >
+            {following ? (
+              <>
+                <Square className="h-4 w-4" />
+                Stop
+              </>
+            ) : hasStarted ? (
+              <>
+                <Crosshair className="h-[18px] w-[18px]" />
+                Re-centre
+              </>
+            ) : (
+              <>
+                <Play className="h-[18px] w-[18px]" />
+                Start
+              </>
+            )}
+          </button>
+        </div>
+
         {/* Route geometry is OpenStreetMap data via OSRM; the ODbL asks for
             credit even though the tiles are now Google's. */}
-        <p className="pointer-events-none absolute bottom-1 left-2 z-[1000] text-[9px] text-muted-foreground/70">
+        <p className="pointer-events-none absolute bottom-[4.75rem] left-3 z-[1000] text-[9px] text-muted-foreground/70">
           Route © OpenStreetMap contributors
         </p>
       </div>
