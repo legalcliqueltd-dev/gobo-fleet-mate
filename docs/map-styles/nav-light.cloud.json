@@ -1,6 +1,6 @@
 {
   "variant": "light",
-  "backgroundColor": "#f2f3f5",
+  "backgroundColor": "#f4f6fa",
   "metadata": {
     "source": "TrackMate — scripts/build-cloud-map-styles.mjs",
     "note": "Driver navigation map. Edit the script, not this file."
@@ -9,7 +9,7 @@
     {
       "id": "natural.base",
       "geometry": {
-        "fillColor": "#f2f3f5"
+        "fillColor": "#f4f6fa"
       }
     },
     {
@@ -39,13 +39,61 @@
     {
       "id": "natural.land",
       "geometry": {
-        "fillColor": "#eceef1"
+        "fillColor": "#eef1f7"
+      }
+    },
+    {
+      "id": "natural.land.landCover",
+      "geometry": {
+        "fillColor": "#eef1f7"
+      }
+    },
+    {
+      "id": "natural.land.landCover.forest",
+      "geometry": {
+        "fillColor": "#eef1f7"
+      }
+    },
+    {
+      "id": "natural.land.landCover.ice",
+      "geometry": {
+        "fillColor": "#eef1f7"
+      }
+    },
+    {
+      "id": "natural.land.landCover.sand",
+      "geometry": {
+        "fillColor": "#eef1f7"
+      }
+    },
+    {
+      "id": "natural.land.landCover.shrub",
+      "geometry": {
+        "fillColor": "#eef1f7"
+      }
+    },
+    {
+      "id": "pointOfInterest.recreation.park",
+      "geometry": {
+        "fillColor": "#eef1f7"
+      },
+      "label": {
+        "visible": false
+      }
+    },
+    {
+      "id": "pointOfInterest.business",
+      "geometry": {
+        "fillColor": "#eef1f7"
+      },
+      "label": {
+        "visible": false
       }
     },
     {
       "id": "natural.water",
       "geometry": {
-        "fillColor": "#cdd8e3"
+        "fillColor": "#dcebff"
       },
       "label": {
         "visible": false
@@ -54,8 +102,8 @@
     {
       "id": "infrastructure.building",
       "geometry": {
-        "fillColor": "#e6e9ed",
-        "strokeColor": "#dce0e6"
+        "fillColor": "#e4e8f2",
+        "strokeColor": "#dadfeb"
       }
     },
     {
@@ -74,13 +122,13 @@
       "id": "infrastructure.roadNetwork.road.highway",
       "geometry": {
         "fillColor": "#ffffff",
-        "strokeColor": "#dfe3e8"
+        "strokeColor": "#dfe4ee"
       }
     },
     {
       "id": "infrastructure.roadNetwork.road",
       "label": {
-        "textFillColor": "#8b93a1",
+        "textFillColor": "#6b7490",
         "textStrokeColor": "#ffffff",
         "textStrokeWeight": 3
       }
@@ -91,7 +139,7 @@
         "visible": false
       },
       "label": {
-        "textFillColor": "#8b93a1",
+        "textFillColor": "#6b7490",
         "textStrokeColor": "#ffffff",
         "textStrokeWeight": 3
       }

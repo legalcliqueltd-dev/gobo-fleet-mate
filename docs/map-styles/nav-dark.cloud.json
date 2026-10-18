@@ -1,6 +1,6 @@
 {
   "variant": "light",
-  "backgroundColor": "#12161d",
+  "backgroundColor": "#050a2a",
   "metadata": {
     "source": "TrackMate — scripts/build-cloud-map-styles.mjs",
     "note": "Driver navigation map. Edit the script, not this file."
@@ -9,7 +9,7 @@
     {
       "id": "natural.base",
       "geometry": {
-        "fillColor": "#12161d"
+        "fillColor": "#050a2a"
       }
     },
     {
@@ -39,13 +39,61 @@
     {
       "id": "natural.land",
       "geometry": {
-        "fillColor": "#0e1218"
+        "fillColor": "#040820"
+      }
+    },
+    {
+      "id": "natural.land.landCover",
+      "geometry": {
+        "fillColor": "#040820"
+      }
+    },
+    {
+      "id": "natural.land.landCover.forest",
+      "geometry": {
+        "fillColor": "#040820"
+      }
+    },
+    {
+      "id": "natural.land.landCover.ice",
+      "geometry": {
+        "fillColor": "#040820"
+      }
+    },
+    {
+      "id": "natural.land.landCover.sand",
+      "geometry": {
+        "fillColor": "#040820"
+      }
+    },
+    {
+      "id": "natural.land.landCover.shrub",
+      "geometry": {
+        "fillColor": "#040820"
+      }
+    },
+    {
+      "id": "pointOfInterest.recreation.park",
+      "geometry": {
+        "fillColor": "#040820"
+      },
+      "label": {
+        "visible": false
+      }
+    },
+    {
+      "id": "pointOfInterest.business",
+      "geometry": {
+        "fillColor": "#040820"
+      },
+      "label": {
+        "visible": false
       }
     },
     {
       "id": "natural.water",
       "geometry": {
-        "fillColor": "#070a0e"
+        "fillColor": "#02061a"
       },
       "label": {
         "visible": false
@@ -54,34 +102,34 @@
     {
       "id": "infrastructure.building",
       "geometry": {
-        "fillColor": "#1a202a",
-        "strokeColor": "#232a36"
+        "fillColor": "#0d1442",
+        "strokeColor": "#141c55"
       }
     },
     {
       "id": "infrastructure.roadNetwork.road.local",
       "geometry": {
-        "fillColor": "#242c38"
+        "fillColor": "#1b2456"
       }
     },
     {
       "id": "infrastructure.roadNetwork.road.arterial",
       "geometry": {
-        "fillColor": "#2e3846"
+        "fillColor": "#26316e"
       }
     },
     {
       "id": "infrastructure.roadNetwork.road.highway",
       "geometry": {
-        "fillColor": "#3b4657",
-        "strokeColor": "#161b23"
+        "fillColor": "#33408a",
+        "strokeColor": "#0a1138"
       }
     },
     {
       "id": "infrastructure.roadNetwork.road",
       "label": {
-        "textFillColor": "#7d8695",
-        "textStrokeColor": "#0a0d12",
+        "textFillColor": "#8b96c9",
+        "textStrokeColor": "#02061a",
         "textStrokeWeight": 3
       }
     },
@@ -91,8 +139,8 @@
         "visible": false
       },
       "label": {
-        "textFillColor": "#7d8695",
-        "textStrokeColor": "#0a0d12",
+        "textFillColor": "#8b96c9",
+        "textStrokeColor": "#02061a",
         "textStrokeWeight": 3
       }
     }

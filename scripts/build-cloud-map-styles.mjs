@@ -49,7 +49,20 @@ function cloudStyle({ base, land, water, building, buildingEdge, local, arterial
       { id: 'infrastructure.transitStation', geometry: { visible: false }, label: { visible: false } },
       { id: 'infrastructure.railwayTrack', geometry: { visible: false } },
 
+      // EVERY land child is named, not just `natural.land`. Leaving the
+      // children unset let Google fill parks, campuses and forest with its
+      // own colours, and on a dark map that produced a white slab across the
+      // bottom of the screen and bright green hairlines through it — the
+      // ground fighting the route instead of sitting behind it.
       { id: 'natural.land', geometry: { fillColor: land } },
+      { id: 'natural.land.landCover', geometry: { fillColor: land } },
+      { id: 'natural.land.landCover.forest', geometry: { fillColor: land } },
+      { id: 'natural.land.landCover.ice', geometry: { fillColor: land } },
+      { id: 'natural.land.landCover.sand', geometry: { fillColor: land } },
+      { id: 'natural.land.landCover.shrub', geometry: { fillColor: land } },
+      { id: 'pointOfInterest.recreation.park', geometry: { fillColor: land }, label: { visible: false } },
+      { id: 'pointOfInterest.business', geometry: { fillColor: land }, label: { visible: false } },
+
       { id: 'natural.water', geometry: { fillColor: water }, label: { visible: false } },
 
       // Buildings stay: extruded footprints are what makes the tilted view
@@ -76,33 +89,37 @@ function cloudStyle({ base, land, water, building, buildingEdge, local, arterial
   };
 }
 
-// Hex values lifted from NAV_LIGHT_STYLE / NAV_DARK_STYLE in src/lib/mapStyles.ts.
+// TrackMate's own palette, not the old asphalt greys. The first dark map
+// built from the legacy hexes came out as stark black blocks on near-white
+// ground — maximum contrast, which is the opposite of what you want behind a
+// moving vehicle at night. These sit in a narrow band so the ROUTE and the
+// driver's marker are the only high-contrast things on the screen.
 const files = {
   'nav-light.cloud.json': cloudStyle({
-    base: '#f2f3f5',
-    land: '#eceef1',
-    water: '#cdd8e3',
-    building: '#e6e9ed',
-    buildingEdge: '#dce0e6',
+    base: '#f4f6fa',
+    land: '#eef1f7',
+    water: '#dcebff', // the brand's pale blue
+    building: '#e4e8f2',
+    buildingEdge: '#dadfeb',
     local: '#ffffff',
     arterial: '#ffffff',
     highway: '#ffffff',
-    highwayEdge: '#dfe3e8',
-    labelFill: '#8b93a1',
+    highwayEdge: '#dfe4ee',
+    labelFill: '#6b7490',
     labelHalo: '#ffffff',
   }),
   'nav-dark.cloud.json': cloudStyle({
-    base: '#12161d',
-    land: '#0e1218',
-    water: '#070a0e',
-    building: '#1a202a',
-    buildingEdge: '#232a36',
-    local: '#242c38',
-    arterial: '#2e3846',
-    highway: '#3b4657',
-    highwayEdge: '#161b23',
-    labelFill: '#7d8695',
-    labelHalo: '#0a0d12',
+    base: '#050a2a',     // navy, a shade off #000738 so the ground is not pure brand
+    land: '#040820',
+    water: '#02061a',
+    building: '#0d1442',
+    buildingEdge: '#141c55',
+    local: '#1b2456',
+    arterial: '#26316e',
+    highway: '#33408a',
+    highwayEdge: '#0a1138',
+    labelFill: '#8b96c9',
+    labelHalo: '#02061a',
   }),
 };
 

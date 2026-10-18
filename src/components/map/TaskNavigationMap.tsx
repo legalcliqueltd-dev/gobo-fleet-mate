@@ -20,6 +20,25 @@ import { driverMarkerIcon } from '@/lib/driverMarker';
 // Maps. It does not; no such rule exists. Restoring the button is a few lines
 // if review ever asks.)
 
+/**
+ * Compass bearing from a to b, in degrees.
+ *
+ * `coords.heading` is null whenever the device is not confidently moving —
+ * which is most of the time on Android, and ALWAYS on an emulator. Without a
+ * fallback the map never rotated, so "heading up" silently meant "north up"
+ * and the view never felt like navigation. Two consecutive fixes far enough
+ * apart to be movement give the same answer.
+ */
+function bearingBetween(a: LatLng, b: LatLng): number {
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const dLng = rad(b.lng - a.lng);
+  const y = Math.sin(dLng) * Math.cos(rad(b.lat));
+  const x =
+    Math.cos(rad(a.lat)) * Math.sin(rad(b.lat)) -
+    Math.sin(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.cos(dLng);
+  return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+}
+
 /** How far the vector map leans. Flat is 0; much past 55 and the horizon
  *  eats the screen on a phone held in one hand. */
 const NAV_TILT = 50;
@@ -31,6 +50,15 @@ const FAR_AWAY_ZOOM = 15;
 /** Close enough to read the next turn, wide enough to see it coming. */
 const FOLLOW_ZOOM = 17.5;
 const MAP_VIEW_KEY = 'driver_map_view';
+/**
+ * How far down the screen the driver sits while navigating, as a fraction of
+ * the map's height. Centring him wastes the top half on road already driven;
+ * every navigation app puts the vehicle low and the road ahead above it, and
+ * that is what makes the view feel first-person rather than overhead.
+ */
+const DRIVER_SCREEN_ANCHOR = 0.72;
+/** A fix must beat this to count as movement rather than GPS jitter. */
+const MIN_BEARING_MOVE_M = 8;
 
 type LatLng = { lat: number; lng: number };
 
@@ -125,6 +153,9 @@ export default function TaskNavigationMap({
   const mapRef = useRef<google.maps.Map | null>(null);
   const hasFitBounds = useRef(false);
   const lastRouteCalc = useRef(0);
+  /** Previous fix, used to derive heading when the device will not give one. */
+  const lastFixRef = useRef<LatLng | null>(null);
+  const mapBoxRef = useRef<HTMLDivElement | null>(null);
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -167,8 +198,21 @@ export default function TaskNavigationMap({
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const pos = { lat: position.coords.latitude, lng: position.coords.longitude };
+
+        // Prefer the device's own heading; fall back to the direction he
+        // actually travelled. Without the fallback the map only ever pointed
+        // north, because Android withholds heading unless it is sure.
+        if (position.coords.heading !== null && !Number.isNaN(position.coords.heading)) {
+          setHeading(position.coords.heading);
+        } else {
+          const prev = lastFixRef.current;
+          if (prev && calculateDistance(prev.lat, prev.lng, pos.lat, pos.lng) * 1000 > MIN_BEARING_MOVE_M) {
+            setHeading(bearingBetween(prev, pos));
+          }
+        }
+        lastFixRef.current = pos;
+
         setCurrentPosition(pos);
-        if (position.coords.heading !== null) setHeading(position.coords.heading);
         setError(null);
 
         // Check arrival (within 50m)
@@ -268,12 +312,25 @@ export default function TaskNavigationMap({
   const applyCamera = useCallback(() => {
     const map = mapRef.current;
     if (!map || !currentPosition) return;
-    map.panTo(currentPosition);
+
     if ((map.getZoom() ?? 0) < FOLLOW_ZOOM - 1) map.setZoom(FOLLOW_ZOOM);
-    // Tilt and heading are vector-only; on a raster map they are ignored.
-    if (!mapId) return;
-    map.setTilt(view === '3d' ? NAV_TILT : 0);
-    map.setHeading(view === '3d' ? heading ?? 0 : 0);
+
+    // Rotate FIRST, then position. panBy works in screen pixels, so the
+    // offset below only means "forward" once the map is already turned.
+    // Tilt comes from the options prop; heading cannot, because it changes
+    // on every fix and re-applying the whole options object that often
+    // fights the pan.
+    if (mapId) map.setHeading(view === '3d' ? heading ?? 0 : 0);
+
+    map.panTo(currentPosition);
+
+    // Then shove the camera forward so he sits low on the screen with the
+    // road ahead above him. Centring him — which is what this did before —
+    // spends the top half of the display on road he has already driven, and
+    // is the reason it read as a map of where he is rather than a view from
+    // where he is.
+    const h = mapBoxRef.current?.clientHeight ?? 0;
+    if (h > 0) map.panBy(0, -(h * (DRIVER_SCREEN_ANCHOR - 0.5)));
   }, [currentPosition, heading, mapId, view]);
 
   // Follow. Re-runs on every new fix, which is what makes the map MOVE —
@@ -363,7 +420,7 @@ export default function TaskNavigationMap({
       )}
 
       {/* Map */}
-      <div className="flex-1 relative">
+      <div ref={mapBoxRef} className="flex-1 relative">
         {!isLoaded ? (
           <div className="flex h-full w-full items-center justify-center bg-muted">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
