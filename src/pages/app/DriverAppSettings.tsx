@@ -462,13 +462,15 @@ export default function DriverAppSettings() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Theme</Label>
-                <p className="text-xs text-muted-foreground">Choose light, dark, or system theme</p>
-              </div>
-              <ThemeSegmented />
-            </div>
+            {/* Full width, under its label — the same way the manager's
+                settings lay it out. Squeezed into the right-hand column of a
+                justify-between row, the same component collapsed to three
+                unreadable specks with 11px labels under them. */}
+            <Label>Theme</Label>
+            <p className="mb-3 mt-0.5 text-xs text-muted-foreground">
+              Choose light, dark, or system theme
+            </p>
+            <ThemeSegmented />
           </CardContent>
         </Card>
 
