@@ -1,3 +1,14 @@
+> **Update (2026-10-18): the navigation map now uses ONE Map ID, always the
+> light one, whatever theme the app is in.** A driver reads that screen at a
+> glance while moving and it has to look identical every time. So only
+> `nav-light.cloud.json` on the **Light mode** slot of `TrackMate Nav Light`
+> matters. The dark Map ID and `nav-dark.cloud.json` are kept for the
+> manager's map, which does follow the theme — nothing in the driver app
+> reads them. The "both styles in the Light slot" advice below is superseded;
+> `variant` is not cosmetic, it sets the fallback for every feature a style
+> does not name, which is why a dark-coloured style declared `light` grew a
+> field of white buildings.
+
 # Turning on the tilted ("3D") driver map
 
 Written for: whoever has access to the TrackMate Google Cloud project.

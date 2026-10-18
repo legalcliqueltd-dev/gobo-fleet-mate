@@ -35,7 +35,24 @@ export const GOOGLE_MAPS_MAP_ID_DARK: string | undefined =
   import.meta.env.VITE_GOOGLE_MAPS_MAP_ID_DARK ||
   GOOGLE_MAPS_MAP_ID_LIGHT;
 
-/** The Map ID for this theme, or undefined when no vector map is configured. */
+/**
+ * The Map ID the DRIVER'S NAVIGATION map uses — always the light one, on
+ * purpose, whatever theme the app is wearing.
+ *
+ * Navigation is the one screen where the driver's theme preference should not
+ * reach. He is reading it at a glance while moving, and the thing he has to
+ * find on it — his route — must look identical every time, in daylight, at
+ * night, on his phone and on his mate's. A screen that changes appearance
+ * based on a setting buried in Settings is a screen he has to re-learn.
+ *
+ * It also removes a whole class of problem: a second Map ID carrying a second
+ * cloud style that has to be kept in step with the first.
+ */
+export function navMapId(): string | undefined {
+  return GOOGLE_MAPS_MAP_ID_LIGHT;
+}
+
+/** The Map ID for this theme. For maps that DO follow the app's theme. */
 export function vectorMapId(isDark: boolean): string | undefined {
   return isDark ? GOOGLE_MAPS_MAP_ID_DARK : GOOGLE_MAPS_MAP_ID_LIGHT;
 }

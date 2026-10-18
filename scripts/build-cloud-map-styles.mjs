@@ -20,11 +20,12 @@
  * So the cloud styles are authored here, from the same hex values, and
  * uploaded as files.
  *
- * BOTH FILES DECLARE `variant: "light"` ON PURPOSE. A style's light/dark type
- * is fixed at creation and the console will only offer a light-type style for
- * a Map ID's Light slot — and the Light slot is the one that renders, because
- * we never set `colorScheme`. The dark style is simply a light-TYPE style
- * made of dark colours. See docs/VECTOR_MAP_SETUP.md.
+ * `variant` IS NOT COSMETIC. It sets the fallback for every feature the style
+ * does not name, so a dark-coloured style declared `light` renders its
+ * unstyled features — buildings especially — in Google's light greys. The
+ * light style is light-type and goes in a Map ID's Light slot; the dark style
+ * is dark-type, goes in the Dark slot, and the app asks for that slot by
+ * passing colorScheme DARK. See docs/VECTOR_MAP_SETUP.md.
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
 
@@ -32,9 +33,9 @@ const OUT = 'docs/map-styles';
 mkdirSync(OUT, { recursive: true });
 
 /** Build one cloud style from a flat palette. Same shape for both themes. */
-function cloudStyle({ base, land, water, building, buildingEdge, local, arterial, highway, highwayEdge, labelFill, labelHalo }) {
+function cloudStyle({ variant, base, land, water, building, buildingEdge, local, arterial, highway, highwayEdge, labelFill, labelHalo }) {
   return {
-    variant: 'light',
+    variant,
     backgroundColor: base,
     metadata: {
       source: 'TrackMate — scripts/build-cloud-map-styles.mjs',
@@ -96,6 +97,7 @@ function cloudStyle({ base, land, water, building, buildingEdge, local, arterial
 // driver's marker are the only high-contrast things on the screen.
 const files = {
   'nav-light.cloud.json': cloudStyle({
+    variant: 'light',
     base: '#f4f6fa',
     land: '#eef1f7',
     water: '#dcebff', // the brand's pale blue
@@ -109,6 +111,13 @@ const files = {
     labelHalo: '#ffffff',
   }),
   'nav-dark.cloud.json': cloudStyle({
+    // DARK, not light. Declaring this light so it would fit a Map ID's Light
+    // slot was a mistake with a visible cost: `variant` also decides the
+    // fallback for every feature the style does NOT name, so buildings came
+    // back Google's light grey and the dark map grew a field of white blocks
+    // on navy ground. A dark-type style defaults dark, and goes in the Dark
+    // slot with the map asking for colorScheme DARK.
+    variant: 'dark',
     base: '#050a2a',     // navy, a shade off #000738 so the ground is not pure brand
     land: '#040820',
     water: '#02061a',

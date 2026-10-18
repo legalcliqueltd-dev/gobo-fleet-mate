@@ -1,5 +1,5 @@
 {
-  "variant": "light",
+  "variant": "dark",
   "backgroundColor": "#050a2a",
   "metadata": {
     "source": "TrackMate — scripts/build-cloud-map-styles.mjs",

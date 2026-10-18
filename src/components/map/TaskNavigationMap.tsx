@@ -2,12 +2,11 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleMap, Marker, Polyline, useJsApiLoader } from '@react-google-maps/api';
 import { X, Navigation, LocateFixed, MapPin, Play, Square, Crosshair } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useTheme } from '@/contexts/ThemeContext';
 import { getRouteStrokeColor, getNavMapStyle } from '@/lib/mapStyles';
 import {
   GOOGLE_MAPS_API_KEY,
   GOOGLE_MAPS_LIBRARIES,
-  vectorMapId,
+  navMapId,
 } from '@/lib/googleMapsConfig';
 import { driverMarkerIcon } from '@/lib/driverMarker';
 
@@ -59,6 +58,8 @@ const MAP_VIEW_KEY = 'driver_map_view';
 const DRIVER_SCREEN_ANCHOR = 0.72;
 /** A fix must beat this to count as movement rather than GPS jitter. */
 const MIN_BEARING_MOVE_M = 8;
+/** How far along the route to look when deciding which way is "ahead". */
+const LOOK_AHEAD_M = 60;
 
 type LatLng = { lat: number; lng: number };
 
@@ -149,7 +150,6 @@ export default function TaskNavigationMap({
   taskTitle,
   onClose,
 }: TaskNavigationMapProps) {
-  const { isDark } = useTheme();
   const mapRef = useRef<google.maps.Map | null>(null);
   const hasFitBounds = useRef(false);
   const lastRouteCalc = useRef(0);
@@ -165,7 +165,9 @@ export default function TaskNavigationMap({
 
   const [currentPosition, setCurrentPosition] = useState<LatLng | null>(null);
   const [heading, setHeading] = useState<number | null>(null);
-  const mapId = vectorMapId(isDark);
+  // Always the light map, whatever theme the app is in. The driver reads
+  // this screen at a glance while moving; it has to look the same every time.
+  const mapId = navMapId();
 
   // 3D is the default because that is what a driver is used to from every
   // other navigation app, and because a leaning map tells him which way he
@@ -302,6 +304,46 @@ export default function TaskNavigationMap({
   }, [currentPosition, dropoffLat, dropoffLng, isLoaded, mapId]);
 
   /**
+   * Which way the road ahead runs.
+   *
+   * THIS, not the compass, is what should be pointing up the screen. A device
+   * heading is null while stationary, lags on a turn, and jitters at walking
+   * pace — so the route itself was drawn off to one side and the driver had
+   * to read a diagonal line to work out where he was going. The route knows
+   * the answer exactly: find where he is on it, look ~60m further along, and
+   * aim the camera at that. The road he is about to drive runs straight up
+   * the screen, and the map swings round as he takes each turn.
+   */
+  const routeHeading = useCallback((): number | null => {
+    if (!currentPosition || routePath.length < 2) return null;
+
+    // Nearest point on the route to where he actually is.
+    let nearest = 0;
+    let best = Infinity;
+    for (let i = 0; i < routePath.length; i++) {
+      const d = calculateDistance(
+        currentPosition.lat, currentPosition.lng,
+        routePath[i].lat, routePath[i].lng
+      );
+      if (d < best) { best = d; nearest = i; }
+    }
+
+    // Walk forward until we are far enough along to have a stable direction.
+    // Too close and every wobble in the polyline spins the map.
+    let ahead = nearest;
+    let run = 0;
+    while (ahead < routePath.length - 1 && run * 1000 < LOOK_AHEAD_M) {
+      run += calculateDistance(
+        routePath[ahead].lat, routePath[ahead].lng,
+        routePath[ahead + 1].lat, routePath[ahead + 1].lng
+      );
+      ahead += 1;
+    }
+    if (ahead === nearest) return null;
+    return bearingBetween(currentPosition, routePath[ahead]);
+  }, [currentPosition, routePath]);
+
+  /**
    * Put the camera behind the driver.
    *
    * In 3D this is the whole illusion: lean the map over, turn it so his
@@ -320,7 +362,11 @@ export default function TaskNavigationMap({
     // Tilt comes from the options prop; heading cannot, because it changes
     // on every fix and re-applying the whole options object that often
     // fights the pan.
-    if (mapId) map.setHeading(view === '3d' ? heading ?? 0 : 0);
+    // The route wins. The compass is the fallback, not the source.
+    if (mapId) {
+      const up = routeHeading() ?? heading ?? 0;
+      map.setHeading(view === '3d' ? up : 0);
+    }
 
     map.panTo(currentPosition);
 
@@ -331,7 +377,7 @@ export default function TaskNavigationMap({
     // where he is.
     const h = mapBoxRef.current?.clientHeight ?? 0;
     if (h > 0) map.panBy(0, -(h * (DRIVER_SCREEN_ANCHOR - 0.5)));
-  }, [currentPosition, heading, mapId, view]);
+  }, [currentPosition, heading, mapId, view, routeHeading]);
 
   // Follow. Re-runs on every new fix, which is what makes the map MOVE —
   // until now the camera was placed once and then abandoned, so the driver
@@ -477,7 +523,7 @@ export default function TaskNavigationMap({
                     tiltInteractionEnabled: true,
                     headingInteractionEnabled: true,
                   }
-                : { styles: getNavMapStyle(isDark) }),
+                : { styles: getNavMapStyle(false) }),
             }}
           >
             {/* Casing under the route so it stays readable over any road
@@ -487,7 +533,7 @@ export default function TaskNavigationMap({
                 <Polyline
                   path={routePath}
                   options={{
-                    strokeColor: isDark ? '#0b1220' : '#ffffff',
+                    strokeColor: '#ffffff',
                     strokeOpacity: 0.9,
                     strokeWeight: 10,
                     clickable: false,
@@ -497,7 +543,9 @@ export default function TaskNavigationMap({
                 <Polyline
                   path={routePath}
                   options={{
-                    strokeColor: getRouteStrokeColor(isDark),
+                    // Navy on the light map, always — the route is the one
+                    // thing on this screen that must never change appearance.
+                    strokeColor: getRouteStrokeColor(false),
                     strokeOpacity: 1,
                     strokeWeight: 6,
                     clickable: false,
