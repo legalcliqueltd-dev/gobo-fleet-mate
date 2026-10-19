@@ -1,8 +1,21 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { GoogleMap, Marker, Polyline, useJsApiLoader } from '@react-google-maps/api';
-import { X, Navigation, LocateFixed, MapPin, Play, Square } from 'lucide-react';
+import {
+  X,
+  LocateFixed,
+  Play,
+  Square,
+  ArrowUp,
+  CornerUpLeft,
+  CornerUpRight,
+  ArrowUpLeft,
+  ArrowUpRight,
+  RotateCw,
+  Undo2,
+  Flag,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getRouteStrokeColor, getNavMapStyle } from '@/lib/mapStyles';
+import { getNavMapStyle } from '@/lib/mapStyles';
 import {
   GOOGLE_MAPS_API_KEY,
   GOOGLE_MAPS_LIBRARIES,
@@ -109,6 +122,59 @@ function formatDurationS(seconds: number): string {
   const mins = Math.round(seconds / 60);
   if (mins < 60) return `${mins} min`;
   return `${Math.floor(mins / 60)} h ${mins % 60} min`;
+}
+
+/** One instruction on the route: what to do, and where it happens. */
+type Step = { instruction: string; at: LatLng; kind: string };
+
+/** The icon for a maneuver — straight, a turn, a roundabout, the finish. */
+function stepIcon(kind: string) {
+  if (kind === 'arrive') return Flag;
+  if (kind === 'roundabout') return RotateCw;
+  if (kind.includes('uturn')) return Undo2;
+  if (kind.includes('sharp left') || kind === 'left' || kind.endsWith(' left')) {
+    return kind.includes('slight') ? ArrowUpLeft : CornerUpLeft;
+  }
+  if (kind.includes('sharp right') || kind === 'right' || kind.endsWith(' right')) {
+    return kind.includes('slight') ? ArrowUpRight : CornerUpRight;
+  }
+  return ArrowUp;
+}
+
+/** Google's step instructions arrive as HTML; the card wants plain words. */
+function plainText(html: string): string {
+  const el = document.createElement('div');
+  el.innerHTML = html.replace(/<div[^>]*>/g, ' — ');
+  return (el.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+/** Distance from a point to the nearest vertex of a path, in metres. */
+function offRouteMetres(pos: LatLng, path: LatLng[]): number {
+  let best = Infinity;
+  for (const p of path) best = Math.min(best, calculateDistance(pos.lat, pos.lng, p.lat, p.lng) * 1000);
+  return best;
+}
+
+/** Metres along the path from its vertex nearest `pos` to its end. */
+function remainingMetres(pos: LatLng, path: LatLng[]): number {
+  if (path.length < 2) return 0;
+  let nearest = 0;
+  let best = Infinity;
+  path.forEach((p, i) => {
+    const d = calculateDistance(pos.lat, pos.lng, p.lat, p.lng);
+    if (d < best) {
+      best = d;
+      nearest = i;
+    }
+  });
+  // From him to the next vertex ahead, then along the path — so the number
+  // falls smoothly between vertices instead of in steps.
+  const ahead = Math.min(nearest + 1, path.length - 1);
+  let run = calculateDistance(pos.lat, pos.lng, path[ahead].lat, path[ahead].lng) * 1000;
+  for (let i = ahead; i < path.length - 1; i++) {
+    run += calculateDistance(path[i].lat, path[i].lng, path[i + 1].lat, path[i + 1].lng) * 1000;
+  }
+  return run;
 }
 
 /** Turn an OSRM maneuver into a short human instruction. */
@@ -240,8 +306,13 @@ export default function TaskNavigationMap({
   const [guiding, setGuiding] = useState(false);
   const [following, setFollowing] = useState(false);
   const [routePath, setRoutePath] = useState<LatLng[]>([]);
-  const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
-  const [nextStep, setNextStep] = useState<{ instruction: string; distance: string } | null>(null);
+  /** Whole-route totals, used to scale what is left. */
+  const [routeTotal, setRouteTotal] = useState<{ metres: number; seconds: number } | null>(null);
+  const [steps, setSteps] = useState<Step[]>([]);
+  /** The next instruction not yet passed. Starts at the first real turn. */
+  const [stepIndex, setStepIndex] = useState(1);
+  const [routeSource, setRouteSource] = useState<'osrm' | 'google' | 'direct' | null>(null);
+  const routingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [isArrived, setIsArrived] = useState(false);
 
@@ -286,49 +357,117 @@ export default function TaskNavigationMap({
     return () => navigator.geolocation.clearWatch(watchId);
   }, [dropoffLat, dropoffLng]);
 
-  // Route via OSRM (open-source router) — recalculated at most every 30s
+  // Routing. OSRM first (free); Google Directions if OSRM is slow or down —
+  // the route on screen once came up empty because the shared OSRM server
+  // did not answer — and a straight line only if both fail. Recalculated
+  // ONLY when he leaves the route (> 60 m off it), not on a 30 s clock.
   useEffect(() => {
-    if (!currentPosition) return;
-    const now = Date.now();
-    if (now - lastRouteCalc.current < 30000 && routePath.length > 0) return;
-    lastRouteCalc.current = now;
+    if (!currentPosition || !isLoaded || routingRef.current) return;
+    const needsRoute =
+      routePath.length < 2 ||
+      (routeSource !== 'direct' && offRouteMetres(currentPosition, routePath) > 60);
+    if (!needsRoute) return;
+    if (Date.now() - lastRouteCalc.current < 15_000 && routePath.length > 1) return;
+    lastRouteCalc.current = Date.now();
+    routingRef.current = true;
+    const from = currentPosition;
 
-    const url =
-      `https://router.project-osrm.org/route/v1/driving/` +
-      `${currentPosition.lng},${currentPosition.lat};${dropoffLng},${dropoffLat}` +
-      `?overview=full&geometries=geojson&steps=true`;
-
-    fetch(url)
-      .then((r) => r.json())
-      .then((data) => {
+    const viaOsrm = async () => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      try {
+        const url =
+          `https://router.project-osrm.org/route/v1/driving/` +
+          `${from.lng},${from.lat};${dropoffLng},${dropoffLat}` +
+          `?overview=full&geometries=geojson&steps=true`;
+        const data = await (await fetch(url, { signal: controller.signal })).json();
         const route = data?.routes?.[0];
         if (!route) throw new Error('no route');
-        setRoutePath(
-          (route.geometry.coordinates as [number, number][]).map(([lng, lat]) => ({ lat, lng }))
+        setRoutePath((route.geometry.coordinates as [number, number][]).map(([lng, lat]) => ({ lat, lng })));
+        setRouteTotal({ metres: route.distance, seconds: route.duration });
+        setSteps(
+          (route.legs?.[0]?.steps ?? []).map(
+            (step: { maneuver: { type: string; modifier?: string; location: [number, number] }; name: string }) => ({
+              instruction: describeStep(step),
+              at: { lat: step.maneuver.location[1], lng: step.maneuver.location[0] },
+              kind:
+                step.maneuver.type === 'arrive'
+                  ? 'arrive'
+                  : step.maneuver.type === 'roundabout' || step.maneuver.type === 'rotary'
+                    ? 'roundabout'
+                    : step.maneuver.modifier ?? 'straight',
+            })
+          )
         );
-        setRouteInfo({
-          distance: formatDistanceM(route.distance),
-          duration: formatDurationS(route.duration),
-        });
-        const step = route.legs?.[0]?.steps?.[0];
-        if (step) {
-          setNextStep({
-            instruction: describeStep(step),
-            distance: formatDistanceM(step.distance),
-          });
-        }
-      })
-      .catch(() => {
-        // Routing service unreachable — fall back to a straight guide line.
-        setRoutePath([
-          { lat: currentPosition.lat, lng: currentPosition.lng },
-          { lat: dropoffLat, lng: dropoffLng },
-        ]);
-        const straight = calculateDistance(currentPosition.lat, currentPosition.lng, dropoffLat, dropoffLng);
-        setRouteInfo({ distance: `${straight.toFixed(1)} km (direct)`, duration: '—' });
-        setNextStep(null);
+        setRouteSource('osrm');
+      } finally {
+        clearTimeout(timer);
+      }
+    };
+
+    const viaGoogle = async () => {
+      const result = await new google.maps.DirectionsService().route({
+        origin: from,
+        destination: { lat: dropoffLat, lng: dropoffLng },
+        travelMode: google.maps.TravelMode.DRIVING,
       });
-  }, [currentPosition, dropoffLat, dropoffLng, routePath.length]);
+      const route = result.routes[0];
+      const leg = route?.legs[0];
+      if (!route || !leg) throw new Error('no route');
+      setRoutePath(route.overview_path.map((p) => ({ lat: p.lat(), lng: p.lng() })));
+      setRouteTotal({ metres: leg.distance?.value ?? 0, seconds: leg.duration?.value ?? 0 });
+      setSteps([
+        ...leg.steps.map((step) => ({
+          instruction: plainText(step.instructions),
+          at: { lat: step.start_location.lat(), lng: step.start_location.lng() },
+          kind: (step.maneuver || 'straight').replace(/-/g, ' ').replace('turn ', ''),
+        })),
+        { instruction: 'Arrive at the drop-off', at: { lat: dropoffLat, lng: dropoffLng }, kind: 'arrive' },
+      ]);
+      setRouteSource('google');
+    };
+
+    void (async () => {
+      try {
+        await viaOsrm();
+      } catch {
+        try {
+          await viaGoogle();
+        } catch {
+          // Both routers failed: a straight guide line, honestly labelled.
+          setRoutePath([from, { lat: dropoffLat, lng: dropoffLng }]);
+          const metres = calculateDistance(from.lat, from.lng, dropoffLat, dropoffLng) * 1000;
+          setRouteTotal({ metres, seconds: 0 });
+          setSteps([]);
+          setRouteSource('direct');
+        }
+      } finally {
+        setStepIndex(1);
+        routingRef.current = false;
+      }
+    })();
+  }, [currentPosition, dropoffLat, dropoffLng, routePath, routeSource, isLoaded]);
+
+  // Move on to the next instruction once he reaches the current one.
+  useEffect(() => {
+    if (!currentPosition || steps.length === 0) return;
+    const next = steps[Math.min(stepIndex, steps.length - 1)];
+    if (!next || next.kind === 'arrive') return;
+    if (calculateDistance(currentPosition.lat, currentPosition.lng, next.at.lat, next.at.lng) * 1000 < 30) {
+      setStepIndex((i) => Math.min(i + 1, steps.length - 1));
+    }
+  }, [currentPosition, steps, stepIndex]);
+
+  const nextStep = steps.length ? steps[Math.min(stepIndex, steps.length - 1)] : null;
+  const toNextM =
+    nextStep && currentPosition
+      ? calculateDistance(currentPosition.lat, currentPosition.lng, nextStep.at.lat, nextStep.at.lng) * 1000
+      : null;
+  const leftM = currentPosition && routePath.length > 1 ? remainingMetres(currentPosition, routePath) : null;
+  const leftS =
+    routeTotal && leftM != null && routeTotal.metres > 0 && routeTotal.seconds > 0
+      ? (routeTotal.seconds * leftM) / routeTotal.metres
+      : null;
 
   // First fix: frame him. Both ends only when the destination is close
   // enough that the result is still a street map; otherwise him alone —
@@ -503,64 +642,12 @@ export default function TaskNavigationMap({
   }, [currentPosition, routeHeading, heading, mapHeading, dropoffLat, dropoffLng]);
 
   return (
-    <div className="fixed inset-0 z-50 bg-background flex flex-col">
-      {/* One navy slab carries the whole header: where he is going, how far,
-          and the next turn. Three separate bars used to stack here and eat a
-          third of the screen before the map began. */}
-      <div
-        className="relative shrink-0 overflow-hidden bg-brand-ink text-brand-ink-foreground"
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-      >
-        <div className="brand-pattern pointer-events-none absolute inset-0 opacity-70" aria-hidden="true" />
-
-        <div className="relative flex items-center gap-3 px-4 py-3">
-          <div className="min-w-0 flex-1">
-            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-brand-ink-foreground/55">
-              Navigating to
-            </p>
-            <h2 className="truncate font-heading text-lg font-bold leading-tight tracking-tight">
-              {taskTitle}
-            </h2>
-          </div>
-          {routeInfo && (
-            <p className="telemetry shrink-0 text-right text-sm font-semibold">
-              {routeInfo.duration}
-              <span className="block text-[11px] font-normal text-brand-ink-foreground/55">
-                {routeInfo.distance}
-              </span>
-            </p>
-          )}
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close navigation"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-ink-foreground/10 text-brand-ink-foreground"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {nextStep && !isArrived && (
-          <div className="relative flex items-center gap-2.5 border-t border-brand-ink-foreground/10 px-4 py-2.5">
-            <Navigation className="h-4 w-4 shrink-0 text-signal" />
-            <p className="min-w-0 flex-1 truncate text-sm font-semibold">{nextStep.instruction}</p>
-            <p className="telemetry shrink-0 text-xs text-brand-ink-foreground/60">
-              {nextStep.distance}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Arrival banner */}
-      {isArrived && (
-        <div className="flex shrink-0 items-center justify-center gap-2 bg-success px-4 py-3 font-semibold text-success-foreground">
-          <MapPin className="h-4 w-4" />
-          You've arrived at the drop-off
-        </div>
-      )}
-
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
       {/* Map */}
-      <div ref={mapBoxRef} className="flex-1 relative">
+      {/* The map runs edge to edge; it stops 24px short of the sheet's
+          overlap so Google's logo stays visible, and that strip takes the
+          light map's ground colour behind the sheet's rounded corners. */}
+      <div ref={mapBoxRef} className="relative min-h-0 flex-1" style={{ backgroundColor: '#edf0f4' }}>
         {!isLoaded ? (
           <div className="flex h-full w-full items-center justify-center bg-muted">
             <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -570,7 +657,7 @@ export default function TaskNavigationMap({
             // A Map ID is fixed for the life of a map instance — switching
             // theme has to build a new one, so the id is the React key.
             key={mapId ?? 'raster'}
-            mapContainerStyle={{ width: '100%', height: '100%' }}
+            mapContainerStyle={{ width: '100%', height: 'calc(100% - 24px)' }}
             center={initialCenter}
             zoom={15}
             onDragStart={() => setFollowing(false)}
@@ -602,33 +689,19 @@ export default function TaskNavigationMap({
             }}
             options={mapOptions}
           >
-            {/* Casing under the route so it stays readable over any road
-                colour, the same treatment the history replay uses. */}
+            {/* The route: one bold navy line, the way every tracker draws it.
+                The navigation map is always light, so navy always reads. */}
             {routePath.length > 1 && (
-              <>
-                <Polyline
-                  path={routePath}
-                  options={{
-                    strokeColor: '#ffffff',
-                    strokeOpacity: 0.9,
-                    strokeWeight: 10,
-                    clickable: false,
-                    zIndex: 1,
-                  }}
-                />
-                <Polyline
-                  path={routePath}
-                  options={{
-                    // Navy on the light map, always — the route is the one
-                    // thing on this screen that must never change appearance.
-                    strokeColor: getRouteStrokeColor(false),
-                    strokeOpacity: 1,
-                    strokeWeight: 6,
-                    clickable: false,
-                    zIndex: 2,
-                  }}
-                />
-              </>
+              <Polyline
+                path={routePath}
+                options={{
+                  strokeColor: '#000738',
+                  strokeOpacity: routeSource === 'direct' ? 0.5 : 1,
+                  strokeWeight: 7,
+                  clickable: false,
+                  zIndex: 2,
+                }}
+              />
             )}
 
             <Marker
@@ -649,8 +722,55 @@ export default function TaskNavigationMap({
           </GoogleMap>
         )}
 
+        {/* The next move, in one card: what to do, and how far until it.
+            Before any route exists it just names where he is going. */}
+        <div
+          className="absolute inset-x-3 z-[1000]"
+          style={{ top: 'calc(env(safe-area-inset-top, 0px) + 0.75rem)' }}
+        >
+          <div className="flex items-center gap-3 rounded-2xl bg-brand-ink p-3 text-brand-ink-foreground shadow-xl">
+            {(() => {
+              const Icon = isArrived ? Flag : stepIcon(nextStep?.kind ?? 'straight');
+              return (
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-signal">
+                  <Icon className="h-6 w-6 text-signal-foreground" strokeWidth={2.5} />
+                </span>
+              );
+            })()}
+            <div className="min-w-0 flex-1">
+              {isArrived ? (
+                <p className="font-heading text-lg font-bold leading-tight">You've arrived</p>
+              ) : nextStep && toNextM != null ? (
+                <>
+                  <p className="telemetry font-heading text-xl font-extrabold leading-none">
+                    {formatDistanceM(toNextM)}
+                  </p>
+                  <p className="mt-1 truncate text-sm font-medium text-brand-ink-foreground/80">
+                    {nextStep.instruction}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-brand-ink-foreground/55">
+                    Going to
+                  </p>
+                  <p className="truncate font-heading text-lg font-bold leading-tight">{taskTitle}</p>
+                </>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close navigation"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-ink-foreground/10"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
         {error && (
-          <div className="absolute top-4 left-4 right-4 z-[1000] bg-destructive/90 text-destructive-foreground p-3 rounded-lg text-sm">
+          <div className="absolute left-4 right-4 top-28 z-[1000] rounded-lg bg-destructive/90 p-3 text-sm text-destructive-foreground">
             {error}
           </div>
         )}
@@ -660,7 +780,7 @@ export default function TaskNavigationMap({
             handing the driver to another app loses the job, the station and
             the receipt step the moment he arrives there. */}
         {!currentPosition && !error && (
-          <div className="absolute inset-x-0 top-4 z-[1000] flex justify-center">
+          <div className="absolute inset-x-0 top-28 z-[1000] flex justify-center">
             <span className="rounded-full bg-brand-ink px-3.5 py-1.5 text-xs font-semibold text-brand-ink-foreground shadow-lg">
               Finding you…
             </span>
@@ -674,50 +794,59 @@ export default function TaskNavigationMap({
           onClick={recentre}
           aria-label="Centre on me"
           className={cn(
-            'absolute bottom-24 right-4 z-[1000] flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-colors',
+            'absolute bottom-10 right-4 z-[1000] flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-colors',
             guiding && !following ? 'bg-signal text-signal-foreground' : 'bg-brand-ink text-signal'
           )}
         >
           <LocateFixed className="h-5 w-5" />
         </button>
 
-        {/* Start = guidance: 3D, close behind him, road ahead up, following
-            until End. End = back to the flat overview. */}
-        <div
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-[1000] px-4 pt-10"
-          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
-        >
-          <button
-            type="button"
-            onClick={guiding ? endGuidance : startGuidance}
-            disabled={!currentPosition}
-            className={cn(
-              'pointer-events-auto flex min-h-[54px] w-full items-center justify-center gap-2.5',
-              'rounded-2xl font-heading text-base font-bold tracking-tight shadow-xl transition-colors disabled:opacity-60',
-              guiding ? 'bg-brand-ink text-brand-ink-foreground' : 'bg-signal text-signal-foreground'
-            )}
-          >
-            {guiding ? (
-              <>
-                <Square className="h-4 w-4" />
-                End
-              </>
-            ) : (
-              <>
-                <Play className="h-[18px] w-[18px]" />
-                Start
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Route geometry is OpenStreetMap data via OSRM; the ODbL asks for
-            credit even though the tiles are now Google's. */}
-        <p className="pointer-events-none absolute bottom-[4.75rem] left-3 z-[1000] text-[9px] text-muted-foreground/70">
-          Route © OpenStreetMap contributors
-        </p>
       </div>
 
+      {/* The sheet: how long, how far, when — and the one control. */}
+      <div
+        className="relative z-10 -mt-6 flex items-center gap-3 rounded-t-3xl bg-background px-5 pt-4"
+        style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
+      >
+        <div className="min-w-0 flex-1">
+          {isArrived ? (
+            <p className="font-heading text-2xl font-extrabold leading-none text-success">Arrived</p>
+          ) : (
+            <p className="telemetry font-heading text-2xl font-extrabold leading-none">
+              {leftS != null ? formatDurationS(leftS) : leftM != null ? formatDistanceM(leftM) : '—'}
+            </p>
+          )}
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            {leftM != null && leftS != null && `${formatDistanceM(leftM)} · arrive ${new Date(Date.now() + leftS * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+            {routeSource === 'direct' && 'Straight-line distance — no route available'}
+            {routeSource === 'osrm' && ' · Route © OpenStreetMap'}
+          </p>
+        </div>
+        {/* Start = guidance: 3D, close behind him, road ahead up, following
+            until End. End = back to the flat overview. */}
+        <button
+          type="button"
+          onClick={guiding ? endGuidance : startGuidance}
+          disabled={!currentPosition}
+          className={cn(
+            'flex h-14 shrink-0 items-center justify-center gap-2 rounded-2xl px-6',
+            'font-heading text-base font-bold tracking-tight transition-colors disabled:opacity-60',
+            guiding ? 'bg-brand-ink text-brand-ink-foreground' : 'bg-signal text-signal-foreground'
+          )}
+        >
+          {guiding ? (
+            <>
+              <Square className="h-4 w-4" />
+              End
+            </>
+          ) : (
+            <>
+              <Play className="h-[18px] w-[18px]" />
+              Start
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 }
