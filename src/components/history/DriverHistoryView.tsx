@@ -7,9 +7,6 @@ import {
   Layers,
   Loader2,
   MapPin,
-  Navigation,
-  ParkingCircle,
-  Route as RouteIcon,
   SignalZero,
   Timer,
 } from 'lucide-react';
@@ -28,7 +25,16 @@ import {
   type Segment,
 } from '@/lib/tripSegments';
 import { fetchDriverVisits, type StationVisit } from '@/integrations/supabase/stations';
+import { snapToRoads } from '@/lib/snapToRoads';
 import { cn } from '@/lib/utils';
+
+/**
+ * Fixed for the life of the screen. An inline object here is a NEW centre on
+ * every render, which the map library re-applies — so every re-render (a row
+ * tapped, a day loaded) threw the map back to Lagos after it had been framed
+ * on the driver's day.
+ */
+const INITIAL_CENTER = { lat: 6.5244, lng: 3.3792 };
 
 /** Local YYYY-MM-DD, so "today" means the manager's today, not UTC's. */
 function isoDay(d: Date): string {
@@ -46,18 +52,6 @@ function recentDays(count: number): Date[] {
     d.setDate(d.getDate() - i);
     return d;
   });
-}
-
-function Stat({ icon: Icon, value, label }: { icon: typeof RouteIcon; value: string; label: string }) {
-  return (
-    <div className="flex-1 rounded-xl border border-border bg-card px-3 py-2.5">
-      <div className="flex items-center gap-1.5 text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" />
-        <span className="truncate text-[10px] font-medium uppercase tracking-wider">{label}</span>
-      </div>
-      <p className="telemetry mt-1 text-lg font-bold leading-none text-foreground">{value}</p>
-    </div>
-  );
 }
 
 /**
@@ -95,13 +89,21 @@ export default function DriverHistoryView({
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<number | null>(null);
   const [mapType, setMapType] = useState<'roadmap' | 'hybrid'>('roadmap');
+  // Bumped when a map instance loads. The day's data usually arrives first,
+  // so without this the framing ran with no map and never again — leaving
+  // the map on its default city instead of the driver's day.
+  const [mapGen, setMapGen] = useState(0);
+  const framedRef = useRef<string | null>(null);
 
   const accent = getDriverAccent(driverId);
   const days = useMemo(() => recentDays(30), []);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setSelected(null);
+  /** `silent` is the live refresh: no spinner, the selection is kept. */
+  const load = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoading(true);
+      setSelected(null);
+    }
     try {
       const start = new Date(day);
       start.setHours(0, 0, 0, 0);
@@ -124,11 +126,20 @@ export default function DriverHistoryView({
       setVisits(visitRows.filter((v) => v.visit_date === isoDay(day)));
     } catch (err) {
       console.error('[DriverHistoryView] load failed:', err);
-      setFixes([]);
+      if (!silent) setFixes([]);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [driverId, day]);
+
+  // Today is still happening: pick up new points every minute. Without this
+  // the screen showed the day as it was when it was opened, so a driver who
+  // had been reporting for half an hour looked like they had stopped.
+  useEffect(() => {
+    if (isoDay(day) !== isoDay(new Date())) return;
+    const timer = setInterval(() => void load(true), 60_000);
+    return () => clearInterval(timer);
+  }, [day, load]);
 
   useEffect(() => {
     void load();
@@ -143,17 +154,137 @@ export default function DriverHistoryView({
 
   // Frame the whole day, then re-frame when a segment is picked.
   useEffect(() => {
-    if (!mapRef.current || segments.length === 0) return;
+    if (mapGen === 0 || !mapRef.current || segments.length === 0) return;
+    // A live refresh must not yank the map away from where the manager is
+    // looking; reframe only when what is being looked at changed.
+    const frameKey = `${isoDay(day)}|${selected ?? 'all'}|${mapGen}`;
+    if (framedRef.current === frameKey) return;
+    framedRef.current = frameKey;
     const points = selected != null ? pointsOf(segments[selected]) : allPoints(segments);
     if (points.length === 0) return;
 
     const bounds = new google.maps.LatLngBounds();
     points.forEach((p) => bounds.extend(p));
-    mapRef.current.fitBounds(bounds, 48);
-  }, [segments, selected]);
+    const map = mapRef.current;
+    map.fitBounds(bounds, 48);
+    // One place (a stop) fits to a single point, and Google then zooms to its
+    // limit — blank tiles and a lone dot. Street level is as close as it gets.
+    google.maps.event.addListenerOnce(map, 'idle', () => {
+      if ((map.getZoom() ?? 0) > 17) map.setZoom(17);
+    });
+  }, [segments, selected, mapGen, day]);
 
-  const start = trips[0]?.path[0];
-  const finish = trips[trips.length - 1]?.path.slice(-1)[0];
+  const dayPoints = useMemo(() => allPoints(segments), [segments]);
+
+  // The recorded points themselves, as faint dots: proof the phone was
+  // reporting even where nothing moved. The selected row's points, or the
+  // whole day while that stays light enough to draw.
+  // "Where were they at 14:32?" — a time slider over the day. The answer
+  // comes from the segments, not the raw fix: inside a stop it is the stop
+  // itself (a raw fix there is just indoor drift); on a drive it is the
+  // route, interpolated between the fixes either side of that moment.
+  const [scrubAt, setScrubAt] = useState<number | null>(null);
+  const timedFixes = useMemo(
+    () =>
+      fixes
+        .filter((f) => f.accuracy == null || f.accuracy <= 100)
+        .map((f) => ({ ...f, t: new Date(f.recorded_at).getTime() }))
+        .filter((f) => Number.isFinite(f.t))
+        .sort((a, b) => a.t - b.t),
+    [fixes]
+  );
+  const dayStart = timedFixes[0]?.t ?? null;
+  const dayEnd = timedFixes[timedFixes.length - 1]?.t ?? null;
+
+  // A new day starts with the slider off.
+  useEffect(() => setScrubAt(null), [day]);
+
+  const scrub = useMemo(() => {
+    if (scrubAt == null || timedFixes.length === 0) return null;
+    const segment = segments.find(
+      (seg) => scrubAt >= seg.startedAt.getTime() && scrubAt <= seg.endedAt.getTime()
+    );
+    if (segment?.kind === 'stop') {
+      return {
+        at: segment.at,
+        label: `Stopped since ${format(segment.startedAt, 'HH:mm')}`,
+      };
+    }
+    if (segment?.kind === 'gap') {
+      return {
+        at: segment.from ?? segment.to,
+        label: `No signal (${format(segment.startedAt, 'HH:mm')} – ${format(segment.endedAt, 'HH:mm')})`,
+      };
+    }
+    // On a drive, or between segments: interpolate between the two fixes
+    // either side of the chosen moment.
+    let i = timedFixes.findIndex((f) => f.t >= scrubAt);
+    if (i === -1) i = timedFixes.length - 1;
+    const after = timedFixes[i];
+    const before = timedFixes[Math.max(0, i - 1)];
+    const span = after.t - before.t;
+    const k = span > 0 ? Math.min(1, Math.max(0, (scrubAt - before.t) / span)) : 1;
+    const at = {
+      lat: before.latitude + (after.latitude - before.latitude) * k,
+      lng: before.longitude + (after.longitude - before.longitude) * k,
+    };
+    const speed = Math.round(after.speed ?? 0);
+    return {
+      at: at as { lat: number; lng: number } | null,
+      label: segment?.kind === 'trip' ? `Driving${speed >= 3 ? ` · ${speed} km/h` : ''}` : 'Moving',
+    };
+  }, [scrubAt, timedFixes, segments]);
+
+  // Follow the marker as the slider moves, without changing the zoom.
+  useEffect(() => {
+    if (scrub?.at && mapRef.current) mapRef.current.panTo(scrub.at);
+  }, [scrub?.at]);
+
+  const breadcrumbs = useMemo(() => {
+    const usable = fixes.filter((f) => f.accuracy == null || f.accuracy <= 100);
+    // Only for the row being inspected. Across the whole day they were
+    // clutter; for one stop they are the evidence behind it.
+    const segment = selected != null ? segments[selected] : null;
+    if (!segment) return [];
+    const scoped = usable.filter((f) => {
+      const t = new Date(f.recorded_at).getTime();
+      return t >= segment.startedAt.getTime() && t <= segment.endedAt.getTime();
+    });
+    return scoped.length <= 400 ? scoped : [];
+  }, [fixes, segments, selected]);
+  // Drives drawn along the roads they used. Raw first, snapped when the
+  // matcher answers; the raw fixes themselves are never changed.
+  const [snapped, setSnapped] = useState<Record<number, { lat: number; lng: number }[]>>({});
+  useEffect(() => {
+    let cancelled = false;
+    setSnapped({});
+    trips.forEach((trip) => {
+      // A drive still in progress changes shape with every refresh; snapping
+      // it each minute would be a paid request a minute. It stays raw until
+      // the driver stops, then snaps once.
+      const lastSegment = segments[segments.length - 1];
+      const inProgress =
+        isoDay(day) === isoDay(new Date()) &&
+        lastSegment === trip &&
+        Date.now() - trip.endedAt.getTime() < 10 * 60_000;
+      if (inProgress) return;
+      const key = trip.startedAt.getTime();
+      void snapToRoads(trip.path).then((path) => {
+        if (!cancelled) setSnapped((prev) => ({ ...prev, [key]: path }));
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [trips, segments, day]);
+
+  // One route colour, chosen for the ground it sits on: neon on the dark
+  // map and on satellite, navy on the light map.
+  const routeColor = isDark || mapType === 'hybrid' ? '#00ff39' : '#000738';
+  const isToday = isoDay(day) === isoDay(new Date());
+
+  const start = dayPoints[0];
+  const finish = dayPoints.length > 1 ? dayPoints[dayPoints.length - 1] : undefined;
 
   return (
     // On a phone this scrolls as ONE column. Pinning it to the viewport meant
@@ -163,14 +294,24 @@ export default function DriverHistoryView({
     // is genuinely room for both.
     <div className="flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-4">
       {/* ── Map ── */}
-      <div className="relative h-[44vh] min-h-[240px] shrink-0 overflow-hidden border-b border-border lg:h-[640px] lg:min-h-0 lg:rounded-xl lg:border">
+      {/* Map and its time slider are one column on a wide screen. */}
+      <div className="flex shrink-0 flex-col">
+      <div
+        className="relative h-[52vh] min-h-[260px] shrink-0 overflow-hidden lg:h-[600px] lg:min-h-0 lg:rounded-xl lg:border lg:border-border"
+        // The sheet below overlaps the map by 24px on a phone. The map stops
+        // short of that strip so Google's logo and terms stay visible (they
+        // must), and the strip takes the map's own ground colour so the
+        // sheet's rounded corners still read as sitting on the map.
+        style={{ backgroundColor: isDark || mapType === 'hybrid' ? '#111927' : '#edf0f4' }}
+      >
         {isLoaded ? (
           <GoogleMap
-            mapContainerStyle={{ width: '100%', height: '100%' }}
-            center={{ lat: 6.5244, lng: 3.3792 }}
+            mapContainerClassName="h-[calc(100%-24px)] w-full lg:h-full"
+            center={INITIAL_CENTER}
             zoom={12}
             onLoad={(map) => {
               mapRef.current = map;
+              setMapGen((g) => g + 1);
             }}
             options={{
               disableDefaultUI: true,
@@ -180,65 +321,29 @@ export default function DriverHistoryView({
               styles: mapType === 'roadmap' ? getNavMapStyle(isDark) : undefined,
             }}
           >
-            {/* Route.
-                Drawn as TWO strokes per trip: a dark casing underneath and a
-                bright core on top. A single flat line disappears against pale
-                roads and against satellite imagery alike — the casing is what
-                keeps it readable on both. (The previous code promised this in
-                a comment but only ever drew one stroke.)
-
-                Arrowheads are spaced along the path because a route without
-                direction cannot answer the question people actually ask of
-                it: which way did they go, and in what order. */}
+            {/* Route: one clean line per drive, in one colour — no casing, no
+                arrows. The order is the timeline's job; the map just shows
+                the path. A selected drive stays bright and the rest fade. */}
             {trips.map((trip, index) => {
               const globalIndex = segments.indexOf(trip);
               const dimmed = selected != null && selected !== globalIndex;
-              const core = dimmed ? '#94a3b8' : accent;
-
               return (
-                <Fragment key={`trip-${index}`}>
-                  <Polyline
-                    path={trip.path}
-                    options={{
-                      strokeColor: isDark ? '#0b1220' : '#ffffff',
-                      strokeOpacity: dimmed ? 0.3 : 0.85,
-                      strokeWeight: dimmed ? 6 : 9,
-                      zIndex: dimmed ? 1 : 2,
-                      clickable: false,
-                    }}
-                  />
-                  <Polyline
-                    path={trip.path}
-                    onClick={() => setSelected(globalIndex)}
-                    options={{
-                      strokeColor: core,
-                      strokeOpacity: dimmed ? 0.45 : 1,
-                      strokeWeight: dimmed ? 3 : 5,
-                      zIndex: dimmed ? 2 : 3,
-                      icons: dimmed
-                        ? undefined
-                        : [
-                            {
-                              icon: {
-                                path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-                                scale: 2.6,
-                                fillColor: core,
-                                fillOpacity: 1,
-                                strokeColor: isDark ? '#0b1220' : '#ffffff',
-                                strokeWeight: 1.4,
-                              },
-                              offset: '6%',
-                              repeat: '110px',
-                            },
-                          ],
-                    }}
-                  />
-                </Fragment>
+                <Polyline
+                  key={`trip-${index}`}
+                  path={snapped[trip.startedAt.getTime()] ?? trip.path}
+                  onClick={() => setSelected(globalIndex)}
+                  options={{
+                    strokeColor: routeColor,
+                    strokeOpacity: dimmed ? 0.3 : 1,
+                    strokeWeight: 4,
+                    zIndex: dimmed ? 2 : 3,
+                  }}
+                />
               );
             })}
 
-            {/* Blackouts are drawn as a dashed straight line: the vehicle did
-                travel between these points, but we have no idea how. */}
+            {/* Blackouts are a dotted straight line: the vehicle did travel
+                between these points, but we have no idea how. */}
             {segments.map((segment, index) =>
               segment.kind === 'gap' && segment.from && segment.to ? (
                 <Polyline
@@ -250,14 +355,14 @@ export default function DriverHistoryView({
                     icons: [
                       {
                         icon: {
-                          path: 'M 0,-1 0,1',
-                          strokeOpacity: 0.9,
-                          strokeColor: '#ffbf0b',
-                          strokeWeight: 2.5,
-                          scale: 3,
+                          path: google.maps.SymbolPath.CIRCLE,
+                          fillColor: '#ffbf0b',
+                          fillOpacity: 1,
+                          strokeWeight: 0,
+                          scale: 2,
                         },
                         offset: '0',
-                        repeat: '14px',
+                        repeat: '10px',
                       },
                     ],
                   }}
@@ -265,33 +370,61 @@ export default function DriverHistoryView({
               ) : null
             )}
 
-            {/* Stops, numbered in the order they happened */}
+            {/* Stops: plain dots. Numbers on the map read as a puzzle — the
+                timeline already says what happened in what order, and a
+                selected row lights its own dot. */}
             {segments.map((segment, index) => {
               if (segment.kind !== 'stop') return null;
-              const stopNumber = segments.slice(0, index).filter((s) => s.kind === 'stop').length + 1;
+              const isSelected = selected === index;
               return (
                 <Marker
                   key={`stop-${index}`}
                   position={segment.at}
                   onClick={() => setSelected(index)}
-                  zIndex={4}
+                  zIndex={isSelected ? 6 : 4}
                   icon={{
                     path: google.maps.SymbolPath.CIRCLE,
-                    scale: selected === index ? 13 : 10,
+                    scale: isSelected ? 8 : 5,
                     fillColor: '#ffffff',
                     fillOpacity: 1,
-                    strokeColor: accent,
-                    strokeWeight: 3,
-                  }}
-                  label={{
-                    text: String(stopNumber),
-                    color: '#111827',
-                    fontSize: '10px',
-                    fontWeight: '700',
+                    strokeColor: routeColor,
+                    strokeWeight: isSelected ? 3 : 2,
                   }}
                 />
               );
             })}
+
+            {scrub?.at && (
+              <Marker
+                position={scrub.at}
+                zIndex={20}
+                clickable={false}
+                icon={{
+                  path: google.maps.SymbolPath.CIRCLE,
+                  scale: 10,
+                  fillColor: '#00ff39',
+                  fillOpacity: 1,
+                  strokeColor: '#000738',
+                  strokeWeight: 4,
+                }}
+              />
+            )}
+
+            {breadcrumbs.map((f, i) => (
+              <Marker
+                key={`fix-${i}`}
+                position={{ lat: f.latitude, lng: f.longitude }}
+                clickable={false}
+                zIndex={1}
+                icon={{
+                  path: google.maps.SymbolPath.CIRCLE,
+                  scale: 2.5,
+                  fillColor: routeColor,
+                  fillOpacity: 0.45,
+                  strokeWeight: 0,
+                }}
+              />
+            ))}
 
             {/* Station visits that happened on this day */}
             {visits.map((visit) =>
@@ -313,41 +446,51 @@ export default function DriverHistoryView({
               ) : null
             )}
 
-            {/* Start and end of the day.
-                Previously two bare coloured dots: on a route that loops back
-                on itself, nothing told you which end was the beginning. They
-                now carry letters, and sit above everything else. */}
+            {/* Start: a small hollow dot. Last seen: a solid dot with a soft
+                halo — the two markers every tracker uses. */}
             {start && (
               <Marker
                 position={start}
                 zIndex={7}
-                title="First movement of the day"
+                title="Start of the day"
                 icon={{
                   path: google.maps.SymbolPath.CIRCLE,
-                  scale: 11,
-                  fillColor: '#16a34a',
+                  scale: 5,
+                  fillColor: isDark || mapType === 'hybrid' ? '#000738' : '#ffffff',
                   fillOpacity: 1,
-                  strokeColor: '#ffffff',
-                  strokeWeight: 3,
+                  strokeColor: routeColor,
+                  strokeWeight: 2.5,
                 }}
-                label={{ text: 'A', color: '#ffffff', fontSize: '11px', fontWeight: '700' }}
               />
             )}
             {finish && (
-              <Marker
-                position={finish}
-                zIndex={7}
-                title="Last known position"
-                icon={{
-                  path: google.maps.SymbolPath.CIRCLE,
-                  scale: 11,
-                  fillColor: '#000738',
-                  fillOpacity: 1,
-                  strokeColor: '#00ff39',
-                  strokeWeight: 3,
-                }}
-                label={{ text: 'B', color: '#ffffff', fontSize: '11px', fontWeight: '700' }}
-              />
+              <>
+                <Marker
+                  position={finish}
+                  zIndex={8}
+                  clickable={false}
+                  icon={{
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 16,
+                    fillColor: routeColor,
+                    fillOpacity: 0.18,
+                    strokeWeight: 0,
+                  }}
+                />
+                <Marker
+                  position={finish}
+                  zIndex={9}
+                  title={isToday ? 'Last seen' : 'End of the day'}
+                  icon={{
+                    path: google.maps.SymbolPath.CIRCLE,
+                    scale: 6.5,
+                    fillColor: routeColor,
+                    fillOpacity: 1,
+                    strokeColor: '#ffffff',
+                    strokeWeight: 2.5,
+                  }}
+                />
+              </>
             )}
           </GoogleMap>
         ) : (
@@ -356,53 +499,80 @@ export default function DriverHistoryView({
           </div>
         )}
 
-        {/* Legend. Three colours were carrying three different meanings with
-            nothing on screen to say so. Sits top-left, clear of the satellite
-            toggle and of the "Show whole day" pill at the bottom. */}
-        {segments.length > 0 && (
-          <div
-            className="pointer-events-none absolute left-3 top-3 flex flex-col gap-1 rounded-lg bg-background/90 px-2.5 py-2 backdrop-blur"
-            style={{ boxShadow: 'var(--shadow-card)' }}
-          >
-            <span className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
-              <span className="h-2 w-2 rounded-full bg-success" />
-              A — started
-            </span>
-            <span className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
-              <span className="h-2 w-2 rounded-full bg-destructive" />
-              B — ended
-            </span>
-            <span className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
-              <span className="h-0.5 w-4 rounded-full" style={{ backgroundColor: accent }} />
-              driven
-            </span>
-            {summary.darkMinutes > 0 && (
-              <span className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground">
-                <span className="h-0.5 w-4 rounded-full bg-warning" />
-                no signal
-              </span>
-            )}
-          </div>
-        )}
+        {/* The headline, on the map, the way a tracker leads with its number.
+            A soft navy scrim keeps it readable over any map underneath. */}
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#000738]/85 via-[#000738]/40 to-transparent"
+          aria-hidden="true"
+        />
+        <div className="pointer-events-none absolute left-4 top-3 text-white">
+          <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-white/70">
+            {isToday ? 'Today' : format(day, 'EEE d MMM')}
+          </p>
+          <p className="telemetry font-heading text-4xl font-extrabold leading-tight">
+            {summary.distanceKm.toFixed(1)} km
+          </p>
+          <p className="text-xs text-white/75">
+            {formatDuration(summary.drivingMinutes)} driving · {summary.stops}{' '}
+            {summary.stops === 1 ? 'stop' : 'stops'}
+          </p>
+        </div>
 
         <button
           type="button"
           onClick={() => setMapType((t) => (t === 'roadmap' ? 'hybrid' : 'roadmap'))}
-          className="absolute right-3 top-3 flex min-h-[40px] items-center gap-1.5 rounded-lg border border-border bg-background/95 px-2.5 text-xs font-semibold shadow-lg backdrop-blur"
+          aria-label={mapType === 'roadmap' ? 'Satellite view' : 'Map view'}
+          className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full border border-border bg-background/95 shadow-lg backdrop-blur"
         >
           <Layers className="h-4 w-4" />
-          {mapType === 'roadmap' ? 'Satellite' : 'Map'}
         </button>
 
         {selected != null && (
           <button
             type="button"
             onClick={() => setSelected(null)}
-            className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-border bg-background/95 px-4 py-2 text-xs font-semibold shadow-lg backdrop-blur"
+            className="absolute bottom-9 left-1/2 -translate-x-1/2 rounded-full border border-border bg-background/95 px-4 py-2 text-xs font-semibold shadow-lg backdrop-blur lg:bottom-3"
           >
             Show whole day
           </button>
         )}
+
+      </div>
+
+      {/* Where were they at… — drag to any moment of the day. */}
+      {dayStart != null && dayEnd != null && dayEnd > dayStart && (
+        <div className="relative z-10 -mt-6 rounded-t-3xl bg-background px-4 pb-2 pt-2.5 lg:mt-0 lg:rounded-none lg:px-1">
+          <span className="mx-auto mb-2 block h-1 w-10 rounded-full bg-muted lg:hidden" aria-hidden="true" />
+          <div className="flex items-center gap-3">
+            <span className="telemetry w-11 shrink-0 text-sm font-bold">
+              {format(new Date(scrubAt ?? dayEnd), 'HH:mm')}
+            </span>
+            <input
+              type="range"
+              min={dayStart}
+              max={dayEnd}
+              step={30_000}
+              value={scrubAt ?? dayEnd}
+              onChange={(e) => setScrubAt(Number(e.target.value))}
+              aria-label="Where were they at this time"
+              className="h-2 min-w-0 flex-1 cursor-pointer accent-[#00ff39]"
+            />
+            {scrubAt != null && (
+              <button
+                type="button"
+                onClick={() => setScrubAt(null)}
+                className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <p className="mt-1 truncate text-[11px] text-muted-foreground">
+            {scrub ? scrub.label : 'Drag to see where they were at any time'}
+          </p>
+        </div>
+      )}
+
       </div>
 
       {/* ── Day picker, summary, timeline ── */}
@@ -459,20 +629,6 @@ export default function DriverHistoryView({
           </label>
         </div>
 
-        {/* Summary */}
-        <div className="px-3 pt-3">
-          <p className="text-xs font-medium text-muted-foreground">
-            {isoDay(day) === isoDay(new Date())
-              ? 'Today'
-              : format(day, 'EEEE d MMMM yyyy')}
-          </p>
-        </div>
-        <div className="flex gap-2 px-3 py-3">
-          <Stat icon={RouteIcon} label="Distance" value={`${summary.distanceKm.toFixed(1)} km`} />
-          <Stat icon={Car} label="Driving" value={formatDuration(summary.drivingMinutes)} />
-          <Stat icon={ParkingCircle} label="Stops" value={String(summary.stops)} />
-        </div>
-
         {summary.darkMinutes > 0 && (
           <div className="mx-3 mb-2 flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2">
             <SignalZero className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
@@ -498,83 +654,62 @@ export default function DriverHistoryView({
               </p>
             </div>
           ) : (
-            <ol className="relative space-y-1.5 pl-6">
-              {/* Spine */}
+            // The More-sheet row, on a spine: tile, one bold line, one muted
+            // line. A stay reads as a place you were, a trip as a journey
+            // between two of them — the way a phone's own timeline reads.
+            <ol className="relative">
               <span
-                className="absolute bottom-2 left-[9px] top-2 w-px bg-border"
+                className="absolute bottom-6 left-[22px] top-6 w-px bg-border"
                 aria-hidden="true"
               />
 
               {segments.map((segment, index) => {
                 const isSelected = selected === index;
-                const stopNumber =
-                  segment.kind === 'stop'
-                    ? segments.slice(0, index).filter((s) => s.kind === 'stop').length + 1
-                    : null;
+                const Icon =
+                  segment.kind === 'trip' ? Car : segment.kind === 'stop' ? MapPin : SignalZero;
+                const title =
+                  segment.kind === 'trip'
+                    ? `Drove ${segment.distanceKm.toFixed(1)} km`
+                    : segment.kind === 'stop'
+                      ? `Stopped · ${formatDuration(segment.minutes)}`
+                      : `No signal · ${formatDuration(segment.minutes)}`;
+                const range = `${format(segment.startedAt, 'HH:mm')} – ${format(segment.endedAt, 'HH:mm')}`;
+                const note =
+                  segment.kind === 'trip'
+                    ? `${range} · ${formatDuration(segment.minutes)}${
+                        segment.maxSpeedKmh >= 1 ? ` · top ${Math.round(segment.maxSpeedKmh)} km/h` : ''
+                      }`
+                    : segment.kind === 'stop'
+                      ? `${range}${segment.quietMinutes >= 30 ? ` · no updates for ${formatDuration(segment.quietMinutes)}` : ''}`
+                      : `${range} · moved while the phone was silent`;
 
                 return (
                   <li key={index} className="relative">
-                    <span
-                      className={cn(
-                        'absolute -left-[18px] top-4 h-2.5 w-2.5 rounded-full ring-4 ring-background',
-                        segment.kind === 'trip'
-                          ? 'bg-primary'
-                          : segment.kind === 'stop'
-                            ? 'bg-foreground'
-                            : 'bg-warning'
-                      )}
-                      aria-hidden="true"
-                    />
-
                     <button
                       type="button"
                       onClick={() => setSelected(isSelected ? null : index)}
                       className={cn(
-                        'flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors',
-                        isSelected
-                          ? 'border-primary bg-accent'
-                          : 'border-transparent bg-card hover:bg-muted'
+                        'relative flex min-h-[56px] w-full items-center gap-3.5 rounded-xl px-0.5 py-2 text-left transition-colors active:bg-muted',
+                        isSelected && 'bg-muted'
                       )}
                     >
                       <span
                         className={cn(
-                          'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold',
-                          segment.kind === 'trip'
-                            ? 'bg-primary/10 text-primary'
-                            : segment.kind === 'stop'
-                              ? 'bg-muted text-foreground'
-                              : 'bg-warning/15 text-warning'
+                          'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-4 ring-background',
+                          segment.kind === 'gap' ? 'bg-warning/15' : 'bg-accent'
                         )}
                       >
-                        {segment.kind === 'trip' ? (
-                          <Navigation className="h-4 w-4" />
-                        ) : segment.kind === 'stop' ? (
-                          stopNumber
-                        ) : (
-                          <SignalZero className="h-4 w-4" />
-                        )}
+                        <Icon
+                          className={cn(
+                            'h-[18px] w-[18px]',
+                            segment.kind === 'gap' ? 'text-warning' : 'text-accent-foreground'
+                          )}
+                        />
                       </span>
-
                       <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold text-foreground">
-                          {segment.kind === 'trip'
-                            ? `Drove ${segment.distanceKm.toFixed(1)} km`
-                            : segment.kind === 'stop'
-                              ? `Stopped ${formatDuration(segment.minutes)}`
-                              : `No signal ${formatDuration(segment.minutes)}`}
-                        </span>
-                        <span className="telemetry block text-xs text-muted-foreground">
-                          {format(segment.startedAt, 'HH:mm')} – {format(segment.endedAt, 'HH:mm')}
-                          {segment.kind === 'trip' &&
-                            ` · ${Math.round(segment.maxSpeedKmh)} km/h top`}
-                        </span>
+                        <span className="block truncate text-sm font-semibold">{title}</span>
+                        <span className="telemetry block truncate text-xs text-muted-foreground">{note}</span>
                       </span>
-
-                      {segment.kind === 'trip' && (
-                        <span className="telemetry shrink-0 text-xs text-muted-foreground">
-                          {formatDuration(segment.minutes)}
-                        </span>
-                      )}
                     </button>
                   </li>
                 );
