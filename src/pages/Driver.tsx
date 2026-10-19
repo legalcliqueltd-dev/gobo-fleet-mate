@@ -355,7 +355,7 @@ export default function Driver() {
             onMouseUp={handleMouseUp}
             onTouchStart={handleMouseDown}
             onTouchEnd={handleMouseUp}
-            className={`relative w-64 h-64 rounded-full bg-gradient-to-br from-red-500 to-red-700 text-white font-bold text-2xl shadow-2xl transition-transform ${
+            className={`relative w-64 h-64 rounded-full bg-sos text-sos-foreground font-bold text-2xl shadow-2xl transition-transform ${
               holding ? 'scale-95' : 'scale-100 hover:scale-105'
             } active:scale-95 flex flex-col items-center justify-center`}
           >

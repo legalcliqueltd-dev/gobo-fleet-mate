@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Route, Routes, Navigate, useNavigate } from 'react-router-dom';
-import { Toaster } from 'sonner';
+import { Toaster } from '@/components/ui/sonner';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { AppRoleProvider } from '@/contexts/AppRoleContext';
@@ -289,7 +289,6 @@ export default function NativeApp() {
               status bar lives and is not ours to cover. */}
           <Toaster
             position="top-center"
-            richColors
             offset="calc(env(safe-area-inset-top, 0px) + 0.75rem)"
             toastOptions={{ style: { marginInline: '0.5rem' } }}
           />

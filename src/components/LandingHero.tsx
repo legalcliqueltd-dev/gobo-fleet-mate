@@ -32,12 +32,14 @@ export default function LandingHero() {
         <div className="max-w-xl lg:max-w-[40rem] lg:pl-[4%]">
           <motion.h1
             {...rise(0)}
-            className="font-heading text-[clamp(2.9rem,11vw,4rem)] font-extrabold leading-[0.98] tracking-[-0.02em] lg:text-[clamp(4rem,6.4vw,5.6rem)]"
+            className="font-heading text-[clamp(2.25rem,9.4vw,4rem)] font-extrabold leading-[0.98] tracking-[-0.02em] lg:text-[clamp(3.5rem,5.6vw,5.25rem)]"
           >
-            Every Vehicle.
-            <br />
-            One live{' '}
-            <span className="inline-block bg-[#000738] px-[0.14em] pb-[0.1em] text-signal">map.</span>
+            {/* Two lines, always — the lockup breaks only where it is written to. */}
+            <span className="block whitespace-nowrap">Every Vehicle.</span>
+            <span className="block whitespace-nowrap">
+              One live{' '}
+              <span className="inline-block bg-[#000738] px-[0.14em] pb-[0.1em] text-signal">map.</span>
+            </span>
           </motion.h1>
 
           <motion.p {...rise(1)} className="mt-8 max-w-md text-lg lg:max-w-[36rem] leading-relaxed text-[#000738]/85 md:text-xl lg:mt-12">

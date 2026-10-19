@@ -350,7 +350,7 @@ export default function DriverAppSOS() {
             {/* Button face */}
             <span
               className={cn(
-                'flex flex-col items-center justify-center rounded-full bg-gradient-to-br from-sos to-red-700 text-sos-foreground shadow-2xl shadow-sos/40',
+                'flex flex-col items-center justify-center rounded-full bg-sos text-sos-foreground shadow-2xl shadow-sos/40',
                 sosHolding && 'animate-pulse'
               )}
               style={{ width: RING_SIZE - 28, height: RING_SIZE - 28 }}

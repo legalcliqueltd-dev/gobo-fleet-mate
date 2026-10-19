@@ -3,11 +3,10 @@
 @tailwind utilities;
 
 /* ============================================================
-   FleetTrackMate design system — "Asphalt & Signal"
-   Palette: asphalt ink / cool paper, dispatch blue (primary),
-   signal green (live), hazard amber (warning), flare red.
-   Type: Barlow Semi Condensed (display) · Barlow (UI) ·
-   IBM Plex Mono (telemetry: coordinates, speeds, codes).
+   TrackMate design system
+   Palette: navy #000738 · neon #00ff39 · amber #ffbf0b, red for SOS only.
+   Type: Helvetica Neue, one family for everything; hierarchy by weight.
+   Buttons are solid palette colours — never gradients.
    All colors are HSL triplets consumed via hsl(var(--token)).
    Light is the default; `.dark` is toggled by ThemeContext.
    ============================================================ */
@@ -246,9 +245,10 @@
     @apply h-1.5 w-1.5 rounded-full bg-primary;
   }
 
-  /* Telemetry readout: tabular mono for coordinates, speeds, codes */
+  /* Telemetry readout: coordinates, speeds, codes. Same family as
+     everything else; tabular figures keep changing numbers from jittering. */
+  .font-mono,
   .telemetry {
-    @apply font-mono;
     font-variant-numeric: tabular-nums;
   }
 

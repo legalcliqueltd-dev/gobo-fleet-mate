@@ -17,7 +17,9 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        hero: "bg-gradient-to-r from-primary to-primary-glow text-primary-foreground shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0",
+        // The headline call to action: solid neon, navy ink, in both themes.
+        // Brand rule: no button is ever a gradient.
+        hero: "bg-signal text-signal-foreground shadow-sm hover:bg-signal/90 hover:-translate-y-0.5 active:translate-y-0",
         success: "bg-success text-success-foreground shadow-sm hover:bg-success/90",
         warning: "bg-warning text-warning-foreground shadow-sm hover:bg-warning/90",
         fleet: "bg-fleet-blue text-white shadow-sm hover:bg-fleet-blue-dark hover:shadow-md hover:shadow-fleet-blue/25",

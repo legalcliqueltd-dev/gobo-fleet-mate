@@ -187,7 +187,7 @@ export function FleetVehicleMarker({
           <div style="width:${size}px;height:${size}px;border-radius:9999px;background:${statusColor};border:${selected ? 3 : 2}px solid white;box-shadow:0 2px 8px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;">
             <svg width="${Math.round(size * 0.55)}" height="${Math.round(size * 0.55)}" viewBox="0 0 24 24" fill="white"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>
           </div>
-          <div style="margin-top:3px;max-width:132px;padding:2px 6px;border-left:3px solid ${accent};border-radius:3px;background:rgba(255,255,255,.94);box-shadow:0 1px 4px rgba(0,0,0,.28);font-family:Barlow,system-ui,sans-serif;font-size:11px;font-weight:600;line-height:1.25;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escaped}</div>
+          <div style="margin-top:3px;max-width:132px;padding:2px 6px;border-left:3px solid ${accent};border-radius:3px;background:rgba(255,255,255,.94);box-shadow:0 1px 4px rgba(0,0,0,.28);font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:11px;font-weight:600;line-height:1.25;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escaped}</div>
         </div>`,
     });
   }, [name, accent, status, selected]);

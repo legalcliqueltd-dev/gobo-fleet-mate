@@ -164,7 +164,9 @@ export async function notify(
           // iOS takes the sound per notification; Android ignores this in
           // favour of the channel's sound.
           sound: config.sound,
-          smallIcon: 'ic_stat_directions_car',
+          smallIcon: 'ic_stat_trackmate',
+          // Neon behind the mark in the shade — the brand, not Android's grey.
+          iconColor: '#00FF39',
           // Where tapping this should land. Without it a tap merely brings the
           // app forward on whatever screen it was last showing — which for an
           // SOS means being told something urgent happened and then having to

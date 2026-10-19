@@ -1,5 +1,11 @@
 import type { Config } from "tailwindcss";
 
+// Helvetica Neue first. Licensed webfont files, when the owner supplies them,
+// go in public/fonts and get @font-face rules in index.css under this same
+// name; until then each device uses its installed copy (Apple platforms) and
+// falls back to Helvetica, then Arial, which share its metrics.
+const HELVETICA_NEUE = ['"Helvetica Neue"', '"HelveticaNeue"', 'Helvetica', 'Arial', 'sans-serif'];
+
 export default {
   darkMode: ["class"],
   content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
@@ -17,12 +23,15 @@ export default {
         xs: '375px',
       },
       fontFamily: {
-        // The wordmark is Helvetica Neue Heavy + Roman — that weight jump is
-        // the brand's typographic idea. Helvetica Neue cannot be licensed for
-        // the web; Inter Tight at 800 is the closest faithful stand-in.
-        heading: ['"Inter Tight"', 'Inter', '"Helvetica Neue"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        sans: ['Inter', '"Helvetica Neue"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-        mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        // Brand rule: Helvetica Neue for everything — headings, UI, labels,
+        // readouts. One family; hierarchy comes from weight (Heavy beside
+        // Roman is the wordmark's idea), never from a second typeface.
+        // `heading` and `mono` are kept as names so existing classes keep
+        // working, but they are the same family. Numbers stay aligned via
+        // tabular-nums on .font-mono / .telemetry (index.css).
+        heading: HELVETICA_NEUE,
+        sans: HELVETICA_NEUE,
+        mono: HELVETICA_NEUE,
       },
       colors: {
         border: "hsl(var(--border))",

@@ -57,8 +57,8 @@ function MapDemo() {
 function SOSDemo() {
   return (
     <div className="relative flex h-40 items-center justify-center">
-      <span className="absolute h-32 w-32 animate-ping rounded-full bg-destructive/20" />
-      <span className="flex h-28 w-28 flex-col items-center justify-center rounded-full bg-gradient-to-br from-destructive to-red-700 text-destructive-foreground shadow-xl shadow-destructive/40">
+      <span className="absolute h-32 w-32 animate-ping rounded-full bg-sos/20" />
+      <span className="flex h-28 w-28 flex-col items-center justify-center rounded-full bg-sos text-sos-foreground shadow-xl shadow-sos/40">
         <AlertTriangle className="h-10 w-10" />
         <span className="mt-1 font-mono text-[10px] font-semibold uppercase tracking-[0.2em]">Hold</span>
       </span>

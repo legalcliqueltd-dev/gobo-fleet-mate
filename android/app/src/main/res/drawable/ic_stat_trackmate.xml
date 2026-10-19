@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Notification small icon: the TrackMate mark as a white-only silhouette
+     (Android tints it). Same paths as src/assets/brand/trackmate-mark.svg,
+     centred in a square viewport so the status bar does not squash it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="500"
+    android:viewportHeight="500">
+    <group
+        android:translateX="-240"
+        android:translateY="-830">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M696.79,1103.55l-19.87,124.17c-1.91,11.98-12.11,20.67-24.24,20.67h-289.14c-7.38,0-14.3-3.28-18.98-8.98-4.68-5.71-6.53-13.13-5.09-20.37l58.37-291.87c2.29-11.43,12.41-19.73,24.07-19.73h110.95l-12.22,51.87h-32.58l-8.87,34.66h33.29l-9.92,42.15c-3.87,16.42-.08,33.42,10.39,46.64,10.47,13.23,26.15,20.81,43.02,20.81h140.82Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M723.62,935.85l-21.29,133.04h-146.36c-6.21,0-11.99-2.79-15.85-7.66-3.86-4.87-5.25-11.14-3.83-17.19l11.8-50.09h40.96l7.57-34.66h-40.37l12.22-51.87h130.91c7.2,0,14.01,3.15,18.68,8.62,4.67,5.48,6.7,12.7,5.56,19.81Z" />
+    </group>
+</vector>

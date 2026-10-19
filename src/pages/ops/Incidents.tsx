@@ -74,7 +74,7 @@ const createSOSMarkerIcon = (index: number, status: string, isSelected: boolean)
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
       <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - 2}" fill="${color}" stroke="white" stroke-width="${strokeWidth}"/>
-      <text x="${size / 2}" y="${size / 2 + fontSize / 3}" font-family="Arial,sans-serif" font-size="${fontSize}" font-weight="bold" fill="white" text-anchor="middle">${index}</text>
+      <text x="${size / 2}" y="${size / 2 + fontSize / 3}" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif" font-size="${fontSize}" font-weight="bold" fill="white" text-anchor="middle">${index}</text>
       ${isSelected ? `
         <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="none" stroke="${color}" stroke-width="2" opacity="0.6">
           <animate attributeName="r" from="${size / 2}" to="${size / 2 + 8}" dur="1.2s" repeatCount="indefinite"/>

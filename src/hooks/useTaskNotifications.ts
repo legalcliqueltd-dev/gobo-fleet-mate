@@ -1,7 +1,36 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { createElement, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import brandMark from '@/assets/brand/trackmate-icon.svg';
+
+/**
+ * Jobs this driver has already been told about. Lives OUTSIDE the hook, and
+ * on the phone, because the hook does not live long: every driver screen
+ * renders its own DriverAppLayout, so switching tabs unmounts it and a ref
+ * starts empty again — and a job that was still "assigned" was announced
+ * afresh on every tab change. Persisted per driver so a restart does not
+ * replay it either.
+ */
+const ANNOUNCED_LIMIT = 200;
+const announcedKey = (driverId: string) => `ftm_announced_jobs_${driverId}`;
+
+function loadAnnounced(driverId: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(announcedKey(driverId));
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveAnnounced(driverId: string, ids: Set<string>) {
+  try {
+    localStorage.setItem(announcedKey(driverId), JSON.stringify([...ids].slice(-ANNOUNCED_LIMIT)));
+  } catch {
+    /* private mode — falls back to once per session */
+  }
+}
 
 /**
  * Hook for real-time task notifications for mobile drivers.
@@ -67,11 +96,16 @@ export function useTaskNotifications(driverId: string | undefined, adminCode?: s
       const assignedTasks = tasks.filter(t => t.status === 'assigned');
       setUnreadCount(assignedTasks.length);
 
-      // Detect new tasks
+      // Detect new tasks — "new" meaning never announced to this driver,
+      // not merely unseen by this particular mount of the layout.
       const currentIds = new Set(tasks.map(t => t.id));
-      
+      const announced = loadAnnounced(driverId);
+      let announcedChanged = false;
+
       for (const task of assignedTasks) {
-        if (!knownTaskIdsRef.current.has(task.id)) {
+        if (!announced.has(task.id)) {
+          announced.add(task.id);
+          announcedChanged = true;
           // New task detected
           setNewTaskIds(prev => new Set(prev).add(task.id));
           playNotificationSound();
@@ -81,7 +115,14 @@ export function useTaskNotifications(driverId: string | undefined, adminCode?: s
           //
           // Eight seconds, not five: this arrives while someone is driving,
           // and five is not long enough to notice, read and decide.
-          toast(`New job — ${task.title}`, {
+          // Branded: the TrackMate mark, "New job" as the headline and the
+          // job itself underneath, so it reads at a glance from the cab.
+          toast('New job', {
+            // A fixed id: should this ever fire twice, sonner replaces the
+            // toast rather than stacking another copy on top of it.
+            id: `new-job-${task.id}`,
+            description: task.title,
+            icon: createElement('img', { src: brandMark, alt: '', className: 'h-7 w-7 shrink-0 rounded-md' }),
             duration: 8000,
             action: {
               label: 'Open',
@@ -91,7 +132,7 @@ export function useTaskNotifications(driverId: string | undefined, adminCode?: s
         }
       }
 
-      // Update known IDs
+      if (announcedChanged) saveAnnounced(driverId, announced);
       knownTaskIdsRef.current = currentIds;
     } catch (err) {
       console.error('Task notification poll error:', err);

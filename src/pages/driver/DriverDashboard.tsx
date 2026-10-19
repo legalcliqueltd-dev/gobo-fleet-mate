@@ -276,7 +276,7 @@ export default function DriverDashboard() {
           onTouchStart={handleSosPress}
           onTouchEnd={handleSosRelease}
           className={`
-            relative w-24 h-24 rounded-full bg-gradient-to-br from-red-500 to-red-600
+            relative w-24 h-24 rounded-full bg-sos text-sos-foreground
             shadow-2xl transition-all duration-200 active:scale-95
             flex items-center justify-center
             ${sosHolding ? 'animate-pulse scale-110' : ''}

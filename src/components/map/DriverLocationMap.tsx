@@ -67,7 +67,7 @@ const createFlagIcon = (label: 'S' | 'E', color: string) => {
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
       <circle cx="16" cy="16" r="14" fill="${color}" stroke="white" stroke-width="2"/>
-      <text x="16" y="20" font-family="sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">${label}</text>
+      <text x="16" y="20" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif" font-size="14" font-weight="bold" fill="white" text-anchor="middle">${label}</text>
     </svg>
   `;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
@@ -78,7 +78,7 @@ const createClusterIcon = (count: number) => {
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
       <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - 2}" fill="#3b82f6" opacity="0.85" stroke="white" stroke-width="2"/>
-      <text x="${size / 2}" y="${size / 2 + 5}" font-family="sans-serif" font-size="13" font-weight="bold" fill="white" text-anchor="middle">${count}</text>
+      <text x="${size / 2}" y="${size / 2 + 5}" font-family="'Helvetica Neue',Helvetica,Arial,sans-serif" font-size="13" font-weight="bold" fill="white" text-anchor="middle">${count}</text>
     </svg>
   `;
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
