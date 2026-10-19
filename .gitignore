@@ -44,3 +44,4 @@ ios/App/App/public/
 # Promo video project: deps and rendered output are regenerable
 promo/node_modules
 promo/out
+android/app/debug/
