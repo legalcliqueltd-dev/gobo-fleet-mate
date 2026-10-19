@@ -20,7 +20,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRefreshOnVisible } from '@/hooks/useRefreshOnVisible';
 
-const APK_DOWNLOAD_URL = "https://fleettrackmate.com/downloads/FleetTrackMate.apk";
+const APK_DOWNLOAD_URL = "https://fleettrackmate.com/#download";
 export default function Dashboard() {
   const { items, setItems, markers, loading, error } = useDeviceLocations();
   const { drivers } = useDriverLocations();
@@ -372,7 +372,7 @@ export default function Dashboard() {
                   Driver app
                 </h3>
                 <div className="flex gap-2">
-                  <a href={APK_DOWNLOAD_URL} download className="flex-1">
+                  <a href={APK_DOWNLOAD_URL} className="flex-1">
                     <Button variant="default" size="sm" className="h-9 w-full text-xs">
                       <Download className="mr-1 h-3.5 w-3.5" />
                       Download

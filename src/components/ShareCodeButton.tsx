@@ -11,16 +11,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
-const APK_DOWNLOAD_URL = "https://fleettrackmate.com/downloads/FleetTrackMate.apk";
+import { APP_STORE_URL, PLAY_STORE_URL } from "@/components/AppDownload";
 
 function buildInviteMessage(code: string, deviceName?: string) {
   return `You've been added to the fleet on TrackMate${deviceName ? ` (${deviceName})` : ""}.
 
 Your connection code: ${code}
 
-1. Download the driver app: ${APK_DOWNLOAD_URL}
-2. Install it (allow "unknown sources" if Android asks)
-3. Open the app, enter your name and this code
+1. Get the TrackMate app:
+   Android: ${PLAY_STORE_URL}
+   iPhone: ${APP_STORE_URL}
+2. Open it, choose "I drive", enter your name and this code
 
 Location sharing starts only when you go on duty.`;
 }

@@ -9,19 +9,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
 
-const APK_DOWNLOAD_URL = "https://fleettrackmate.com/downloads/FleetTrackMate.apk";
+import { APP_STORE_URL, PLAY_STORE_URL } from "@/components/AppDownload";
+// The download section: it offers whichever store the visitor needs.
+const APK_DOWNLOAD_URL = "https://fleettrackmate.com/#download";
 
 const SHARE_MESSAGE = `🚗 Download the TrackMate Driver App
 
 Track your location, receive tasks, and stay connected with your fleet.
 
-📱 Download now: ${APK_DOWNLOAD_URL}
+📱 Android: ${PLAY_STORE_URL}
+🍎 iPhone: ${APP_STORE_URL}
 
-Install steps:
-1. Click the link to download
-2. Enable "Install from unknown sources" if prompted
-3. Open the APK and tap Install
-4. Enter your admin's connection code`;
+Open the app, choose "I drive" and enter your admin's connection code.`;
 
 interface ShareAppButtonProps {
   variant?: "default" | "outline" | "ghost" | "secondary";
