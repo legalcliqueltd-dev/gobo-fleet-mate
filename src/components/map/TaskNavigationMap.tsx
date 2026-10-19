@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { GoogleMap, Marker, Polyline, useJsApiLoader } from '@react-google-maps/api';
-import { X, Navigation, LocateFixed, MapPin, Play, Square, Crosshair } from 'lucide-react';
+import { X, Navigation, LocateFixed, MapPin, Play, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getRouteStrokeColor, getNavMapStyle } from '@/lib/mapStyles';
 import {
@@ -8,7 +8,6 @@ import {
   GOOGLE_MAPS_LIBRARIES,
   navMapId,
 } from '@/lib/googleMapsConfig';
-import { driverMarkerIcon } from '@/lib/driverMarker';
 
 // THE HAND-OFF TO GOOGLE/APPLE MAPS IS GONE, deliberately. Sending a driver
 // into another app loses the job, the station, the receipt step and the trail
@@ -38,24 +37,44 @@ function bearingBetween(a: LatLng, b: LatLng): number {
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
+/** The point `meters` from `from` along compass `bearing`. */
+function offsetAlong(from: LatLng, bearing: number, meters: number): LatLng {
+  const R = 6371000;
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const deg = (r: number) => (r * 180) / Math.PI;
+  const d = meters / R;
+  const b = rad(bearing);
+  const lat1 = rad(from.lat);
+  const lng1 = rad(from.lng);
+  const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(b));
+  const lng2 =
+    lng1 + Math.atan2(Math.sin(b) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+  return { lat: deg(lat2), lng: deg(lng2) };
+}
+
+/** Smaller turns than this are route wobble, not a turn — the map holds still. */
+const MIN_HEADING_CHANGE = 4;
+
 /** How far the vector map leans. Flat is 0; much past 55 and the horizon
  *  eats the screen on a phone held in one hand. */
 const NAV_TILT = 50;
 
-/** Below this, the fit has zoomed out so far it is no longer a useful map. */
-const MIN_USEFUL_ZOOM = 10;
-/** Where we land instead: the destination, close enough to read streets. */
-const FAR_AWAY_ZOOM = 15;
-/** Close enough to read the next turn, wide enough to see it coming. */
-const FOLLOW_ZOOM = 17.5;
-const MAP_VIEW_KEY = 'driver_map_view';
+/** Below this, framing both ends is a view of the region, not of the road. */
+const MIN_USEFUL_ZOOM = 13;
+/** The overview when the destination is far: him, close enough to read streets. */
+const OVERVIEW_ZOOM = 16;
+/** Guidance: close behind him, the next turn readable before he reaches it. */
+const FOLLOW_ZOOM = 18;
 /**
  * How far down the screen the driver sits while navigating, as a fraction of
  * the map's height. Centring him wastes the top half on road already driven;
  * every navigation app puts the vehicle low and the road ahead above it, and
  * that is what makes the view feel first-person rather than overhead.
  */
-const DRIVER_SCREEN_ANCHOR = 0.72;
+// 0.62, not 0.72: the offset is computed on the flat map, and under a 50°
+// tilt the ground behind the centre is stretched, so the same distance lands
+// much lower on screen. At 0.72 he could end up under the End button.
+const DRIVER_SCREEN_ANCHOR = 0.62;
 /** A fix must beat this to count as movement rather than GPS jitter. */
 const MIN_BEARING_MOVE_M = 8;
 /** How far along the route to look when deciding which way is "ahead". */
@@ -110,22 +129,51 @@ function describeStep(step: {
   }
 }
 
+const svgUrl = (svg: string) => `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+
 /**
- * Drop-off pin. Teardrop, tip on the exact point.
- *
- * It used to be `#d32f2f` — the last red left on a driver's map. Red is the
- * SOS colour and nothing else, so the destination is now the brand lockup
- * itself: navy pin, neon rim.
+ * Destination: a navy pin with a white rim, a neon disc and a small flag —
+ * "this is where it ends" — standing on a soft shadow so it reads as placed
+ * on the map, not printed on it. Tip on the exact point. No red: red is SOS.
  */
-function dropoffIcon(): google.maps.Symbol {
+const DESTINATION_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="62" viewBox="0 0 48 62">
+  <ellipse cx="24" cy="58" rx="9" ry="3.2" fill="#000738" opacity="0.22"/>
+  <path d="M24 3C13.5 3 5 11.3 5 21.6 5 34.8 24 55 24 55S43 34.8 43 21.6C43 11.3 34.5 3 24 3Z"
+        fill="#000738" stroke="#ffffff" stroke-width="3"/>
+  <circle cx="24" cy="21.5" r="10.5" fill="#00ff39"/>
+  <path d="M20.5 15.5v12.5" stroke="#000738" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M21 15.8h8.6l-2.2 3.2 2.2 3.2H21Z" fill="#000738"/>
+</svg>`;
+
+function destinationIcon(): google.maps.Icon {
   return {
-    path: 'M 0,-10 C 5.5,-10 10,-5.5 10,0 C 10,7 0,16 0,16 C 0,16 -10,7 -10,0 C -10,-5.5 -5.5,-10 0,-10 Z',
-    fillColor: '#000738',
-    fillOpacity: 1,
-    strokeColor: '#00ff39',
-    strokeWeight: 2.5,
-    scale: 1.4,
-    anchor: new google.maps.Point(0, 16),
+    url: svgUrl(DESTINATION_SVG),
+    scaledSize: new google.maps.Size(48, 62),
+    anchor: new google.maps.Point(24, 55),
+  };
+}
+
+/**
+ * Him: a navy disc with a neon arrow, like every navigation app's puck. The
+ * arrow points the way he should GO — along the route — not a car icon that
+ * only says where he is. `rotation` is relative to the screen, so the caller
+ * subtracts the map's own heading.
+ */
+function navPuckIcon(rotation: number): google.maps.Icon {
+  const svg = `
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <circle cx="32" cy="32" r="30" fill="#00ff39" opacity="0.16"/>
+  <circle cx="32" cy="32" r="19" fill="#ffffff"/>
+  <circle cx="32" cy="32" r="16" fill="#000738"/>
+  <path d="M32 21 L40.5 41 L32 36.2 L23.5 41 Z" fill="#00ff39"
+        stroke="#00ff39" stroke-width="1.5" stroke-linejoin="round"
+        transform="rotate(${Math.round(rotation)} 32 32)"/>
+</svg>`;
+  return {
+    url: svgUrl(svg),
+    scaledSize: new google.maps.Size(64, 64),
+    anchor: new google.maps.Point(32, 32),
   };
 }
 
@@ -138,8 +186,10 @@ function dropoffIcon(): google.maps.Symbol {
  * draws the driver map, the fleet map and the history replay, so this removes
  * the second map vendor rather than buying a key for it.
  *
- * The driver's own marker is the SAME car icon the manager sees on the fleet
- * map, rotated to heading. One symbol for one thing across the whole product.
+ * Two modes. Before Start it is a flat, north-up overview centred on HIM —
+ * the screen answers "where am I and which way do I go", not "where is the
+ * destination". Start is guidance: the map leans into 3D, zooms in behind
+ * him, turns so the road ahead points up, and follows him until End.
  *
  * Routing still comes from OSRM, which is OpenStreetMap data and free. Only the
  * tiles changed.
@@ -156,6 +206,15 @@ export default function TaskNavigationMap({
   /** Previous fix, used to derive heading when the device will not give one. */
   const lastFixRef = useRef<LatLng | null>(null);
   const mapBoxRef = useRef<HTMLDivElement | null>(null);
+  /** The heading the camera was last turned to, to ignore wobble. */
+  const cameraHeadingRef = useRef<number | null>(null);
+  // THE TWITCH. `center` used to be an inline object literal — a NEW object
+  // on every render — and the map library re-applies `center` whenever its
+  // identity changes. Every GPS fix and every rotation is a render, so the
+  // camera was yanked to the destination on each one and then dragged back
+  // to him by the follow code: back and forth, all the time. The starting
+  // point is now fixed for the life of the screen.
+  const initialCenter = useRef<LatLng>({ lat: dropoffLat, lng: dropoffLng }).current;
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
@@ -169,21 +228,17 @@ export default function TaskNavigationMap({
   // this screen at a glance while moving; it has to look the same every time.
   const mapId = navMapId();
 
-  // 3D is the default because that is what a driver is used to from every
-  // other navigation app, and because a leaning map tells him which way he
-  // is pointing without him reading anything. 2D stays one tap away: it is
-  // the better view for understanding a junction before you reach it.
-  // Remembered, because this is a preference, not a per-trip decision.
-  const [view, setView] = useState<'2d' | '3d'>(() => {
-    try {
-      return localStorage.getItem(MAP_VIEW_KEY) === '2d' ? '2d' : '3d';
-    } catch {
-      return '3d';
-    }
-  });
-  // Guidance: the camera rides with him instead of sitting where it was left.
+  // The map's own rotation, so the puck's arrow can be drawn relative to it.
+  const [mapHeading, setMapHeading] = useState(0);
+  // Bumped each time a map instance loads. The first fix usually lands
+  // BEFORE the map exists, and a parked driver gets no new fix — so without
+  // this the framing ran once with no map and never again, leaving the
+  // screen on the destination.
+  const [mapGen, setMapGen] = useState(0);
+  // Guidance: 3D, close, and the camera rides with him. `following` drops
+  // when he drags the map to look around; recentre picks it back up.
+  const [guiding, setGuiding] = useState(false);
   const [following, setFollowing] = useState(false);
-  const [hasStarted, setHasStarted] = useState(false);
   const [routePath, setRoutePath] = useState<LatLng[]>([]);
   const [routeInfo, setRouteInfo] = useState<{ distance: string; duration: string } | null>(null);
   const [nextStep, setNextStep] = useState<{ instruction: string; distance: string } | null>(null);
@@ -275,33 +330,24 @@ export default function TaskNavigationMap({
       });
   }, [currentPosition, dropoffLat, dropoffLng, routePath.length]);
 
-  // Fit the whole route into view once we know both ends
+  // First fix: frame him. Both ends only when the destination is close
+  // enough that the result is still a street map; otherwise him alone —
+  // a 500 km fit is a view of the region and tells him nothing.
   useEffect(() => {
-    if (hasFitBounds.current || !mapRef.current || !currentPosition || !isLoaded) return;
+    if (hasFitBounds.current || mapGen === 0 || !mapRef.current || !currentPosition) return;
+    const map = mapRef.current;
     const bounds = new google.maps.LatLngBounds();
     bounds.extend(currentPosition);
     bounds.extend({ lat: dropoffLat, lng: dropoffLng });
-    const map = mapRef.current;
-    map.fitBounds(bounds, 56);
-
-    // Framing BOTH ends is only useful while both ends fit on a phone. A
-    // driver who has not started yet — or whose last fix is stale, or who
-    // has been given a stop in another state — gets a fit so wide the map
-    // is a view of the ocean, and the destination is a dot. Below this
-    // zoom, show him the place he is going instead.
-    //
-    // It also keeps the tilt alive: Google clamps maximum tilt by zoom, so
-    // a world-level fit flattens the map no matter what we ask for.
+    map.fitBounds(bounds, 72);
     google.maps.event.addListenerOnce(map, 'idle', () => {
-      if ((map.getZoom() ?? MIN_USEFUL_ZOOM) < MIN_USEFUL_ZOOM) {
-        map.setCenter({ lat: dropoffLat, lng: dropoffLng });
-        map.setZoom(FAR_AWAY_ZOOM);
+      if ((map.getZoom() ?? 0) < MIN_USEFUL_ZOOM) {
+        map.setCenter(currentPosition);
+        map.setZoom(OVERVIEW_ZOOM);
       }
-      if (mapId) map.setTilt(NAV_TILT);
     });
-
     hasFitBounds.current = true;
-  }, [currentPosition, dropoffLat, dropoffLng, isLoaded, mapId]);
+  }, [currentPosition, dropoffLat, dropoffLng, mapGen]);
 
   /**
    * Which way the road ahead runs.
@@ -355,29 +401,32 @@ export default function TaskNavigationMap({
     const map = mapRef.current;
     if (!map || !currentPosition) return;
 
-    if ((map.getZoom() ?? 0) < FOLLOW_ZOOM - 1) map.setZoom(FOLLOW_ZOOM);
-
-    // Rotate FIRST, then position. panBy works in screen pixels, so the
-    // offset below only means "forward" once the map is already turned.
-    // Tilt comes from the options prop; heading cannot, because it changes
-    // on every fix and re-applying the whole options object that often
-    // fights the pan.
     // The route wins. The compass is the fallback, not the source.
-    if (mapId) {
-      const up = routeHeading() ?? heading ?? 0;
-      map.setHeading(view === '3d' ? up : 0);
-    }
+    const target = routeHeading() ?? heading ?? cameraHeadingRef.current ?? 0;
+    const last = cameraHeadingRef.current;
+    const delta = last == null ? 360 : Math.abs(((target - last + 540) % 360) - 180);
+    const up = delta < MIN_HEADING_CHANGE && last != null ? last : target;
+    cameraHeadingRef.current = up;
 
-    map.panTo(currentPosition);
-
-    // Then shove the camera forward so he sits low on the screen with the
-    // road ahead above him. Centring him — which is what this did before —
-    // spends the top half of the display on road he has already driven, and
-    // is the reason it read as a map of where he is rather than a view from
-    // where he is.
+    // ONE camera move, not panTo + panBy. Two moves per fix fought each
+    // other — that was the up-and-down shudder. Instead the centre is put
+    // ahead of him along the road, so he sits low on the screen with the
+    // way forward above him, in a single step.
+    // The zoom this move will END at — the offset is measured at that scale,
+    // not at whatever the overview was showing when Start was pressed.
+    const current = map.getZoom() ?? 0;
+    const zoom = current < FOLLOW_ZOOM - 1 ? FOLLOW_ZOOM : current;
     const h = mapBoxRef.current?.clientHeight ?? 0;
-    if (h > 0) map.panBy(0, -(h * (DRIVER_SCREEN_ANCHOR - 0.5)));
-  }, [currentPosition, heading, mapId, view, routeHeading]);
+    const metersPerPx =
+      (156543.03392 * Math.cos((currentPosition.lat * Math.PI) / 180)) / Math.pow(2, zoom);
+    const aheadM = h * (DRIVER_SCREEN_ANCHOR - 0.5) * metersPerPx;
+
+    map.moveCamera({
+      center: mapId ? offsetAlong(currentPosition, up, aheadM) : currentPosition,
+      zoom,
+      ...(mapId ? { heading: up, tilt: NAV_TILT } : {}),
+    });
+  }, [currentPosition, heading, mapId, routeHeading]);
 
   // Follow. Re-runs on every new fix, which is what makes the map MOVE —
   // until now the camera was placed once and then abandoned, so the driver
@@ -387,26 +436,71 @@ export default function TaskNavigationMap({
     applyCamera();
   }, [following, applyCamera]);
 
-  // Switching 2D/3D re-aims the camera even when he is not navigating, so
-  // the toggle does something visible the moment it is pressed.
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapId) return;
-    // Tilt itself comes from the options prop; this only has to undo a
-    // rotation, which options does not carry.
-    if (view === '2d') map.setHeading(0);
-    try {
-      localStorage.setItem(MAP_VIEW_KEY, view);
-    } catch {
-      /* private mode — the preference just will not persist */
-    }
-  }, [view, mapId]);
+  // Built once per mode. An inline object here is re-sent to the map on
+  // every render — every GPS fix — for no reason.
+  //
+  // A Map ID switches Google to the vector renderer, which is the only one
+  // that honours tilt — that is the 3D view. The same switch moves styling to
+  // Cloud Console, so `styles` must NOT be sent alongside it.
+  const mapOptions = useMemo<google.maps.MapOptions>(
+    () => ({
+      disableDefaultUI: true,
+      gestureHandling: 'greedy',
+      clickableIcons: false,
+      ...(mapId
+        ? {
+            mapId,
+            tilt: guiding ? NAV_TILT : 0,
+            tiltInteractionEnabled: true,
+            headingInteractionEnabled: true,
+          }
+        : { styles: getNavMapStyle(false) }),
+    }),
+    [mapId, guiding]
+  );
 
   const startGuidance = useCallback(() => {
-    setHasStarted(true);
+    setGuiding(true);
     setFollowing(true);
     applyCamera();
   }, [applyCamera]);
+
+  /** Back to the flat overview, centred on him. */
+  const endGuidance = useCallback(() => {
+    setGuiding(false);
+    setFollowing(false);
+    const map = mapRef.current;
+    if (!map) return;
+    cameraHeadingRef.current = null;
+    map.moveCamera({
+      ...(currentPosition ? { center: currentPosition, zoom: OVERVIEW_ZOOM } : {}),
+      ...(mapId ? { tilt: 0, heading: 0 } : {}),
+    });
+  }, [currentPosition, mapId]);
+
+  /** Recentre: in guidance, resume following; in overview, just find him. */
+  const recentre = useCallback(() => {
+    if (guiding) {
+      setFollowing(true);
+      applyCamera();
+      return;
+    }
+    if (mapRef.current && currentPosition) {
+      mapRef.current.panTo(currentPosition);
+      if ((mapRef.current.getZoom() ?? 0) < OVERVIEW_ZOOM - 2) mapRef.current.setZoom(OVERVIEW_ZOOM);
+    }
+  }, [guiding, applyCamera, currentPosition]);
+
+  // The arrow points along the route — the way to go — falling back to the
+  // device heading, then to the destination itself. Drawn relative to the
+  // map's rotation, and rounded so a jittery compass does not rebuild the
+  // icon on every frame.
+  const puckRotation = useMemo(() => {
+    if (!currentPosition) return 0;
+    const bearing =
+      routeHeading() ?? heading ?? bearingBetween(currentPosition, { lat: dropoffLat, lng: dropoffLng });
+    return Math.round((bearing - mapHeading) / 3) * 3;
+  }, [currentPosition, routeHeading, heading, mapHeading, dropoffLat, dropoffLng]);
 
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col">
@@ -477,11 +571,18 @@ export default function TaskNavigationMap({
             // theme has to build a new one, so the id is the React key.
             key={mapId ?? 'raster'}
             mapContainerStyle={{ width: '100%', height: '100%' }}
-            center={{ lat: dropoffLat, lng: dropoffLng }}
+            center={initialCenter}
             zoom={15}
             onDragStart={() => setFollowing(false)}
+            onHeadingChanged={() => setMapHeading(mapRef.current?.getHeading() ?? 0)}
             onLoad={(map) => {
+              // The map can be created more than once on the same element
+              // (React mounts it twice in development, and any remount does
+              // it in production). The framing has to be done on the map
+              // that is actually on screen, so each new instance gets it.
+              if (mapRef.current !== map) hasFitBounds.current = false;
               mapRef.current = map;
+              setMapGen((g) => g + 1);
               // Same pattern as __trackingService: a handle for debugging a
               // map on a real device, where the camera state is the only way
               // to tell a Cloud Console problem from a code problem.
@@ -489,12 +590,9 @@ export default function TaskNavigationMap({
                 (window as unknown as Record<string, unknown>).__navMap = map;
               }
               if (!mapId) return;
-              // Ask for tilt again after the map exists. The init option is
-              // applied before fitBounds runs, and this also gives us a
-              // straight answer about the Cloud Console side: if the Map ID
-              // was created Raster, renderingType comes back RASTER; if Tilt
-              // was left unticked, tilt comes back 0 however often we ask.
-              map.setTilt(NAV_TILT);
+              // A straight answer about the Cloud Console side: if the Map ID
+              // was created Raster, renderingType comes back RASTER and the
+              // 3D lean in guidance cannot happen.
               console.log(
                 '[TaskNavigationMap] renderingType=%s tilt=%s mapId=%s',
                 map.getRenderingType?.(),
@@ -502,29 +600,7 @@ export default function TaskNavigationMap({
                 mapId
               );
             }}
-            options={{
-              disableDefaultUI: true,
-              gestureHandling: 'greedy',
-              clickableIcons: false,
-              // A Map ID switches Google to the vector renderer, which is the
-              // only one that honours tilt — that is the "3D-like" view. The
-              // same switch moves styling to Cloud Console, so `styles` must
-              // NOT be sent alongside it or the two conflict.
-              // THE BUG THIS FIXES: tilt was hardcoded to NAV_TILT here while
-              // the 2D/3D toggle set it imperatively with map.setTilt(). The
-              // library re-applies this options object on every render, and
-              // pressing the toggle IS a render — so setTilt(0) was undone
-              // microseconds later and 2D did nothing at all. The view state
-              // owns tilt now, in one place.
-              ...(mapId
-                ? {
-                    mapId,
-                    tilt: view === '3d' ? NAV_TILT : 0,
-                    tiltInteractionEnabled: true,
-                    headingInteractionEnabled: true,
-                  }
-                : { styles: getNavMapStyle(false) }),
-            }}
+            options={mapOptions}
           >
             {/* Casing under the route so it stays readable over any road
                 colour, the same treatment the history replay uses. */}
@@ -555,23 +631,21 @@ export default function TaskNavigationMap({
               </>
             )}
 
-            <Marker position={{ lat: dropoffLat, lng: dropoffLng }} zIndex={5} icon={dropoffIcon()} />
+            <Marker
+              position={{ lat: dropoffLat, lng: dropoffLng }}
+              zIndex={5}
+              clickable={false}
+              icon={destinationIcon()}
+            />
 
-            {currentPosition && (() => {
-              const icon = driverMarkerIcon('#00ff39', 'moving', true, heading);
-              return (
-                <Marker
-                  position={currentPosition}
-                  zIndex={10}
-                  clickable={false}
-                  icon={{
-                    url: icon.url,
-                    scaledSize: new google.maps.Size(icon.size, icon.size),
-                    anchor: new google.maps.Point(icon.anchor, icon.anchor),
-                  }}
-                />
-              );
-            })()}
+            {currentPosition && (
+              <Marker
+                position={currentPosition}
+                zIndex={10}
+                clickable={false}
+                icon={navPuckIcon(puckRotation)}
+              />
+            )}
           </GoogleMap>
         )}
 
@@ -585,65 +659,48 @@ export default function TaskNavigationMap({
             "Open in Google Maps" slab that used to live down here is gone:
             handing the driver to another app loses the job, the station and
             the receipt step the moment he arrives there. */}
-        <div className="absolute bottom-24 right-4 z-[1000] flex flex-col items-end gap-2">
-          {mapId && (
-            <div className="flex overflow-hidden rounded-full border border-border bg-card shadow-lg">
-              {(['2d', '3d'] as const).map((v) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setView(v)}
-                  aria-pressed={view === v}
-                  className={cn(
-                    'min-h-[40px] px-3.5 font-mono text-xs font-bold tracking-wider transition-colors',
-                    view === v
-                      ? 'bg-brand-ink text-signal'
-                      : 'text-muted-foreground active:bg-muted'
-                  )}
-                >
-                  {v.toUpperCase()}
-                </button>
-              ))}
-            </div>
+        {!currentPosition && !error && (
+          <div className="absolute inset-x-0 top-4 z-[1000] flex justify-center">
+            <span className="rounded-full bg-brand-ink px-3.5 py-1.5 text-xs font-semibold text-brand-ink-foreground shadow-lg">
+              Finding you…
+            </span>
+          </div>
+        )}
+
+        {/* One camera control. It lights up when the map is not on him —
+            the moment he needs it. */}
+        <button
+          type="button"
+          onClick={recentre}
+          aria-label="Centre on me"
+          className={cn(
+            'absolute bottom-24 right-4 z-[1000] flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-colors',
+            guiding && !following ? 'bg-signal text-signal-foreground' : 'bg-brand-ink text-signal'
           )}
+        >
+          <LocateFixed className="h-5 w-5" />
+        </button>
 
-          <button
-            type="button"
-            onClick={applyCamera}
-            aria-label="Centre on me"
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-ink text-signal shadow-lg"
-          >
-            <LocateFixed className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* THE one control. Before it existed the camera was positioned once
-            and then left: the driver drove off his own screen, and dragging
-            the map stranded it somewhere he was not. */}
+        {/* Start = guidance: 3D, close behind him, road ahead up, following
+            until End. End = back to the flat overview. */}
         <div
           className="pointer-events-none absolute inset-x-0 bottom-0 z-[1000] px-4 pt-10"
           style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
         >
           <button
             type="button"
-            onClick={() => (following ? setFollowing(false) : startGuidance())}
+            onClick={guiding ? endGuidance : startGuidance}
+            disabled={!currentPosition}
             className={cn(
               'pointer-events-auto flex min-h-[54px] w-full items-center justify-center gap-2.5',
-              'rounded-2xl font-heading text-base font-bold tracking-tight shadow-xl transition-colors',
-              following
-                ? 'border border-border bg-card text-foreground'
-                : 'bg-signal text-signal-foreground'
+              'rounded-2xl font-heading text-base font-bold tracking-tight shadow-xl transition-colors disabled:opacity-60',
+              guiding ? 'bg-brand-ink text-brand-ink-foreground' : 'bg-signal text-signal-foreground'
             )}
           >
-            {following ? (
+            {guiding ? (
               <>
                 <Square className="h-4 w-4" />
-                Stop
-              </>
-            ) : hasStarted ? (
-              <>
-                <Crosshair className="h-[18px] w-[18px]" />
-                Re-centre
+                End
               </>
             ) : (
               <>
