@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { GoogleMap, Marker, Polyline, useJsApiLoader } from '@react-google-maps/api';
+import { Circle, GoogleMap, Marker, Polyline, useJsApiLoader } from '@react-google-maps/api';
 import {
   X,
   LocateFixed,
@@ -16,6 +16,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getNavMapStyle } from '@/lib/mapStyles';
+import { stationMarkerIcon } from '@/lib/stationMarker';
+import { STATE_COLOR } from '@/hooks/useStationProgress';
+import type { StationKind } from '@/integrations/supabase/stations';
 import {
   GOOGLE_MAPS_API_KEY,
   GOOGLE_MAPS_LIBRARIES,
@@ -100,6 +103,12 @@ type TaskNavigationMapProps = {
   dropoffLng: number;
   taskTitle: string;
   onClose: () => void;
+  /**
+   * Going to a STATION: draw its own badge instead of the generic flag pin,
+   * and its arrival zone — the ring the visit is counted inside — so the
+   * driver can see where "arrived" begins.
+   */
+  station?: { kind: StationKind; radiusM: number };
 };
 
 function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -265,7 +274,9 @@ export default function TaskNavigationMap({
   dropoffLng,
   taskTitle,
   onClose,
+  station,
 }: TaskNavigationMapProps) {
+  const arriveWithinM = station?.radiusM ?? 50;
   const mapRef = useRef<google.maps.Map | null>(null);
   const hasFitBounds = useRef(false);
   const lastRouteCalc = useRef(0);
@@ -343,9 +354,9 @@ export default function TaskNavigationMap({
         setCurrentPosition(pos);
         setError(null);
 
-        // Check arrival (within 50m)
+        // Arrived: inside the station's own zone, or 50 m of a drop-off.
         const dist = calculateDistance(pos.lat, pos.lng, dropoffLat, dropoffLng);
-        setIsArrived(dist < 0.05);
+        setIsArrived(dist < arriveWithinM / 1000);
       },
       (err) => {
         console.error('Location error:', err);
@@ -355,7 +366,7 @@ export default function TaskNavigationMap({
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [dropoffLat, dropoffLng]);
+  }, [dropoffLat, dropoffLng, arriveWithinM]);
 
   // Routing. OSRM first (free); Google Directions if OSRM is slow or down —
   // the route on screen once came up empty because the shared OSRM server
@@ -704,12 +715,49 @@ export default function TaskNavigationMap({
               />
             )}
 
-            <Marker
-              position={{ lat: dropoffLat, lng: dropoffLng }}
-              zIndex={5}
-              clickable={false}
-              icon={destinationIcon()}
-            />
+            {station ? (
+              <>
+                <Circle
+                  center={{ lat: dropoffLat, lng: dropoffLng }}
+                  radius={station.radiusM}
+                  options={{
+                    strokeColor: isArrived ? STATE_COLOR.done : STATE_COLOR.pending,
+                    strokeOpacity: 0.8,
+                    strokeWeight: 2,
+                    fillColor: isArrived ? STATE_COLOR.done : STATE_COLOR.pending,
+                    fillOpacity: 0.1,
+                    clickable: false,
+                    zIndex: 1,
+                  }}
+                />
+                {(() => {
+                  const icon = stationMarkerIcon(
+                    station.kind,
+                    isArrived ? STATE_COLOR.arrived : STATE_COLOR.pending,
+                    'full'
+                  );
+                  return (
+                    <Marker
+                      position={{ lat: dropoffLat, lng: dropoffLng }}
+                      zIndex={5}
+                      clickable={false}
+                      icon={{
+                        url: icon.url,
+                        scaledSize: new google.maps.Size(icon.width * 1.25, icon.height * 1.25),
+                        anchor: new google.maps.Point(icon.anchorX * 1.25, icon.anchorY * 1.25),
+                      }}
+                    />
+                  );
+                })()}
+              </>
+            ) : (
+              <Marker
+                position={{ lat: dropoffLat, lng: dropoffLng }}
+                zIndex={5}
+                clickable={false}
+                icon={destinationIcon()}
+              />
+            )}
 
             {currentPosition && (
               <Marker

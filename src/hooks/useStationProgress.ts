@@ -18,10 +18,14 @@ export type StationWithState = Station & {
   assignedTo: string[];
 };
 
+/**
+ * What a station's badge colour means, on every map: the brand's own three.
+ * Navy = not visited yet, amber = arrived but no receipt, neon = receipt in.
+ */
 export const STATE_COLOR: Record<StationState, string> = {
-  done: '#0b8f4f',
-  arrived: '#c47d0a',
-  pending: '#6b7280',
+  done: '#00ff39',
+  arrived: '#ffbf0b',
+  pending: '#000738',
 };
 
 export const STATE_LABEL: Record<StationState, string> = {

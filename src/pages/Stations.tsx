@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { stationMarkerIcon } from '@/lib/stationMarker';
+import { STATE_COLOR } from '@/hooks/useStationProgress';
 import { GoogleMap, Circle, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { AlertTriangle, Camera, CameraOff, CheckCircle2, Loader2, MapPin, Pencil, Plus, Trash2 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -283,33 +285,36 @@ export default function Stations() {
                       center={{ lat: s.latitude, lng: s.longitude }}
                       radius={s.radius_m}
                       options={{
-                        strokeColor: s.color,
+                        strokeColor: STATE_COLOR.pending,
                         strokeOpacity: selectedId === s.id ? 0.9 : 0.45,
                         strokeWeight: selectedId === s.id ? 2 : 1.5,
-                        fillColor: s.color,
+                        fillColor: STATE_COLOR.pending,
                         fillOpacity: selectedId === s.id ? 0.18 : 0.08,
                         clickable: false,
                       }}
                     />
-                    <Marker
-                      position={{ lat: s.latitude, lng: s.longitude }}
-                      onClick={() => setSelectedId(s.id)}
-                      icon={{
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: selectedId === s.id ? 9 : 7,
-                        fillColor: s.color,
-                        fillOpacity: 1,
-                        strokeColor: '#ffffff',
-                        strokeWeight: 2,
-                        labelOrigin: new google.maps.Point(0, 3.4),
-                      }}
-                      label={{
-                        text: s.name.length > 18 ? `${s.name.slice(0, 17)}…` : s.name,
-                        color: isDark ? '#dbe2ea' : '#1f2937',
-                        fontSize: '11px',
-                        fontWeight: '600',
-                      }}
-                    />
+                    {(() => {
+                      const icon = stationMarkerIcon(s.kind, STATE_COLOR.pending, 'full');
+                      return (
+                        <Marker
+                          position={{ lat: s.latitude, lng: s.longitude }}
+                          onClick={() => setSelectedId(s.id)}
+                          zIndex={2}
+                          icon={{
+                            url: icon.url,
+                            scaledSize: new google.maps.Size(icon.width, icon.height),
+                            anchor: new google.maps.Point(icon.anchorX, icon.anchorY),
+                            labelOrigin: new google.maps.Point(icon.width / 2, icon.labelY),
+                          }}
+                          label={{
+                            text: s.name.length > 18 ? `${s.name.slice(0, 17)}…` : s.name,
+                            color: isDark ? '#dbe2ea' : '#1f2937',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                          }}
+                        />
+                      );
+                    })()}
                   </div>
                 ))}
               </GoogleMap>

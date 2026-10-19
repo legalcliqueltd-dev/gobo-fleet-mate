@@ -53,26 +53,27 @@ export function tierForZoom(zoom: number): MarkerTier {
   return 'full';
 }
 
-/** Pin heights per tier. Width follows the 24x32 aspect of the pin shape. */
-const PIN_HEIGHT: Record<MarkerTier, number> = { dot: 14, small: 34, full: 46 };
-
-/**
- * The classic map-pin silhouette: round head, tapering to a point.
- * Drawn in a 24x32 space with the tip at (12, 32) so it can be anchored
- * exactly on the coordinate it marks.
- */
-const PIN_PATH =
-  'M12 0C5.373 0 0 5.373 0 12c0 8.5 10.4 18.6 11.4 19.6a.85.85 0 0 0 1.2 0C13.6 30.6 24 20.5 24 12 24 5.373 18.627 0 12 0z';
+/** Badge sizes per tier (the square; the pointer adds a little below). */
+const BADGE: Record<MarkerTier, number> = { dot: 12, small: 24, full: 32 };
 
 function svgToDataUri(svg: string): string {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+}
+
+/** Navy glyph on light fills (neon, amber), white on dark ones (navy). */
+function glyphColorFor(fill: string): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(fill);
+  if (!m) return '#ffffff';
+  const n = parseInt(m[1], 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? '#000738' : '#ffffff';
 }
 
 export type StationIcon = {
   url: string;
   width: number;
   height: number;
-  /** Where the marker touches the map — the pin's tip, not its middle. */
+  /** Where the marker touches the map — the pointer's tip, not its middle. */
   anchorX: number;
   anchorY: number;
   /** Where a text label should sit, just under the tip. */
@@ -80,12 +81,18 @@ export type StationIcon = {
 };
 
 /**
- * A station marker shaped like a real map pin, with its type glyph in white
- * inside the head — the same visual grammar Google uses for a church, a school
- * or a petrol station, so it reads as "a place" instead of "a dot".
+ * A station is a rounded-square BADGE with a short pointer — not a teardrop.
  *
- * `dimmed` fades a station whose work is done, so attention falls on what is
- * still outstanding.
+ * The teardrop was the same shape as the navigation destination pin, and
+ * dots are drivers, so a station never read as "a station". Now each thing
+ * on a map has one shape: dots are people, the teardrop is where you are
+ * going, badges are places on the round — the grammar Google uses for its
+ * own place icons. The glyph says what kind of place; the fill says where it
+ * stands today (pass a STATE_COLOR), with the glyph flipping navy or white
+ * to stay readable on it.
+ *
+ * `dimmed` quietens a station whose work is done, so attention falls on what
+ * is still outstanding.
  */
 export function stationMarkerIcon(
   kind: StationKind,
@@ -93,17 +100,15 @@ export function stationMarkerIcon(
   tier: MarkerTier,
   dimmed = false
 ): StationIcon {
-  // Every pin goes through the clamp, so a station saved before the rebrand
-  // cannot put a red marker back on the map.
   const color = brandSafeStationColor(rawColor);
-  const opacity = dimmed ? 0.5 : 1;
+  const glyphColor = glyphColorFor(color);
+  const opacity = dimmed ? 0.8 : 1;
 
   if (tier === 'dot') {
-    const size = PIN_HEIGHT.dot;
+    const size = BADGE.dot + 4;
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-      <circle cx="${size / 2}" cy="${size / 2}" r="${size / 2 - 2.5}" fill="${color}" fill-opacity="${opacity}" stroke="#ffffff" stroke-width="2"/>
+      <rect x="2" y="2" width="${BADGE.dot}" height="${BADGE.dot}" rx="3.5" fill="${color}" fill-opacity="${opacity}" stroke="#ffffff" stroke-width="2"/>
     </svg>`;
-    // A dot marks its own centre.
     return {
       url: svgToDataUri(svg),
       width: size,
@@ -114,23 +119,28 @@ export function stationMarkerIcon(
     };
   }
 
-  const height = PIN_HEIGHT[tier];
-  const width = Math.round((height * 24) / 32);
-  // Glyph sits in the round head, centred at (12, 12) of the 24x32 space.
-  const glyphSize = 13;
-  const glyphScale = glyphSize / 24;
-  const glyphOffset = 12 - glyphSize / 2;
+  const side = BADGE[tier];
+  const pad = 3; // room for the white ring and the shadow
+  const pointer = Math.round(side * 0.22);
+  const width = side + pad * 2;
+  const height = side + pad * 2 + pointer;
+  const cx = width / 2;
+  const glyph = Math.round(side * 0.56);
+  const scale = glyph / 24;
+  const radius = Math.round(side * 0.3);
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 24 32">
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
     <defs>
-      <filter id="p" x="-40%" y="-30%" width="180%" height="170%">
-        <feDropShadow dx="0" dy="1" stdDeviation="1.1" flood-color="#000" flood-opacity="0.45"/>
+      <filter id="s" x="-30%" y="-30%" width="160%" height="160%">
+        <feDropShadow dx="0" dy="1" stdDeviation="1.2" flood-color="#000" flood-opacity="0.35"/>
       </filter>
     </defs>
-    <g opacity="${opacity}" filter="url(#p)">
-      <path d="${PIN_PATH}" fill="${color}" stroke="#ffffff" stroke-width="1.6"/>
-      <g transform="translate(${glyphOffset} ${glyphOffset}) scale(${glyphScale})">
-        <path d="${GLYPHS[kind] ?? GLYPHS.checkpoint}" fill="#ffffff"/>
+    <g opacity="${opacity}" filter="url(#s)">
+      <path d="M${cx - pointer * 0.8} ${pad + side - 1} L${cx} ${pad + side + pointer} L${cx + pointer * 0.8} ${pad + side - 1} Z" fill="${color}" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+      <rect x="${pad}" y="${pad}" width="${side}" height="${side}" rx="${radius}" fill="${color}" stroke="#ffffff" stroke-width="2"/>
+      <rect x="${cx - pointer * 0.7}" y="${pad + side - 3}" width="${pointer * 1.4}" height="3" fill="${color}"/>
+      <g transform="translate(${cx - glyph / 2} ${pad + (side - glyph) / 2}) scale(${scale})">
+        <path d="${GLYPHS[kind] ?? GLYPHS.checkpoint}" fill="${glyphColor}"/>
       </g>
     </g>
   </svg>`;
@@ -139,10 +149,9 @@ export function stationMarkerIcon(
     url: svgToDataUri(svg),
     width,
     height,
-    // The tip touches the exact coordinate.
-    anchorX: width / 2,
+    anchorX: cx,
     anchorY: height,
-    labelY: height + 9,
+    labelY: height + 8,
   };
 }
 
@@ -173,6 +182,8 @@ export function brandSafeStationColor(hex: string | null | undefined): string {
   if (!hex) return STATION_COLORS[0];
   const want = hex.trim().toLowerCase();
   if ((STATION_COLORS as string[]).includes(want)) return want;
+  // The visit-state colours (neon done, amber arrived) are brand colours too.
+  if (want === '#00ff39' || want === '#ffbf0b') return want;
 
   const rgb = (h: string) => {
     const m = /^#?([0-9a-f]{6})$/i.exec(h);

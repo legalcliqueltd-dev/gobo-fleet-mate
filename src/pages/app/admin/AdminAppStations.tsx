@@ -13,7 +13,8 @@ import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConf
 import { getNavMapStyle } from '@/lib/mapStyles';
 import { fetchStations, kindMeta, type Station } from '@/integrations/supabase/stations';
 import { useStationMapPreference } from '@/hooks/useStationMapPreference';
-import { useStationProgress } from '@/hooks/useStationProgress';
+import { useStationProgress, STATE_COLOR } from '@/hooks/useStationProgress';
+import { stationMarkerIcon } from '@/lib/stationMarker';
 import { cn } from '@/lib/utils';
 
 const FALLBACK_CENTER = { lat: 6.5244, lng: 3.3792 };
@@ -159,26 +160,36 @@ export default function AdminAppStations() {
                       center={{ lat: s.latitude, lng: s.longitude }}
                       radius={s.radius_m}
                       options={{
-                        strokeColor: s.color,
-                        strokeOpacity: 0.7,
+                        strokeColor: STATE_COLOR.pending,
+                        strokeOpacity: 0.5,
                         strokeWeight: 1.5,
-                        fillColor: s.color,
-                        fillOpacity: 0.12,
+                        fillColor: STATE_COLOR.pending,
+                        fillOpacity: 0.08,
                         clickable: false,
                       }}
                     />
-                    <Marker
-                      position={{ lat: s.latitude, lng: s.longitude }}
-                      onClick={() => navigate(`/app/admin/stations/${s.id}`)}
-                      icon={{
-                        path: google.maps.SymbolPath.CIRCLE,
-                        scale: 7,
-                        fillColor: s.color,
-                        fillOpacity: 1,
-                        strokeColor: '#ffffff',
-                        strokeWeight: 2,
-                      }}
-                    />
+                    {(() => {
+                      const icon = stationMarkerIcon(s.kind, STATE_COLOR.pending, 'full');
+                      return (
+                        <Marker
+                          position={{ lat: s.latitude, lng: s.longitude }}
+                          onClick={() => navigate(`/app/admin/stations/${s.id}`)}
+                          zIndex={2}
+                          icon={{
+                            url: icon.url,
+                            scaledSize: new google.maps.Size(icon.width, icon.height),
+                            anchor: new google.maps.Point(icon.anchorX, icon.anchorY),
+                            labelOrigin: new google.maps.Point(icon.width / 2, icon.labelY),
+                          }}
+                          label={{
+                            text: s.name.length > 18 ? `${s.name.slice(0, 17)}…` : s.name,
+                            color: isDark ? '#dbe2ea' : '#1f2937',
+                            fontSize: '11px',
+                            fontWeight: '600',
+                          }}
+                        />
+                      );
+                    })()}
                   </div>
                 ))}
               </GoogleMap>

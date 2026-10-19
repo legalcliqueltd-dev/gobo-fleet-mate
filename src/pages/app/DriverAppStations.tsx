@@ -82,6 +82,7 @@ export default function DriverAppStations() {
         dropoffLat={navigatingTo.latitude}
         dropoffLng={navigatingTo.longitude}
         taskTitle={navigatingTo.name}
+        station={{ kind: navigatingTo.kind, radiusM: navigatingTo.radius_m }}
         onClose={() => setNavigatingTo(null)}
       />
     );

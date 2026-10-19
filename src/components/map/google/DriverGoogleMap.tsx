@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { Circle, GoogleMap, Marker, Polyline, useJsApiLoader } from '@react-google-maps/api';
 import { stationMarkerIcon } from '@/lib/stationMarker';
+import { STATE_COLOR } from '@/hooks/useStationProgress';
 import { driverMarkerIcon } from '@/lib/driverMarker';
 import type { StationKind } from '@/integrations/supabase/stations';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
@@ -226,10 +227,10 @@ const DriverGoogleMap = forwardRef<DriverGoogleMapHandle, DriverGoogleMapProps>(
               center={{ lat: s.lat, lng: s.lng }}
               radius={s.radius}
               options={{
-                strokeColor: s.color,
-                strokeOpacity: 0.7,
+                strokeColor: STATE_COLOR.pending,
+                strokeOpacity: 0.6,
                 strokeWeight: 1.5,
-                fillColor: s.color,
+                fillColor: STATE_COLOR.pending,
                 fillOpacity: 0.12,
                 clickable: false,
                 zIndex: 1,
@@ -240,7 +241,14 @@ const DriverGoogleMap = forwardRef<DriverGoogleMapHandle, DriverGoogleMapProps>(
             // A completed station has nothing left to tell the driver, so it
             // shrinks to a dot and drops its name. Outstanding ones keep the
             // full pin and label.
-            const icon = stationMarkerIcon(s.kind, s.color, s.done ? 'dot' : 'full', s.done);
+            // Navy until visited, neon once the receipt is in — the same colours
+            // the manager's maps use. A done station shrinks but keeps its badge.
+            const icon = stationMarkerIcon(
+              s.kind,
+              s.done ? STATE_COLOR.done : STATE_COLOR.pending,
+              s.done ? 'small' : 'full',
+              s.done
+            );
             return (
               <Marker
                 position={{ lat: s.lat, lng: s.lng }}
