@@ -89,7 +89,7 @@ export default function AdminAppLayout({ children }: PropsWithChildren) {
   const SUB_ROUTES: { match: string; parent: string; title: string }[] = [
     { match: '/app/admin/alerts', parent: '/app/admin/alerts', title: 'Alerts' },
     { match: '/app/admin/drivers/new', parent: '/app/admin/fleet', title: 'Add driver' },
-    { match: '/app/admin/codes', parent: '/app/admin/fleet', title: 'Drivers & codes' },
+    { match: '/app/admin/codes', parent: '/app/admin/fleet', title: 'Drivers & access' },
     { match: '/app/admin/history', parent: '/app/admin/insights', title: 'History' },
     { match: '/app/admin/expenses', parent: '/app/admin/insights', title: 'Expenses' },
     { match: '/app/admin/reports', parent: '/app/admin/insights', title: 'Checks & problems' },
@@ -103,6 +103,10 @@ export default function AdminAppLayout({ children }: PropsWithChildren) {
   const activeTabPath = subRoute?.parent ?? location.pathname;
   const activeTab = TABS.find((tab) => activeTabPath.startsWith(tab.path));
   const title = subRoute?.title ?? activeTab?.title ?? 'Fleet';
+  // These screens open with their own curved slab that names them, so the
+  // bar just says whose app this is — the way the driver's says "Driver".
+  const SLAB_SCREENS = ['/app/admin/tasks', '/app/admin/stations', '/app/admin/codes'];
+  const hasSlab = SLAB_SCREENS.includes(location.pathname.replace(/\/$/, ''));
 
   return (
     // Centred column. The app is a phone UI and the binary must keep declaring
@@ -112,19 +116,23 @@ export default function AdminAppLayout({ children }: PropsWithChildren) {
     <div className="flex h-screen justify-center overflow-hidden bg-muted/40">
       <div className="flex h-full w-full max-w-2xl flex-col overflow-hidden bg-background">
       <header
-        className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur"
+        className={cn('sticky top-0 z-30 bg-background/95 backdrop-blur', !hasSlab && 'border-b border-border')}
         style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
       >
         <div className="flex items-center gap-2.5 px-4 py-2.5">
           <img src={logo} alt="" className="h-8 w-8 rounded-lg" />
-          <div className="min-w-0 flex-1">
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-              Manager
-            </p>
-            <h1 className="truncate font-heading text-lg font-semibold leading-tight tracking-tight">
-              {title}
-            </h1>
-          </div>
+          {hasSlab ? (
+            <p className="min-w-0 flex-1 font-heading text-lg font-semibold tracking-tight">Manager</p>
+          ) : (
+            <div className="min-w-0 flex-1">
+              <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                Manager
+              </p>
+              <h1 className="truncate font-heading text-lg font-semibold leading-tight tracking-tight">
+                {title}
+              </h1>
+            </div>
+          )}
 
           {/* Alerts live here now. A bell is understood without a label, and it
               only demands attention when it has something to say. */}
@@ -143,7 +151,9 @@ export default function AdminAppLayout({ children }: PropsWithChildren) {
         </div>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+      {/* `isolate` keeps the map's own z-indices (its controls sit at 1000)
+          inside main, so the More sheet and tutorial always land on top. */}
+      <main className="isolate min-h-0 flex-1 overflow-y-auto">{children}</main>
 
       <nav
         className="sticky bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur"
@@ -216,7 +226,7 @@ export default function AdminAppLayout({ children }: PropsWithChildren) {
               </button>
             </div>
 
-            <div className="max-h-[66vh] overflow-y-auto px-3 pb-3">
+            <div className="max-h-[70vh] overflow-y-auto px-3 pb-3">
               {MORE.map(({ path, icon: Icon, label, note }) => (
                 <Link
                   key={path}

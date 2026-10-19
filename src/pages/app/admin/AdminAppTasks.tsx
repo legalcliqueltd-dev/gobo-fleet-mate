@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Clock, Loader2, MapPin, Package, Plus, Trash2, User } from 'lucide-react';
+import { Loader2, Package, Plus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdminCodes } from '@/hooks/useAdminCodes';
 import { Button } from '@/components/ui/button';
+import ScreenHeader from '@/components/ScreenHeader';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import JobDetailSheet, { type JobForDetail } from '@/components/admin/JobDetailSheet';
 import { getDriverAccent } from '@/lib/driverAccent';
@@ -32,15 +33,6 @@ const BUCKETS: { id: Bucket; label: string }[] = [
   { id: 'finished', label: 'Finished' },
 ];
 
-
-/** Where a job sits on the Assigned -> On the road -> Delivered path. */
-const PROGRESS_STEPS = ['Assigned', 'On the road', 'Delivered'] as const;
-
-function progressIndex(status: string): number {
-  if (status === 'completed') return 2;
-  if (status === 'in_progress' || status === 'accepted' || status === 'started') return 1;
-  return 0;
-}
 
 /** The DB carries several fine-grained statuses; managers think in three. */
 function bucketOf(status: string): Bucket {
@@ -137,39 +129,43 @@ export default function AdminAppTasks() {
     }
   };
 
+  const openCount = grouped.waiting.length + grouped.active.length;
+
   return (
     <div className="flex h-full flex-col">
-      {/* Bucket filter */}
-      <div className="flex gap-2 border-b border-border px-4 py-3">
-        {BUCKETS.map((b) => {
-          const isActive = bucket === b.id;
-          return (
-            <button
-              key={b.id}
-              type="button"
-              onClick={() => setBucket(b.id)}
-              className={cn(
-                'flex min-h-[38px] flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-colors',
-                isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:text-foreground'
-              )}
-            >
-              {b.label}
-              <span
-                className={cn(
-                  'telemetry rounded-full px-1.5 text-[10px]',
-                  isActive ? 'bg-primary-foreground/20' : 'bg-background/70'
-                )}
-              >
-                {grouped[b.id].length}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      <div className="flex-1 overflow-y-auto pb-4">
+        <ScreenHeader
+          eyebrow="Your fleet"
+          title="Jobs"
+          count={loading ? null : openCount}
+          countLabel="open"
+          done={grouped.finished.length}
+          total={tasks.length}
+        >
+          {/* The three buckets live in the slab: they are how you read it. */}
+          <div className="flex gap-1.5">
+            {BUCKETS.map((b) => {
+              const isActive = bucket === b.id;
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => setBucket(b.id)}
+                  className={cn(
+                    'flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-full px-2 text-xs font-semibold transition-colors',
+                    isActive
+                      ? 'bg-signal text-signal-foreground'
+                      : 'bg-brand-ink-foreground/10 text-brand-ink-foreground/75'
+                  )}
+                >
+                  {b.label}
+                  <span className="telemetry opacity-70">{grouped[b.id].length}</span>
+                </button>
+              );
+            })}
+          </div>
+        </ScreenHeader>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4">
         {loading && (
           <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -178,34 +174,31 @@ export default function AdminAppTasks() {
         )}
 
         {!loading && visible.length === 0 && (
-          <div className="flex flex-col items-center gap-2 px-6 py-14 text-center">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-              <Package className="h-6 w-6 text-muted-foreground" />
-            </span>
-            <p className="font-heading text-base font-semibold text-foreground">
-              Nothing {bucket === 'finished' ? 'finished' : bucket === 'active' ? 'on the road' : 'waiting'}
-            </p>
-            <p className="max-w-[16rem] text-sm text-muted-foreground">
-              {bucket === 'waiting'
-                ? 'Create jobs on the website and they will appear here as soon as they are assigned.'
-                : 'Jobs will show up here as your drivers work through them.'}
-            </p>
-          </div>
+          <p className="px-8 py-14 text-center text-sm text-muted-foreground">
+            Nothing {bucket === 'finished' ? 'finished' : bucket === 'active' ? 'on the road' : 'waiting'}.
+          </p>
         )}
 
-        <ul className="space-y-2.5">
+        {/* Same row as the More sheet: tile, title, one line. The tile's dot
+            is the job's state, so nothing else on the row needs a colour. */}
+        <ul className="mt-3 px-3">
           {visible.map((task) => {
             const driver = task.assigned_driver_id ? driverNames[task.assigned_driver_id] : null;
             const accent = task.assigned_driver_id
               ? getDriverAccent(task.assigned_driver_id)
               : '#6b7280';
             const failed = task.status === 'failed';
+            const state = bucketOf(task.status);
+            const note = [
+              failed ? 'Failed' : null,
+              driver ?? 'Unassigned',
+              task.due_at ? `due ${formatDistanceToNow(new Date(task.due_at), { addSuffix: true })}` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ');
 
             return (
               <li key={task.id}>
-                {/* One tap opens the JOB. It used to open the driver, which
-                    left the delivery photos — the whole point of collecting
-                    them — with nowhere to be seen. */}
                 <button
                   type="button"
                   onClick={() =>
@@ -222,77 +215,54 @@ export default function AdminAppTasks() {
                       accent,
                     })
                   }
-                  className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-3 py-3 text-left transition-colors active:bg-muted"
-                  style={{ boxShadow: 'var(--shadow-card)' }}
+                  className="flex min-h-[56px] w-full items-center gap-3.5 rounded-xl px-2.5 py-2 text-left transition-colors active:bg-muted"
                 >
-                  {/* The driver's colour, matching their map marker */}
-                  <span
-                    className="h-9 w-1 shrink-0 rounded-full"
-                    style={{ backgroundColor: accent }}
-                  />
-
+                  <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent">
+                    <Package className="h-[18px] w-[18px] text-accent-foreground" />
+                    <span
+                      className={cn(
+                        'absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-background',
+                        failed
+                          ? 'bg-sos'
+                          : state === 'active'
+                            ? 'bg-success'
+                            : state === 'finished'
+                              ? 'bg-muted-foreground'
+                              : 'bg-warning'
+                      )}
+                      aria-hidden="true"
+                    />
+                  </span>
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                        {task.title}
-                      </span>
-                      {failed && (
-                        <span className="shrink-0 rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold text-destructive">
-                          Failed
-                        </span>
-                      )}
-                    </span>
-
-                    <span className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="truncate">{driver ?? 'Unassigned'}</span>
-                      {task.due_at && (
-                        <span className="shrink-0">
-                          · {formatDistanceToNow(new Date(task.due_at), { addSuffix: true })}
-                        </span>
-                      )}
-                    </span>
-
-                    {/* Progress as a single slim bar rather than a block of
-                        chrome on every row. */}
-                    <span className="mt-2 flex gap-1">
-                      {PROGRESS_STEPS.map((step, index) => {
-                        const reached = index <= progressIndex(task.status);
-                        return (
-                          <span
-                            key={step}
-                            className={cn(
-                              'h-1 flex-1 rounded-full',
-                              failed && index === progressIndex(task.status)
-                                ? 'bg-destructive'
-                                : reached
-                                  ? 'bg-primary'
-                                  : 'bg-muted'
-                            )}
-                          />
-                        );
-                      })}
+                    <span className="block truncate text-sm font-semibold">{task.title}</span>
+                    <span className={cn('block truncate text-xs', failed ? 'text-sos' : 'text-muted-foreground')}>
+                      {note}
                     </span>
                   </span>
-
-                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                 </button>
               </li>
             );
           })}
         </ul>
+
+        {/* Housekeeping sits at the end of the list it tidies, not in the
+            footer competing with the one action that matters. */}
+        {bucket === 'finished' && clearableIds.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setClearOpen(true)}
+            className="mx-auto mt-2 flex min-h-[44px] items-center px-4 text-xs font-medium text-muted-foreground"
+          >
+            Clear {clearableIds.length} completed
+          </button>
+        )}
       </div>
 
       <div
-        className="flex gap-2 border-t border-border bg-background px-4 py-3"
+        className="border-t border-border bg-background px-4 py-3"
         style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom, 0px))' }}
       >
-        {bucket === 'finished' && clearableIds.length > 0 && (
-          <Button variant="outline" className="h-11 flex-1 gap-2" onClick={() => setClearOpen(true)}>
-            <Trash2 className="h-4 w-4" />
-            Clear {clearableIds.length}
-          </Button>
-        )}
-        <Button className="h-11 flex-1 gap-2" onClick={() => navigate('/app/admin/jobs/new')}>
+        <Button className="h-12 w-full gap-2" onClick={() => navigate('/app/admin/jobs/new')}>
           <Plus className="h-4 w-4" />
           Assign job
         </Button>

@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GoogleMap, Circle, Marker, useJsApiLoader } from '@react-google-maps/api';
-import { ChevronRight, Layers, Loader2, MapPin, Plus, Repeat } from 'lucide-react';
+import { ChevronDown, ChevronUp, Layers, Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAdminCodes } from '@/hooks/useAdminCodes';
 import { Button } from '@/components/ui/button';
+import ScreenHeader from '@/components/ScreenHeader';
 import StationEditorSheet from '@/components/admin/StationEditorSheet';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
 import { getNavMapStyle } from '@/lib/mapStyles';
 import { fetchStations, kindMeta, type Station } from '@/integrations/supabase/stations';
 import { useStationMapPreference } from '@/hooks/useStationMapPreference';
+import { useStationProgress } from '@/hooks/useStationProgress';
 import { cn } from '@/lib/utils';
 
 const FALLBACK_CENTER = { lat: 6.5244, lng: 3.3792 };
@@ -56,6 +58,11 @@ export default function AdminAppStations() {
   const [editing, setEditing] = useState<Partial<Station> | null>(null);
   const [mapType, setMapType] = useState<'hybrid' | 'roadmap'>('hybrid');
   const { enabled: showOnFleetMap, toggle: setShowOnFleetMap } = useStationMapPreference();
+  // Today's round across the whole fleet — the number this screen answers.
+  const { summary: round } = useStationProgress(null);
+  // Folded away until wanted: the map is for placing stations, which is a
+  // setup job, not something you do every time you open the tab.
+  const [mapOpen, setMapOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (codes.length === 0) {
@@ -104,106 +111,100 @@ export default function AdminAppStations() {
     ? { lat: stations[0].latitude, lng: stations[0].longitude }
     : FALLBACK_CENTER;
 
+  const left = Math.max(round.total - round.done, 0);
+
   return (
     <div className="flex h-full flex-col">
-      {/* Placement map */}
-      <div className="relative h-72 shrink-0 border-b border-border">
-        {isLoaded ? (
-          <GoogleMap
-            mapContainerStyle={{ width: '100%', height: '100%' }}
-            center={mapCenter}
-            zoom={stations.length ? 13 : 11}
-            options={{
-              disableDefaultUI: true,
-              gestureHandling: 'greedy',
-              clickableIcons: false,
-              mapTypeId: mapType,
-              styles: mapType === 'roadmap' ? getNavMapStyle(isDark) : undefined,
-            }}
-            onClick={(e) => {
-              if (e.latLng) startNewAt(e.latLng.lat(), e.latLng.lng());
-            }}
+      <div className="flex-1 overflow-y-auto pb-4">
+        <ScreenHeader
+          eyebrow="Today's round"
+          title="Stations"
+          count={loading || round.total === 0 ? null : left}
+          countLabel="left today"
+          done={round.done}
+          total={round.total}
+        >
+          <button
+            type="button"
+            onClick={() => setMapOpen((open) => !open)}
+            aria-expanded={mapOpen}
+            className="flex min-h-[36px] items-center gap-1.5 rounded-full bg-brand-ink-foreground/10 px-3.5 text-xs font-semibold text-brand-ink-foreground/80"
           >
-            {stations.map((s) => (
-              <div key={s.id}>
-                <Circle
-                  center={{ lat: s.latitude, lng: s.longitude }}
-                  radius={s.radius_m}
-                  options={{
-                    strokeColor: s.color,
-                    strokeOpacity: 0.7,
-                    strokeWeight: 1.5,
-                    fillColor: s.color,
-                    fillOpacity: 0.12,
-                    clickable: false,
-                  }}
-                />
-                <Marker
-                  position={{ lat: s.latitude, lng: s.longitude }}
-                  onClick={() => navigate(`/app/admin/stations/${s.id}`)}
-                  icon={{
-                    path: google.maps.SymbolPath.CIRCLE,
-                    scale: 7,
-                    fillColor: s.color,
-                    fillOpacity: 1,
-                    strokeColor: '#ffffff',
-                    strokeWeight: 2,
-                  }}
-                />
+            {mapOpen ? 'Hide map' : 'Show map'}
+            {mapOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+        </ScreenHeader>
+
+        {mapOpen && (
+          <div className="relative mx-3 mt-3 h-64 overflow-hidden rounded-2xl border border-border">
+            {isLoaded ? (
+              <GoogleMap
+                mapContainerStyle={{ width: '100%', height: '100%' }}
+                center={mapCenter}
+                zoom={stations.length ? 13 : 11}
+                options={{
+                  disableDefaultUI: true,
+                  gestureHandling: 'greedy',
+                  clickableIcons: false,
+                  mapTypeId: mapType,
+                  styles: mapType === 'roadmap' ? getNavMapStyle(isDark) : undefined,
+                }}
+                onClick={(e) => {
+                  if (e.latLng) startNewAt(e.latLng.lat(), e.latLng.lng());
+                }}
+              >
+                {stations.map((s) => (
+                  <div key={s.id}>
+                    <Circle
+                      center={{ lat: s.latitude, lng: s.longitude }}
+                      radius={s.radius_m}
+                      options={{
+                        strokeColor: s.color,
+                        strokeOpacity: 0.7,
+                        strokeWeight: 1.5,
+                        fillColor: s.color,
+                        fillOpacity: 0.12,
+                        clickable: false,
+                      }}
+                    />
+                    <Marker
+                      position={{ lat: s.latitude, lng: s.longitude }}
+                      onClick={() => navigate(`/app/admin/stations/${s.id}`)}
+                      icon={{
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 7,
+                        fillColor: s.color,
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 2,
+                      }}
+                    />
+                  </div>
+                ))}
+              </GoogleMap>
+            ) : (
+              <div className="flex h-full items-center justify-center bg-muted">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
               </div>
-            ))}
-          </GoogleMap>
-        ) : (
-          <div className="flex h-full items-center justify-center bg-muted">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            )}
+
+            <button
+              type="button"
+              onClick={() => setMapType((t) => (t === 'hybrid' ? 'roadmap' : 'hybrid'))}
+              className="absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/95 shadow-lg backdrop-blur"
+              aria-label={mapType === 'hybrid' ? 'Switch to map view' : 'Switch to satellite view'}
+            >
+              <Layers className="h-4 w-4" />
+            </button>
+
+            <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
+              <span className="rounded-full bg-background/90 px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur">
+                Tap the map to add a station
+              </span>
+            </div>
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={() => setMapType((t) => (t === 'hybrid' ? 'roadmap' : 'hybrid'))}
-          className="absolute right-3 top-3 flex min-h-[40px] items-center gap-1.5 rounded-lg border border-border bg-background/95 px-2.5 text-xs font-semibold shadow-lg backdrop-blur"
-        >
-          <Layers className="h-4 w-4" />
-          {mapType === 'hybrid' ? 'Map' : 'Satellite'}
-        </button>
-
-        <div className="pointer-events-none absolute inset-x-0 bottom-2 flex justify-center">
-          <span className="rounded-full bg-background/90 px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur">
-            Tap the map to add a station
-          </span>
-        </div>
-      </div>
-
-      {/* Whether these appear on the live fleet map */}
-      <button
-        type="button"
-        onClick={() => setShowOnFleetMap(!showOnFleetMap)}
-        className="flex items-center gap-3 border-b border-border px-4 py-3 text-left"
-      >
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-medium">Show on the fleet map</span>
-          <span className="mt-0.5 block text-xs text-muted-foreground">
-            Draw these stations alongside your vehicles
-          </span>
-        </span>
-        <span
-          className={cn(
-            'relative h-6 w-11 shrink-0 rounded-full transition-colors',
-            showOnFleetMap ? 'bg-primary' : 'bg-input'
-          )}
-        >
-          <span
-            className={cn(
-              'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
-              showOnFleetMap ? 'translate-x-[1.375rem]' : 'translate-x-0.5'
-            )}
-          />
-        </span>
-      </button>
-
-      {/* List */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
         {loading && (
           <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -212,55 +213,69 @@ export default function AdminAppStations() {
         )}
 
         {!loading && stations.length === 0 && (
-          <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-              <MapPin className="h-6 w-6 text-muted-foreground" />
-            </span>
-            <p className="font-heading text-base font-semibold">No stations yet</p>
-            <p className="max-w-[17rem] text-sm text-muted-foreground">
-              Mark the places a driver must pass through — a dump site, a depot, a school gate.
-              They'll appear on the driver's map, and every visit is recorded.
-            </p>
-          </div>
+          <p className="px-8 py-12 text-center text-sm text-muted-foreground">
+            No stations yet. Add the places a driver must visit — a depot, a dump site, a gate.
+          </p>
         )}
 
-        <ul className="space-y-2.5">
+        {/* Same row as the More sheet: tile, name, one line. */}
+        <ul className="mt-3 px-3">
           {stations.map((s) => {
             const meta = kindMeta(s.kind);
+            const note = [
+              !s.active ? 'Paused' : null,
+              recurrenceLabel(s),
+              `${s.radius_m} m`,
+              s.requires_photo ? 'receipt' : null,
+            ]
+              .filter(Boolean)
+              .join(' · ');
             return (
               <li key={s.id}>
                 <button
                   type="button"
                   onClick={() => navigate(`/app/admin/stations/${s.id}`)}
-                  className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-3 py-3 text-left transition-colors hover:bg-muted"
-                  style={{ boxShadow: 'var(--shadow-card)' }}
+                  className={cn(
+                    'flex min-h-[56px] w-full items-center gap-3.5 rounded-xl px-2.5 py-2 text-left transition-colors active:bg-muted',
+                    !s.active && 'opacity-60'
+                  )}
                 >
-                  <span
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-lg"
-                    style={{ backgroundColor: `${s.color}1f` }}
-                  >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-lg">
                     {meta.emoji}
                   </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-foreground">{s.name}</p>
-                    <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Repeat className="h-3 w-3" />
-                      {recurrenceLabel(s)}
-                      <span className="telemetry">· {s.radius_m} m</span>
-                      {s.requires_photo && <span>· receipt</span>}
-                    </p>
-                  </div>
-                  {!s.active && (
-                    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                      Paused
-                    </span>
-                  )}
-                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold">{s.name}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{note}</span>
+                  </span>
                 </button>
               </li>
             );
           })}
         </ul>
+
+        {/* A preference, so it sits quietly under the list it applies to. */}
+        {stations.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowOnFleetMap(!showOnFleetMap)}
+            className="mx-3 mt-3 flex min-h-[48px] w-[calc(100%-1.5rem)] items-center gap-3 rounded-xl px-2.5 text-left"
+          >
+            <span className="min-w-0 flex-1 text-sm text-muted-foreground">Show on the fleet map</span>
+            <span
+              className={cn(
+                'relative h-6 w-11 shrink-0 rounded-full transition-colors',
+                showOnFleetMap ? 'bg-primary' : 'bg-input'
+              )}
+            >
+              <span
+                className={cn(
+                  'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform',
+                  showOnFleetMap ? 'translate-x-[1.375rem]' : 'translate-x-0.5'
+                )}
+              />
+            </span>
+          </button>
+        )}
       </div>
 
       <div

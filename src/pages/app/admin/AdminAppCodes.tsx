@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft,
+  ChevronDown,
   Copy,
   Eye,
   EyeOff,
@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import ScreenHeader from '@/components/ScreenHeader';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { cn } from '@/lib/utils';
 
@@ -69,6 +70,9 @@ export default function AdminAppCodes() {
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
   const [pending, setPending] = useState<PendingAction>(null);
+  // One row open at a time. Codes and actions are a tap away, not on screen
+  // for every driver at once.
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -229,27 +233,32 @@ export default function AdminAppCodes() {
     const isRevealed = revealed.has(row.device.id);
     const busy = busyId === row.device.id;
 
+    const isOpen = openId === row.device.id;
+
     return (
-      <li
-        key={row.device.id}
-        className="rounded-2xl border border-border bg-card p-4"
-        style={{ boxShadow: 'var(--shadow-card)' }}
-      >
-        <div className="flex items-start gap-3">
-          <span
-            className={cn(
-              'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-              claimed ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground'
-            )}
-          >
-            <KeyRound className="h-5 w-5" />
+      <li key={row.device.id} className={cn('rounded-xl transition-colors', isOpen && 'bg-muted/60')}>
+        <button
+          type="button"
+          onClick={() => setOpenId(isOpen ? null : row.device.id)}
+          aria-expanded={isOpen}
+          className="flex min-h-[56px] w-full items-center gap-3.5 rounded-xl px-2.5 py-2 text-left"
+        >
+          <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent">
+            <KeyRound className="h-[18px] w-[18px] text-accent-foreground" />
+            <span
+              className={cn(
+                'absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-background',
+                claimed ? 'bg-success' : wasRevoked ? 'bg-muted-foreground' : 'bg-warning'
+              )}
+              aria-hidden="true"
+            />
           </span>
 
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold">
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold">
               {row.device.name || 'Unnamed vehicle'}
-            </p>
-            <p className="text-xs text-muted-foreground">
+            </span>
+            <span className="block truncate text-xs text-muted-foreground">
               {claimed
                 ? `${row.driver?.driver_name?.trim() || 'Driver'} · ${
                     row.driver?.last_seen_at
@@ -259,17 +268,24 @@ export default function AdminAppCodes() {
                 : wasRevoked
                   ? 'Access revoked — records kept'
                   : 'Waiting for a driver to join'}
-            </p>
-          </div>
-        </div>
+            </span>
+          </span>
+
+          <ChevronDown
+            className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', isOpen && 'rotate-180')}
+          />
+        </button>
+
+        {isOpen && (
+        <div className="px-2.5 pb-3">
 
         {/* The code. Loud when nobody has used it, hidden once claimed —
             an active code on screen is a credential lying in the open. */}
         {code && (
           <div
             className={cn(
-              'mt-3 flex items-center gap-2 rounded-xl px-3 py-2.5',
-              claimed ? 'bg-muted' : 'border-2 border-primary/30 bg-accent'
+              'flex items-center gap-2 rounded-xl px-3 py-2.5',
+              claimed ? 'bg-background' : 'border-2 border-primary/30 bg-accent'
             )}
           >
             <span
@@ -353,27 +369,23 @@ export default function AdminAppCodes() {
             </Button>
           )}
         </div>
+        </div>
+        )}
       </li>
     );
   };
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-border px-4 py-3">
-        <button
-          type="button"
-          onClick={() => navigate('/app/admin/fleet')}
-          className="mb-1 inline-flex min-h-[44px] items-center gap-1.5 text-sm text-muted-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Fleet
-        </button>
-        <p className="text-xs text-muted-foreground">
-          Revoking locks a driver out but keeps everything they recorded.
-        </p>
-      </div>
+      <div className="flex-1 overflow-y-auto pb-4">
+        <ScreenHeader
+          eyebrow="Drivers & access"
+          title="Drivers"
+          count={loading ? null : active.length}
+          countLabel="connected"
+        />
 
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="px-3 pt-4">
         {loading && (
           <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -395,17 +407,18 @@ export default function AdminAppCodes() {
 
         {unclaimed.length > 0 && (
           <section className="mb-6">
-            <p className="eyebrow mb-3">Ready to hand out</p>
-            <ul className="space-y-2.5">{unclaimed.map(renderRow)}</ul>
+            <p className="eyebrow mb-2 px-2.5">Ready to hand out</p>
+            <ul className="space-y-1">{unclaimed.map(renderRow)}</ul>
           </section>
         )}
 
         {active.length > 0 && (
           <section>
-            <p className="eyebrow mb-3">In use</p>
-            <ul className="space-y-2.5">{active.map(renderRow)}</ul>
+            <p className="eyebrow mb-2 px-2.5">In use</p>
+            <ul className="space-y-1">{active.map(renderRow)}</ul>
           </section>
         )}
+        </div>
       </div>
 
       <div

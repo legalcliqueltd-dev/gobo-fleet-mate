@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Camera, Check, Loader2, MapPin, Navigation } from 'lucide-react';
 import { useDriverSession } from '@/contexts/DriverSessionContext';
 import TaskNavigationMap from '@/components/map/TaskNavigationMap';
-import DriverScreenHeader from '@/components/driver/DriverScreenHeader';
+import ScreenHeader from '@/components/ScreenHeader';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
 import {
   fetchStationAssignments,
@@ -93,7 +93,7 @@ export default function DriverAppStations() {
     // Stations could only leave it with the system back gesture.
     <DriverAppLayout>
       <div className="pb-6">
-        <DriverScreenHeader
+        <ScreenHeader
         eyebrow="Due today"
         title="Stations"
         count={loading ? null : outstanding}

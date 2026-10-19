@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Fragment } from 'react';
 import { Circle, GoogleMap, Marker, useJsApiLoader } from '@react-google-maps/api';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, ChevronDown, ChevronRight, ChevronUp, KeyRound, Layers, LocateFixed, Plus, X } from 'lucide-react';
+import { AlertTriangle, Car, ChevronDown, ChevronRight, ChevronUp, LocateFixed, Plus } from 'lucide-react';
 import VehicleFocusCard from '@/components/admin/VehicleFocusCard';
 import { Button } from '@/components/ui/button';
 import { GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_LIBRARIES } from '@/lib/googleMapsConfig';
@@ -15,6 +15,7 @@ import { driverMarkerIcon } from '@/lib/driverMarker';
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { stationMarkerIcon, tierForZoom, type MarkerTier } from '@/lib/stationMarker';
 import { getDriverAccent } from '@/lib/driverAccent';
+import { distanceMeters } from '@/integrations/supabase/stations';
 import {
   formatLastSeen,
   getOfflineReason,
@@ -27,6 +28,12 @@ import {
 import { cn } from '@/lib/utils';
 
 const DEFAULT_CENTER = { lat: 6.5244, lng: 3.3792 }; // Lagos
+/**
+ * A parked phone's position wanders 20–100 m indoors. The marker holds where
+ * it is until the driver has really left — beyond this, or moving — instead
+ * of jittering around the map. Every fix is still recorded; this is drawing.
+ */
+const HOLD_RADIUS_M = 40;
 
 /** Marker fills mirror the status chips so map and list never disagree. */
 const STATUS_MARKER_COLOR: Record<VehicleStatus, string> = {
@@ -51,7 +58,6 @@ export default function AdminAppFleet() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Marker detail follows the zoom so pins never tile over the road network.
   const [tier, setTier] = useState<MarkerTier>('small');
-  const [showRoundChip, setShowRoundChip] = useState(true);
   const { drivers, loading } = useDriverLocations();
   const navigate = useNavigate();
   // Selecting a vehicle scopes the round to that driver, so the map answers
@@ -70,16 +76,16 @@ export default function AdminAppFleet() {
   });
   const hasAutoFitted = useRef(false);
 
-  const [mapType, setMapType] = useState<'roadmap' | 'satellite'>('roadmap');
-  // Closed on arrival. The map is the reason this screen exists; opening a
-  // list over it on every visit means the manager's first action is always to
-  // dismiss something. The handle below advertises itself instead.
-  // Three steps, not two. 'half' is the default open size and the one most
-  // managers live in; 'tall' exists because a fleet of ten does not fit in a
-  // 176px window and scrolling a small box to find a driver is miserable.
-  // Shut is still where it starts: the map is the reason for this screen.
-  const [sheetStep, setSheetStep] = useState<'shut' | 'half' | 'tall'>('shut');
+  // Closed on arrival — the map is the reason this screen exists. The list
+  // opens at half height and only offers 'full' when it actually has more
+  // drivers than half can show; a short fleet never jumps up over nothing.
+  const [sheetStep, setSheetStep] = useState<'shut' | 'half' | 'full'>('shut');
+  const [canGrow, setCanGrow] = useState(false);
+  const listRef = useRef<HTMLDivElement | null>(null);
   const sheetOpen = sheetStep !== 'shut';
+
+  // Where each marker is currently drawn, for the hold above.
+  const shownAt = useRef(new Map<string, { lat: number; lng: number }>());
 
   const vehicles = useMemo(
     () =>
@@ -88,11 +94,16 @@ export default function AdminAppFleet() {
         .map((d) => {
           const lastSeen = d.updated_at ?? d.last_seen_at;
           const speedKmh = d.speed ?? 0;
+          const fresh = { lat: d.latitude, lng: d.longitude };
+          const held = shownAt.current.get(d.driver_id);
+          const pos =
+            held && speedKmh < 5 && distanceMeters(held, fresh) < HOLD_RADIUS_M ? held : fresh;
+          shownAt.current.set(d.driver_id, pos);
           return {
             id: d.driver_id,
             name: d.driver_name?.trim() || 'Unnamed driver',
-            lat: d.latitude,
-            lng: d.longitude,
+            lat: pos.lat,
+            lng: pos.lng,
             speedKmh,
             accuracyM: d.accuracy,
             lastSeen,
@@ -154,6 +165,21 @@ export default function AdminAppFleet() {
     mapRef.current?.setZoom(16);
   };
 
+  // Measured at half height only: that is the one step where the answer
+  // decides what the arrow does next.
+  useLayoutEffect(() => {
+    if (sheetStep !== 'half' || !listRef.current) return;
+    const el = listRef.current;
+    setCanGrow(el.scrollHeight > el.clientHeight + 1);
+  }, [sheetStep, vehicles.length, loading]);
+
+  // shut → half → full (only if there is more to show) → shut.
+  const stepSheet = () =>
+    setSheetStep((step) =>
+      step === 'shut' ? 'half' : step === 'half' && canGrow ? 'full' : 'shut'
+    );
+  const arrowUp = sheetStep === 'shut' || (sheetStep === 'half' && canGrow);
+
   const zoomToSelected = () => {
     if (!selected || !mapRef.current) return;
     mapRef.current.panTo({ lat: selected.lat, lng: selected.lng });
@@ -195,8 +221,7 @@ export default function AdminAppFleet() {
             disableDefaultUI: true,
             gestureHandling: 'greedy',
             clickableIcons: false,
-            mapTypeId: mapType === 'satellite' ? 'hybrid' : 'roadmap',
-            styles: mapType === 'satellite' ? undefined : getNavMapStyle(isDark),
+            styles: getNavMapStyle(isDark),
           }}
         >
           {/* Stations sit under the vehicles: they are the context a
@@ -302,7 +327,6 @@ export default function AdminAppFleet() {
         <button
           type="button"
           onClick={() => {
-            setSheetStep('half');
             flyTo(troubled[0].lat, troubled[0].lng, troubled[0].id);
           }}
           className="absolute left-3 right-3 top-[4.6rem] z-[1000] flex items-center gap-2.5 rounded-xl border border-warning/40 bg-warning/15 px-3 py-2 text-left backdrop-blur"
@@ -323,98 +347,18 @@ export default function AdminAppFleet() {
         </button>
       )}
 
-      {/* The status-summary chips that used to sit here are gone. They
-          occupied the top of a screen whose entire purpose is the map, to
-          repeat three numbers the sheet handle below already states. */}
-
-      {/* Station progress. The bare "2/10" read as a mystery number, so it now
-          says what it counts, and can be dismissed for managers who do not run
-          stations at all. */}
-      {stationSummary.total > 0 && showRoundChip && (
-        <div
-          className={cn(
-            'absolute left-3 z-[1000] flex items-center gap-3 rounded-xl border border-border bg-background/95 px-3 py-2 backdrop-blur transition-all',
-            selected
-            ? 'bottom-[16.5rem]'
-            : sheetStep === 'tall'
-              ? 'bottom-[66vh]'
-              : sheetStep === 'half'
-                ? 'bottom-[13.5rem]'
-                : 'bottom-20'
-          )}
-          style={{ boxShadow: 'var(--shadow-card)' }}
-        >
-          <div className="min-w-0">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Stations visited today
-            </p>
-            <p className="telemetry text-sm font-bold leading-tight">
-              {stationSummary.done}
-              <span className="font-normal text-muted-foreground"> of {stationSummary.total}</span>
-              {selectedId && (
-                <span className="ml-1.5 text-[11px] font-medium text-primary">this driver</span>
-              )}
-            </p>
-          </div>
-
-          <div className="h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-success transition-all"
-              style={{
-                width: `${stationSummary.total ? (stationSummary.done / stationSummary.total) * 100 : 0}%`,
-              }}
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowRoundChip(false)}
-            className="-mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground"
-            aria-label="Hide station progress"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-
-      {/* Map controls — only the two that act on the map itself.
-          Refresh went because the data already refreshes itself (realtime
-          subscription plus a 15 s poll), so the button could only ever
-          duplicate what had already happened. Add-driver and Codes went
-          because they are setup actions, not map actions; they now sit at the
-          foot of the vehicle list, which is where you already are when you
-          think about who drives for you. */}
-      <div
-        className={cn(
-          'absolute right-3 z-[1000] flex flex-col gap-2 transition-all',
-          selected
-            ? 'bottom-[16.5rem]'
-            : sheetStep === 'tall'
-              ? 'bottom-[66vh]'
-              : sheetStep === 'half'
-                ? 'bottom-[13.5rem]'
-                : 'bottom-20'
-        )}
+      {/* One map control. Station progress moved into the sheet handle and
+          the satellite toggle went (Stations keeps one); top-right means it
+          never has to dodge the sheet or the focus card. */}
+      <Button
+        variant="secondary"
+        size="icon"
+        className="absolute right-3 top-3 z-[1000] h-11 w-11 rounded-full border border-border shadow-lg"
+        onClick={fitAll}
+        aria-label="Show all vehicles"
       >
-        <Button
-          variant="secondary"
-          size="icon"
-          className="h-11 w-11 rounded-full border border-border shadow-lg"
-          onClick={() => setMapType((t) => (t === 'roadmap' ? 'satellite' : 'roadmap'))}
-          aria-label={mapType === 'roadmap' ? 'Switch to satellite view' : 'Switch to map view'}
-        >
-          <Layers className="h-5 w-5" />
-        </Button>
-        <Button
-          variant="secondary"
-          size="icon"
-          className="h-11 w-11 rounded-full border border-border shadow-lg"
-          onClick={fitAll}
-          aria-label="Show all vehicles"
-        >
-          <LocateFixed className="h-5 w-5" />
-        </Button>
-      </div>
+        <LocateFixed className="h-5 w-5" />
+      </Button>
 
       {/* Vehicle sheet */}
       <div className="absolute inset-x-0 bottom-0 z-[1000]">
@@ -435,83 +379,81 @@ export default function AdminAppFleet() {
           className="rounded-t-2xl border-t border-border bg-background/95 backdrop-blur"
           style={{ boxShadow: '0 -8px 24px -12px hsl(224 44% 11% / 0.25)' }}
         >
-          <button
-            type="button"
-            onClick={() =>
-              setSheetStep((step) =>
-                step === 'shut' ? 'half' : step === 'half' ? 'tall' : 'shut'
-              )
-            }
-            className="flex w-full items-center gap-2.5 px-4 py-3"
-            aria-expanded={sheetOpen}
-            aria-label={
-              sheetStep === 'shut'
-                ? 'Show vehicles'
-                : sheetStep === 'half'
-                  ? 'Show more vehicles'
-                  : 'Hide vehicles'
-            }
-          >
-            {/* A live dot while anything is moving: the handle then reads as
-                something worth opening rather than a static bar. */}
-            <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
-              {counts.moving > 0 && (
-                <span className="absolute inline-flex h-4 w-4 animate-ping rounded-full bg-success opacity-60" />
-              )}
-              <span
-                className={cn(
-                  'relative h-2.5 w-2.5 rounded-full',
-                  counts.moving > 0 ? 'bg-success' : 'bg-muted-foreground'
-                )}
-              />
-            </span>
-
-            <span className="flex-1 text-left">
-              <span className="block font-heading text-sm font-semibold">
-                Vehicles
-                <span className="telemetry ml-1.5 font-normal text-muted-foreground">
-                  {vehicles.length}
-                </span>
-              </span>
-              <span className="block text-[11px] text-muted-foreground">
-                {vehicles.length === 0
-                  ? 'Tap to add your first driver'
-                  : [
-                      counts.moving > 0 ? `${counts.moving} moving` : null,
-                      counts.idle > 0 ? `${counts.idle} parked` : null,
-                      counts.offline > 0 ? `${counts.offline} offline` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
-              </span>
-            </span>
-
-            {/* The chevron always points where the NEXT tap goes: up to see
-                more, down to put it away from the tall step. */}
-            <span
-              className={cn(
-                'flex h-8 w-8 items-center justify-center rounded-full transition-all',
-                sheetStep === 'shut' ? 'bg-success/15' : 'bg-muted'
-              )}
+          <div className="flex items-center gap-2 px-4 py-3">
+            <button
+              type="button"
+              onClick={stepSheet}
+              className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+              aria-expanded={sheetOpen}
+              aria-label={arrowUp ? 'Show more vehicles' : 'Hide vehicles'}
             >
-              {sheetStep === 'tall' ? (
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <ChevronUp
+              {/* A live dot while anything is moving: the handle then reads as
+                  something worth opening rather than a static bar. */}
+              <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+                {counts.moving > 0 && (
+                  <span className="absolute inline-flex h-4 w-4 animate-ping rounded-full bg-success opacity-60" />
+                )}
+                <span
                   className={cn(
-                    'h-4 w-4',
-                    sheetStep === 'shut' ? 'text-success' : 'text-muted-foreground'
+                    'relative h-2.5 w-2.5 rounded-full',
+                    counts.moving > 0 ? 'bg-success' : 'bg-muted-foreground'
                   )}
                 />
-              )}
-            </span>
-          </button>
+              </span>
+
+              <span className="min-w-0 flex-1">
+                <span className="block font-heading text-sm font-semibold">
+                  Vehicles
+                  <span className="telemetry ml-1.5 font-normal text-muted-foreground">
+                    {vehicles.length}
+                  </span>
+                </span>
+                <span className="block truncate text-[11px] text-muted-foreground">
+                  {vehicles.length === 0
+                    ? 'No drivers yet'
+                    : [
+                        counts.moving > 0 ? `${counts.moving} moving` : null,
+                        counts.idle > 0 ? `${counts.idle} parked` : null,
+                        counts.offline > 0 ? `${counts.offline} offline` : null,
+                        stationSummary.total > 0
+                          ? `${stationSummary.done} of ${stationSummary.total} stations`
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')}
+                </span>
+              </span>
+            </button>
+
+            {/* The one setup action that belongs here, as a glyph. Codes and
+                access live in More. */}
+            <button
+              type="button"
+              onClick={() => navigate('/app/admin/drivers/new')}
+              aria-label="Add a driver"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+
+            {/* Points where the NEXT tap goes: up while there is more to see,
+                down once there is not. */}
+            <button
+              type="button"
+              onClick={stepSheet}
+              aria-label={arrowUp ? 'Show more vehicles' : 'Hide vehicles'}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+            >
+              {arrowUp ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+          </div>
 
           {sheetOpen && (
             <div
+              ref={listRef}
               className={cn(
                 'overflow-y-auto overscroll-contain px-3 pb-3 transition-[max-height] duration-200',
-                sheetStep === 'tall' ? 'max-h-[60vh]' : 'max-h-44'
+                sheetStep === 'full' ? 'max-h-[68vh]' : 'max-h-[34vh]'
               )}
             >
               {loading && vehicles.length === 0 && (
@@ -521,113 +463,57 @@ export default function AdminAppFleet() {
               )}
 
               {!loading && vehicles.length === 0 && (
-                <div className="px-1 py-5 text-center">
-                  <p className="text-sm font-medium text-foreground">No vehicles yet</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Create a connection code and share it with your driver.
-                  </p>
-                  <Button
-                    size="sm"
-                    className="mt-3 gap-1.5"
-                    onClick={() => navigate('/app/admin/drivers/new')}
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add a driver
-                  </Button>
-                </div>
+                <p className="px-1 py-6 text-center text-sm text-muted-foreground">
+                  Tap + to add your first driver.
+                </p>
               )}
 
-              <ul className="space-y-1.5">
+              {/* Same row as the More sheet: tile, name, one line. The tile's
+                  dot carries the status, so there is no chip to read. */}
+              <ul>
                 {vehicles.map((v) => {
-                  const classes = STATUS_CLASSES[v.status];
+                  const note =
+                    v.status === 'moving'
+                      ? `Moving · ${Math.round(v.speedKmh)} km/h`
+                      : v.offlineReason
+                        ? OFFLINE_REASON_TEXT[v.offlineReason]
+                        : `Parked · ${formatLastSeen(v.lastSeen)}`;
                   return (
-                    <li key={v.id} className="flex items-center gap-1">
+                    <li key={v.id}>
                       <button
                         type="button"
                         onClick={() => flyTo(v.lat, v.lng, v.id)}
                         className={cn(
-                          'flex min-w-0 flex-1 items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors',
-                          selectedId === v.id
-                            ? 'border-primary/50 bg-accent'
-                            : 'border-transparent bg-card hover:bg-muted'
+                          'flex min-h-[56px] w-full items-center gap-3.5 rounded-xl px-2.5 py-2 text-left transition-colors active:bg-muted',
+                          selectedId === v.id && 'bg-muted'
                         )}
                       >
-                        <span
-                          className="h-8 w-1 shrink-0 rounded-full"
-                          style={{ backgroundColor: v.accent }}
-                          aria-hidden="true"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-semibold text-foreground">{v.name}</p>
-                          <p
-                            className={cn(
-                              'truncate text-xs',
-                              v.offlineReason === 'just_dropped'
-                                ? 'text-warning'
-                                : 'text-muted-foreground'
-                            )}
-                          >
-                            {v.offlineReason
-                              ? OFFLINE_REASON_TEXT[v.offlineReason]
-                              : formatLastSeen(v.lastSeen)}
-                          </p>
-                        </div>
-                        <div className="shrink-0 text-right">
+                        <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent">
+                          <Car className="h-[18px] w-[18px] text-accent-foreground" />
                           <span
                             className={cn(
-                              'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                              classes.chip
+                              'absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full ring-2 ring-background',
+                              STATUS_CLASSES[v.status].dot
+                            )}
+                            aria-hidden="true"
+                          />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-semibold">{v.name}</span>
+                          <span
+                            className={cn(
+                              'block truncate text-xs',
+                              v.offlineReason === 'just_dropped' ? 'text-warning' : 'text-muted-foreground'
                             )}
                           >
-                            <span className={cn('h-1.5 w-1.5 rounded-full', classes.dot)} />
-                            {STATUS_LABEL[v.status]}
+                            {note}
                           </span>
-                          {v.status === 'moving' && (
-                            <p className="telemetry mt-0.5 text-xs font-semibold text-foreground">
-                              {Math.round(v.speedKmh)} km/h
-                            </p>
-                          )}
-                        </div>
-                      </button>
-
-                      {/* Separate target: the row centres the map, this opens
-                          the full driver record. Two intents, two controls —
-                          no double-tap guessing. */}
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/app/admin/drivers/${v.id}`)}
-                        aria-label={`Open ${v.name}'s details`}
-                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      >
-                        <ChevronRight className="h-5 w-5" />
+                        </span>
                       </button>
                     </li>
                   );
                 })}
               </ul>
-
-              {/* Where the two map buttons went. You are already looking at
-                  your drivers; managing them belongs here, not over the map. */}
-              {vehicles.length > 0 && (
-                <div className="mt-2 flex gap-2 border-t border-border pt-2">
-                  <button
-                    type="button"
-                    onClick={() => navigate('/app/admin/drivers/new')}
-                    className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl text-xs font-medium text-muted-foreground transition-colors active:bg-muted"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add driver
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/app/admin/codes')}
-                    className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-xl text-xs font-medium text-muted-foreground transition-colors active:bg-muted"
-                  >
-                    <KeyRound className="h-4 w-4" />
-                    Drivers & access
-                  </button>
-                </div>
-              )}
             </div>
           )}
         </div>

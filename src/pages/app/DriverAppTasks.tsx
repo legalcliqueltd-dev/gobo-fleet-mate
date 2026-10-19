@@ -4,7 +4,7 @@ import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Check, CheckCircle2, Clock, Loader2, MapPin, Navigation, Package } from 'lucide-react';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
-import DriverScreenHeader from '@/components/driver/DriverScreenHeader';
+import ScreenHeader from '@/components/ScreenHeader';
 import TaskNavigationMap from '@/components/map/TaskNavigationMap';
 import { cn } from '@/lib/utils';
 
@@ -89,7 +89,7 @@ export default function DriverAppTasks() {
       )}
 
       <div className="pb-6">
-        <DriverScreenHeader
+        <ScreenHeader
           eyebrow="Assigned to you"
           title="Jobs"
           count={loading ? null : activeTasks.length}
