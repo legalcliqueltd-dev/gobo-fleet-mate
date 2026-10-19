@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDriverSession } from '@/contexts/DriverSessionContext';
 import { useAppRole } from '@/contexts/AppRoleContext';
@@ -9,16 +9,14 @@ import {
   notificationsEnabled,
   requestNotificationPermission,
 } from '@/services/notifications';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { User, Battery, Bell, MapPin, Unlink, Power, AlertTriangle, Palette, Trash2, Shield, FileText, GraduationCap, Repeat, ClipboardCheck, ShieldCheck, Wallet, UserCircle, ChevronRight } from 'lucide-react';
+import { User, Battery, Bell, MapPin, Unlink, Power, AlertTriangle, Trash2, Shield, FileText, GraduationCap, Repeat, ClipboardCheck, ShieldCheck, Wallet, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
 import DriverOnboarding from '@/components/driver/DriverOnboarding';
 import ThemeSegmented from '@/components/ThemeSegmented';
+import { cn } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +28,85 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+
+/**
+ * A labelled group of rows.
+ *
+ * Replaces nine stacked Cards, each with its own icon, bold title and
+ * padding. That furniture was most of the screen's height and none of its
+ * information — a driver looking for the duty switch had to scroll past four
+ * headings to reach it. A small mono label and a divided list say the same
+ * thing in a fifth of the space, and match how Jobs and Stations already look.
+ */
+function Group({ title, children, note }: { title: string; children: ReactNode; note?: string }) {
+  return (
+    <section>
+      <h2 className="mb-2 px-1 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        {title}
+      </h2>
+      <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
+        {children}
+      </div>
+      {note && (
+        <p className="mt-2 px-1 text-[11px] leading-relaxed text-muted-foreground">{note}</p>
+      )}
+    </section>
+  );
+}
+
+function Row({
+  icon: Icon,
+  label,
+  hint,
+  right,
+  onClick,
+  tone,
+}: {
+  icon?: typeof Bell;
+  label: string;
+  hint?: string;
+  right?: ReactNode;
+  onClick?: () => void;
+  tone?: 'danger';
+}) {
+  const content = (
+    <>
+      {Icon && (
+        <Icon
+          className={cn(
+            'h-[18px] w-[18px] shrink-0',
+            tone === 'danger' ? 'text-destructive' : 'text-muted-foreground'
+          )}
+        />
+      )}
+      <span className="min-w-0 flex-1">
+        <span
+          className={cn(
+            'block text-sm font-semibold leading-tight',
+            tone === 'danger' && 'text-destructive'
+          )}
+        >
+          {label}
+        </span>
+        {hint && (
+          <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">{hint}</span>
+        )}
+      </span>
+      {right}
+    </>
+  );
+
+  const shell = 'flex w-full min-h-[60px] items-center gap-3.5 px-4 py-3 text-left';
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={cn(shell, 'transition-colors active:bg-muted')}>
+        {content}
+      </button>
+    );
+  }
+  return <div className={shell}>{content}</div>;
+}
 
 export default function DriverAppSettings() {
   const { session, disconnect } = useDriverSession();
@@ -194,376 +271,213 @@ export default function DriverAppSettings() {
 
   return (
     <DriverAppLayout>
-      <div className="p-4 space-y-6">
-        <div>
-          <p className="eyebrow mb-1">Your app</p>
-          <h1 className="font-heading text-2xl font-bold">Settings</h1>
-        </div>
+      {/* Ordered by how often a driver opens it, not by how the code is
+          organised. Duty is the thing he changes daily and it sat fifth down
+          the page, under Profile — a read-only name he already knows. */}
+      <div className="space-y-6 px-4 pb-8 pt-5">
+        <h1 className="font-heading text-2xl font-bold tracking-tight">Settings</h1>
 
-        {/* ── Yours ──
-            Visually separated on purpose. Everything else on this screen
-            configures what the office receives; these three belong to the
-            driver. Same accent the tutorial uses, so the colour itself comes
-            to mean "this one is for you". */}
-        <section className="rounded-2xl border border-primary/25 bg-accent/40 p-3">
-          <div className="mb-3 flex items-center gap-2 px-1">
-            <UserCircle className="h-4 w-4 text-primary" />
-            <h2 className="font-heading text-sm font-bold uppercase tracking-wider text-primary">
-              Yours
-            </h2>
-          </div>
-
-          <div className="space-y-2">
-            {[
-              {
-                icon: Wallet,
-                title: 'Money',
-                hint: 'Log fuel, repairs and tolls to get paid back',
-                to: '/app/expenses',
-              },
-              {
-                icon: ClipboardCheck,
-                title: 'My record',
-                hint: "Your week's work, and every receipt you sent",
-                to: '/app/record',
-              },
-              {
-                icon: ShieldCheck,
-                title: 'Vehicle check',
-                hint: 'Log faults before you drive, or report a problem',
-                to: '/app/checks',
-              },
-            ].map(({ icon: Icon, title, hint, to }) => (
-              <button
-                key={to}
-                type="button"
-                onClick={() => navigate(to)}
-                className="flex w-full items-center gap-3 rounded-xl border border-primary/20 bg-card p-3.5 text-left transition-colors active:bg-muted"
-              >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                  <Icon className="h-5 w-5 text-primary" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block font-semibold leading-tight">{title}</span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">{hint}</span>
-                </span>
-                <ChevronRight className="h-4 w-4 shrink-0 text-primary" />
-              </button>
-            ))}
-          </div>
-
-          <p className="px-1 pb-1 pt-3 text-[11px] leading-relaxed text-muted-foreground">
-            These are for you. Your manager only sees what you send.
-          </p>
-        </section>
-
-        {/* Tutorial replay */}
-        <Card>
-          <CardContent className="flex items-center justify-between gap-3 p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
-                <GraduationCap className="h-5 w-5 text-accent-foreground" />
-              </div>
-              <div>
-                <p className="font-semibold leading-tight">App tutorial</p>
-                <p className="text-xs text-muted-foreground">A quick tour of every button</p>
-              </div>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setShowTutorial(true)}>
-              View
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Mode switch — native only; on the website the manager dashboard
-            is simply another page, so a mode picker would make no sense. */}
-        {isNativeApp && (
-        <Card>
-          <CardContent className="flex items-center justify-between gap-3 p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent">
-                <Repeat className="h-5 w-5 text-accent-foreground" />
-              </div>
-              <div>
-                <p className="font-semibold leading-tight">Switch mode</p>
-                <p className="text-xs text-muted-foreground">Use this device as a manager</p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                clearRole();
-                navigate('/app/role', { replace: true });
-              }}
-            >
-              Switch
-            </Button>
-          </CardContent>
-        </Card>
-        )}
-
-        {/* Profile Section */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Profile
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">Driver Name</p>
-              <p className="font-medium">{session?.driverName || 'Unknown'}</p>
-              <p className="text-sm text-muted-foreground mt-3">Admin Code</p>
-              <p className="font-mono text-sm">{session?.adminCode || 'Not connected'}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tracking Control - Moved from Dashboard */}
-        <Card className="border-2 border-primary/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Power className="h-5 w-5" />
-              Tracking Status
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="on-duty" className="text-base font-medium">On Duty</Label>
-                <p className="text-xs text-muted-foreground">
-                  When enabled, your location is shared with your fleet manager
-                </p>
-              </div>
-              {onDuty ? (
+        <Group
+          title="Duty"
+          note={onDuty ? undefined : 'Your manager cannot see you while this is off.'}
+        >
+          <Row
+            icon={Power}
+            label="On duty"
+            hint="Share your location with your manager"
+            right={
+              onDuty ? (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Switch
-                      id="on-duty"
-                      checked={onDuty}
-                      className="data-[state=checked]:bg-success"
-                    />
+                    <Switch checked className="data-[state=checked]:bg-success" />
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle className="flex items-center gap-2">
                         <AlertTriangle className="h-5 w-5 text-warning" />
-                        Disable Location Tracking?
+                        Go off duty?
                       </AlertDialogTitle>
                       <AlertDialogDescription>
-                        Your fleet manager will no longer be able to see your location. 
-                        This may affect your job assignments and emergency response capabilities.
+                        Your manager will no longer see where you are. This can affect the
+                        jobs you get and how quickly anyone can reach you in an emergency.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Keep Tracking On</AlertDialogCancel>
-                      <AlertDialogAction 
-                        onClick={confirmTurnOffDuty}
-                        className="bg-destructive hover:bg-destructive/90"
-                      >
-                        Turn Off Tracking
+                      <AlertDialogCancel>Stay on duty</AlertDialogCancel>
+                      <AlertDialogAction onClick={confirmTurnOffDuty}>
+                        Yes, stop sharing
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
               ) : (
-                <Switch
-                  id="on-duty"
-                  checked={onDuty}
-                  onCheckedChange={handleDutyChange}
-                />
-              )}
-            </div>
+                <Switch checked={false} onCheckedChange={handleDutyChange} />
+              )
+            }
+          />
+        </Group>
 
-            {!onDuty && (
-              <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 text-warning flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-warning">
-                  Location tracking is disabled. Your fleet manager cannot see your position.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* These belong to the driver. Everything else on this screen
+            configures what the office receives. */}
+        <Group title="Yours" note="Your manager only sees what you send.">
+          <Row
+            icon={Wallet}
+            label="Money"
+            hint="Log fuel, repairs and tolls to get paid back"
+            onClick={() => navigate('/app/expenses')}
+            right={<ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+          />
+          <Row
+            icon={ClipboardCheck}
+            label="My record"
+            hint="Your week of work, and every receipt you sent"
+            onClick={() => navigate('/app/record')}
+            right={<ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+          />
+          <Row
+            icon={ShieldCheck}
+            label="Vehicle check"
+            hint="Log faults before you drive, or report a problem"
+            onClick={() => navigate('/app/checks')}
+            right={<ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+          />
+        </Group>
 
-        {/* Alerts */}
-        {isNativeApp && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Bell className="h-5 w-5" />
-                Alerts
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="alerts">Sound and banners</Label>
-                  <p className="text-xs text-muted-foreground">
-                    New jobs, stations you still owe a visit, and low-battery warnings
-                  </p>
-                </div>
-                <Switch id="alerts" checked={alertsOn} onCheckedChange={handleAlertsChange} />
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <Group title="Tracking">
+          {isNativeApp && (
+            <Row
+              icon={Bell}
+              label="Alerts"
+              hint="New jobs, stations you owe a visit, low battery"
+              right={<Switch checked={alertsOn} onCheckedChange={handleAlertsChange} />}
+            />
+          )}
+          <Row
+            icon={MapPin}
+            label="High accuracy"
+            hint="Uses GPS for a more precise position"
+            right={<Switch checked={highAccuracy} onCheckedChange={handleHighAccuracyChange} />}
+          />
+          <Row
+            icon={Battery}
+            label="Battery saving"
+            hint="Fewer updates, longer battery"
+            right={<Switch checked={batterySaving} onCheckedChange={handleBatterySavingChange} />}
+          />
+        </Group>
 
-        {/* Location Settings */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <MapPin className="h-5 w-5" />
-              Location
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="high-accuracy">High Accuracy</Label>
-                <p className="text-xs text-muted-foreground">
-                  Uses GPS for more precise tracking
-                </p>
-              </div>
-              <Switch
-                id="high-accuracy"
-                checked={highAccuracy}
-                onCheckedChange={handleHighAccuracyChange}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label htmlFor="battery-saving" className="flex items-center gap-2">
-                  <Battery className="h-4 w-4" />
-                  Battery Saving
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Reduces update frequency to save battery
-                </p>
-              </div>
-              <Switch
-                id="battery-saving"
-                checked={batterySaving}
-                onCheckedChange={handleBatterySavingChange}
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <section>
+          <h2 className="mb-2 px-1 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            Appearance
+          </h2>
+          <ThemeSegmented />
+        </section>
 
-        {/* Appearance */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Palette className="h-5 w-5" />
-              Appearance
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Full width, under its label — the same way the manager's
-                settings lay it out. Squeezed into the right-hand column of a
-                justify-between row, the same component collapsed to three
-                unreadable specks with 11px labels under them. */}
-            <Label>Theme</Label>
-            <p className="mb-3 mt-0.5 text-xs text-muted-foreground">
-              Choose light, dark, or system theme
-            </p>
-            <ThemeSegmented />
-          </CardContent>
-        </Card>
+        <Group title="Help">
+          <Row
+            icon={GraduationCap}
+            label="App tutorial"
+            hint="A quick tour of every button"
+            onClick={() => setShowTutorial(true)}
+            right={<ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+          />
+          {isNativeApp && (
+            <Row
+              icon={Repeat}
+              label="Switch mode"
+              hint="Use this device as a manager"
+              onClick={() => {
+                clearRole();
+                navigate('/app/role', { replace: true });
+              }}
+              right={<ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+            />
+          )}
+        </Group>
 
-        {/* Connection */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Unlink className="h-5 w-5" />
-              Connection
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" className="w-full" disabled={disconnecting}>
-                  {disconnecting ? 'Disconnecting...' : 'Disconnect from Fleet'}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Disconnect from fleet?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    You will need to enter your name and connection code again to reconnect. Your location will stop being shared.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDisconnect}>
-                    Disconnect
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </CardContent>
-        </Card>
+        <Group title="Account">
+          <Row
+            icon={User}
+            label={session?.driverName || 'Unknown driver'}
+            hint={session?.adminCode ? 'Fleet code ' + session.adminCode : 'Not connected'}
+          />
 
-        {/* Delete Account */}
-        <Card className="border-destructive/30">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Trash2 className="h-5 w-5 text-destructive" />
-              Delete My Account
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-3">
-              Permanently delete your driver profile, location history, and submitted SOS or delivery
-              evidence. This cannot be undone.
-            </p>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" className="w-full" disabled={deleting}>
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  {deleting ? 'Deleting...' : 'Delete My Account'}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete your account?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Your driver profile, location history, and any photos or videos you have submitted
-                    will be permanently removed. This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDeleteAccount}
-                    className="bg-destructive hover:bg-destructive/90"
-                  >
-                    Yes, delete everything
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </CardContent>
-        </Card>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button
+                type="button"
+                disabled={disconnecting}
+                className="flex min-h-[60px] w-full items-center gap-3.5 px-4 py-3 text-left transition-colors active:bg-muted disabled:opacity-50"
+              >
+                <Unlink className="h-[18px] w-[18px] shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 text-sm font-semibold">
+                  {disconnecting ? 'Disconnecting…' : 'Disconnect from fleet'}
+                </span>
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Disconnect from fleet?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  You will need your name and connection code again to reconnect. Your
+                  location will stop being shared.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDisconnect}>Disconnect</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
-        {/* Legal links */}
-        <div className="flex items-center justify-center gap-4 text-xs">
-          <Link to="/privacy" className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
-            <Shield className="h-3 w-3" /> Privacy Policy
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button
+                type="button"
+                disabled={deleting}
+                className="flex min-h-[60px] w-full items-center gap-3.5 px-4 py-3 text-left transition-colors active:bg-muted disabled:opacity-50"
+              >
+                <Trash2 className="h-[18px] w-[18px] shrink-0 text-destructive" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold leading-tight text-destructive">
+                    {deleting ? 'Deleting…' : 'Delete my account'}
+                  </span>
+                  <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+                    Removes your profile, history and everything you sent
+                  </span>
+                </span>
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Your driver profile, location history, and any photos or videos you have
+                  submitted will be permanently removed. This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteAccount}>
+                  Yes, delete everything
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </Group>
+
+        <div className="flex items-center justify-center gap-5 pt-1 text-xs">
+          <Link to="/privacy" className="flex items-center gap-1.5 text-muted-foreground">
+            <Shield className="h-3 w-3" /> Privacy
           </Link>
-          <Link to="/terms" className="flex items-center gap-1 text-muted-foreground hover:text-foreground">
-            <FileText className="h-3 w-3" /> Terms of Service
+          <Link to="/terms" className="flex items-center gap-1.5 text-muted-foreground">
+            <FileText className="h-3 w-3" /> Terms
           </Link>
         </div>
 
-        {/* App Info */}
-        <div className="pt-4 text-center font-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
-          <p>TrackMate Driver</p>
-          <p className="mt-0.5">v1.0.0</p>
-        </div>
+        <p className="text-center font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          TrackMate Driver · v1.0.0
+        </p>
       </div>
     </DriverAppLayout>
   );

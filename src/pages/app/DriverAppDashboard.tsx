@@ -7,6 +7,7 @@ import { useTrackingService, useTrackingWarning } from '@/hooks/useTrackingServi
 import { MapPin, AlertTriangle, Check, ChevronRight, Package, Navigation, ChevronDown, ChevronUp } from 'lucide-react';
 import DriverGoogleMap from '@/components/map/google/DriverGoogleMap';
 import DriverAppLayout from '@/components/layout/DriverAppLayout';
+import { useTheme } from '@/contexts/ThemeContext';
 import LocationBlocker from '@/components/driver/LocationBlocker';
 import DriverOnboarding, { isOnboardingCompleted } from '@/components/driver/DriverOnboarding';
 import PermissionsCarousel, { permissionsSetupDone } from '@/components/driver/PermissionsCarousel';
@@ -54,6 +55,7 @@ const LIVE_TRAIL_MAX_POINTS = 120;
 export default function DriverAppDashboard() {
   const { session } = useDriverSession();
   const navigate = useNavigate();
+  const { isDark } = useTheme();
   // Collapsed by default: the map is reassurance, not the job.
   const [mapOpen, setMapOpen] = useState(false);
 
@@ -502,10 +504,11 @@ export default function DriverAppDashboard() {
               tasks={[]}
               stations={stationPins}
               mapType="roadmap"
-              // Always light, exactly like the navigation map. Every map in
-              // the driver app now looks the same whatever theme he picked:
-              // one appearance to learn, and a dot he can find at a glance.
-              isDark={false}
+              // This one DOES follow the theme. It is a strip inside a page,
+              // and a light rectangle in a dark page is a hole in the screen.
+              // The navigation map is the opposite case — full screen, read
+              // at a glance while moving — and stays light always.
+              isDark={isDark}
               follow
               onUserDrag={() => {}}
               onTaskClick={() => {}}

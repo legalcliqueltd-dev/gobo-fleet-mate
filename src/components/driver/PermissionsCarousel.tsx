@@ -62,7 +62,7 @@ const STEPS: Step[] = [
     title: 'What stops your tracking',
     body: 'Three things switch it off. If any of them happen, your day stops being recorded and your manager sees you as missing.',
     why: 'None of these are faults in the app — they are the phone doing what it was told. Knowing them is the difference between a full day of proof and an empty one.',
-    action: 'Got it',
+    action: 'Continue',
     informational: true,
     warnings: [
       'Swiping TrackMate away in Recents kills tracking until you open it again.',
@@ -193,16 +193,26 @@ export default function PermissionsCarousel({ onDone }: { onDone: () => void }) 
             />
           ))}
         </div>
-        <button
-          type="button"
-          onClick={finish}
-          className="min-h-[44px] px-2 text-sm font-medium text-muted-foreground"
-        >
-          Skip
-        </button>
+        {/* Nothing is left to skip on the last step — its own button
+            finishes, so a "Skip" here only read as dodging the warnings. */}
+        {!isLast && (
+          <button
+            type="button"
+            onClick={finish}
+            className="min-h-[44px] px-2 text-sm font-medium text-muted-foreground"
+          >
+            Skip
+          </button>
+        )}
       </div>
 
-      <div className="relative flex flex-1 flex-col justify-center px-7">
+      {/* Scrolls when a step is taller than the phone. The last step (three
+          warnings and a note) was, on smaller screens, and since this is a
+          fixed full-screen layer its button was simply pushed off the bottom —
+          the step looked like it had no way forward. `my-auto` keeps short
+          steps centred; the button below never moves. */}
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-7 py-4">
+        <div className="my-auto">
         <span className="mb-7 flex h-20 w-20 items-center justify-center rounded-3xl bg-accent">
           <Icon className="h-10 w-10 text-primary" />
         </span>
@@ -226,13 +236,14 @@ export default function PermissionsCarousel({ onDone }: { onDone: () => void }) 
           </ul>
         )}
 
-        <div className="mt-6 flex gap-3 rounded-2xl border border-border bg-card p-4">
+        <div className="mt-5 flex gap-3 rounded-2xl border border-border bg-card p-4">
           <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
           <p className="text-sm leading-relaxed text-muted-foreground">{step.why}</p>
         </div>
+        </div>
       </div>
 
-      <div className="relative space-y-2.5 px-7">
+      <div className="relative shrink-0 space-y-2.5 px-7 pt-3">
         {step.informational ? (
           <Button className="h-12 w-full text-base font-semibold" onClick={advance}>
             {step.action}
