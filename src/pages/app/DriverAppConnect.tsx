@@ -60,10 +60,27 @@ export default function DriverAppConnect() {
           action: 'connect',
           code: code.trim().toUpperCase(),
           driverName: driverName.trim(),
+          // This phone's own identity, if it has one, so the same driver
+          // signing back in is recognised rather than refused as a stranger.
+          driverId: localStorage.getItem('ftm_driver_id') || undefined,
         },
       });
 
-      if (functionError) throw functionError;
+      // A refusal arrives as a non-2xx, so its reason is in the response
+      // body, not in `data`. Read it: "this code is in use by Ada" is the
+      // whole message — reporting it as "Incorrect code" sent drivers off
+      // to retype a code that was perfectly correct.
+      if (functionError) {
+        const body = await (functionError as { context?: Response }).context
+          ?.json?.()
+          .catch(() => null);
+        if (body?.code === 'CODE_IN_USE' || body?.code === 'CODE_REVOKED') {
+          setError(body.error);
+          triggerShake();
+          return;
+        }
+        throw functionError;
+      }
 
       if (data.error) {
         const newFailCount = failCount + 1;

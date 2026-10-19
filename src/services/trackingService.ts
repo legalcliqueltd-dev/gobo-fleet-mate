@@ -33,6 +33,25 @@ import {
   getPendingCount,
 } from '@/utils/offlineLocationStore';
 
+/** TrackMate's own Android tracker (android/app/.../tracking). */
+interface NativeTrackerPlugin {
+  start(options: { driverId: string; adminCode: string; functionUrl: string; anonKey: string }): Promise<void>;
+  stop(): Promise<void>;
+  getStatus(): Promise<{
+    active: boolean;
+    running: boolean;
+    queued: number;
+    lastSentAt: number;
+    lastFixAt: number;
+    lastError: string | null;
+  }>;
+  addListener(
+    event: 'location',
+    handler: (fix: { latitude: number; longitude: number; accuracy: number; speed: number; heading: number | null; fixAt: number }) => void
+  ): Promise<{ remove: () => void }>;
+}
+const NativeTracker = registerPlugin<NativeTrackerPlugin>('NativeTracker');
+
 const SUPABASE_FUNCTIONS_URL = 'https://invbnyxieoyohahqhbir.supabase.co/functions/v1/connect-driver';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImludmJueXhpZW95b2hhaHFoYmlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyNTAxMDUsImV4cCI6MjA3NzgyNjEwNX0.bOHyM6iexSMj-EtMoyjMEm92ydF5Yy-J7DHgocn4AKI';
 
@@ -46,6 +65,29 @@ const SYNC_RETRY_INTERVAL_MS = 60_000;
 const HEARTBEAT_INTERVAL_MS = 60_000;
 const NATIVE_COUNT_POLL_MS = 10_000;
 const SYNC_BATCH_SIZE = 50;
+/** One point per this much GPS time. Measured on the FIX clock, not ours. */
+const RECORD_INTERVAL_MS = 30_000;
+/**
+ * A fix older than this when it reaches us was buffered (Android froze the
+ * WebView and released a backlog on wake). It goes to history through
+ * sync-trail, which keeps its real time — the live endpoint stamps the
+ * server's clock, which would file it under the moment of delivery.
+ */
+const LIVE_MAX_AGE_MS = 60_000;
+/**
+ * Parked, the watcher is silent by design (15 m distance filter), and a
+ * silent stretch longer than the history's 12-minute gap threshold read as
+ * "No signal". While tracking is healthy, re-record where he is this often
+ * so a stop reads as a stop.
+ */
+const STATIONARY_KEEPALIVE_MS = 5 * 60_000;
+/**
+ * The server only files live fixes of 30 m or better in history; anything
+ * looser was shown on the live map and then lost for good. Up to this, the
+ * point is kept and delivered through sync-trail instead. Beyond it a fix
+ * is a guess at the neighbourhood and would only scatter the trail.
+ */
+const HISTORY_MAX_ACCURACY_M = 100;
 
 export interface TrackingLocation {
   latitude: number;
@@ -107,7 +149,8 @@ class TrackingService extends EventTarget {
   private androidPollTimer: ReturnType<typeof setInterval> | null = null;
   private webWatchId: number | null = null;
   private nativeWatchId: string | null = null;
-  private lastSentAt = 0;
+  /** GPS time of the last fix written to the record. */
+  private lastRecordedFixAt = 0;
   private isStarting = false;
   private resumeAttempted = false;
 
@@ -232,6 +275,18 @@ class TrackingService extends EventTarget {
         console.warn('[TrackingService] removeWatcher failed:', e);
       }
       this.androidWatcherId = null;
+    }
+
+    if (detectNativePlatform() && isAndroid()) {
+      try {
+        await NativeTracker.stop();
+      } catch (e) {
+        console.warn('[TrackingService] native tracker stop failed:', e);
+      }
+      this.nativeFixSubscription?.remove();
+      this.nativeFixSubscription = null;
+      this.nativeTracking = false;
+      this.stopNativeStatusPoll();
     }
 
     if (this.nativeWatchId) {
@@ -471,78 +526,120 @@ class TrackingService extends EventTarget {
 
   // ─── Android (Capacitor Geolocation + Foreground Service) ────────
   private async startAndroid() {
-    // Capacitor's Geolocation.watchPosition used to drive this, and it is the
-    // reason tracking "stopped when you left the app": that watcher delivers
-    // into the WebView, and Android freezes WebView JS under Doze within
-    // minutes of backgrounding. The setInterval backup died the same way. The
-    // result was a fix at start, nothing during the journey, and another fix
-    // when the app was reopened — two points, joined by a straight line.
-    //
-    // @capacitor-community/background-geolocation runs a real foreground
-    // service instead, so the OS keeps delivering while the app is away. The
-    // notification is not decoration: on Android it is what BUYS the
-    // background permission, and it is also the honest disclosure that a
-    // driver is being tracked.
-    // This package ships no JS entry point — only native code and types — so
-    // it is bound through Capacitor's registry rather than imported.
-    const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>(
-      'BackgroundGeolocation'
-    );
-    this.androidWatcher = BackgroundGeolocation;
+    // RECORDING AND SENDING ARE NATIVE NOW. They used to run here, in JS,
+    // fed by @capacitor-community/background-geolocation — and Android
+    // freezes the WebView once the screen is off, so on a TECNO (HiOS) the
+    // fixes sat in a queue until the driver next opened the app: nothing live
+    // for the manager, and long dark stretches in history. TrackingService
+    // (android/app/src/main/java/app/fleettrackmate/driver/tracking) owns
+    // GPS, the queue and the upload inside the foreground service the OS
+    // keeps alive. JS only starts it, and listens for fixes to draw the UI.
+    const driverId = this.state.driverId;
+    const adminCode = this.state.adminCode;
+    if (!driverId || !adminCode) return;
 
     try {
-      this.androidWatcherId = await BackgroundGeolocation.addWatcher(
-        {
-          // Defining backgroundMessage is what enables background delivery.
-          // Without it the plugin only guarantees foreground updates.
-          backgroundMessage: 'Sharing your location with your fleet manager.',
-          backgroundTitle: 'TrackMate — on duty',
-          requestPermissions: true,
-          // Never accept a cached fix: a stale point plotted as current is
-          // worse than a gap, because it reads as the driver being somewhere
-          // they are not.
-          stale: false,
-          // Every 15 m. Tight enough that the drawn line follows the road
-          // rather than cutting corners, loose enough not to log a point per
-          // second while stationary at a junction.
-          distanceFilter: 15,
-        },
-        (position, error) => {
-          if (error) {
-            if (error.code === 'NOT_AUTHORIZED') {
-              // Permission refused or location services off. The driver has to
-              // fix this in Settings; nothing we retry here will help.
-              this.dispatchEvent(
-                new CustomEvent('error', {
-                  detail: {
-                    code: 'NOT_AUTHORIZED',
-                    message:
-                      'Location permission is off. Tracking cannot run until it is allowed all the time.',
-                  },
-                })
-              );
-            }
-            console.warn('[TrackingService] background watcher error:', error);
-            return;
-          }
-          if (!position) return;
-
-          this.handlePosition({
-            latitude: position.latitude,
-            longitude: position.longitude,
-            accuracy: position.accuracy,
-            altitude: position.altitude,
-            altitudeAccuracy: position.altitudeAccuracy,
-            heading: position.bearing,
-            speed: position.speed,
-          });
+      const perm = await Geolocation.checkPermissions();
+      if (perm.location !== 'granted') {
+        const asked = await Geolocation.requestPermissions({ permissions: ['location'] });
+        if (asked.location !== 'granted') {
+          this.dispatchEvent(
+            new CustomEvent('error', {
+              detail: {
+                code: 'NOT_AUTHORIZED',
+                message:
+                  'Location permission is off. Tracking cannot run until it is allowed all the time.',
+              },
+            })
+          );
+          return;
         }
-      );
-      console.log('[TrackingService] background watcher active:', this.androidWatcherId);
+      }
     } catch (e) {
-      console.error('[TrackingService] addWatcher failed:', e);
-      throw e;
+      console.warn('[TrackingService] permission check failed:', e);
     }
+
+    // A build that ran the old JS watcher may still have it registered.
+    await this.removeLegacyAndroidWatcher();
+
+    if (!this.nativeFixSubscription) {
+      this.nativeFixSubscription = await NativeTracker.addListener('location', (fix) => {
+        this.handleNativeFix(fix);
+      });
+    }
+
+    await NativeTracker.start({
+      driverId,
+      adminCode,
+      functionUrl: SUPABASE_FUNCTIONS_URL,
+      anonKey: SUPABASE_ANON_KEY,
+    });
+    this.nativeTracking = true;
+    this.startNativeStatusPoll();
+    console.log('[TrackingService] native tracker started');
+  }
+
+  private nativeFixSubscription: { remove: () => void } | null = null;
+  /** True once the native service owns recording and upload (Android). */
+  private nativeTracking = false;
+  private nativeStatusTimer: ReturnType<typeof setInterval> | null = null;
+
+  /** UI only: the service has already recorded and sent this fix. */
+  private handleNativeFix(fix: {
+    latitude: number;
+    longitude: number;
+    accuracy: number;
+    speed: number;
+    heading: number | null;
+    fixAt: number;
+  }) {
+    const loc: TrackingLocation = {
+      latitude: fix.latitude,
+      longitude: fix.longitude,
+      speed: fix.speed ?? 0,
+      accuracy: fix.accuracy ?? 0,
+      heading: fix.heading ?? null,
+      timestamp: new Date(fix.fixAt || Date.now()),
+    };
+    this.logDelivery(fix.fixAt || Date.now(), Date.now());
+    this.setState({ lastLocation: loc });
+    this.dispatchEvent(new CustomEvent('location', { detail: loc }));
+  }
+
+  /** The service's queue and last delivery, for the duty panel. */
+  private startNativeStatusPoll() {
+    if (this.nativeStatusTimer) return;
+    const poll = async () => {
+      try {
+        const status = await NativeTracker.getStatus();
+        this.setState({
+          pendingOfflineCount: status.queued,
+          ...(status.lastSentAt ? { lastSyncTime: new Date(status.lastSentAt) } : {}),
+        });
+        window.dispatchEvent(new CustomEvent('offline-queue-updated'));
+      } catch {
+        /* plugin missing on an old build — nothing to show */
+      }
+    };
+    void poll();
+    this.nativeStatusTimer = setInterval(poll, 10_000);
+  }
+
+  private stopNativeStatusPoll() {
+    if (this.nativeStatusTimer) {
+      clearInterval(this.nativeStatusTimer);
+      this.nativeStatusTimer = null;
+    }
+  }
+
+  private async removeLegacyAndroidWatcher() {
+    if (!this.androidWatcherId || !this.androidWatcher) return;
+    try {
+      await this.androidWatcher.removeWatcher({ id: this.androidWatcherId });
+    } catch {
+      /* already gone */
+    }
+    this.androidWatcherId = null;
   }
 
   // ─── Web / PWA ────────────────────────────────────────────────
@@ -569,13 +666,27 @@ class TrackingService extends EventTarget {
     const rawAccuracy = coords.accuracy;
     const safeAccuracy = rawAccuracy != null && rawAccuracy >= 0 ? rawAccuracy : 0;
 
+    // The fix's own time, when the platform gives one. THE BUG THIS FIXES:
+    // every point used to be stamped `new Date()` — the moment JS received
+    // it. Android freezes the WebView in the background and hands over a
+    // backlog on wake, so a whole drive arrived as a burst and was filed at
+    // the moment the phone was next unlocked, in the wrong place on the map.
+    const now = Date.now();
+    const fixTime = Number(coords.time ?? coords.timestamp);
+    const fixAt =
+      Number.isFinite(fixTime) && fixTime > now - 7 * 86_400_000 && fixTime < now + 60_000
+        ? fixTime
+        : now;
+
+    this.logDelivery(fixAt, now);
+
     const loc: TrackingLocation = {
       latitude: coords.latitude,
       longitude: coords.longitude,
       speed: safeSpeed,
       accuracy: safeAccuracy,
       heading: safeHeading,
-      timestamp: new Date(),
+      timestamp: new Date(fixAt),
     };
 
     this.setState({ lastLocation: loc });
@@ -596,12 +707,36 @@ class TrackingService extends EventTarget {
     // IndexedDB first and unconditionally, whatever the network is doing. The
     // send is an optimisation on top, and a successful one removes its own
     // point again so history never gets it twice.
-    const now = Date.now();
-    if (now - this.lastSentAt < 30_000) return;
-    this.lastSentAt = now;
+    //
+    // The cadence is measured on the FIX clock. Measured on ours, a backlog
+    // delivered in one burst kept its first point and threw the rest away.
+    if (fixAt - this.lastRecordedFixAt < RECORD_INTERVAL_MS && fixAt >= this.lastRecordedFixAt) return;
+    this.lastRecordedFixAt = fixAt;
 
     void this.recordThenSend(loc);
   }
+
+  /**
+   * The last 60 fix deliveries — [fix time, received time] — kept on the
+   * phone. When a driver reports a dark stretch, this tells us straight away
+   * which kind it was: no fixes at all (GPS or service stopped), or fixes
+   * that arrived late (JS frozen and released on wake). Read over the
+   * WebView debugger; costs one small localStorage write per fix.
+   */
+  private deliveryLog: Array<[number, number]> = [];
+  private logDelivery(fixAt: number, receivedAt: number) {
+    this.deliveryLog.push([fixAt, receivedAt]);
+    if (this.deliveryLog.length > 60) this.deliveryLog.shift();
+    // Write at most every 10 s; the in-memory copy has the rest.
+    if (receivedAt - this.lastDeliveryLogWrite < 10_000) return;
+    this.lastDeliveryLogWrite = receivedAt;
+    try {
+      localStorage.setItem('ftm_fix_delivery_log', JSON.stringify(this.deliveryLog));
+    } catch {
+      /* storage full or blocked — diagnostics only */
+    }
+  }
+  private lastDeliveryLogWrite = 0;
 
   /**
    * Queue the fix, then try to deliver it.
@@ -632,6 +767,14 @@ class TrackingService extends EventTarget {
       createdAt: Date.now(),
     });
     this.refreshOfflineCount();
+
+    // A buffered fix goes straight to sync-trail with its real time; only a
+    // fresh one takes the live path (which also moves the marker on the
+    // manager's map).
+    if (Date.now() - loc.timestamp.getTime() > LIVE_MAX_AGE_MS) {
+      await this.drainOfflineQueue();
+      return;
+    }
 
     this.inFlightKeys.add(syncKey);
     try {
@@ -665,9 +808,15 @@ class TrackingService extends EventTarget {
         return;
       }
       this.setState({ lastSyncTime: new Date() });
-      // The live path already wrote this fix to history, so retire our copy
-      // before draining — otherwise the drain posts it again.
-      if (syncKey) await removeLocationBySyncKey(syncKey);
+      // Retire our copy only if the live path actually filed it in history.
+      // It answers `accurate: false` when it did not (worse than 30 m) —
+      // and that point was then deleted here anyway, which is why a phone
+      // indoors showed live on the map but left an empty history. Kept, it
+      // goes out through sync-trail in the drain below. Hopelessly vague
+      // fixes are still dropped rather than scattered across the trail.
+      const filed = data?.accurate !== false;
+      const tooVague = (loc.accuracy ?? 0) > HISTORY_MAX_ACCURACY_M;
+      if (syncKey && (filed || tooVague)) await removeLocationBySyncKey(syncKey);
       await this.drainOfflineQueue();
     } catch (err) {
       // Nothing to persist here any more: recordThenSend queued this point
@@ -678,10 +827,16 @@ class TrackingService extends EventTarget {
   }
 
   // ─── Offline queue ────────────────────────────────────────────
+  /** One drain at a time. Overlapping drains posted the same batch twice
+   *  or four times over — the duplicates the history was drawing. */
+  private draining = false;
+
   private async drainOfflineQueue() {
     const driverId = this.state.driverId;
     const adminCode = this.state.adminCode;
     if (!driverId || !adminCode) return;
+    if (this.draining) return;
+    this.draining = true;
 
     try {
       const queued = await getPendingBatch(SYNC_BATCH_SIZE, {
@@ -713,6 +868,7 @@ class TrackingService extends EventTarget {
     } catch (err) {
       console.warn('[TrackingService] drain failed:', err);
     } finally {
+      this.draining = false;
       // THE BUG THIS FIXES: the count used to be refreshed after the try
       // block, which the `batch.length === 0` early return skipped entirely.
       // So the normal online path — write a point, send it live, retire it by
@@ -809,6 +965,21 @@ class TrackingService extends EventTarget {
         // PARKED driver — who by design sends no location fixes — was shown
         // "Connection stale", which is alarming and untrue.
         this.setState({ lastSyncTime: new Date() });
+
+        // Parked: the watcher is silent, so put "still here" on the record.
+        const last = this.state.lastLocation;
+        // Not on Android: the native service records and sends there, and a
+        // JS copy would put every parked minute into history twice.
+        if (
+          !this.nativeTracking &&
+          last &&
+          this.state.isTracking &&
+          Date.now() - this.lastRecordedFixAt >= STATIONARY_KEEPALIVE_MS
+        ) {
+          const at = Date.now();
+          this.lastRecordedFixAt = at;
+          void this.recordThenSend({ ...last, speed: 0, timestamp: new Date(at) });
+        }
       } catch (err) {
         console.warn('[TrackingService] heartbeat failed:', err);
       }

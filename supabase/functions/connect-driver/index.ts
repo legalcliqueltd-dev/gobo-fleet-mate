@@ -373,14 +373,47 @@ Deno.serve(async (req) => {
       // Check if this code is already assigned to a driver
       const { data: existingDriver } = await supabaseAdmin
         .from('drivers')
-        .select('driver_id, driver_name, admin_code')
+        .select('driver_id, driver_name, admin_code, status')
         .eq('admin_code', code.trim().toUpperCase())
         .maybeSingle();
 
       // If driverId is provided, check if it's the same driver reconnecting
       const isReconnecting = driverId && existingDriver && existingDriver.driver_id === driverId;
+
+      // ONE CODE, ONE SIGNED-IN DRIVER. This used to sign any second phone
+      // in AS the existing driver — silently, same identity, same history —
+      // so two people's days were merged under one name (an emulator in
+      // California and a phone in Port Harcourt drew one trail across the
+      // Atlantic). A claimed code is now refused while its driver is still
+      // signed in. Logging out clears device.connected_driver_id, which is
+      // what frees it again.
+      if (existingDriver && !isReconnecting) {
+        if (existingDriver.status === 'revoked') {
+          return new Response(
+            JSON.stringify({
+              error: 'This code no longer works. Ask your manager for a new code.',
+              code: 'CODE_REVOKED',
+              server_time: serverTime,
+            }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        if (device.connected_driver_id === existingDriver.driver_id) {
+          const name = existingDriver.driver_name?.trim() || 'another driver';
+          return new Response(
+            JSON.stringify({
+              error: `This code is in use by ${name}. Ask them to log out first, or ask your manager for a new code.`,
+              code: 'CODE_IN_USE',
+              inUseBy: name,
+              server_time: serverTime,
+            }),
+            { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
       
-      // If code is assigned to a different driver, reconnect as that driver (same name check)
+      // Code claimed but its driver logged out: take that driver back up on
+      // this phone (a new phone, a reinstall). Their record continues.
       if (existingDriver && !isReconnecting) {
         console.log('Code already assigned to driver:', existingDriver.driver_id, 'Reconnecting...');
         

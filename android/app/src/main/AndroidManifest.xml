@@ -64,5 +64,14 @@
             android:exported="false"
             android:foregroundServiceType="location"
             android:name="io.capawesome.capacitorjs.plugins.foregroundservice.AndroidForegroundService" />
+
+        <!-- TrackMate's own tracker: records AND uploads the driver's position
+             natively, so it keeps working while the WebView is frozen with the
+             screen off. Started from JS through the NativeTracker plugin. -->
+        <service
+            android:name=".tracking.TrackingService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location" />
     </application>
 </manifest>
