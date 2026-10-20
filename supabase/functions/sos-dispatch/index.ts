@@ -2,12 +2,13 @@
 // Sends notifications + emails when SOS events are created, acknowledged, or resolved
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { legacyEmail } from '../_shared/email.ts';
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
-const FROM_EMAIL = 'FleetTrackMate <noreply@fleettrackmate.com>';
+const FROM_EMAIL = 'TrackMate <noreply@fleettrackmate.com>';
 const APP_URL = 'https://fleettrackmate.com';
 
 const supabase = createClient(supabaseUrl, serviceKey);
@@ -32,8 +33,7 @@ async function sendEmail(to: string, subject: string, html: string) {
 }
 
 function emailTemplate(title: string, body: string, actionUrl?: string, actionLabel?: string) {
-  const btn = actionUrl && actionLabel ? `<div style="text-align:center;margin:24px 0;"><a href="${actionUrl}" style="background-color:#dc2626;color:#fff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block;">${actionLabel}</a></div>` : '';
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><div style="max-width:560px;margin:0 auto;padding:24px;"><div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);"><div style="background:#991b1b;padding:20px 24px;"><h1 style="margin:0;color:#fff;font-size:18px;">🚨 TrackMate EMERGENCY</h1></div><div style="padding:24px;"><h2 style="margin:0 0 16px;color:#1e293b;font-size:20px;">${title}</h2><div style="color:#475569;font-size:14px;line-height:1.6;">${body}</div>${btn}</div><div style="padding:16px 24px;background:#fef2f2;border-top:1px solid #fecaca;"><p style="margin:0;color:#94a3b8;font-size:12px;">This is an automated emergency notification from TrackMate.</p></div></div></div></body></html>`;
+  return legacyEmail(title, body, actionUrl, actionLabel);
 }
 
 serve(async (req) => {

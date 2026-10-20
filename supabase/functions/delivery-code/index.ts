@@ -8,6 +8,7 @@
 // never returned to the owner who issued it.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.4';
+import { deliveryCodeEmail } from '../_shared/email.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,7 +23,7 @@ const supabaseAdmin = createClient(
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 // Must match the sender already verified with Resend for this domain —
 // an unverified from-address is accepted by the API and then never delivered.
-const FROM_EMAIL = 'FleetTrackMate <noreply@fleettrackmate.com>';
+const FROM_EMAIL = 'TrackMate <noreply@fleettrackmate.com>';
 
 /** Six digits. Rejected 4 because a million guesses beats ten thousand. */
 function generateCode(): string {
@@ -84,105 +85,7 @@ function customerEmail(opts: {
   link: string;
   what: string | null;
 }) {
-  // Table layout, inline styles, 600px. Not nostalgia — Outlook still has no
-  // flexbox and strips <style> blocks, and this mail has one job: be legible
-  // to someone standing at their door with a driver waiting.
-  //
-  // The logo is a hosted absolute URL because an email cannot see our bundle.
-  // It is app-icon-512.png rather than logo.webp: WebP does not render in
-  // Outlook desktop or several mobile clients, and a broken logo is worse
-  // than none on a message whose whole purpose is to look legitimate.
-  const BRAND = '#0b59d5';      // --primary  hsl(217 90% 44%)
-  const INK = '#101628';        // --foreground
-  const MUTED = '#5e6779';      // --muted-foreground
-  const LOGO = 'https://fleettrackmate.com/app-icon-512.png';
-  const FONT =
-    "'Barlow','Helvetica Neue',Helvetica,Arial,'Segoe UI',Roboto,sans-serif";
-
-  return `
-<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f4f6fa;">
-  <!-- Preview line: what the inbox shows before it is opened. -->
-  <div style="display:none;max-height:0;overflow:hidden;opacity:0;">
-    Check your item first, then give the driver your code.
-  </div>
-
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fa;padding:24px 12px;">
-    <tr><td align="center">
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e3e8f0;">
-
-        <tr><td style="background:${INK};padding:18px 28px;">
-          <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-            <td style="padding-right:10px;">
-              <img src="${LOGO}" width="28" height="28" alt=""
-                   style="display:block;border-radius:7px;border:0;">
-            </td>
-            <td style="font-family:${FONT};color:#ffffff;font-size:15px;font-weight:700;letter-spacing:.2px;">
-              TrackMate
-            </td>
-          </tr></table>
-        </td></tr>
-
-        <tr><td style="padding:30px 28px 0;font-family:${FONT};">
-          <p style="margin:0 0 6px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:${MUTED};">
-            Delivery from
-          </p>
-          <p style="margin:0 0 22px;font-size:19px;font-weight:700;color:${INK};">
-            ${opts.business}
-          </p>
-          <p style="margin:0 0 14px;font-size:16px;font-weight:600;color:${INK};">
-            Check your item first, then give the driver:
-          </p>
-        </td></tr>
-
-        <tr><td style="padding:0 28px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
-                 style="background:#eef3fd;border:1px solid ${BRAND}33;border-radius:12px;">
-            <tr><td align="center" style="padding:22px 12px;font-family:${FONT};">
-              <div style="font-size:42px;line-height:1.1;font-weight:800;letter-spacing:.16em;color:${BRAND};">
-                ${opts.code}
-              </div>
-            </td></tr>
-          </table>
-        </td></tr>
-
-        ${
-          opts.what
-            ? `<tr><td style="padding:18px 28px 0;font-family:${FONT};font-size:14px;color:${MUTED};">
-                 Delivery: <span style="color:${INK};font-weight:600;">${opts.what}</span>
-               </td></tr>`
-            : ''
-        }
-
-        <tr><td style="padding:18px 28px 0;font-family:${FONT};font-size:14px;line-height:1.6;color:#374151;">
-          Do not give this code until you have opened and checked your item,
-          with the driver still there. Once you give it, the delivery is
-          confirmed and cannot be undone.
-        </td></tr>
-
-        <tr><td style="padding:22px 28px 4px;">
-          <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-            <td style="background:${BRAND};border-radius:10px;">
-              <a href="${opts.link}"
-                 style="display:inline-block;padding:13px 24px;font-family:${FONT};font-size:15px;font-weight:700;color:#ffffff;text-decoration:none;">
-                Something wrong? Report it
-              </a>
-            </td>
-          </tr></table>
-        </td></tr>
-
-        <tr><td style="padding:22px 28px 26px;font-family:${FONT};font-size:12px;line-height:1.6;color:${MUTED};border-top:1px solid #eef1f6;margin-top:8px;">
-          You received this because ${opts.business} is sending you a delivery.
-          Never share this code with anyone except the person handing you the item.
-          <br><br>
-          <span style="color:#9aa3b2;">FleetTrackMate &middot; fleettrackmate.com</span>
-        </td></tr>
-
-      </table>
-    </td></tr>
-  </table>
-</body></html>`.trim();
+  return deliveryCodeEmail(opts);
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
